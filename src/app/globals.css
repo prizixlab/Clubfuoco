@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Barcelona Noir — shared CSS primitives used across all screens */
+@layer components {
+  .glass-card {
+    background: rgba(18, 20, 20, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(92, 64, 58, 0.2);
+  }
+
+  .glass-panel {
+    background: rgba(18, 20, 20, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(92, 64, 58, 0.2);
+  }
+
+  .ignite-glow {
+    box-shadow: 0 0 20px rgba(255, 85, 57, 0.3);
+  }
+
+  .ignite-glow-lg {
+    box-shadow: 0 0 40px rgba(255, 85, 57, 0.4);
+  }
+
+  .bloom-glow {
+    filter: drop-shadow(0 0 15px rgba(255, 76, 47, 0.4));
+  }
+
+  .glass-scrim {
+    background: linear-gradient(
+      to top,
+      rgba(18, 20, 20, 1) 0%,
+      rgba(18, 20, 20, 0.8) 40%,
+      rgba(18, 20, 20, 0) 100%
+    );
+  }
+
+  /* Bottom-border only input — matches Stitch design */
+  .vibe-input {
+    border-bottom: 1px solid #343535;
+    transition: border-color 0.3s ease;
+    background: transparent;
+    outline: none;
+  }
+  .vibe-input:focus {
+    border-color: #ff5539;
+  }
+
+  /* Status chip variants */
+  .chip-live {
+    @apply bg-primary/20 text-primary border border-primary/30 px-3 py-1 rounded-full font-label-sm text-label-sm;
+  }
+  .chip-sold-out {
+    @apply bg-error/20 text-error border border-error/30 px-3 py-1 rounded-full font-label-sm text-label-sm;
+  }
+  .chip-vip {
+    @apply bg-surface-container-high text-on-surface border border-outline-variant/30 px-3 py-1 rounded-full font-label-sm text-label-sm;
+  }
+}
+
+/* No scrollbar on filter chip rows */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

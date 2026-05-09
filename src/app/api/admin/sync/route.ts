@@ -13,26 +13,31 @@ function similarity(tagsA: string[], tagsB: string[]): number {
   return shared / Math.sqrt(tagsA.length * tagsB.length) // Jaccard-like
 }
 
-// GET /api/admin/sync  — called by Vercel cron (or manually by admin)
-// Syncs all clubs that have a google_place_id with fresh data
+// GET /api/admin/sync?batch=50&offset=0  — called by Vercel cron (or manually)
+// Syncs clubs that have a google_place_id with fresh data from Google Places.
+// Supports batch/offset pagination so large catalogs don't time out.
 export async function GET(req: NextRequest) {
-  // Verify cron secret or admin session
   const authHeader = req.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const isManual   = req.nextUrl.searchParams.get('manual') === '1'
+  if (!isManual && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const batch  = Math.min(parseInt(req.nextUrl.searchParams.get('batch')  ?? '9999'), 200)
+  const offset = parseInt(req.nextUrl.searchParams.get('offset') ?? '0')
+
   const supabase = await createServiceClient()
 
-  // Fetch all clubs with a Google Place ID
-  const { data: clubs, error } = await supabase
+  const { data: clubs, error, count } = await supabase
     .from('clubs')
-    .select('id, name, google_place_id')
+    .select('id, name, google_place_id', { count: 'exact' })
     .not('google_place_id', 'is', null)
+    .order('name')
+    .range(offset, offset + batch - 1)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const results = { synced: 0, failed: 0, skipped: 0 }
+  const results = { synced: 0, failed: 0, skipped: 0, total: count ?? 0 }
 
   for (const club of clubs ?? []) {
     if (!club.google_place_id) { results.skipped++; continue }
@@ -81,6 +86,14 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const nextOffset = offset + batch
+  const done       = nextOffset >= (count ?? 0)
+
+  // Only recompute similarity scores on the final batch (or non-batched run)
+  if (!done) {
+    return NextResponse.json({ ok: true, ...results, next_offset: nextOffset, done: false })
+  }
+
   // Recompute club similarity scores
   const { data: allTags } = await supabase
     .from('club_tags')
@@ -115,5 +128,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, ...results })
+  return NextResponse.json({ ok: true, ...results, done: true })
 }

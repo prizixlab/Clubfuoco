@@ -25,7 +25,7 @@ export async function GET(
   return ok(data)
 }
 
-// DELETE /api/bookings/:id — cancel + refund
+// DELETE /api/bookings/:id — cancel + partial refund (we keep the 10% platform fee)
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -38,7 +38,7 @@ export async function DELETE(
 
   const { data: booking, error: fetchError } = await supabase
     .from('bookings')
-    .select('id, status, stripe_payment_intent_id, total_amount, booking_date')
+    .select('id, status, stripe_payment_intent_id, total_amount, platform_fee, booking_date')
     .eq('id', id)
     .eq('user_id', user!.id)
     .single()
@@ -47,14 +47,43 @@ export async function DELETE(
   if (booking.status === 'used')      return err('Cannot cancel a used booking', 400)
   if (booking.status === 'cancelled') return err('Booking is already cancelled', 400)
 
-  // Issue Stripe refund
+  // Refund cutoff: no cancellations after 22:59 on the event night
+  // (1 hour before 23:59 on booking_date, in Europe/Madrid time)
+  const eventDate = new Date(booking.booking_date)
+  // Build cutoff: 22:59:00 local Madrid time on the booking date
+  const cutoffStr = `${booking.booking_date}T22:59:00`
+  const cutoff = new Date(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Madrid',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(eventDate) + 'T22:59:00'
+  )
+  // Simpler: construct the cutoff as a UTC timestamp from the Madrid date
+  const nowMadrid = new Date(
+    new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' })
+  )
+  // Parse the booking_date in Madrid time
+  const [year, month, day] = booking.booking_date.split('-').map(Number)
+  const cutoffMadrid = new Date(year, month - 1, day, 22, 59, 0)
+
+  if (nowMadrid >= cutoffMadrid) {
+    return err('Cancellations are not allowed within 1 hour of midnight on the event night', 400)
+  }
+
+  // Partial refund — we keep the platform_fee (our 10%), refund the rest
   if (booking.stripe_payment_intent_id) {
-    try {
-      await stripe.refunds.create({
-        payment_intent: booking.stripe_payment_intent_id,
-      })
-    } catch (stripeErr: any) {
-      return err(`Refund failed: ${stripeErr.message}`, 500)
+    const refundAmountCents = Math.round(
+      ((booking.total_amount ?? 0) - (booking.platform_fee ?? 0)) * 100
+    )
+    if (refundAmountCents > 0) {
+      try {
+        await stripe.refunds.create({
+          payment_intent: booking.stripe_payment_intent_id,
+          amount: refundAmountCents,
+        })
+      } catch (stripeErr: any) {
+        return err(`Refund failed: ${stripeErr.message}`, 500)
+      }
     }
   }
 
@@ -64,5 +93,7 @@ export async function DELETE(
     .eq('id', id)
 
   if (updateError) return err(updateError.message)
-  return ok({ cancelled: true })
+
+  const refundAmount = ((booking.total_amount ?? 0) - (booking.platform_fee ?? 0)).toFixed(2)
+  return ok({ cancelled: true, refund_amount: refundAmount })
 }

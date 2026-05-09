@@ -2,12 +2,11 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin'], weight: ['400', '600', '700', '800'] })
 
 export const metadata: Metadata = {
   title: 'Club Fuoco — Where the night begins before you arrive.',
   description: 'Real-time nightlife discovery for Barcelona.',
-  themeColor: '#121414',
 }
 
 export default function RootLayout({
@@ -17,7 +16,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.className} bg-background text-on-surface`}>
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
+          rel="stylesheet"
+        />
+        <meta name="theme-color" content="#121414" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+      </head>
+      <body className={`${inter.className} bg-background text-on-surface antialiased`}>
         {children}
       </body>
     </html>

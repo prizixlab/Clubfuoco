@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
+import { sendTicketConfirmation, sendAdminTicketAlert } from '@/lib/email'
 import type Stripe from 'stripe'
 
 // POST /api/webhooks/stripe
@@ -33,6 +34,68 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       // ---- One-time booking payments ----
 
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session
+        const m = session.metadata
+
+        // ---- Membership subscription checkout ----
+        if (m?.tier && !m?.booking_type && session.mode === 'subscription') {
+          const userId = m.user_id
+          const tier   = m.tier as 'gold' | 'sapphire' | 'black'
+          const subId  = session.subscription as string | null
+
+          if (userId && subId) {
+            await supabase
+              .from('memberships')
+              .upsert(
+                {
+                  user_id:                userId,
+                  tier,
+                  stripe_subscription_id: subId,
+                  status:                 'active',
+                  valid_from:             new Date().toISOString(),
+                },
+                { onConflict: 'user_id' }
+              )
+
+            await supabase
+              .from('users')
+              .update({ membership_tier: tier })
+              .eq('id', userId)
+          }
+          break
+        }
+
+        // ---- Gig / ticket payment checkout ----
+        if (!m?.booking_type) break  // not a gig payment
+
+        // Mark payment as paid
+        await supabase
+          .from('gig_payments')
+          .update({ status: 'paid', stripe_payment_intent_id: session.payment_intent as string })
+          .eq('stripe_session_id', session.id)
+
+        // Update booking payment_status
+        const table = m.booking_type === 'request' ? 'gig_requests' : 'gig_applications'
+        await supabase
+          .from(table)
+          .update({ payment_status: 'paid' })
+          .eq('id', m.booking_id)
+
+        // Notify DJ
+        if (m.dj_user_id) {
+          const { data: club } = await supabase.from('clubs').select('name').eq('id', m.club_id).single()
+          await supabase.from('notifications').insert({
+            user_id: m.dj_user_id,
+            type: 'gig_paid',
+            title: `Payment received — €${(+m.net_cents / 100).toFixed(2)}`,
+            body: `${club?.name} paid your booking fee via Club Fuoco`,
+            is_read: false,
+          })
+        }
+        break
+      }
+
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent
         if (pi.metadata?.qr_token) {
@@ -45,6 +108,65 @@ export async function POST(request: NextRequest) {
             .eq('stripe_payment_intent_id', pi.id)
             .eq('status', 'pending')
         }
+        // Ticket order payment
+        if (pi.metadata?.event_name) {
+          // Mark order paid and fetch full order details
+          const { data: order } = await supabase
+            .from('ticket_orders')
+            .update({ status: 'paid' })
+            .eq('stripe_payment_intent', pi.id)
+            .select()
+            .single()
+
+          // In-app notification
+          if (pi.metadata.user_id) {
+            await supabase.from('notifications').insert({
+              user_id: pi.metadata.user_id,
+              type:    'ticket_paid',
+              title:   'Tickets confirmed!',
+              body:    `Your tickets for ${pi.metadata.event_name} at ${pi.metadata.venue_name} are confirmed. Check your email — we're sending them now.`,
+              is_read: false,
+            })
+
+            // Look up user's email
+            const { data: userData } = await supabase
+              .from('users')
+              .select('email')
+              .eq('id', pi.metadata.user_id)
+              .single()
+
+            if (userData?.email && order) {
+              // Send confirmation to customer
+              await sendTicketConfirmation({
+                to:             userData.email,
+                orderId:        order.id,
+                eventName:      order.event_name,
+                venueName:      order.venue_name,
+                eventDate:      order.event_date,
+                quantity:       order.quantity,
+                basePriceCents: order.base_price_cents,
+                markupCents:    order.markup_cents,
+                totalCents:     order.total_cents,
+                currency:       pi.currency.toUpperCase(),
+                platform:       order.platform,
+              })
+
+              // Alert admin to fulfil the order
+              await sendAdminTicketAlert({
+                orderId:         order.id,
+                userEmail:       userData.email,
+                eventName:       order.event_name,
+                venueName:       order.venue_name,
+                eventDate:       order.event_date,
+                quantity:        order.quantity,
+                totalCents:      order.total_cents,
+                currency:        pi.currency.toUpperCase(),
+                platform:        order.platform,
+                platformEventId: order.platform_event_id,
+              })
+            }
+          }
+        }
         break
       }
 
@@ -55,6 +177,12 @@ export async function POST(request: NextRequest) {
             .from('bookings')
             .update({ status: 'cancelled' })
             .eq('stripe_payment_intent_id', pi.id)
+        }
+        if (pi.metadata?.event_name) {
+          await supabase
+            .from('ticket_orders')
+            .update({ status: 'payment_failed' })
+            .eq('stripe_payment_intent', pi.id)
         }
         break
       }
@@ -75,7 +203,7 @@ export async function POST(request: NextRequest) {
           .eq('stripe_subscription_id', sub.id)
 
         if (isActive) {
-          const tier = sub.metadata?.tier as 'gold' | 'sapphire' | undefined
+          const tier = sub.metadata?.tier as 'gold' | 'sapphire' | 'black' | undefined
           if (tier) {
             await supabase
               .from('users')

@@ -6,11 +6,11 @@ import { stripe, MEMBERSHIP_PLANS } from '@/lib/stripe'
 import { z } from 'zod'
 
 const subscribeSchema = z.object({
-  tier:              z.enum(['gold', 'sapphire']),
-  payment_method_id: z.string().min(1),
+  plan: z.enum(['gold', 'sapphire', 'black']),
 })
 
 // POST /api/memberships/subscribe
+// Returns a Stripe Checkout Session URL; client redirects there to pay.
 export async function POST(request: NextRequest) {
   const { user, response } = await requireAuth()
   if (response) return response
@@ -19,8 +19,8 @@ export async function POST(request: NextRequest) {
   const parsed = subscribeSchema.safeParse(body)
   if (!parsed.success) return err(parsed.error.message)
 
-  const plan = MEMBERSHIP_PLANS[parsed.data.tier]
-  if (!plan.stripe_price_id) return err('Membership tier not configured', 500)
+  const plan = MEMBERSHIP_PLANS[parsed.data.plan]
+  if (!plan?.stripe_price_id) return err('Membership tier not configured', 500)
 
   const supabase = await createClient()
 
@@ -47,42 +47,18 @@ export async function POST(request: NextRequest) {
       .eq('id', user!.id)
   }
 
-  // Attach payment method + set as default
-  await stripe.paymentMethods.attach(parsed.data.payment_method_id, {
-    customer: customerId,
-  })
-  await stripe.customers.update(customerId, {
-    invoice_settings: { default_payment_method: parsed.data.payment_method_id },
-  })
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
-  // Create subscription
-  const subscription = await stripe.subscriptions.create({
-    customer:         customerId,
-    items:            [{ price: plan.stripe_price_id }],
-    payment_behavior: 'default_incomplete',
-    payment_settings: { save_default_payment_method: 'on_subscription' },
-    metadata:         { user_id: user!.id, tier: parsed.data.tier },
+  // Create a Stripe Checkout Session (hosted payment page)
+  const session = await stripe.checkout.sessions.create({
+    mode:               'subscription',
+    customer:           customerId,
+    line_items:         [{ price: plan.stripe_price_id, quantity: 1 }],
+    success_url:        `${appUrl}/membership?success=1&tier=${parsed.data.plan}`,
+    cancel_url:         `${appUrl}/membership?cancelled=1`,
+    subscription_data:  { metadata: { user_id: user!.id, tier: parsed.data.plan } },
+    metadata:           { user_id: user!.id, tier: parsed.data.plan },
   })
 
-  // Persist membership + update user tier
-  await supabase
-    .from('memberships')
-    .upsert(
-      {
-        user_id:                user!.id,
-        tier:                   parsed.data.tier,
-        stripe_subscription_id: subscription.id,
-        stripe_price_id:        plan.stripe_price_id,
-        status:                 'active',
-        valid_from:             new Date().toISOString(),
-      },
-      { onConflict: 'user_id' }
-    )
-
-  await supabase
-    .from('users')
-    .update({ membership_tier: parsed.data.tier })
-    .eq('id', user!.id)
-
-  return ok({ subscription_id: subscription.id, tier: parsed.data.tier }, 201)
+  return ok({ checkout_url: session.url })
 }

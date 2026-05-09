@@ -2,8 +2,9 @@
 // CLUB FUOCO — Shared TypeScript Types
 // ============================================================
 
-export type MembershipTier  = 'free' | 'gold' | 'sapphire'
-export type UserRole        = 'user' | 'club_staff' | 'club_owner' | 'admin'
+export type MembershipTier  = 'free' | 'gold' | 'sapphire' | 'black'
+export type UserRole        = 'user' | 'club_staff' | 'club_owner' | 'admin' | 'staff'
+export type RumbaSignupStatus = 'confirmed' | 'arrived' | 'denied'
 export type BookingType     = 'general' | 'vip'
 export type BookingStatus   = 'pending' | 'confirmed' | 'cancelled' | 'used'
 export type CrowdLabel      = 'empty' | 'quiet' | 'lively' | 'busy' | 'packed'
@@ -140,4 +141,35 @@ export interface OrderSummary {
   discount:    number
   total:       number
   platformFee: number
+}
+
+// ---- Rumbas ----
+export interface Rumba {
+  id:             string
+  title:          string
+  venue_name:     string
+  venue_place_id: string | null
+  event_date:     string
+  capacity:       number
+  description:    string | null
+  cover_image:    string | null
+  dress_code:     string | null
+  is_active:      boolean
+  created_by:     string | null
+  created_at:     string
+  // computed/joined
+  signup_count?:  number
+}
+
+export interface RumbaSignup {
+  id:             string
+  rumba_id:       string
+  user_id:        string
+  name:           string
+  email:          string
+  plus_ones:      number
+  status:         RumbaSignupStatus
+  checked_in_at:  string | null
+  checked_in_by:  string | null
+  created_at:     string
 }

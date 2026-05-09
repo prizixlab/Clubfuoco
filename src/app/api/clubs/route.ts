@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
   const genre    = searchParams.get('genre')
   const openNow  = searchParams.get('open_now') === 'true'
   const featured = searchParams.get('featured') === 'true'
-  const limit    = Math.min(parseInt(searchParams.get('limit') ?? '20'), 50)
+  const limit    = Math.min(parseInt(searchParams.get('limit') ?? '50'), 500)
+  const offset   = parseInt(searchParams.get('offset') ?? '0')
 
   let query = supabase
     .from('clubs')
@@ -27,7 +28,8 @@ export async function GET(request: NextRequest) {
     `)
     .eq('is_active', true)
     .order('is_featured', { ascending: false })
-    .limit(limit)
+    .order('rating', { ascending: false, nullsFirst: false })
+    .range(offset, offset + limit - 1)
 
   if (genre) query = query.contains('music_genres', [genre])
   if (featured) query = query.eq('is_featured', true)

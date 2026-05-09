@@ -17,7 +17,6 @@ export async function GET(
       drink_specials (*)
     `)
     .eq('id', id)
-    .eq('is_active', true)
     .single()
 
   if (error || !data) return err('Club not found', 404)

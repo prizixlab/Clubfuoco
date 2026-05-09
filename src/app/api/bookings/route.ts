@@ -14,25 +14,52 @@ const createBookingSchema = z.object({
   payment_method_id: z.string().min(1),
 })
 
-// GET /api/bookings — user's own booking history
+// GET /api/bookings — user's own booking history + guest list signups + ticket orders
 export async function GET() {
   const { user, response } = await requireAuth()
   if (response) return response
 
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(`
-      id, booking_type, party_size, booking_date, arrival_window,
-      status, total_amount, qr_code_token, created_at,
-      clubs (id, name, cover_image_url, address, neighborhood)
-    `)
-    .eq('user_id', user!.id)
-    .order('booking_date', { ascending: false })
+  const [bookingsRes, signupsRes, ticketsRes] = await Promise.all([
+    supabase
+      .from('bookings')
+      .select(`
+        id, booking_type, party_size, booking_date, arrival_window,
+        status, total_amount, qr_code_token, created_at,
+        clubs (id, name, cover_image_url, address, neighborhood)
+      `)
+      .eq('user_id', user!.id)
+      .order('booking_date', { ascending: false }),
 
-  if (error) return err(error.message)
-  return ok(data)
+    supabase
+      .from('guest_list_signups')
+      .select(`
+        id, full_name, party_size, status, tier, checked_in, created_at,
+        guest_lists (id, event_name, event_date, cutoff_time, free_entry_label,
+          clubs (id, name, neighborhood)
+        )
+      `)
+      .eq('user_id', user!.id)
+      .order('created_at', { ascending: false }),
+
+    supabase
+      .from('ticket_orders')
+      .select(`
+        id, event_name, venue_name, venue_place_id, event_date,
+        quantity, base_price_cents, markup_cents, total_cents,
+        status, platform, platform_event_id, created_at
+      `)
+      .eq('user_id', user!.id)
+      .order('created_at', { ascending: false }),
+  ])
+
+  if (bookingsRes.error) return err(bookingsRes.error.message)
+  return ok({
+    bookings:      bookingsRes.data ?? [],
+    guest_signups: signupsRes.data ?? [],
+    ticket_orders: ticketsRes.data ?? [],
+  })
 }
 
 // POST /api/bookings — create a new booking + Stripe payment
@@ -49,7 +76,7 @@ export async function POST(request: NextRequest) {
   // Fetch club to get pricing
   const { data: club, error: clubError } = await supabase
     .from('clubs')
-    .select('id, name, general_entry_price, vip_table_min_spend, is_active')
+    .select('id, name, general_entry_price, vip_table_min_spend, is_active, is_partner')
     .eq('id', parsed.data.club_id)
     .single()
 
@@ -69,10 +96,12 @@ export async function POST(request: NextRequest) {
 
   if (unitPrice === 0) return err('Pricing not available for this club', 400)
 
+  // Benefits only apply at partner clubs
   const { total, discount, platformFee } = calculateOrderTotal(
     unitPrice,
     parsed.data.party_size,
-    profile?.membership_tier ?? 'free'
+    profile?.membership_tier ?? 'free',
+    club.is_partner ?? false,
   )
 
   const qrToken = generateQRToken()

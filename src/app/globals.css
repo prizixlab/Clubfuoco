@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ensure the dark theme can never be overridden by injected styles */
+html, body {
+  background-color: #121414 !important;
+  color: #e3e2e2;
+  margin: 0;
+}
+
 /* Barcelona Noir — shared CSS primitives used across all screens */
 @layer components {
   .glass-card {
@@ -54,14 +61,42 @@
   .chip-live {
     @apply bg-primary/20 text-primary border border-primary/30 px-3 py-1 rounded-full font-label-sm text-label-sm;
   }
+  .chip-open {
+    @apply inline-flex items-center bg-green-500 text-white px-3 py-1 rounded-full font-label-sm text-label-sm uppercase tracking-widest;
+  }
   .chip-sold-out {
     @apply bg-error/20 text-error border border-error/30 px-3 py-1 rounded-full font-label-sm text-label-sm;
   }
   .chip-vip {
     @apply bg-surface-container-high text-on-surface border border-outline-variant/30 px-3 py-1 rounded-full font-label-sm text-label-sm;
   }
+  .chip-default {
+    @apply inline-flex items-center bg-surface-container border border-outline-variant/20 text-on-surface-variant px-3 py-1 rounded-full font-label-sm text-label-sm uppercase tracking-widest;
+  }
+  .neon-glow {
+    box-shadow: 0 0 15px rgba(255, 76, 47, 0.15);
+  }
 }
 
 /* No scrollbar on filter chip rows */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* iOS safe area */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* Material Symbols */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+}

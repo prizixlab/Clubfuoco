@@ -154,76 +154,92 @@ export default function MembershipPage() {
       </div>
 
       {/* Plans */}
-      <div className="space-y-gutter">
+      <div className="space-y-gutter pt-sm">
         {PLANS.map(plan => {
           const isBlack = plan.id === 'black'
           return (
-            <div key={plan.id}
-              className={`p-md rounded-xl border relative overflow-hidden ${plan.color} ${isBlack ? 'glass-card' : 'glass-card'}`}
-              style={isBlack ? { background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)' } : undefined}>
-
-              {/* Black tier shine effect */}
-              {isBlack && (
-                <div className="absolute inset-0 pointer-events-none"
-                  style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 60%)' }} />
-              )}
-
+            <div key={plan.id} className="relative">
+              {/* Badge sits outside the card so overflow:hidden can't clip it */}
               {plan.badge && (
-                <span className={`absolute -top-3 left-1/2 -translate-x-1/2 px-sm py-[2px] rounded-full text-[10px] font-bold uppercase tracking-widest border
-                  ${isBlack
-                    ? 'bg-black border-white/30 text-white'
-                    : 'bg-primary/20 border-primary/30 text-primary'}`}>
-                  {plan.badge}
-                </span>
-              )}
-
-              <div className="flex justify-between items-start mb-md">
-                <div>
-                  <h3 className={`font-h2 text-h2 tracking-widest ${isBlack ? 'text-white' : 'text-on-surface'}`}>
-                    {plan.name}
-                  </h3>
-                  <div className="flex items-baseline gap-xs mt-xs">
-                    <span className={`font-display text-[32px] font-extrabold leading-none ${isBlack ? 'text-white' : 'text-primary'}`}>
-                      {plan.price}
-                    </span>
-                    <span className="font-body-md text-on-surface-variant">{plan.period}</span>
-                  </div>
-                </div>
-                {plan.icon && (
-                  <span className={`material-symbols-outlined text-[32px] ${plan.iconColor ?? 'text-primary'}`}
-                    style={{ fontVariationSettings: "'FILL' 1" }}>
-                    {plan.icon}
+                <div className="absolute -top-3 inset-x-0 flex justify-center z-10">
+                  <span className={`px-sm py-[2px] rounded-full text-[10px] font-bold uppercase tracking-widest border
+                    ${isBlack
+                      ? 'bg-black border-white/30 text-white'
+                      : plan.id === 'gold'
+                        ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300'
+                        : 'bg-primary/20 border-primary/30 text-primary'}`}>
+                    {plan.badge}
                   </span>
-                )}
-              </div>
-
-              <ul className="space-y-sm mb-md">
-                {plan.perks.map(perk => (
-                  <li key={perk} className="flex items-center gap-sm">
-                    <span className={`material-symbols-outlined text-[18px] ${isBlack ? 'text-white' : 'text-primary'}`}
-                      style={{ fontVariationSettings: "'FILL' 1" }}>
-                      check_circle
-                    </span>
-                    <span className={`font-body-md ${isBlack ? 'text-white/80' : 'text-on-surface-variant'}`}>
-                      {perk}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              {/* Partner-only notice on paid plans */}
-              {plan.partnerOnly && plan.id !== 'free' && (
-                <p className={`text-[11px] mb-sm font-semibold uppercase tracking-widest ${isBlack ? 'text-white/40' : 'text-on-surface-variant/40'}`}>
-                  ✦ Partner clubs only
-                </p>
+                </div>
               )}
 
-              <button
-                onClick={() => subscribe(plan.id)}
-                disabled={loading === plan.id || plan.id === 'free'}
-                className={`w-full h-12 rounded-xl font-h2 text-h2 flex items-center justify-center active:scale-[0.98] transition-all duration-200 disabled:opacity-60 ${plan.ctaStyle}`}>
-                {loading === plan.id ? 'Redirecting…' : plan.cta}
-              </button>
+              <div
+                className={`p-md rounded-2xl border relative overflow-hidden glass-card ${plan.color}`}
+                style={isBlack ? { background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)' } : undefined}
+              >
+                {isBlack && (
+                  <div className="absolute inset-0 pointer-events-none"
+                    style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 55%)' }} />
+                )}
+
+                {/* Header row */}
+                <div className="flex justify-between items-start mb-md">
+                  <div>
+                    <h3 className={`font-h2 text-h2 tracking-widest ${isBlack ? 'text-white' : 'text-on-surface'}`}>
+                      {plan.name}
+                    </h3>
+                    <div className="flex items-baseline gap-xs mt-xs">
+                      <span className={`font-display text-[36px] font-extrabold leading-none
+                        ${isBlack ? 'text-white' : plan.id === 'gold' ? 'text-yellow-300' : 'text-primary'}`}>
+                        {plan.price}
+                      </span>
+                      <span className="font-body-md text-on-surface-variant">{plan.period}</span>
+                    </div>
+                  </div>
+                  {plan.icon && (
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0
+                      ${isBlack ? 'bg-white/[0.06]' : plan.id === 'gold' ? 'bg-yellow-500/10' : 'bg-primary-container/30'}`}>
+                      <span className={`material-symbols-outlined text-[26px] ${plan.iconColor ?? 'text-primary'}`}
+                        style={{ fontVariationSettings: "'FILL' 1" }}>
+                        {plan.icon}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Perks */}
+                <ul className="space-y-sm mb-md">
+                  {plan.perks.map(perk => (
+                    <li key={perk} className="flex items-start gap-sm">
+                      <span className={`material-symbols-outlined text-[16px] mt-[2px] flex-shrink-0
+                        ${isBlack ? 'text-white' : plan.id === 'gold' ? 'text-yellow-400' : 'text-primary'}`}
+                        style={{ fontVariationSettings: "'FILL' 1" }}>
+                        check_circle
+                      </span>
+                      <span className={`font-body-md text-sm ${isBlack ? 'text-white/80' : 'text-on-surface-variant'}`}>
+                        {perk}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                {plan.partnerOnly && plan.id !== 'free' && (
+                  <p className={`text-[11px] mb-sm font-semibold uppercase tracking-widest
+                    ${isBlack ? 'text-white/30' : 'text-on-surface-variant/40'}`}>
+                    ✦ Partner clubs only
+                  </p>
+                )}
+
+                <button
+                  onClick={() => subscribe(plan.id)}
+                  disabled={loading === plan.id || plan.id === 'free'}
+                  className={`w-full h-12 rounded-xl font-h2 text-h2 flex items-center justify-center gap-sm active:scale-[0.98] transition-all duration-200 disabled:opacity-60 ${plan.ctaStyle}`}
+                >
+                  {loading === plan.id
+                    ? <><span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span> Redirecting…</>
+                    : plan.cta}
+                </button>
+              </div>
             </div>
           )
         })}

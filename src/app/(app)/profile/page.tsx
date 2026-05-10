@@ -106,11 +106,11 @@ export default function ProfilePage() {
       {/* Menu items */}
       <div className="glass-card rounded-xl overflow-hidden mb-gutter">
         {[
-          { icon: 'confirmation_number', label: 'My Bookings', href: '/bookings' },
-          { icon: 'favorite', label: 'Saved Clubs', href: '/saved' },
-          { icon: 'workspace_premium', label: 'Membership', href: '/membership' },
-          { icon: 'notifications', label: 'Notifications', href: '#' },
-          { icon: 'help', label: 'Help & Support', href: '#' },
+          { icon: 'confirmation_number', label: 'My Bookings',   href: '/bookings'   },
+          { icon: 'favorite',            label: 'Saved Clubs',   href: '/saved'      },
+          { icon: 'workspace_premium',   label: 'Membership',    href: '/membership' },
+          { icon: 'settings',            label: 'Settings',      href: '/settings'   },
+          { icon: 'help',                label: 'Help & Support', href: '#'          },
         ].map(({ icon, label, href }, i, arr) => (
           <Link
             key={label}

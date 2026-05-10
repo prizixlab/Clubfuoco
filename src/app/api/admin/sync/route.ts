@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     try {
       const fields = [
         'name', 'formatted_address', 'geometry', 'opening_hours',
-        'photos', 'rating', 'user_ratings_total', 'price_level', 'types',
+        'photos', 'rating', 'user_ratings_total', 'price_level', 'types', 'reviews',
       ].join(',')
       const res  = await fetch(`${BASE}/details/json?place_id=${club.google_place_id}&fields=${fields}&key=${KEY}`)
       const data = await res.json()
@@ -67,6 +67,16 @@ export async function GET(req: NextRequest) {
       const coverUrl   = allUrls[0] ?? null
       const extraUrls  = allUrls.slice(1)   // up to 8 additional
 
+      // Normalise Google reviews into our storage shape
+      const reviews = (d.reviews ?? []).slice(0, 10).map((r: any) => ({
+        author:  r.author_name,
+        avatar:  r.profile_photo_url ?? null,
+        rating:  r.rating,
+        time:    r.relative_time_description,
+        text:    r.text,
+        source:  'google',
+      }))
+
       await supabase
         .from('clubs')
         .update({
@@ -76,6 +86,7 @@ export async function GET(req: NextRequest) {
           cover_image_url: coverUrl,
           gallery_urls:    extraUrls,
           photos:          extraUrls,   // same list — avoids cover duplication at read time
+          reviews,
           last_synced_at:  new Date().toISOString(),
         })
         .eq('id', club.id)

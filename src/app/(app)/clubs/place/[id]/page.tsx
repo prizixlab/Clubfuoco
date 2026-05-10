@@ -16,24 +16,34 @@ function getStripe() {
 }
 
 interface PlaceDetail {
-  place_id:        string
-  name:            string
-  address:         string
-  lat:             number
-  lng:             number
-  phone:           string | null
-  website:         string | null
-  rating:          number | null
-  ratings_total:   number
-  price_level:     number | null
-  is_open:         boolean | null
-  weekday_hours:   string[]
-  reviews:         { author: string; rating: number; text: string; time: string }[]
-  photos:          string[]
-  cover_photo:     string | null
-  is_partner:      boolean
-  google_place_id: string | null
-  maps_url:        string
+  place_id:            string
+  name:                string
+  address:             string
+  neighborhood?:       string | null
+  lat:                 number
+  lng:                 number
+  phone:               string | null
+  website:             string | null
+  rating:              number | null
+  ratings_total:       number
+  price_level:         number | null
+  is_open:             boolean | null
+  weekday_hours:       string[]
+  reviews:             { author: string; rating: number; text: string; time: string }[]
+  photos:              string[]
+  cover_photo:         string | null
+  is_partner:          boolean
+  google_place_id:     string | null
+  maps_url:            string
+  // enriched fields
+  description?:        string | null
+  instagram_handle?:   string | null
+  whatsapp_link?:      string | null
+  music_genres?:       string[]
+  tags?:               string[]
+  live_status?:        string | null
+  general_entry_price?: number | null
+  vip_table_min_spend?: number | null
 }
 
 const PRICE_LABEL = ['Free', '€', '€€', '€€€', '€€€€']
@@ -46,6 +56,13 @@ function fmtPrice(cents: number, currency = 'EUR') {
 function fmtDate(iso: string) {
   const d = new Date(iso)
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
+function priceDisplay(place: PlaceDetail): string {
+  if (place.general_entry_price === 0) return 'Free entry'
+  if (place.general_entry_price && place.general_entry_price > 0) return `€${place.general_entry_price} entry`
+  if (place.price_level !== null && place.price_level !== undefined) return PRICE_LABEL[place.price_level]
+  return '—'
 }
 
 // ── Stripe checkout form ──────────────────────────────────────────────────────
@@ -214,7 +231,6 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
   if (clientSecret) {
     const sp = getStripe()
     if (!sp) {
-      // HTTPS required for live Stripe — show in-app message, never redirect externally
       return (
         <div className="glass-card p-md rounded-xl text-center space-y-sm">
           <span className="material-symbols-outlined text-[36px] text-on-surface-variant/40">lock</span>
@@ -306,14 +322,14 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
 export default function PlaceDetailPage() {
   const { id }   = useParams<{ id: string }>()
   const router   = useRouter()
-  const [place,      setPlace]      = useState<PlaceDetail | null>(null)
-  const [loading,    setLoading]    = useState(true)
-  const [photoIdx,   setPhotoIdx]   = useState(0)
-  const [hoursOpen,  setHoursOpen]  = useState(false)
-  const [events,     setEvents]     = useState<ExternalEvent[]>([])
+  const [place,         setPlace]         = useState<PlaceDetail | null>(null)
+  const [loading,       setLoading]       = useState(true)
+  const [hoursOpen,     setHoursOpen]     = useState(false)
+  const [events,        setEvents]        = useState<ExternalEvent[]>([])
   const [eventsLoading, setEventsLoading] = useState(false)
-  const [saved,      setSaved]      = useState(false)
-  const [savingToggle, setSavingToggle] = useState(false)
+  const [saved,         setSaved]         = useState(false)
+  const [savingToggle,  setSavingToggle]  = useState(false)
+  const [showCheckout,  setShowCheckout]  = useState(false)
 
   useEffect(() => {
     fetch(`/api/places/details?id=${id}`)
@@ -358,7 +374,6 @@ export default function PlaceDetailPage() {
     fetch(`/api/events?venue=${encodeURIComponent(place.name)}&lat=${place.lat}&lng=${place.lng}`)
       .then(r => r.json())
       .then(d => {
-        // Only show events actually at this venue
         const matched = (d.data ?? []).filter((e: { venue_matched: boolean }) => e.venue_matched)
         setEvents(matched)
         setEventsLoading(false)
@@ -366,148 +381,224 @@ export default function PlaceDetailPage() {
   }, [place])
 
   if (loading) return (
-    <div className="flex items-center justify-center py-32">
+    <div className="flex items-center justify-center min-h-screen">
       <span className="material-symbols-outlined text-[48px] text-primary animate-pulse">nightlife</span>
     </div>
   )
   if (!place) return (
-    <div className="flex flex-col items-center justify-center py-32 px-container-padding text-center">
+    <div className="flex flex-col items-center justify-center min-h-screen px-container-padding text-center">
       <span className="material-symbols-outlined text-[48px] text-on-surface-variant/30 mb-md">error</span>
       <p className="font-h2 text-h2 text-on-surface">Club not found</p>
     </div>
   )
 
+  const heroImg = place.cover_photo ?? place.photos?.[0] ?? null
+  const activeEvent = events[0] ?? null
+
+  // Directions URL
+  const directionsUrl = (() => {
+    if (typeof navigator === 'undefined') return place.maps_url
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    const dest  = `${place.lat},${place.lng}`
+    return isIOS
+      ? `maps://maps.apple.com/?daddr=${dest}&q=${encodeURIComponent(place.name)}`
+      : `https://www.google.com/maps/dir/?api=1&destination=${dest}&destination_place_id=${place.google_place_id ?? ''}`
+  })()
+
   return (
-    <div className="pb-8">
-      {/* Hero image */}
-      <div className="relative w-full h-64">
-        {place.photos.length > 0 ? (
-          <img src={place.photos[photoIdx]} alt={place.name} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full bg-surface-container-high flex items-center justify-center">
-            <span className="material-symbols-outlined text-[64px] text-on-surface-variant/20">nightlife</span>
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/30 to-transparent" />
+    <div className="min-h-screen bg-surface">
+      {/* HERO — full bleed, no padding */}
+      <div className="relative h-[55vh] w-full">
+        {heroImg
+          ? <img src={heroImg} alt={place.name} className="w-full h-full object-cover" />
+          : <div className="w-full h-full bg-surface-container-high flex items-center justify-center">
+              <span className="material-symbols-outlined text-[64px] text-on-surface-variant/20">nightlife</span>
+            </div>
+        }
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/70" />
 
-        <button onClick={() => router.back()}
-          className="absolute top-md left-container-padding w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center active:scale-90">
-          <span className="material-symbols-outlined text-white text-[20px]">arrow_back</span>
-        </button>
+        {/* Topbar overlay */}
+        <div
+          className="absolute top-0 left-0 right-0 flex items-center justify-between px-md"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)' }}
+        >
+          <button
+            onClick={() => router.back()}
+            className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center active:scale-90 transition-transform"
+          >
+            <span className="material-symbols-outlined text-white text-[20px]">arrow_back</span>
+          </button>
 
-        <button onClick={toggleSave}
-          className="absolute top-md right-container-padding w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform">
-          <span className="material-symbols-outlined text-[22px] transition-colors"
-            style={{
-              color: saved ? '#ff4d6d' : 'white',
-              fontVariationSettings: saved ? "'FILL' 1" : "'FILL' 0",
-            }}>
-            favorite
-          </span>
-        </button>
+          <span className="text-white/80 text-sm font-medium">{place.neighborhood ?? ''}</span>
 
-        <div className="absolute top-[52px] right-container-padding">
-          {place.is_open === true  && <span className="chip-open">OPEN NOW</span>}
-          {place.is_open === false && <span className="chip-default">CLOSED</span>}
+          <button
+            onClick={toggleSave}
+            className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center active:scale-90 transition-transform"
+          >
+            <span
+              className="material-symbols-outlined text-[22px] transition-colors"
+              style={{
+                color: saved ? '#ff4d6d' : 'white',
+                fontVariationSettings: saved ? "'FILL' 1" : "'FILL' 0",
+              }}
+            >favorite</span>
+          </button>
         </div>
 
-        {place.photos.length > 1 && (
-          <div className="absolute bottom-16 left-0 right-0 flex justify-center gap-xs">
-            {place.photos.map((_, i) => (
-              <button key={i} onClick={() => setPhotoIdx(i)}
-                className={`w-1.5 h-1.5 rounded-full transition-all ${i === photoIdx ? 'bg-white' : 'bg-white/30'}`} />
+        {/* Hero bottom text */}
+        <div className="absolute bottom-0 left-0 right-0 px-md pb-8">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-primary/90 mb-xs">Barcelona · Nightlife</p>
+          <h1 className="font-display italic text-[32px] text-white leading-tight mb-xs"><em>{place.name}</em></h1>
+          <p className="text-white/60 text-sm">{place.address}</p>
+        </div>
+      </div>
+
+      {/* SHEET — slides up over hero */}
+      <div className="relative z-10 bg-surface rounded-t-3xl -mt-8 px-md pt-lg pb-32">
+
+        {/* Drag handle */}
+        <div className="w-10 h-1 bg-outline-variant/30 rounded-full mx-auto mb-lg" />
+
+        {/* Fact strip — 4 cols */}
+        <div className="grid grid-cols-4 gap-sm mb-lg">
+          {/* Rating */}
+          <div className="flex flex-col items-center gap-[3px]">
+            <span className="material-symbols-outlined text-yellow-400 text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+            <p className="font-bold text-on-surface text-sm">{place.rating ? place.rating.toFixed(1) : '—'}</p>
+            <p className="text-[9px] text-on-surface-variant/50 uppercase tracking-widest">Rating</p>
+          </div>
+          {/* Reviews */}
+          <div className="flex flex-col items-center gap-[3px]">
+            <span className="material-symbols-outlined text-primary text-[20px]">reviews</span>
+            <p className="font-bold text-on-surface text-sm">
+              {place.ratings_total > 999 ? `${(place.ratings_total / 1000).toFixed(1)}k` : place.ratings_total}
+            </p>
+            <p className="text-[9px] text-on-surface-variant/50 uppercase tracking-widest">Reviews</p>
+          </div>
+          {/* Price */}
+          <div className="flex flex-col items-center gap-[3px]">
+            <span className="material-symbols-outlined text-primary text-[20px]">payments</span>
+            <p className="font-bold text-on-surface text-sm">
+              {place.price_level !== null && place.price_level !== undefined ? PRICE_LABEL[place.price_level] : '—'}
+            </p>
+            <p className="text-[9px] text-on-surface-variant/50 uppercase tracking-widest">Price</p>
+          </div>
+          {/* Open status */}
+          <div className="flex flex-col items-center gap-[3px]">
+            <span className={`material-symbols-outlined text-[20px] ${place.is_open === true ? 'text-green-400' : place.is_open === false ? 'text-red-400' : 'text-on-surface-variant/40'}`}>
+              {place.is_open === true ? 'door_open' : 'door_front'}
+            </span>
+            <p className={`font-bold text-sm ${place.is_open === true ? 'text-green-400' : place.is_open === false ? 'text-red-400' : 'text-on-surface-variant'}`}>
+              {place.is_open === true ? 'Open' : place.is_open === false ? 'Closed' : '—'}
+            </p>
+            <p className="text-[9px] text-on-surface-variant/50 uppercase tracking-widest">Status</p>
+          </div>
+        </div>
+
+        {/* Music genres / tags */}
+        {((place.music_genres?.length ?? 0) > 0 || (place.tags?.length ?? 0) > 0) && (
+          <div className="flex flex-wrap gap-xs mb-lg">
+            {(place.music_genres ?? []).map(g => (
+              <span key={g} className="text-[10px] text-primary bg-primary/10 rounded-full px-xs py-[3px] uppercase tracking-wide">{g}</span>
+            ))}
+            {(place.tags ?? []).slice(0, 4).map(t => (
+              <span key={t} className="text-[10px] text-on-surface-variant/60 bg-surface-container rounded-full px-xs py-[3px]">{t}</span>
             ))}
           </div>
         )}
 
-        <div className="absolute bottom-sm left-container-padding right-container-padding">
-          <h1 className="font-h1 text-h1 text-white font-bold leading-tight">{place.name}</h1>
-          <p className="font-body-md text-white/60">{place.address}</p>
-        </div>
-      </div>
-
-      {/* Photo strip */}
-      {place.photos.length > 1 && (
-        <div className="flex gap-xs overflow-x-auto no-scrollbar px-container-padding py-sm">
-          {place.photos.map((url, i) => (
-            <button key={i} onClick={() => setPhotoIdx(i)}
-              className={`flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition-all ${i === photoIdx ? 'border-primary' : 'border-transparent'}`}>
-              <img src={url} alt="" className="w-full h-full object-cover" />
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="px-container-padding space-y-gutter pt-sm">
-        {/* Stats row */}
-        <div className="flex items-center gap-md">
-          {place.rating && (
-            <div className="flex items-center gap-xs">
-              <span className="material-symbols-outlined text-yellow-400 text-[18px]"
-                style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-              <span className="font-h2 text-h2 text-on-surface">{place.rating.toFixed(1)}</span>
-              <span className="font-body-md text-on-surface-variant">
-                ({place.ratings_total > 999 ? `${(place.ratings_total / 1000).toFixed(1)}k` : place.ratings_total})
-              </span>
-            </div>
-          )}
-          {place.price_level !== null && (
-            <span className="chip-default">{PRICE_LABEL[place.price_level]}</span>
-          )}
-        </div>
-
-        {/* Info cards */}
-        <div className="glass-card rounded-xl divide-y divide-outline-variant/10">
-          <div className="flex items-start gap-sm p-sm">
-            <span className="material-symbols-outlined text-primary text-[20px] mt-0.5">location_on</span>
-            <p className="font-body-md text-on-surface">{place.address}</p>
+        {/* About / description */}
+        {place.description && (
+          <div className="mb-lg">
+            <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-xs">About</p>
+            <p className="text-sm text-on-surface-variant leading-relaxed">{place.description}</p>
           </div>
-          {place.weekday_hours.length > 0 && (
-            <button onClick={() => setHoursOpen(o => !o)}
-              className="w-full flex items-center justify-between p-sm active:bg-surface-container/50">
+        )}
+
+        {/* Reviews horizontal scroll */}
+        {place.reviews.length > 0 && (
+          <div className="mb-lg">
+            <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-sm">Reviews</p>
+            <div className="flex gap-sm overflow-x-auto no-scrollbar pb-xs -mx-md px-md">
+              {place.reviews.map((r, i) => (
+                <div key={i} className="flex-shrink-0 w-[72vw] max-w-[280px] glass-card p-sm rounded-xl space-y-xs">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-on-surface text-sm truncate">{r.author}</p>
+                    <div className="flex items-center gap-[2px] flex-shrink-0 ml-xs">
+                      {[...Array(5)].map((_, s) => (
+                        <span key={s} className={`material-symbols-outlined text-[11px] ${s < r.rating ? 'text-yellow-400' : 'text-on-surface-variant/20'}`}
+                          style={s < r.rating ? { fontVariationSettings: "'FILL' 1" } : undefined}>star</span>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-on-surface-variant text-xs leading-relaxed line-clamp-3">{r.text}</p>
+                  <p className="text-[9px] text-on-surface-variant/40 uppercase tracking-widest">{r.time}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Photos horizontal scroll */}
+        {place.photos.length > 1 && (
+          <div className="mb-lg">
+            <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-sm">Photos</p>
+            <div className="flex gap-sm overflow-x-auto no-scrollbar pb-xs -mx-md px-md">
+              {place.photos.map((url, i) => (
+                <div key={i} className="flex-shrink-0 w-32 h-24 rounded-xl overflow-hidden bg-surface-container-high">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Opening hours */}
+        {place.weekday_hours.length > 0 && (
+          <div className="mb-lg">
+            <button
+              onClick={() => setHoursOpen(o => !o)}
+              className="w-full flex items-center justify-between py-sm"
+            >
               <div className="flex items-center gap-sm">
                 <span className="material-symbols-outlined text-primary text-[20px]">schedule</span>
-                <span className="font-body-md text-on-surface">
-                  {place.is_open === true ? 'Open now' : place.is_open === false ? 'Closed now' : 'Hours'}
-                </span>
+                <div className="text-left">
+                  <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest">Opening Hours</p>
+                  <p className="text-sm text-on-surface font-medium">
+                    {place.is_open === true ? 'Open now' : place.is_open === false ? 'Closed now' : 'See hours'}
+                  </p>
+                </div>
               </div>
-              <span className="material-symbols-outlined text-on-surface-variant text-[20px]">
+              <span className="material-symbols-outlined text-on-surface-variant/40 text-[20px]">
                 {hoursOpen ? 'expand_less' : 'expand_more'}
               </span>
             </button>
-          )}
-          {hoursOpen && place.weekday_hours.map((h, i) => (
-            <div key={i} className="px-sm py-xs pl-10">
-              <p className="font-body-md text-on-surface-variant text-sm">{h}</p>
-            </div>
-          ))}
-          {place.phone && (
-            <div className="flex items-center gap-sm p-sm">
-              <span className="material-symbols-outlined text-primary text-[20px]">phone</span>
-              <p className="font-body-md text-on-surface">{place.phone}</p>
-            </div>
-          )}
-        </div>
+            {hoursOpen && (
+              <div className="mt-xs space-y-xs">
+                {place.weekday_hours.map((h, i) => (
+                  <p key={i} className="text-sm text-on-surface-variant">{h}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* Upcoming events + tickets — only shown if this venue has events on RA */}
+        {/* Upcoming events + tickets */}
         {(eventsLoading || events.length > 0) && (
-          <div className="space-y-sm">
+          <div className="mb-lg space-y-sm">
             <div className="flex items-center justify-between">
-              <h3 className="font-label-sm text-label-sm text-on-surface-variant/60 uppercase tracking-widest">
-                Upcoming Events
-              </h3>
+              <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest">Upcoming Events</p>
               {eventsLoading && (
-                <span className="font-label-sm text-[10px] text-on-surface-variant/40 uppercase tracking-widest animate-pulse">Loading…</span>
+                <span className="text-[10px] text-on-surface-variant/40 uppercase tracking-widest animate-pulse">Loading…</span>
               )}
             </div>
-
             {eventsLoading && (
               <>
                 <div className="glass-card rounded-xl h-28 animate-pulse" />
                 <div className="glass-card rounded-xl h-28 animate-pulse opacity-60" />
               </>
             )}
-
             {events.map(ev => (
               <EventCard
                 key={ev.id}
@@ -521,88 +612,133 @@ export default function PlaceDetailPage() {
           </div>
         )}
 
-        {/* Reviews */}
-        {place.reviews.length > 0 && (
-          <div className="space-y-sm">
-            <h3 className="font-label-sm text-label-sm text-on-surface-variant/60 uppercase tracking-widest">Reviews</h3>
-            {place.reviews.map((r, i) => (
-              <div key={i} className="glass-card p-sm rounded-xl space-y-xs">
-                <div className="flex items-center justify-between">
-                  <p className="font-body-md text-on-surface font-bold">{r.author}</p>
-                  <div className="flex items-center gap-xs">
-                    {[...Array(5)].map((_, s) => (
-                      <span key={s} className={`material-symbols-outlined text-[12px] ${s < r.rating ? 'text-yellow-400' : 'text-on-surface-variant/20'}`}
-                        style={s < r.rating ? { fontVariationSettings: "'FILL' 1" } : undefined}>star</span>
-                    ))}
-                  </div>
-                </div>
-                <p className="font-body-md text-on-surface-variant text-sm leading-relaxed line-clamp-3">{r.text}</p>
-                <p className="font-label-sm text-label-sm text-on-surface-variant/40 text-[10px] uppercase tracking-widest">{r.time}</p>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Get Directions + Uber buttons */}
+        <div className="space-y-sm mb-lg">
+          {/* Get Directions */}
+          <a
+            href={directionsUrl}
+            className="group w-full h-[70px] bg-surface-container rounded-2xl flex items-center gap-md px-md border border-white/[0.06] active:scale-[0.98] transition-transform duration-150 relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.08] via-transparent to-transparent pointer-events-none" />
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-400/20 flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-blue-400 text-[26px]" style={{ fontVariationSettings: "'FILL' 1" }}>near_me</span>
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="font-semibold text-on-surface text-[15px] leading-tight">Get Directions</p>
+              <p className="text-on-surface-variant/50 text-xs mt-0.5">Open in Maps</p>
+            </div>
+            <span className="material-symbols-outlined text-on-surface-variant/30 text-[20px] flex-shrink-0">chevron_right</span>
+          </a>
 
-        {/* CTA buttons */}
-        <div className="space-y-sm">
-          {place.is_partner ? (
-            <button className="w-full h-14 bg-primary-container text-on-primary-container font-h2 rounded-xl ignite-glow active:scale-[0.98]">
-              Join Guest List
-            </button>
-          ) : (
-            <div className="space-y-sm">
-              {/* Get Directions — opens native maps app */}
-              <a
-                href={(() => {
-                  const isIOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent)
-                  const dest  = `${place.lat},${place.lng}`
-                  return isIOS
-                    ? `maps://maps.apple.com/?daddr=${dest}&q=${encodeURIComponent(place.name)}`
-                    : `https://www.google.com/maps/dir/?api=1&destination=${dest}&destination_place_id=${place.google_place_id ?? ''}`
-                })()}
-                className="group w-full h-[70px] bg-surface-container rounded-2xl flex items-center gap-md px-md border border-white/[0.06] active:scale-[0.98] transition-transform duration-150 relative overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.08] via-transparent to-transparent pointer-events-none" />
-                <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-400/20 flex items-center justify-center flex-shrink-0">
-                  <span
-                    className="material-symbols-outlined text-blue-400 text-[26px]"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    near_me
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="font-semibold text-on-surface text-[15px] leading-tight">Get Directions</p>
-                  <p className="text-on-surface-variant/50 text-xs mt-0.5">Open in Maps</p>
-                </div>
-                <span className="material-symbols-outlined text-on-surface-variant/30 text-[20px] flex-shrink-0">chevron_right</span>
-              </a>
+          {/* Ride with Uber */}
+          <a
+            href={`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[latitude]=${place.lat}&dropoff[longitude]=${place.lng}&dropoff[nickname]=${encodeURIComponent(place.name)}&dropoff[formatted_address]=${encodeURIComponent(place.address)}${process.env.NEXT_PUBLIC_UBER_CLIENT_ID ? `&client_id=${process.env.NEXT_PUBLIC_UBER_CLIENT_ID}` : ''}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group w-full h-[70px] rounded-2xl flex items-center gap-md px-md active:scale-[0.98] transition-transform duration-150 relative overflow-hidden"
+            style={{ background: 'linear-gradient(145deg, #1c1c1e 0%, #090909 100%)' }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
+            <div className="w-12 h-12 rounded-xl bg-white/[0.08] border border-white/[0.1] flex items-center justify-center flex-shrink-0">
+              <svg viewBox="0 0 24 24" className="w-[22px] h-[22px] fill-white" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zM8 7h2v6.5c0 1.1.9 2 2 2s2-.9 2-2V7h2v6.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V7z"/>
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="font-semibold text-white text-[15px] leading-tight">Ride with Uber</p>
+              <p className="text-white/40 text-xs mt-0.5">Request a pickup</p>
+            </div>
+            <span className="material-symbols-outlined text-white/30 text-[20px] flex-shrink-0">chevron_right</span>
+          </a>
+        </div>
 
-              {/* Get an Uber */}
+        {/* Instagram / WhatsApp links */}
+        {(place.instagram_handle || place.whatsapp_link) && (
+          <div className="flex gap-sm mb-lg">
+            {place.instagram_handle && (
               <a
-                href={`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[latitude]=${place.lat}&dropoff[longitude]=${place.lng}&dropoff[nickname]=${encodeURIComponent(place.name)}&dropoff[formatted_address]=${encodeURIComponent(place.address)}${process.env.NEXT_PUBLIC_UBER_CLIENT_ID ? `&client_id=${process.env.NEXT_PUBLIC_UBER_CLIENT_ID}` : ''}`}
+                href={`https://instagram.com/${place.instagram_handle.replace('@', '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group w-full h-[70px] rounded-2xl flex items-center gap-md px-md active:scale-[0.98] transition-transform duration-150 relative overflow-hidden"
-                style={{ background: 'linear-gradient(145deg, #1c1c1e 0%, #090909 100%)' }}
+                className="flex-1 h-12 bg-surface-container rounded-xl flex items-center justify-center gap-xs text-sm text-on-surface-variant border border-outline-variant/20 active:scale-[0.98] transition-transform"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
-                <div className="w-12 h-12 rounded-xl bg-white/[0.08] border border-white/[0.1] flex items-center justify-center flex-shrink-0">
-                  {/* Uber U icon */}
-                  <svg viewBox="0 0 24 24" className="w-[22px] h-[22px] fill-white" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zM8 7h2v6.5c0 1.1.9 2 2 2s2-.9 2-2V7h2v6.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V7z"/>
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="font-semibold text-white text-[15px] leading-tight">Ride with Uber</p>
-                  <p className="text-white/40 text-xs mt-0.5">Request a pickup</p>
-                </div>
-                <span className="material-symbols-outlined text-white/30 text-[20px] flex-shrink-0">chevron_right</span>
+                <span className="material-symbols-outlined text-[18px]">photo_camera</span>
+                Instagram
               </a>
-            </div>
+            )}
+            {place.whatsapp_link && (
+              <a
+                href={place.whatsapp_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 h-12 bg-surface-container rounded-xl flex items-center justify-center gap-xs text-sm text-on-surface-variant border border-outline-variant/20 active:scale-[0.98] transition-transform"
+              >
+                <span className="material-symbols-outlined text-[18px]">chat</span>
+                WhatsApp
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Sticky CTA */}
+      <div
+        className="fixed bottom-0 left-0 right-0 bg-surface/90 backdrop-blur-xl border-t border-outline-variant/20 px-md py-sm"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}
+      >
+        <div className="flex items-center gap-md">
+          <div>
+            <p className="font-display text-[22px] text-primary leading-tight">{priceDisplay(place)}</p>
+            <p className="text-xs text-on-surface-variant/60">
+              {place.ratings_total > 999
+                ? `${(place.ratings_total / 1000).toFixed(1)}k reviews`
+                : `${place.ratings_total} reviews`}
+            </p>
+          </div>
+          {place.is_partner && activeEvent ? (
+            <button
+              onClick={() => setShowCheckout(true)}
+              className="flex-1 h-12 bg-primary-container text-on-primary-container rounded-xl font-semibold ignite-glow active:scale-[0.98] transition-transform"
+            >
+              Get Tickets
+            </button>
+          ) : place.is_partner ? (
+            <button className="flex-1 h-12 bg-primary-container text-on-primary-container rounded-xl font-semibold ignite-glow active:scale-[0.98] transition-transform">
+              Book a Table
+            </button>
+          ) : (
+            <a
+              href={directionsUrl}
+              className="flex-1 h-12 bg-surface-container text-on-surface rounded-xl font-semibold flex items-center justify-center gap-xs border border-outline-variant/20 active:scale-[0.98] transition-transform"
+            >
+              <span className="material-symbols-outlined text-[18px] text-primary">near_me</span>
+              Get Directions
+            </a>
           )}
         </div>
       </div>
+
+      {/* Inline checkout modal triggered from sticky CTA */}
+      {showCheckout && activeEvent && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end">
+          <div className="w-full bg-surface rounded-t-3xl p-md pb-safe max-h-[90vh] overflow-y-auto">
+            <div className="w-10 h-1 bg-outline-variant/30 rounded-full mx-auto mb-lg" />
+            <EventCard
+              event={activeEvent}
+              placeId={place.place_id}
+              placeLat={place.lat}
+              placeLng={place.lng}
+              placeName={place.name}
+            />
+            <button
+              onClick={() => setShowCheckout(false)}
+              className="w-full mt-md py-sm text-on-surface-variant/50 text-sm uppercase tracking-widest"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

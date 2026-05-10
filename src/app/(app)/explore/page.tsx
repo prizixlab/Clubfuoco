@@ -381,10 +381,6 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   }
 
   // ── 7. ROTATING POOL — built fresh every reload ───────────────────────────
-  // All candidate shelves go into `pool`. After filtering for min size,
-  // the pool is shuffled so the order changes on every page load.
-  // The fixed shelves above always appear first; pool shelves fill the rest.
-
   const pool: Shelf[] = []
   const candidate = (id: string, title: string, subtitle: string, pts: Place[], min = 2) => {
     if (pts.length >= min) pool.push({ id, title, subtitle, places: top(pts) })
@@ -492,48 +488,95 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   })
 }
 
-// ── Card components ───────────────────────────────────────────────────────────
+// ── Cinema-style Card Components ──────────────────────────────────────────────
 
-function HeroCard({ place }: { place: Place }) {
+function HeroCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; onSave: (id: string) => void }) {
+  const genre = place.music_genres?.length > 0 ? place.music_genres[0] : 'Featured'
   return (
     <Link href={`/clubs/place/${place.place_id}`}>
-      <div className="relative w-full h-56 rounded-2xl overflow-hidden neon-glow active:scale-[0.99] transition-transform">
-        {place.cover_photo
-          ? <img src={place.cover_photo} alt={place.name} className="w-full h-full object-cover" />
-          : <div className="w-full h-full bg-surface-container-high flex items-center justify-center">
-              <span className="material-symbols-outlined text-[48px] text-on-surface-variant/20">nightlife</span>
-            </div>
-        }
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+      <div className="relative w-full rounded-2xl overflow-hidden active:scale-[0.99] transition-transform">
+        {/* Image */}
+        <div className="relative h-64 w-full">
+          {place.cover_photo
+            ? <img src={place.cover_photo} alt={place.name} className="w-full h-full object-cover rounded-2xl" />
+            : <div className="w-full h-full bg-surface-container-high rounded-2xl flex items-center justify-center">
+                <span className="material-symbols-outlined text-[48px] text-on-surface-variant/20">nightlife</span>
+              </div>
+          }
+          {/* Top-to-bottom gradient */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-transparent rounded-2xl" />
 
-        {/* Chips */}
-        <div className="absolute top-sm left-sm flex gap-xs flex-wrap">
-          {place.is_open === true  && <span className="chip-open">OPEN</span>}
-          {place.is_open === false && <span className="chip-default">CLOSED</span>}
-          {place.distance !== undefined && (
-            <span className="chip-default flex items-center gap-[3px]">
-              <span className="material-symbols-outlined text-[10px]">near_me</span>
-              {fmtDistance(place.distance)}
+          {/* Genre tag top-left */}
+          <div className="absolute top-sm left-sm">
+            <span className="text-[9px] uppercase tracking-widest text-white bg-black/50 backdrop-blur-sm rounded-full px-xs py-[3px]">
+              {genre}
             </span>
+          </div>
+
+          {/* Rating top-right */}
+          {place.rating && (
+            <div className="absolute top-sm right-sm flex items-center gap-[3px] bg-black/60 backdrop-blur-sm rounded-full px-xs py-[3px]">
+              <span className="material-symbols-outlined text-[12px] text-yellow-400" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+              <span className="text-white text-[11px] font-bold">{place.rating.toFixed(1)}</span>
+            </div>
           )}
         </div>
 
-        {/* Rating */}
-        {place.rating && (
-          <div className="absolute top-sm right-sm flex items-center gap-[3px] bg-black/60 backdrop-blur-sm rounded-full px-xs py-[3px]">
-            <span className="material-symbols-outlined text-[12px] text-yellow-400" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-            <span className="font-label-sm text-label-sm text-white">{place.rating.toFixed(1)}</span>
-          </div>
-        )}
+        {/* Below image content */}
+        <div className="pt-sm pb-xs">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-primary mb-[2px]">FEATURED TONIGHT</p>
+          <p className="font-display italic text-[26px] text-on-surface leading-tight"><em>{place.name}</em></p>
+          <p className="text-xs text-on-surface-variant/60 mt-xs truncate">{place.address}{place.price_level !== null && place.price_level !== undefined ? ` · ${PRICE_LABEL[place.price_level]}` : ''}</p>
+          <p className="text-primary text-sm font-semibold mt-xs">View Club →</p>
+        </div>
+      </div>
+    </Link>
+  )
+}
 
-        {/* Name */}
-        <div className="absolute bottom-0 left-0 right-0 p-md">
-          <p className="font-h1 text-h1 text-white font-bold leading-tight">{place.name}</p>
-          <div className="flex items-center gap-sm mt-xs">
-            <p className="font-body-md text-white/60 text-sm truncate flex-1">{place.address}</p>
-            {place.price_level !== null && place.price_level !== undefined && (
-              <span className="font-body-md text-primary font-bold text-sm flex-shrink-0">{PRICE_LABEL[place.price_level]}</span>
-            )}
+function LandCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; onSave: (id: string) => void }) {
+  const genre = place.music_genres?.length > 0 ? place.music_genres[0] : 'Club'
+  return (
+    <Link href={`/clubs/place/${place.place_id}`}>
+      <div className="flex-shrink-0 w-[62vw] max-w-[260px] rounded-xl overflow-hidden relative active:scale-[0.97] transition-transform">
+        {/* Image */}
+        <div className="relative h-[150px] bg-surface-container-high">
+          {place.cover_photo
+            ? <img src={place.cover_photo} alt={place.name} className="w-full h-full object-cover" />
+            : <div className="w-full h-full flex items-center justify-center">
+                <span className="material-symbols-outlined text-[32px] text-on-surface-variant/20">nightlife</span>
+              </div>
+          }
+          {/* Bottom-to-top gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+
+          {/* Genre tag top-left */}
+          <div className="absolute top-xs left-xs">
+            <span className="text-[9px] text-white bg-black/50 backdrop-blur-sm rounded-full px-xs py-[2px] uppercase tracking-wide">
+              {genre}
+            </span>
+          </div>
+
+          {/* Save button top-right */}
+          <button
+            onClick={e => { e.preventDefault(); e.stopPropagation(); onSave(place.place_id) }}
+            className="absolute top-xs right-xs w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
+          >
+            <span
+              className="material-symbols-outlined text-[16px] transition-colors"
+              style={{
+                color: isSaved ? '#ff4d6d' : 'white',
+                fontVariationSettings: isSaved ? "'FILL' 1" : "'FILL' 0",
+              }}
+            >favorite</span>
+          </button>
+
+          {/* Bottom overlay text */}
+          <div className="absolute bottom-0 left-0 right-0 px-xs pb-xs">
+            <p className="font-bold text-white text-sm leading-tight truncate">{place.name}</p>
+            <p className="text-white/60 text-[11px] truncate mt-[1px]">
+              {place.neighborhood ?? ''}{place.neighborhood && place.price_level !== null ? ' · ' : ''}{place.price_level !== null && place.price_level !== undefined ? PRICE_LABEL[place.price_level] : ''}
+            </p>
           </div>
         </div>
       </div>
@@ -541,43 +584,48 @@ function HeroCard({ place }: { place: Place }) {
   )
 }
 
-function ShelfCard({ place }: { place: Place }) {
+function PosterCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; onSave: (id: string) => void }) {
   return (
     <Link href={`/clubs/place/${place.place_id}`}>
-      <div className="flex-shrink-0 w-[52vw] max-w-[210px] rounded-xl overflow-hidden relative active:scale-[0.97] transition-transform">
-        <div className="relative h-[120px] bg-surface-container-high">
+      <div className="flex-shrink-0 w-[38vw] max-w-[155px] rounded-xl overflow-hidden relative active:scale-[0.97] transition-transform bg-surface-container">
+        {/* Image */}
+        <div className="relative h-[160px] bg-surface-container-high">
           {place.cover_photo
             ? <img src={place.cover_photo} alt={place.name} className="w-full h-full object-cover" />
             : <div className="w-full h-full flex items-center justify-center">
                 <span className="material-symbols-outlined text-[32px] text-on-surface-variant/20">nightlife</span>
               </div>
           }
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
-          {place.is_open === true && (
-            <div className="absolute top-xs left-xs">
-              <span className="chip-open text-[9px] px-xs py-[2px]">OPEN</span>
-            </div>
-          )}
-          {place.rating && (
-            <div className="absolute top-xs right-xs flex items-center gap-[2px] bg-black/60 rounded-full px-xs py-[2px]">
-              <span className="material-symbols-outlined text-[11px] text-yellow-400" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-              <span className="text-white text-[11px] font-bold">{place.rating.toFixed(1)}</span>
-            </div>
-          )}
+          {/* Open / distance chip top-left */}
+          <div className="absolute top-xs left-xs">
+            {place.is_open === true
+              ? <span className="chip-open text-[9px] px-xs py-[2px]">OPEN</span>
+              : place.distance !== undefined
+                ? <span className="text-[9px] text-white bg-black/50 backdrop-blur-sm rounded-full px-xs py-[2px]">{fmtDistance(place.distance)}</span>
+                : null
+            }
+          </div>
+
+          {/* Save button top-right */}
+          <button
+            onClick={e => { e.preventDefault(); e.stopPropagation(); onSave(place.place_id) }}
+            className="absolute top-xs right-xs w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
+          >
+            <span
+              className="material-symbols-outlined text-[16px] transition-colors"
+              style={{
+                color: isSaved ? '#ff4d6d' : 'white',
+                fontVariationSettings: isSaved ? "'FILL' 1" : "'FILL' 0",
+              }}
+            >favorite</span>
+          </button>
         </div>
 
-        {/* Info */}
-        <div className="bg-surface-container px-xs py-xs">
-          <p className="font-body-md font-bold text-on-surface text-sm leading-tight truncate">{place.name}</p>
-          <div className="flex items-center justify-between mt-[2px]">
-            {place.distance !== undefined && (
-              <p className="font-label-sm text-[10px] text-on-surface-variant/50">{fmtDistance(place.distance)}</p>
-            )}
-            {place.price_level !== null && place.price_level !== undefined && (
-              <p className="font-label-sm text-[10px] text-primary font-bold">{PRICE_LABEL[place.price_level]}</p>
-            )}
-          </div>
+        {/* Info below image */}
+        <div className="px-xs py-xs">
+          <p className="font-bold text-on-surface text-sm leading-tight truncate">{place.name}</p>
+          <p className="text-xs text-on-surface-variant/60 truncate mt-[2px]">{place.neighborhood ?? place.address}</p>
         </div>
       </div>
     </Link>
@@ -671,19 +719,18 @@ function RumbaShelfCard({ rumba }: { rumba: Rumba }) {
   )
 }
 
-function ShelfRow({ shelf }: { shelf: Shelf }) {
+function ShelfRow({ shelf, saved, onSave, index }: { shelf: Shelf; saved: Set<string>; onSave: (id: string) => void; index: number }) {
   // Rumba shelf — special rendering
   if (shelf.id === 'rumbas' && shelf._rumbas && shelf._rumbas.length > 0) {
     return (
       <section className="mb-md">
-        <div className="flex items-baseline gap-sm mb-xs px-container-padding">
-          <h2 className="font-h2 text-h2 text-on-surface">{shelf.title}</h2>
-          <span className="font-label-sm text-[9px] text-primary uppercase tracking-widest bg-primary/10 rounded-full px-xs py-[2px] flex items-center gap-[2px]">
-            <span className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
-            Hot
-          </span>
+        <div className="px-container-padding mb-sm">
+          <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-[2px]">{shelf.subtitle}</p>
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-h1 text-h1 text-on-surface">{shelf.title}</h2>
+            <span className="text-xs text-primary">See all →</span>
+          </div>
         </div>
-        <p className="font-body-md text-on-surface-variant/50 text-sm px-container-padding mb-xs">{shelf.subtitle}</p>
         <div className="flex gap-sm overflow-x-auto no-scrollbar pl-container-padding pr-sm pb-xs">
           {shelf._rumbas.map(r => <RumbaShelfCard key={r.id} rumba={r} />)}
         </div>
@@ -694,20 +741,25 @@ function ShelfRow({ shelf }: { shelf: Shelf }) {
   if (shelf.featured) {
     return (
       <section className="mb-md">
-        <div className="flex items-baseline gap-xs mb-sm px-container-padding">
-          <h2 className="font-h2 text-h2 text-on-surface">{shelf.title}</h2>
-          <span className="font-label-sm text-[10px] text-primary uppercase tracking-widest">✦</span>
+        <div className="px-container-padding mb-sm">
+          <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-[2px]">{shelf.subtitle}</p>
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-h1 text-h1 text-on-surface">{shelf.title}</h2>
+            <span className="text-xs text-primary">See all →</span>
+          </div>
         </div>
-        <p className="font-body-md text-on-surface-variant/60 text-sm px-container-padding mb-xs">{shelf.subtitle}</p>
-        {/* Featured: first card large, rest in horizontal scroll */}
+        {/* HeroCard for first place */}
         {shelf.places[0] && (
           <div className="px-container-padding mb-sm">
-            <HeroCard place={shelf.places[0]} />
+            <HeroCard place={shelf.places[0]} isSaved={saved.has(shelf.places[0].place_id)} onSave={onSave} />
           </div>
         )}
+        {/* PosterCards for the rest */}
         {shelf.places.length > 1 && (
           <div className="flex gap-sm overflow-x-auto no-scrollbar pl-container-padding pr-sm pb-xs">
-            {shelf.places.slice(1).map(p => <ShelfCard key={p.place_id} place={p} />)}
+            {shelf.places.slice(1).map(p => (
+              <PosterCard key={p.place_id} place={p} isSaved={saved.has(p.place_id)} onSave={onSave} />
+            ))}
           </div>
         )}
       </section>
@@ -716,24 +768,70 @@ function ShelfRow({ shelf }: { shelf: Shelf }) {
 
   const isEventsShelf = shelf.id === 'events_tonight'
 
+  // Determine card type for this shelf
+  const usePosters = shelf.id.includes('for_you') || index % 2 === 0
+
   return (
     <section className="mb-md">
-      <div className="flex items-baseline gap-sm mb-xs px-container-padding">
-        <h2 className="font-h2 text-h2 text-on-surface">{shelf.title}</h2>
-        {isEventsShelf && (
-          <span className="font-label-sm text-[9px] text-primary uppercase tracking-widest bg-primary/10 rounded-full px-xs py-[2px]">Live</span>
-        )}
+      <div className="px-container-padding mb-sm">
+        <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-[2px]">{shelf.subtitle}</p>
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-h1 text-h1 text-on-surface">{shelf.title}</h2>
+          {isEventsShelf
+            ? <span className="text-[9px] text-primary uppercase tracking-widest bg-primary/10 rounded-full px-xs py-[2px]">Live</span>
+            : <span className="text-xs text-primary">See all →</span>
+          }
+        </div>
       </div>
-      <p className="font-body-md text-on-surface-variant/50 text-sm px-container-padding mb-xs">{shelf.subtitle}</p>
       <div className="flex gap-sm overflow-x-auto no-scrollbar pl-container-padding pr-sm pb-xs">
         {shelf.places.map(p =>
           isEventsShelf
             ? <EventShelfCard key={p.place_id} place={p} />
-            : <ShelfCard key={p.place_id} place={p} />
+            : usePosters
+              ? <PosterCard key={p.place_id} place={p} isSaved={saved.has(p.place_id)} onSave={onSave} />
+              : <LandCard key={p.place_id} place={p} isSaved={saved.has(p.place_id)} onSave={onSave} />
         )}
       </div>
     </section>
   )
+}
+
+// ── Filter chips ──────────────────────────────────────────────────────────────
+
+const FILTER_CHIPS = [
+  { id: 'all',       label: 'All' },
+  { id: 'open',      label: 'Open Now' },
+  { id: 'free',      label: 'Free' },
+  { id: 'cocktails', label: 'Cocktails' },
+  { id: 'live',      label: 'Live Music' },
+  { id: 'dancing',   label: 'Dancing' },
+  { id: 'rooftop',   label: 'Rooftop' },
+  { id: 'techno',    label: 'Techno' },
+  { id: 'house',     label: 'House' },
+  { id: 'latin',     label: 'Latin' },
+]
+
+function filterPlaces(places: Place[], activeFilter: string): Place[] {
+  if (activeFilter === 'all') return places
+  const nameTagIncludes = (p: Place, kws: string[]) => {
+    const combined = (p.name + ' ' + (p.tags ?? []).join(' ')).toLowerCase()
+    return kws.some(kw => combined.includes(kw))
+  }
+  const genreIncludes = (p: Place, kws: string[]) =>
+    kws.some(kw => (p.music_genres ?? []).some(g => g.toLowerCase().includes(kw)))
+
+  switch (activeFilter) {
+    case 'open':      return places.filter(p => p.is_open === true)
+    case 'free':      return places.filter(p => p.price_level === 0 || p.general_entry_price === 0)
+    case 'cocktails': return places.filter(p => nameTagIncludes(p, ['cocktail']))
+    case 'live':      return places.filter(p => nameTagIncludes(p, ['live','jazz','music','concert']))
+    case 'dancing':   return places.filter(p => nameTagIncludes(p, ['danc','disco','club']))
+    case 'rooftop':   return places.filter(p => nameTagIncludes(p, ['roof','terraza','terrace']))
+    case 'techno':    return places.filter(p => genreIncludes(p, ['techno']) || nameTagIncludes(p, ['techno']))
+    case 'house':     return places.filter(p => genreIncludes(p, ['house']) || nameTagIncludes(p, ['house']))
+    case 'latin':     return places.filter(p => genreIncludes(p, ['latin','salsa','reggaeton']) || nameTagIncludes(p, ['latin','salsa','reggaeton']))
+    default:          return places
+  }
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -750,8 +848,19 @@ export default function ExplorePage() {
   const [error,        setError]        = useState('')
   const [raEvents,     setRaEvents]     = useState<ExternalEvent[]>([])
   const [rumbas,       setRumbas]       = useState<Rumba[]>([])
+  const [activeFilter, setActiveFilter] = useState('all')
+  const [saved,        setSaved]        = useState<Set<string>>(new Set())
 
   const BARCELONA = { lat: 41.3851, lng: 2.1734 }
+
+  function handleSave(placeId: string) {
+    setSaved(prev => {
+      const next = new Set(prev)
+      if (next.has(placeId)) next.delete(placeId)
+      else next.add(placeId)
+      return next
+    })
+  }
 
   useEffect(() => {
     fetch('/api/preferences')
@@ -816,7 +925,8 @@ export default function ExplorePage() {
     setLoading(false)
   }
 
-  const shelves = buildShelves(places, prefs, raEvents, rumbas, surveyPrefs, tasteProfile)
+  const filteredPlaces = filterPlaces(places, activeFilter)
+  const shelves = buildShelves(filteredPlaces, prefs, raEvents, rumbas, surveyPrefs, tasteProfile)
 
   const searchResults = search
     ? places.filter(p =>
@@ -838,7 +948,7 @@ export default function ExplorePage() {
 
   return (
     <div className="pt-md pb-8">
-      {/* Header */}
+      {/* Search bar header */}
       <div className="px-container-padding mb-sm">
         <div className="flex items-center justify-between">
           <div>
@@ -900,16 +1010,44 @@ export default function ExplorePage() {
         </div>
       )}
 
-      {/* Shelves */}
+      {/* Shelves + filter chips */}
       {(!showSearch || !search) && (
-        shelves.length === 0
-          ? (
-            <div className="text-center py-xl text-on-surface-variant px-container-padding">
-              <span className="material-symbols-outlined text-[48px] mb-sm block">location_searching</span>
-              <p className="font-body-md">No clubs found nearby</p>
-            </div>
-          )
-          : shelves.map(shelf => <ShelfRow key={shelf.id} shelf={shelf} />)
+        <>
+          {/* Featured hero shelf (first shelf) */}
+          {shelves.length > 0 && shelves[0].featured && (
+            <ShelfRow key={shelves[0].id} shelf={shelves[0]} saved={saved} onSave={handleSave} index={0} />
+          )}
+
+          {/* Filter chips bar — after hero, before remaining shelves */}
+          <div className="flex gap-xs overflow-x-auto no-scrollbar px-container-padding py-sm mb-xs">
+            {FILTER_CHIPS.map(chip => (
+              <button
+                key={chip.id}
+                onClick={() => setActiveFilter(chip.id)}
+                className={`flex-shrink-0 px-sm py-xs rounded-full text-xs font-medium border transition-all ${
+                  activeFilter === chip.id
+                    ? 'bg-primary-container border-primary/40 text-on-primary-container'
+                    : 'bg-surface-container border-transparent text-on-surface-variant/70'
+                }`}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Remaining shelves */}
+          {shelves.length === 0
+            ? (
+              <div className="text-center py-xl text-on-surface-variant px-container-padding">
+                <span className="material-symbols-outlined text-[48px] mb-sm block">location_searching</span>
+                <p className="font-body-md">No clubs found nearby</p>
+              </div>
+            )
+            : shelves.slice(shelves[0]?.featured ? 1 : 0).map((shelf, i) => (
+                <ShelfRow key={shelf.id} shelf={shelf} saved={saved} onSave={handleSave} index={i + 1} />
+              ))
+          }
+        </>
       )}
     </div>
   )

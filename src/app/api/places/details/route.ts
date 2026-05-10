@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
       description, instagram_handle, whatsapp_link,
       general_entry_price, vip_table_min_spend,
       opening_hours, is_featured, is_partner, is_active,
+      reviews,
       live_status (*),
       club_tags ( tag, category )
     `)
@@ -156,6 +157,31 @@ export async function GET(request: NextRequest) {
     } catch { /* non-critical */ }
   }
 
+  // ── Reviews ────────────────────────────────────────────────────────────────
+  // Use stored reviews; if none yet and we have a place_id, fetch & store them
+  let reviews: any[] = Array.isArray((club as any).reviews) ? (club as any).reviews : []
+
+  if (reviews.length === 0 && club.google_place_id && KEY) {
+    try {
+      const rRes  = await fetch(
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${club.google_place_id}&fields=reviews&key=${KEY}`
+      )
+      const rData = await rRes.json()
+      if (rData.status === 'OK' && rData.result?.reviews?.length) {
+        reviews = rData.result.reviews.slice(0, 10).map((r: any) => ({
+          author:  r.author_name,
+          avatar:  r.profile_photo_url ?? null,
+          rating:  r.rating,
+          time:    r.relative_time_description,
+          text:    r.text,
+          source:  'google',
+        }))
+        // Persist so the next request doesn't need to hit Google
+        await supabase.from('clubs').update({ reviews }).eq('id', club.id)
+      }
+    } catch { /* non-critical */ }
+  }
+
   return NextResponse.json({
     data: {
       place_id:       club.id,
@@ -183,7 +209,7 @@ export async function GET(request: NextRequest) {
       is_featured:    club.is_featured,
       general_entry_price: club.general_entry_price ?? null,
       vip_table_min_spend: club.vip_table_min_spend ?? null,
-      reviews:        [],
+      reviews,
       photos:         allPhotos,
       cover_photo:    allPhotos[0] ?? null,
       maps_url: club.google_place_id

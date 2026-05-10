@@ -7,10 +7,11 @@ type AccountType = 'user' | 'club' | 'dj'
 
 const TAB_SETS: Record<AccountType, { href: string; icon: string; label: string }[]> = {
   user: [
-    { href: '/explore',  icon: 'home',                label: 'Home'    },
-    { href: '/saved',    icon: 'explore',             label: 'Explore' },
-    { href: '/bookings', icon: 'confirmation_number', label: 'Tickets' },
-    { href: '/profile',  icon: 'person',              label: 'You'     },
+    { href: '/explore',    icon: 'home',                label: 'Home'    },
+    { href: '/saved',      icon: 'explore',             label: 'Explore' },
+    { href: '/bookings',   icon: 'confirmation_number', label: 'Tickets' },
+    { href: '/membership', icon: 'workspace_premium',   label: 'Members' },
+    { href: '/profile',    icon: 'person',              label: 'You'     },
   ],
   club: [
     { href: '/club-dashboard',              icon: 'dashboard',            label: 'Dashboard' },

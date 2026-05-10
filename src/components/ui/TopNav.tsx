@@ -1,14 +1,16 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 interface TopNavProps {
   showBack?: boolean
   showNotification?: boolean
+  title?: string
 }
 
-export function TopNav({ showBack = false, showNotification = true }: TopNavProps) {
+export function TopNav({ showBack = false, showNotification = true, title }: TopNavProps) {
   const router = useRouter()
   const [unread, setUnread] = useState(0)
 
@@ -24,27 +26,45 @@ export function TopNav({ showBack = false, showNotification = true }: TopNavProp
   }, [showNotification])
 
   return (
-    <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/20 shadow-[0_0_15px_rgba(255,76,47,0.1)] flex items-center justify-between px-container-padding h-16">
-      <div className="flex items-center w-8">
+    <header style={{
+      position: 'fixed', top: 0, width: '100%', zIndex: 50,
+      backgroundColor: 'rgba(248,245,238,0.92)',
+      backdropFilter: 'blur(16px)',
+      WebkitBackdropFilter: 'blur(16px)',
+      borderBottom: '1px solid #E8E2D8',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0 20px', height: '56px',
+    }}>
+      {/* Left */}
+      <div style={{ width: 32 }}>
         {showBack && (
-          <button onClick={() => router.back()} className="active:scale-95 duration-200">
-            <span className="material-symbols-outlined text-primary">arrow_back</span>
+          <button onClick={() => router.back()} style={{ color: '#221E1A', display: 'flex', alignItems: 'center' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>arrow_back</span>
           </button>
         )}
       </div>
-      <h1 className="font-display text-h2 font-extrabold text-primary tracking-[0.2em] uppercase">
-        CLUB FUOCO
-      </h1>
-      <div className="flex items-center w-8">
+
+      {/* Centre — wordmark or page title */}
+      {title ? (
+        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#221E1A' }}>
+          {title}
+        </span>
+      ) : (
+        <Link href="/explore" style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 22, color: '#221E1A', letterSpacing: '-0.01em', textDecoration: 'none' }}>
+          fuoco.
+        </Link>
+      )}
+
+      {/* Right */}
+      <div style={{ width: 32, display: 'flex', justifyContent: 'flex-end' }}>
         {showNotification && (
-          <button onClick={() => router.push('/notifications')} className="relative active:scale-95 duration-200">
-            <span className="material-symbols-outlined text-primary"
-              style={unread > 0 ? { fontVariationSettings: `'FILL' 1` } : undefined}>
+          <button onClick={() => router.push('/notifications')} style={{ position: 'relative', color: '#221E1A', display: 'flex', alignItems: 'center' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 22, fontVariationSettings: unread > 0 ? "'FILL' 1" : "'FILL' 0" }}>
               notifications
             </span>
             {unread > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                <span className="text-[9px] font-bold text-on-primary">{unread > 9 ? '9+' : unread}</span>
+              <span style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, backgroundColor: '#8C2A2A', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#fff' }}>{unread > 9 ? '9+' : unread}</span>
               </span>
             )}
           </button>

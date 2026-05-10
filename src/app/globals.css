@@ -4,45 +4,45 @@
 
 /* Ensure the dark theme can never be overridden by injected styles */
 html, body {
-  background-color: #121414 !important;
-  color: #e3e2e2;
+  background-color: #F8F5EE !important;
+  color: #221E1A;
   margin: 0;
 }
 
 /* Barcelona Noir — shared CSS primitives used across all screens */
 @layer components {
   .glass-card {
-    background: rgba(18, 20, 20, 0.7);
+    background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(92, 64, 58, 0.2);
+    border: 1px solid rgba(200, 191, 178, 0.4);
   }
 
   .glass-panel {
-    background: rgba(18, 20, 20, 0.7);
+    background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(92, 64, 58, 0.2);
+    border: 1px solid rgba(200, 191, 178, 0.4);
   }
 
   .ignite-glow {
-    box-shadow: 0 0 20px rgba(255, 85, 57, 0.3);
+    box-shadow: 0 0 20px rgba(140, 42, 42, 0.2);
   }
 
   .ignite-glow-lg {
-    box-shadow: 0 0 40px rgba(255, 85, 57, 0.4);
+    box-shadow: 0 0 40px rgba(140, 42, 42, 0.25);
   }
 
   .bloom-glow {
-    filter: drop-shadow(0 0 15px rgba(255, 76, 47, 0.4));
+    filter: drop-shadow(0 0 10px rgba(140, 42, 42, 0.3));
   }
 
   .glass-scrim {
     background: linear-gradient(
       to top,
-      rgba(18, 20, 20, 1) 0%,
-      rgba(18, 20, 20, 0.8) 40%,
-      rgba(18, 20, 20, 0) 100%
+      rgba(248, 245, 238, 1) 0%,
+      rgba(248, 245, 238, 0.8) 40%,
+      rgba(248, 245, 238, 0) 100%
     );
   }
 

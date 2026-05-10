@@ -7,10 +7,10 @@ type AccountType = 'user' | 'club' | 'dj'
 
 const TAB_SETS: Record<AccountType, { href: string; icon: string; label: string }[]> = {
   user: [
-    { href: '/explore',   icon: 'explore',             label: 'Explore'  },
-    { href: '/bookings',  icon: 'confirmation_number', label: 'Bookings' },
-    { href: '/saved',     icon: 'favorite_border',     label: 'Saved'    },
-    { href: '/profile',   icon: 'person_outline',      label: 'Profile'  },
+    { href: '/explore',  icon: 'home',                label: 'Home'    },
+    { href: '/saved',    icon: 'explore',             label: 'Explore' },
+    { href: '/bookings', icon: 'confirmation_number', label: 'Tickets' },
+    { href: '/profile',  icon: 'person',              label: 'You'     },
   ],
   club: [
     { href: '/club-dashboard',              icon: 'dashboard',            label: 'Dashboard' },
@@ -33,12 +33,10 @@ export function BottomNav({ accountType = 'user' }: { accountType?: AccountType 
   return (
     <nav style={{
       position: 'fixed', bottom: 0, width: '100%', zIndex: 50,
-      backgroundColor: 'rgba(248,245,238,0.95)',
-      backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
-      borderTop: '1px solid #E8E2D8',
+      backgroundColor: '#FFFFFF',
+      borderTop: '1px solid #EDEAE4',
       display: 'flex', justifyContent: 'space-around', alignItems: 'center',
-      height: 60, paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      height: 56, paddingBottom: 'env(safe-area-inset-bottom, 0px)',
     }}>
       {tabs.map(({ href, icon, label }) => {
         const [hrefPath] = href.split('?')
@@ -46,16 +44,21 @@ export function BottomNav({ accountType = 'user' }: { accountType?: AccountType 
         return (
           <Link key={href} href={href} style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            gap: 2, textDecoration: 'none', color: active ? '#8C2A2A' : '#9F9486',
-            transition: 'color 0.15s',
+            gap: 3, textDecoration: 'none',
+            color: active ? '#221E1A' : '#B0A898',
+            minWidth: 56,
           }}>
             <span className="material-symbols-outlined" style={{
-              fontSize: 22,
-              fontVariationSettings: active ? "'FILL' 1, 'wght' 500" : "'FILL' 0, 'wght' 300",
+              fontSize: 24,
+              fontVariationSettings: active ? "'FILL' 1, 'wght' 400" : "'FILL' 0, 'wght' 300",
             }}>
               {icon}
             </span>
-            <span style={{ fontSize: 9, fontWeight: active ? 600 : 400, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <span style={{
+              fontSize: 10, fontWeight: 400,
+              fontFamily: 'Inter, sans-serif',
+              color: active ? '#221E1A' : '#B0A898',
+            }}>
               {label}
             </span>
           </Link>

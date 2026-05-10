@@ -32,11 +32,13 @@ export function BottomNav({ accountType = 'user' }: { accountType?: AccountType 
 
   return (
     <nav style={{
-      position: 'fixed', bottom: 0, width: '100%', zIndex: 50,
+      position: 'fixed', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+      left: '16px', right: '16px', zIndex: 50,
       backgroundColor: '#FFFFFF',
-      borderTop: '1px solid #EDEAE4',
+      borderRadius: '24px',
+      boxShadow: '0 4px 24px rgba(34,30,26,0.12), 0 1px 4px rgba(34,30,26,0.06)',
       display: 'flex', justifyContent: 'space-around', alignItems: 'center',
-      height: 56, paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      height: 60,
     }}>
       {tabs.map(({ href, icon, label }) => {
         const [hrefPath] = href.split('?')

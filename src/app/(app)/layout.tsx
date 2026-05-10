@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <TopNav showNotification />
-      <div className="mt-16 pb-24">
+      <div className="mt-14 pb-28">
         {children}
       </div>
       <BottomNav accountType={accountType} />

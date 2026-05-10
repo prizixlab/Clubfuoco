@@ -46,6 +46,22 @@ interface PlaceDetail {
   vip_table_min_spend?: number | null
 }
 
+// ── Design tokens (Cinema system) ────────────────────────────────────────────
+const C = {
+  bg:        '#F8F5EE',
+  bg2:       '#EFE9DD',
+  surface:   '#FFFFFF',
+  surface2:  '#F4EFE3',
+  ink:       '#221E1A',
+  ink2:      '#6E6356',
+  ink3:      '#9F9486',
+  accent:    '#8C2A2A',
+  accent2:   '#4A1313',
+  accent3:   '#B2843A',
+  line:      'rgba(34,30,26,0.08)',
+  lineStrong:'rgba(34,30,26,0.16)',
+}
+
 const PRICE_LABEL = ['Free', '€', '€€', '€€€', '€€€€']
 
 function fmtPrice(cents: number, currency = 'EUR') {
@@ -105,37 +121,35 @@ function CheckoutForm({
   }
 
   return (
-    <form onSubmit={handlePay} className="space-y-md">
-      <div className="glass-card p-sm rounded-xl space-y-xs">
-        <p className="font-body-md font-bold text-on-surface">{event.title}</p>
-        <p className="font-body-md text-on-surface-variant/60 text-sm">{event.venue_name}</p>
-        <p className="font-body-md text-on-surface-variant/60 text-sm">{fmtDate(event.date)}</p>
-        <div className="border-t border-outline-variant/10 pt-xs mt-xs space-y-xs">
-          <div className="flex justify-between font-body-md text-sm text-on-surface-variant">
-            <span>Ticket</span>
-            <span>{fmtPrice(event.base_price, event.currency)}</span>
+    <form onSubmit={handlePay} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Order summary */}
+      <div style={{ background: C.bg, borderRadius: 12, padding: 14 }}>
+        <p style={{ fontWeight: 600, color: C.ink, fontSize: 14, margin: '0 0 4px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{event.title}</p>
+        <p style={{ fontSize: 13, color: C.ink3, margin: '0 0 2px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{event.venue_name}</p>
+        <p style={{ fontSize: 13, color: C.ink3, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{fmtDate(event.date)}</p>
+        <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 10, paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.ink2, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+            <span>Ticket</span><span>{fmtPrice(event.base_price, event.currency)}</span>
           </div>
-          <div className="flex justify-between font-body-md text-sm text-on-surface-variant">
-            <span>Service fee (10%)</span>
-            <span>{fmtPrice(markupCents, event.currency)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.ink2, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+            <span>Service fee (10%)</span><span>{fmtPrice(markupCents, event.currency)}</span>
           </div>
-          <div className="flex justify-between font-h2 text-h2 text-on-surface border-t border-outline-variant/10 pt-xs">
-            <span>Total</span>
-            <span className="text-primary">{fmtPrice(totalCents, event.currency)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, color: C.ink, borderTop: `1px solid ${C.line}`, paddingTop: 8, marginTop: 2, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+            <span>Total</span><span style={{ color: C.accent }}>{fmtPrice(totalCents, event.currency)}</span>
           </div>
         </div>
       </div>
 
       <PaymentElement />
 
-      {error && <p className="font-body-md text-error text-sm text-center">{error}</p>}
+      {error && <p style={{ fontSize: 13, color: C.accent, textAlign: 'center', margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{error}</p>}
 
       <button type="submit" disabled={paying || !stripe}
-        className="w-full h-14 bg-primary-container text-on-primary-container font-h2 rounded-xl ignite-glow active:scale-[0.98] disabled:opacity-50">
+        style={{ width: '100%', height: 52, background: C.accent, color: 'white', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 600, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', cursor: paying ? 'not-allowed' : 'pointer', opacity: paying || !stripe ? 0.6 : 1 }}>
         {paying ? 'Processing…' : `Pay ${fmtPrice(totalCents, event.currency)}`}
       </button>
       <button type="button" onClick={onCancel}
-        className="w-full py-sm font-label-sm text-label-sm text-on-surface-variant/50 uppercase tracking-widest">
+        style={{ width: '100%', padding: '12px 0', background: 'none', border: 'none', fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.ink3, cursor: 'pointer', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
         Cancel
       </button>
     </form>
@@ -220,10 +234,10 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
 
   if (success) {
     return (
-      <div className="glass-card p-md rounded-xl text-center space-y-xs">
-        <span className="material-symbols-outlined text-[36px] text-green-500" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-        <p className="font-h2 text-h2 text-on-surface">Tickets confirmed!</p>
-        <p className="font-body-md text-on-surface-variant/60 text-sm">Check your notifications for details.</p>
+      <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, textAlign: 'center' }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 36, color: '#2D7A46', display: 'block', marginBottom: 10, fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+        <p style={{ fontSize: 17, fontWeight: 600, color: C.ink, margin: '0 0 6px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Tickets confirmed!</p>
+        <p style={{ fontSize: 13, color: C.ink3, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Check your notifications for details.</p>
       </div>
     )
   }
@@ -232,22 +246,22 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
     const sp = getStripe()
     if (!sp) {
       return (
-        <div className="glass-card p-md rounded-xl text-center space-y-sm">
-          <span className="material-symbols-outlined text-[36px] text-on-surface-variant/40">lock</span>
-          <p className="font-h2 text-h2 text-on-surface">Secure connection required</p>
-          <p className="font-body-md text-on-surface-variant/60 text-sm">
+        <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, textAlign: 'center' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 36, color: C.ink3, opacity: 0.4, display: 'block', marginBottom: 10 }}>lock</span>
+          <p style={{ fontSize: 15, fontWeight: 600, color: C.ink, margin: '0 0 8px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Secure connection required</p>
+          <p style={{ fontSize: 13, color: C.ink3, margin: '0 0 16px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
             Payments are processed over HTTPS. Open the app on your live URL to complete checkout.
           </p>
           <button type="button" onClick={() => { setClientSecret(null); setBuying(false) }}
-            className="w-full h-12 bg-surface-container text-on-surface font-label-sm text-label-sm uppercase tracking-widest rounded-xl">
+            style={{ width: '100%', height: 46, background: C.bg, color: C.ink, border: 'none', borderRadius: 10, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
             Go Back
           </button>
         </div>
       )
     }
     return (
-      <div className="glass-card p-md rounded-xl">
-        <Elements stripe={sp} options={{ clientSecret, appearance: { theme: 'night' } }}>
+      <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, padding: 16 }}>
+        <Elements stripe={sp} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
           <CheckoutForm
             event={event}
             clientSecret={clientSecret}
@@ -268,47 +282,47 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
   }
 
   return (
-    <div className="glass-card rounded-xl overflow-hidden">
+    <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, overflow: 'hidden' }}>
       {event.image && (
-        <div className="relative h-32">
-          <img src={event.image} alt={event.title} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-          <span className="absolute top-xs left-xs font-label-sm text-[9px] text-white/60 uppercase tracking-widest bg-black/40 rounded-full px-xs py-[2px]">
+        <div style={{ position: 'relative', height: 120 }}>
+          <img src={event.image} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 60%)' }} />
+          <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', background: 'rgba(0,0,0,0.4)', borderRadius: 99, padding: '2px 7px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
             {platformBadge[event.platform] ?? event.platform}
           </span>
           {event.sold_out && (
-            <span className="absolute top-xs right-xs chip-default text-[9px]">Sold out</span>
+            <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'white', background: 'rgba(140,42,42,0.9)', borderRadius: 99, padding: '2px 7px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontWeight: 600 }}>Sold out</span>
           )}
         </div>
       )}
-      <div className="p-sm space-y-xs">
-        <p className="font-body-md font-bold text-on-surface leading-tight">{event.title}</p>
-        <div className="flex items-center gap-sm">
-          <div className="flex items-center gap-xs text-on-surface-variant/60">
-            <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-            <span className="font-body-md text-sm">{fmtDate(event.date)}</span>
+      <div style={{ padding: 14 }}>
+        <p style={{ fontWeight: 600, color: C.ink, fontSize: 14, margin: '0 0 8px', lineHeight: 1.35, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{event.title}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.ink3 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>calendar_today</span>
+            <span style={{ fontSize: 13, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{fmtDate(event.date)}</span>
           </div>
           {event.start_time && (
-            <div className="flex items-center gap-xs text-on-surface-variant/60">
-              <span className="material-symbols-outlined text-[14px]">schedule</span>
-              <span className="font-body-md text-sm">{event.start_time}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.ink3 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>schedule</span>
+              <span style={{ fontSize: 13, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{event.start_time}</span>
             </div>
           )}
         </div>
-        <div className="flex items-center justify-between pt-xs border-t border-outline-variant/10">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: `1px solid ${C.line}`, paddingTop: 10 }}>
           <div>
-            <p className="font-label-sm text-[10px] text-on-surface-variant/40 uppercase tracking-widest">
+            <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 2px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
               {event.base_price === 0 ? 'Free event' : 'from'}
             </p>
             {event.base_price > 0 && (
-              <p className="font-h2 text-h2 text-primary">{fmtPrice(event.display_price, event.currency)}</p>
+              <p style={{ fontSize: 18, fontWeight: 700, color: C.accent, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{fmtPrice(event.display_price, event.currency)}</p>
             )}
           </div>
           {!event.sold_out && (
             <button
               onClick={startCheckout}
               disabled={buying}
-              className="px-md py-sm bg-primary-container text-on-primary-container font-label-sm text-label-sm uppercase tracking-widest rounded-xl ignite-glow active:scale-[0.98] disabled:opacity-50">
+              style={{ padding: '10px 18px', background: C.ink, color: '#F8F5EE', border: 'none', borderRadius: 99, fontSize: 13, fontWeight: 600, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', cursor: buying ? 'not-allowed' : 'pointer', opacity: buying ? 0.6 : 1 }}>
               {buying ? '…' : event.base_price === 0 ? 'Reserve' : 'Get Tickets'}
             </button>
           )}
@@ -381,14 +395,15 @@ export default function PlaceDetailPage() {
   }, [place])
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <span className="material-symbols-outlined text-[48px] text-primary animate-pulse">nightlife</span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: C.bg }}>
+      <span className="material-symbols-outlined" style={{ fontSize: 48, color: C.accent, fontVariationSettings: "'FILL' 1" }}>nightlife</span>
     </div>
   )
+
   if (!place) return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-container-padding text-center">
-      <span className="material-symbols-outlined text-[48px] text-on-surface-variant/30 mb-md">error</span>
-      <p className="font-h2 text-h2 text-on-surface">Club not found</p>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '0 24px', textAlign: 'center', background: C.bg }}>
+      <span className="material-symbols-outlined" style={{ fontSize: 48, color: C.ink3, opacity: 0.3, display: 'block', marginBottom: 16 }}>error</span>
+      <p style={{ fontSize: 20, fontWeight: 600, color: C.ink, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Club not found</p>
     </div>
   )
 
@@ -405,198 +420,222 @@ export default function PlaceDetailPage() {
       : `https://www.google.com/maps/dir/?api=1&destination=${dest}&destination_place_id=${place.google_place_id ?? ''}`
   })()
 
+  const genre = (place.music_genres ?? [])[0] ?? null
+  const allTags = [...(place.music_genres ?? []), ...(place.tags ?? []).slice(0, 4)]
+
   return (
-    <div className="min-h-screen bg-surface">
-      {/* HERO — full bleed, no padding */}
-      <div className="relative h-[55vh] w-full">
+    <div style={{ minHeight: '100vh', background: C.bg }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,700;1,400;1,700&display=swap');`}</style>
+
+      {/* ── HERO — full bleed, ~60vh ───────────────────────────────────────── */}
+      <div style={{ position: 'relative', height: '62vh', width: '100%' }}>
         {heroImg
-          ? <img src={heroImg} alt={place.name} className="w-full h-full object-cover" />
-          : <div className="w-full h-full bg-surface-container-high flex items-center justify-center">
-              <span className="material-symbols-outlined text-[64px] text-on-surface-variant/20">nightlife</span>
+          ? <img src={heroImg} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          : <div style={{ width: '100%', height: '100%', background: C.bg2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 64, color: C.ink3, opacity: 0.2 }}>nightlife</span>
             </div>
         }
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/70" />
 
-        {/* Topbar overlay */}
+        {/* Multi-stop gradient: transparent top → dark bottom, with slight top darken for topbar */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.48) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.65) 100%)' }} />
+
+        {/* ── Topbar: back + neighbourhood + bookmark ── */}
         <div
-          className="absolute top-0 left-0 right-0 flex items-center justify-between px-md"
-          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)' }}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' }}
+          // Safe area inset handled via paddingTop calculation:
+          // We just use a generous fixed padding that works for most devices
         >
-          <button
-            onClick={() => router.back()}
-            className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center active:scale-90 transition-transform"
-          >
-            <span className="material-symbols-outlined text-white text-[20px]">arrow_back</span>
-          </button>
-
-          <span className="text-white/80 text-sm font-medium">{place.neighborhood ?? ''}</span>
-
-          <button
-            onClick={toggleSave}
-            className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center active:scale-90 transition-transform"
-          >
-            <span
-              className="material-symbols-outlined text-[22px] transition-colors"
-              style={{
-                color: saved ? '#ff4d6d' : 'white',
-                fontVariationSettings: saved ? "'FILL' 1" : "'FILL' 0",
-              }}
-            >favorite</span>
-          </button>
+          <div style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={() => router.back()}
+              style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 20, color: 'white' }}>arrow_back</span>
+            </button>
+            {place.neighborhood && (
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', letterSpacing: '0.04em' }}>
+                {place.neighborhood}
+              </span>
+            )}
+          </div>
+          <div style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
+            <button
+              onClick={toggleSave}
+              style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 21, color: saved ? '#E05252' : 'white', fontVariationSettings: saved ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
+            </button>
+          </div>
         </div>
 
-        {/* Hero bottom text */}
-        <div className="absolute bottom-0 left-0 right-0 px-md pb-8">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-primary/90 mb-xs">Barcelona · Nightlife</p>
-          <h1 className="font-display italic text-[32px] text-white leading-tight mb-xs"><em>{place.name}</em></h1>
-          <p className="text-white/60 text-sm">{place.address}</p>
+        {/* ── Hero bottom overlay: category + name + meta ── */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 20px 28px' }}>
+          {genre && (
+            <p style={{ fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', margin: '0 0 6px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+              {genre} · Barcelona
+            </p>
+          )}
+          {!genre && (
+            <p style={{ fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', margin: '0 0 6px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+              Barcelona · Nightlife
+            </p>
+          )}
+          <h1 style={{ fontFamily: "'Instrument Serif', 'Bodoni Moda', Georgia, serif", fontSize: 36, fontStyle: 'italic', fontWeight: 400, color: 'white', margin: '0 0 6px', lineHeight: 1.05, letterSpacing: '-0.01em' }}>
+            {place.name}
+          </h1>
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{place.address}</p>
         </div>
       </div>
 
-      {/* SHEET — slides up over hero */}
-      <div className="relative z-10 bg-surface rounded-t-3xl -mt-8 px-md pt-lg pb-32">
+      {/* ── WHITE SHEET — slides up over hero ─────────────────────────────── */}
+      <div style={{ position: 'relative', zIndex: 10, background: C.surface, borderRadius: '24px 24px 0 0', marginTop: -32, paddingBottom: 140 }}>
 
         {/* Drag handle */}
-        <div className="w-10 h-1 bg-outline-variant/30 rounded-full mx-auto mb-lg" />
+        <div style={{ width: 36, height: 4, background: C.line, borderRadius: 99, margin: '14px auto 0' }} />
 
-        {/* Fact strip — 4 cols */}
-        <div className="grid grid-cols-4 gap-sm mb-lg">
-          {/* Rating */}
-          <div className="flex flex-col items-center gap-[3px]">
-            <span className="material-symbols-outlined text-yellow-400 text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-            <p className="font-bold text-on-surface text-sm">{place.rating ? place.rating.toFixed(1) : '—'}</p>
-            <p className="text-[9px] text-on-surface-variant/50 uppercase tracking-widest">Rating</p>
+        {/* ── Fact strip: 4 columns ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, padding: '20px 20px 0' }}>
+          {/* DOOR / price */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 4px', background: C.bg, borderRadius: 12 }}>
+            <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 4px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Door</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+              {place.general_entry_price === 0 ? 'Free'
+                : place.general_entry_price ? `€${place.general_entry_price}`
+                : place.price_level !== null && place.price_level !== undefined ? PRICE_LABEL[place.price_level]
+                : '—'}
+            </p>
           </div>
-          {/* Reviews */}
-          <div className="flex flex-col items-center gap-[3px]">
-            <span className="material-symbols-outlined text-primary text-[20px]">reviews</span>
-            <p className="font-bold text-on-surface text-sm">
+
+          {/* TONIGHT going (rating reviews as proxy) */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 4px', background: C.bg, borderRadius: 12 }}>
+            <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 4px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Tonight</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
               {place.ratings_total > 999 ? `${(place.ratings_total / 1000).toFixed(1)}k` : place.ratings_total}
             </p>
-            <p className="text-[9px] text-on-surface-variant/50 uppercase tracking-widest">Reviews</p>
+            <p style={{ fontSize: 9, color: C.ink3, margin: '2px 0 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>going</p>
           </div>
-          {/* Price */}
-          <div className="flex flex-col items-center gap-[3px]">
-            <span className="material-symbols-outlined text-primary text-[20px]">payments</span>
-            <p className="font-bold text-on-surface text-sm">
-              {place.price_level !== null && place.price_level !== undefined ? PRICE_LABEL[place.price_level] : '—'}
-            </p>
-            <p className="text-[9px] text-on-surface-variant/50 uppercase tracking-widest">Price</p>
-          </div>
-          {/* Open status */}
-          <div className="flex flex-col items-center gap-[3px]">
-            <span className={`material-symbols-outlined text-[20px] ${place.is_open === true ? 'text-green-400' : place.is_open === false ? 'text-red-400' : 'text-on-surface-variant/40'}`}>
-              {place.is_open === true ? 'door_open' : 'door_front'}
-            </span>
-            <p className={`font-bold text-sm ${place.is_open === true ? 'text-green-400' : place.is_open === false ? 'text-red-400' : 'text-on-surface-variant'}`}>
+
+          {/* STATUS / open-closed */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 4px', background: C.bg, borderRadius: 12 }}>
+            <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 4px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Status</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: place.is_open === true ? '#2D7A46' : place.is_open === false ? C.accent : C.ink3, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
               {place.is_open === true ? 'Open' : place.is_open === false ? 'Closed' : '—'}
             </p>
-            <p className="text-[9px] text-on-surface-variant/50 uppercase tracking-widest">Status</p>
+          </div>
+
+          {/* RATING */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 4px', background: C.bg, borderRadius: 12 }}>
+            <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 4px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Rating</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#D4A017', fontVariationSettings: "'FILL' 1" }}>star</span>
+              <p style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{place.rating ? place.rating.toFixed(1) : '—'}</p>
+            </div>
           </div>
         </div>
 
-        {/* Music genres / tags */}
-        {((place.music_genres?.length ?? 0) > 0 || (place.tags?.length ?? 0) > 0) && (
-          <div className="flex flex-wrap gap-xs mb-lg">
+        {/* ── THE PITCH section ── */}
+        {place.description && (
+          <div style={{ padding: '24px 20px 0' }}>
+            <p style={{ fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 10px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>The Pitch</p>
+            <p style={{ fontFamily: "'Instrument Serif', 'Bodoni Moda', Georgia, serif", fontSize: 18, fontStyle: 'italic', color: C.ink2, margin: '0 0 4px', lineHeight: 1.5, paddingLeft: 14, borderLeft: `2px solid ${C.lineStrong}` }}>
+              "{place.description}"
+            </p>
+            <p style={{ fontSize: 10, color: C.ink3, margin: '6px 0 0', paddingLeft: 14, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+              — {place.name}
+            </p>
+          </div>
+        )}
+
+        {/* ── Genre / vibe chips ── */}
+        {allTags.length > 0 && (
+          <div style={{ padding: '20px 20px 0', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {(place.music_genres ?? []).map(g => (
-              <span key={g} className="text-[10px] text-primary bg-primary/10 rounded-full px-xs py-[3px] uppercase tracking-wide">{g}</span>
+              <span key={g} style={{ fontSize: 11, color: C.accent, background: `${C.accent}14`, borderRadius: 99, padding: '4px 12px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', letterSpacing: '0.04em' }}>{g}</span>
             ))}
             {(place.tags ?? []).slice(0, 4).map(t => (
-              <span key={t} className="text-[10px] text-on-surface-variant/60 bg-surface-container rounded-full px-xs py-[3px]">{t}</span>
+              <span key={t} style={{ fontSize: 11, color: C.ink3, background: C.bg, borderRadius: 99, padding: '4px 12px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{t}</span>
             ))}
           </div>
         )}
 
-        {/* About / description */}
-        {place.description && (
-          <div className="mb-lg">
-            <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-xs">About</p>
-            <p className="text-sm text-on-surface-variant leading-relaxed">{place.description}</p>
-          </div>
-        )}
-
-        {/* Reviews horizontal scroll */}
+        {/* ── Reviews horizontal scroll ── */}
         {place.reviews.length > 0 && (
-          <div className="mb-lg">
-            <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-sm">Reviews</p>
-            <div className="flex gap-sm overflow-x-auto no-scrollbar pb-xs -mx-md px-md">
+          <div style={{ paddingTop: 28 }}>
+            <p style={{ fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 12px', padding: '0 20px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Reviews</p>
+            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingLeft: 20, paddingRight: 12, paddingBottom: 4, scrollbarWidth: 'none' }}>
               {place.reviews.map((r, i) => (
-                <div key={i} className="flex-shrink-0 w-[72vw] max-w-[280px] glass-card p-sm rounded-xl space-y-xs">
-                  <div className="flex items-center justify-between">
-                    <p className="font-bold text-on-surface text-sm truncate">{r.author}</p>
-                    <div className="flex items-center gap-[2px] flex-shrink-0 ml-xs">
+                <div key={i} style={{ flexShrink: 0, width: 260, background: C.bg, borderRadius: 14, padding: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <p style={{ fontWeight: 600, color: C.ink, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{r.author}</p>
+                    <div style={{ display: 'flex', gap: 2, flexShrink: 0, marginLeft: 8 }}>
                       {[...Array(5)].map((_, s) => (
-                        <span key={s} className={`material-symbols-outlined text-[11px] ${s < r.rating ? 'text-yellow-400' : 'text-on-surface-variant/20'}`}
-                          style={s < r.rating ? { fontVariationSettings: "'FILL' 1" } : undefined}>star</span>
+                        <span key={s} className="material-symbols-outlined" style={{ fontSize: 11, color: s < r.rating ? '#D4A017' : C.line, fontVariationSettings: s < r.rating ? "'FILL' 1" : undefined }}>star</span>
                       ))}
                     </div>
                   </div>
-                  <p className="text-on-surface-variant text-xs leading-relaxed line-clamp-3">{r.text}</p>
-                  <p className="text-[9px] text-on-surface-variant/40 uppercase tracking-widest">{r.time}</p>
+                  <p style={{ fontSize: 12, color: C.ink2, margin: '0 0 8px', lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{r.text}</p>
+                  <p style={{ fontSize: 9, color: C.ink3, margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{r.time}</p>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Photos horizontal scroll */}
+        {/* ── Photos horizontal scroll ── */}
         {place.photos.length > 1 && (
-          <div className="mb-lg">
-            <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-sm">Photos</p>
-            <div className="flex gap-sm overflow-x-auto no-scrollbar pb-xs -mx-md px-md">
+          <div style={{ paddingTop: 24 }}>
+            <p style={{ fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 12px', padding: '0 20px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Photos</p>
+            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingLeft: 20, paddingRight: 12, paddingBottom: 4, scrollbarWidth: 'none' }}>
               {place.photos.map((url, i) => (
-                <div key={i} className="flex-shrink-0 w-32 h-24 rounded-xl overflow-hidden bg-surface-container-high">
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                <div key={i} style={{ flexShrink: 0, width: 140, height: 100, borderRadius: 12, overflow: 'hidden', background: C.bg2 }}>
+                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Opening hours */}
+        {/* ── Opening hours ── */}
         {place.weekday_hours.length > 0 && (
-          <div className="mb-lg">
+          <div style={{ padding: '24px 20px 0' }}>
             <button
               onClick={() => setHoursOpen(o => !o)}
-              className="w-full flex items-center justify-between py-sm"
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', padding: '12px 0', cursor: 'pointer' }}
             >
-              <div className="flex items-center gap-sm">
-                <span className="material-symbols-outlined text-primary text-[20px]">schedule</span>
-                <div className="text-left">
-                  <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest">Opening Hours</p>
-                  <p className="text-sm text-on-surface font-medium">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 18, color: C.accent }}>schedule</span>
+                <div style={{ textAlign: 'left' }}>
+                  <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 2px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Opening Hours</p>
+                  <p style={{ fontSize: 13, color: C.ink, margin: 0, fontWeight: 500, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
                     {place.is_open === true ? 'Open now' : place.is_open === false ? 'Closed now' : 'See hours'}
                   </p>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-on-surface-variant/40 text-[20px]">
-                {hoursOpen ? 'expand_less' : 'expand_more'}
-              </span>
+              <span className="material-symbols-outlined" style={{ fontSize: 20, color: C.ink3 }}>{hoursOpen ? 'expand_less' : 'expand_more'}</span>
             </button>
             {hoursOpen && (
-              <div className="mt-xs space-y-xs">
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {place.weekday_hours.map((h, i) => (
-                  <p key={i} className="text-sm text-on-surface-variant">{h}</p>
+                  <p key={i} style={{ fontSize: 13, color: C.ink2, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{h}</p>
                 ))}
               </div>
             )}
           </div>
         )}
 
-        {/* Upcoming events + tickets */}
+        {/* ── Upcoming events + tickets ── */}
         {(eventsLoading || events.length > 0) && (
-          <div className="mb-lg space-y-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest">Upcoming Events</p>
+          <div style={{ padding: '24px 20px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <p style={{ fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.ink3, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Upcoming Events</p>
               {eventsLoading && (
-                <span className="text-[10px] text-on-surface-variant/40 uppercase tracking-widest animate-pulse">Loading…</span>
+                <span style={{ fontSize: 9, color: C.ink3, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', opacity: 0.6 }}>Loading…</span>
               )}
             </div>
             {eventsLoading && (
               <>
-                <div className="glass-card rounded-xl h-28 animate-pulse" />
-                <div className="glass-card rounded-xl h-28 animate-pulse opacity-60" />
+                <div style={{ height: 110, borderRadius: 14, background: C.bg, opacity: 0.6 }} />
+                <div style={{ height: 110, borderRadius: 14, background: C.bg, opacity: 0.35 }} />
               </>
             )}
             {events.map(ev => (
@@ -612,22 +651,21 @@ export default function PlaceDetailPage() {
           </div>
         )}
 
-        {/* Get Directions + Uber buttons */}
-        <div className="space-y-sm mb-lg">
+        {/* ── Directions + Uber ── */}
+        <div style={{ padding: '24px 20px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {/* Get Directions */}
           <a
             href={directionsUrl}
-            className="group w-full h-[70px] bg-surface-container rounded-2xl flex items-center gap-md px-md border border-white/[0.06] active:scale-[0.98] transition-transform duration-150 relative overflow-hidden"
+            style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: C.bg, borderRadius: 16, textDecoration: 'none' }}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.08] via-transparent to-transparent pointer-events-none" />
-            <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-400/20 flex items-center justify-center flex-shrink-0">
-              <span className="material-symbols-outlined text-blue-400 text-[26px]" style={{ fontVariationSettings: "'FILL' 1" }}>near_me</span>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 22, color: '#3B82F6', fontVariationSettings: "'FILL' 1" }}>near_me</span>
             </div>
-            <div className="flex-1 min-w-0 text-left">
-              <p className="font-semibold text-on-surface text-[15px] leading-tight">Get Directions</p>
-              <p className="text-on-surface-variant/50 text-xs mt-0.5">Open in Maps</p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontWeight: 600, color: C.ink, fontSize: 14, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Get Directions</p>
+              <p style={{ fontSize: 12, color: C.ink3, margin: '2px 0 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Open in Maps</p>
             </div>
-            <span className="material-symbols-outlined text-on-surface-variant/30 text-[20px] flex-shrink-0">chevron_right</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 18, color: C.ink3, flexShrink: 0 }}>chevron_right</span>
           </a>
 
           {/* Ride with Uber */}
@@ -635,34 +673,30 @@ export default function PlaceDetailPage() {
             href={`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[latitude]=${place.lat}&dropoff[longitude]=${place.lng}&dropoff[nickname]=${encodeURIComponent(place.name)}&dropoff[formatted_address]=${encodeURIComponent(place.address)}${process.env.NEXT_PUBLIC_UBER_CLIENT_ID ? `&client_id=${process.env.NEXT_PUBLIC_UBER_CLIENT_ID}` : ''}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="group w-full h-[70px] rounded-2xl flex items-center gap-md px-md active:scale-[0.98] transition-transform duration-150 relative overflow-hidden"
-            style={{ background: 'linear-gradient(145deg, #1c1c1e 0%, #090909 100%)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: '#0A0A0A', borderRadius: 16, textDecoration: 'none' }}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
-            <div className="w-12 h-12 rounded-xl bg-white/[0.08] border border-white/[0.1] flex items-center justify-center flex-shrink-0">
-              <svg viewBox="0 0 24 24" className="w-[22px] h-[22px] fill-white" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zM8 7h2v6.5c0 1.1.9 2 2 2s2-.9 2-2V7h2v6.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V7z"/>
-              </svg>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg viewBox="0 0 24 24" style={{ width: 22, height: 22, fill: 'white' }}><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zM8 7h2v6.5c0 1.1.9 2 2 2s2-.9 2-2V7h2v6.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V7z"/></svg>
             </div>
-            <div className="flex-1 min-w-0 text-left">
-              <p className="font-semibold text-white text-[15px] leading-tight">Ride with Uber</p>
-              <p className="text-white/40 text-xs mt-0.5">Request a pickup</p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontWeight: 600, color: 'white', fontSize: 14, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Ride with Uber</p>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', margin: '2px 0 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Request a pickup</p>
             </div>
-            <span className="material-symbols-outlined text-white/30 text-[20px] flex-shrink-0">chevron_right</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>chevron_right</span>
           </a>
         </div>
 
-        {/* Instagram / WhatsApp links */}
+        {/* ── Instagram / WhatsApp links ── */}
         {(place.instagram_handle || place.whatsapp_link) && (
-          <div className="flex gap-sm mb-lg">
+          <div style={{ padding: '16px 20px 0', display: 'flex', gap: 10 }}>
             {place.instagram_handle && (
               <a
                 href={`https://instagram.com/${place.instagram_handle.replace('@', '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 h-12 bg-surface-container rounded-xl flex items-center justify-center gap-xs text-sm text-on-surface-variant border border-outline-variant/20 active:scale-[0.98] transition-transform"
+                style={{ flex: 1, height: 46, background: C.bg, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, color: C.ink2, textDecoration: 'none', border: `1px solid ${C.line}`, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}
               >
-                <span className="material-symbols-outlined text-[18px]">photo_camera</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>photo_camera</span>
                 Instagram
               </a>
             )}
@@ -671,9 +705,9 @@ export default function PlaceDetailPage() {
                 href={place.whatsapp_link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 h-12 bg-surface-container rounded-xl flex items-center justify-center gap-xs text-sm text-on-surface-variant border border-outline-variant/20 active:scale-[0.98] transition-transform"
+                style={{ flex: 1, height: 46, background: C.bg, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, color: C.ink2, textDecoration: 'none', border: `1px solid ${C.line}`, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}
               >
-                <span className="material-symbols-outlined text-[18px]">chat</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chat</span>
                 WhatsApp
               </a>
             )}
@@ -681,15 +715,24 @@ export default function PlaceDetailPage() {
         )}
       </div>
 
-      {/* Sticky CTA */}
+      {/* ── Sticky CTA bar ─────────────────────────────────────────────────── */}
       <div
-        className="fixed bottom-0 left-0 right-0 bg-surface/90 backdrop-blur-xl border-t border-outline-variant/20 px-md py-sm"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'rgba(248,245,238,0.92)',
+          backdropFilter: 'blur(20px)',
+          borderTop: `1px solid ${C.line}`,
+          padding: '14px 20px',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+        }}
       >
-        <div className="flex items-center gap-md">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div>
-            <p className="font-display text-[22px] text-primary leading-tight">{priceDisplay(place)}</p>
-            <p className="text-xs text-on-surface-variant/60">
+            <p style={{ fontFamily: "'Instrument Serif', 'Bodoni Moda', Georgia, serif", fontSize: 22, color: C.accent, fontStyle: 'italic', margin: 0, lineHeight: 1.1 }}>{priceDisplay(place)}</p>
+            <p style={{ fontSize: 11, color: C.ink3, margin: '3px 0 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
               {place.ratings_total > 999
                 ? `${(place.ratings_total / 1000).toFixed(1)}k reviews`
                 : `${place.ratings_total} reviews`}
@@ -698,31 +741,31 @@ export default function PlaceDetailPage() {
           {place.is_partner && activeEvent ? (
             <button
               onClick={() => setShowCheckout(true)}
-              className="flex-1 h-12 bg-primary-container text-on-primary-container rounded-xl font-semibold ignite-glow active:scale-[0.98] transition-transform"
+              style={{ flex: 1, height: 50, background: C.accent, color: 'white', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 600, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', cursor: 'pointer' }}
             >
               Get Tickets
             </button>
           ) : place.is_partner ? (
-            <button className="flex-1 h-12 bg-primary-container text-on-primary-container rounded-xl font-semibold ignite-glow active:scale-[0.98] transition-transform">
+            <button style={{ flex: 1, height: 50, background: C.accent, color: 'white', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 600, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', cursor: 'pointer' }}>
               Book a Table
             </button>
           ) : (
             <a
               href={directionsUrl}
-              className="flex-1 h-12 bg-surface-container text-on-surface rounded-xl font-semibold flex items-center justify-center gap-xs border border-outline-variant/20 active:scale-[0.98] transition-transform"
+              style={{ flex: 1, height: 50, background: C.bg2, color: C.ink, border: `1px solid ${C.line}`, borderRadius: 14, fontSize: 15, fontWeight: 600, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none' }}
             >
-              <span className="material-symbols-outlined text-[18px] text-primary">near_me</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 18, color: C.accent }}>near_me</span>
               Get Directions
             </a>
           )}
         </div>
       </div>
 
-      {/* Inline checkout modal triggered from sticky CTA */}
+      {/* ── Inline checkout modal ─────────────────────────────────────────── */}
       {showCheckout && activeEvent && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end">
-          <div className="w-full bg-surface rounded-t-3xl p-md pb-safe max-h-[90vh] overflow-y-auto">
-            <div className="w-10 h-1 bg-outline-variant/30 rounded-full mx-auto mb-lg" />
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end' }}>
+          <div style={{ width: '100%', background: C.surface, borderRadius: '24px 24px 0 0', padding: 20, paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ width: 36, height: 4, background: C.line, borderRadius: 99, margin: '0 auto 20px' }} />
             <EventCard
               event={activeEvent}
               placeId={place.place_id}
@@ -732,7 +775,7 @@ export default function PlaceDetailPage() {
             />
             <button
               onClick={() => setShowCheckout(false)}
-              className="w-full mt-md py-sm text-on-surface-variant/50 text-sm uppercase tracking-widest"
+              style={{ width: '100%', marginTop: 16, padding: '12px 0', background: 'none', border: 'none', fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.ink3, cursor: 'pointer', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}
             >
               Close
             </button>

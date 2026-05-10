@@ -488,46 +488,94 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   })
 }
 
-// ── Cinema-style Card Components ──────────────────────────────────────────────
+// ── Design tokens ─────────────────────────────────────────────────────────────
+// From the "B _ Cinema" design system
+const C = {
+  bg:        '#F8F5EE',   // page background
+  bg2:       '#EFE9DD',   // slightly darker bg
+  surface:   '#FFFFFF',   // card surface
+  surface2:  '#F4EFE3',   // secondary surface
+  ink:       '#221E1A',   // primary text
+  ink2:      '#6E6356',   // secondary text
+  ink3:      '#9F9486',   // tertiary / muted
+  accent:    '#8C2A2A',   // deep red accent
+  accent2:   '#4A1313',   // darker red
+  accent3:   '#B2843A',   // gold accent
+  line:      'rgba(34,30,26,0.08)',
+  lineStrong:'rgba(34,30,26,0.16)',
+  pillBg:    'rgba(34,30,26,0.05)',
+  pillBgActive: '#221E1A',
+  pillInkActive: '#F8F5EE',
+}
+
+// ── Cinema Card Components ───────────────────────────────────────────────────
 
 function HeroCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; onSave: (id: string) => void }) {
   const genre = place.music_genres?.length > 0 ? place.music_genres[0] : 'Featured'
+  const meta: string[] = []
+  if (place.neighborhood) meta.push(place.neighborhood)
+  if (place.price_level !== null && place.price_level !== undefined) meta.push(PRICE_LABEL[place.price_level])
+
   return (
-    <Link href={`/clubs/place/${place.place_id}`}>
-      <div className="relative w-full rounded-2xl overflow-hidden active:scale-[0.99] transition-transform">
+    <Link href={`/clubs/place/${place.place_id}`} style={{ display: 'block' }}>
+      <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', background: C.surface, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 8px 24px rgba(34,30,26,0.06)' }}>
         {/* Image */}
-        <div className="relative h-64 w-full">
+        <div style={{ position: 'relative', height: 220, width: '100%', background: C.bg2 }}>
           {place.cover_photo
-            ? <img src={place.cover_photo} alt={place.name} className="w-full h-full object-cover rounded-2xl" />
-            : <div className="w-full h-full bg-surface-container-high rounded-2xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-[48px] text-on-surface-variant/20">nightlife</span>
+            ? <img src={place.cover_photo} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 48, color: C.ink3, opacity: 0.3, fontVariationSettings: "'FILL' 1" }}>nightlife</span>
               </div>
           }
-          {/* Top-to-bottom gradient */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-transparent rounded-2xl" />
+          {/* Dark gradient overlay */}
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 50%, rgba(0,0,0,0.3) 100%)' }} />
 
-          {/* Genre tag top-left */}
-          <div className="absolute top-sm left-sm">
-            <span className="text-[9px] uppercase tracking-widest text-white bg-black/50 backdrop-blur-sm rounded-full px-xs py-[3px]">
+          {/* Genre tag */}
+          <div style={{ position: 'absolute', top: 12, left: 12 }}>
+            <span style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.85)', background: 'rgba(0,0,0,0.5)', borderRadius: 99, padding: '3px 8px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
               {genre}
             </span>
           </div>
 
-          {/* Rating top-right */}
+          {/* Save button */}
+          <button
+            onClick={e => { e.preventDefault(); e.stopPropagation(); onSave(place.place_id) }}
+            style={{ position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 17, color: isSaved ? '#E05252' : 'white', fontVariationSettings: isSaved ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
+          </button>
+
+          {/* Rating badge */}
           {place.rating && (
-            <div className="absolute top-sm right-sm flex items-center gap-[3px] bg-black/60 backdrop-blur-sm rounded-full px-xs py-[3px]">
-              <span className="material-symbols-outlined text-[12px] text-yellow-400" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-              <span className="text-white text-[11px] font-bold">{place.rating.toFixed(1)}</span>
+            <div style={{ position: 'absolute', bottom: 12, right: 12, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(0,0,0,0.55)', borderRadius: 99, padding: '3px 8px' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 12, color: '#F0C040', fontVariationSettings: "'FILL' 1" }}>star</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'white', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{place.rating.toFixed(1)}</span>
             </div>
           )}
         </div>
 
-        {/* Below image content */}
-        <div className="pt-sm pb-xs">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-primary mb-[2px]">FEATURED TONIGHT</p>
-          <p className="font-display italic text-[26px] text-on-surface leading-tight"><em>{place.name}</em></p>
-          <p className="text-xs text-on-surface-variant/60 mt-xs truncate">{place.address}{place.price_level !== null && place.price_level !== undefined ? ` · ${PRICE_LABEL[place.price_level]}` : ''}</p>
-          <p className="text-primary text-sm font-semibold mt-xs">View Club →</p>
+        {/* Text below image */}
+        <div style={{ padding: '16px 20px 18px' }}>
+          <p style={{ fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.ink3, marginBottom: 6, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+            FEATURED TONIGHT
+          </p>
+          <h2 style={{ fontSize: 32, fontWeight: 400, fontStyle: 'normal', color: C.ink, margin: '0 0 6px', lineHeight: 1.05, letterSpacing: '-0.01em', fontFamily: "'Instrument Serif', 'Bodoni Moda', Georgia, serif" }}>
+            Tonight: <em style={{ fontStyle: 'italic', color: C.accent }}>{place.name}</em>
+          </h2>
+          {place.address && (
+            <p style={{ fontSize: 13, fontStyle: 'italic', color: C.ink2, margin: '0 0 12px', paddingLeft: 10, borderLeft: `2px solid ${C.line}`, lineHeight: 1.5, fontFamily: "'Instrument Serif', 'Bodoni Moda', Georgia, serif" }}>
+              {place.address.slice(0, 90)}{place.address.length > 90 ? '…' : ''}
+            </p>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <p style={{ fontSize: 11, color: C.ink3, letterSpacing: '0.04em', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+              {meta.join(' · ')}
+            </p>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: C.ink, color: C.pillInkActive, borderRadius: 99, padding: '9px 16px', fontSize: 13, fontWeight: 600, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+              View Club
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 7h8m-3-3l3 3-3 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+          </div>
         </div>
       </div>
     </Link>
@@ -535,47 +583,37 @@ function HeroCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; 
 }
 
 function LandCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; onSave: (id: string) => void }) {
-  const genre = place.music_genres?.length > 0 ? place.music_genres[0] : 'Club'
+  const genre = place.music_genres?.length > 0 ? place.music_genres[0] : null
   return (
-    <Link href={`/clubs/place/${place.place_id}`}>
-      <div className="flex-shrink-0 w-[62vw] max-w-[260px] rounded-xl overflow-hidden relative active:scale-[0.97] transition-transform">
+    <Link href={`/clubs/place/${place.place_id}`} style={{ display: 'block', flexShrink: 0 }}>
+      <div style={{ width: 220, borderRadius: 12, overflow: 'hidden', background: C.surface, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 16px rgba(34,30,26,0.06)' }}>
         {/* Image */}
-        <div className="relative h-[150px] bg-surface-container-high">
+        <div style={{ position: 'relative', height: 130, background: C.bg2 }}>
           {place.cover_photo
-            ? <img src={place.cover_photo} alt={place.name} className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center">
-                <span className="material-symbols-outlined text-[32px] text-on-surface-variant/20">nightlife</span>
+            ? <img src={place.cover_photo} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 32, color: C.ink3, opacity: 0.25 }}>nightlife</span>
               </div>
           }
-          {/* Bottom-to-top gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 55%)' }} />
 
-          {/* Genre tag top-left */}
-          <div className="absolute top-xs left-xs">
-            <span className="text-[9px] text-white bg-black/50 backdrop-blur-sm rounded-full px-xs py-[2px] uppercase tracking-wide">
-              {genre}
-            </span>
-          </div>
+          {genre && (
+            <div style={{ position: 'absolute', top: 8, left: 8 }}>
+              <span style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.8)', background: 'rgba(0,0,0,0.45)', borderRadius: 99, padding: '2px 7px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{genre}</span>
+            </div>
+          )}
 
-          {/* Save button top-right */}
           <button
             onClick={e => { e.preventDefault(); e.stopPropagation(); onSave(place.place_id) }}
-            className="absolute top-xs right-xs w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
+            style={{ position: 'absolute', top: 6, right: 6, width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
           >
-            <span
-              className="material-symbols-outlined text-[16px] transition-colors"
-              style={{
-                color: isSaved ? '#ff4d6d' : 'white',
-                fontVariationSettings: isSaved ? "'FILL' 1" : "'FILL' 0",
-              }}
-            >favorite</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 15, color: isSaved ? '#E05252' : 'white', fontVariationSettings: isSaved ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
           </button>
 
-          {/* Bottom overlay text */}
-          <div className="absolute bottom-0 left-0 right-0 px-xs pb-xs">
-            <p className="font-bold text-white text-sm leading-tight truncate">{place.name}</p>
-            <p className="text-white/60 text-[11px] truncate mt-[1px]">
-              {place.neighborhood ?? ''}{place.neighborhood && place.price_level !== null ? ' · ' : ''}{place.price_level !== null && place.price_level !== undefined ? PRICE_LABEL[place.price_level] : ''}
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 10px 8px' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'white', margin: 0, lineHeight: 1.3, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{place.name}</p>
+            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', margin: '1px 0 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {[place.neighborhood, place.price_level !== null && place.price_level !== undefined ? PRICE_LABEL[place.price_level] : null].filter(Boolean).join(' · ')}
             </p>
           </div>
         </div>
@@ -586,89 +624,82 @@ function LandCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; 
 
 function PosterCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; onSave: (id: string) => void }) {
   return (
-    <Link href={`/clubs/place/${place.place_id}`}>
-      <div className="flex-shrink-0 w-[38vw] max-w-[155px] rounded-xl overflow-hidden relative active:scale-[0.97] transition-transform bg-surface-container">
+    <Link href={`/clubs/place/${place.place_id}`} style={{ display: 'block', flexShrink: 0 }}>
+      <div style={{ width: 150, borderRadius: 12, overflow: 'hidden', background: C.surface, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 14px rgba(34,30,26,0.06)' }}>
         {/* Image */}
-        <div className="relative h-[160px] bg-surface-container-high">
+        <div style={{ position: 'relative', height: 168, background: C.bg2 }}>
           {place.cover_photo
-            ? <img src={place.cover_photo} alt={place.name} className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center">
-                <span className="material-symbols-outlined text-[32px] text-on-surface-variant/20">nightlife</span>
+            ? <img src={place.cover_photo} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 28, color: C.ink3, opacity: 0.25 }}>nightlife</span>
               </div>
           }
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 50%)' }} />
 
-          {/* Open / distance chip top-left */}
-          <div className="absolute top-xs left-xs">
-            {place.is_open === true
-              ? <span className="chip-open text-[9px] px-xs py-[2px]">OPEN</span>
-              : place.distance !== undefined
-                ? <span className="text-[9px] text-white bg-black/50 backdrop-blur-sm rounded-full px-xs py-[2px]">{fmtDistance(place.distance)}</span>
-                : null
-            }
-          </div>
+          {/* Open chip */}
+          {place.is_open === true && (
+            <div style={{ position: 'absolute', top: 7, left: 7 }}>
+              <span style={{ fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'white', background: '#2D7A46', borderRadius: 99, padding: '2px 6px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontWeight: 600 }}>Open</span>
+            </div>
+          )}
+          {place.is_open !== true && place.distance !== undefined && (
+            <div style={{ position: 'absolute', top: 7, left: 7 }}>
+              <span style={{ fontSize: 8, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.75)', background: 'rgba(0,0,0,0.4)', borderRadius: 99, padding: '2px 6px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{fmtDistance(place.distance)}</span>
+            </div>
+          )}
 
-          {/* Save button top-right */}
           <button
             onClick={e => { e.preventDefault(); e.stopPropagation(); onSave(place.place_id) }}
-            className="absolute top-xs right-xs w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
+            style={{ position: 'absolute', top: 6, right: 6, width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
           >
-            <span
-              className="material-symbols-outlined text-[16px] transition-colors"
-              style={{
-                color: isSaved ? '#ff4d6d' : 'white',
-                fontVariationSettings: isSaved ? "'FILL' 1" : "'FILL' 0",
-              }}
-            >favorite</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 14, color: isSaved ? '#E05252' : 'white', fontVariationSettings: isSaved ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
           </button>
         </div>
 
-        {/* Info below image */}
-        <div className="px-xs py-xs">
-          <p className="font-bold text-on-surface text-sm leading-tight truncate">{place.name}</p>
-          <p className="text-xs text-on-surface-variant/60 truncate mt-[2px]">{place.neighborhood ?? place.address}</p>
+        {/* Info */}
+        <div style={{ padding: '8px 10px 10px' }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: C.ink, margin: 0, lineHeight: 1.3, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{place.name}</p>
+          <p style={{ fontSize: 10, color: C.ink3, margin: '2px 0 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {place.neighborhood ?? place.address}
+          </p>
         </div>
       </div>
     </Link>
   )
 }
 
-// Special card for "Events Tonight" shelf — shows event details overlay
 function EventShelfCard({ place }: { place: Place }) {
   const ev = place.upcoming_event
   return (
-    <Link href={`/clubs/place/${place.place_id}`}>
-      <div className="flex-shrink-0 w-[62vw] max-w-[260px] rounded-xl overflow-hidden relative active:scale-[0.97] transition-transform">
-        <div className="relative h-[140px] bg-surface-container-high">
+    <Link href={`/clubs/place/${place.place_id}`} style={{ display: 'block', flexShrink: 0 }}>
+      <div style={{ width: 220, borderRadius: 12, overflow: 'hidden', background: C.surface, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 16px rgba(34,30,26,0.06)' }}>
+        <div style={{ position: 'relative', height: 130, background: C.bg2 }}>
           {place.cover_photo
-            ? <img src={place.cover_photo} alt={place.name} className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center">
-                <span className="material-symbols-outlined text-[32px] text-on-surface-variant/20">nightlife</span>
+            ? <img src={place.cover_photo} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 32, color: C.ink3, opacity: 0.25 }}>nightlife</span>
               </div>
           }
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)' }} />
+
           {/* Ticket badge */}
-          <div className="absolute top-xs left-xs bg-primary/90 backdrop-blur-sm rounded-full px-xs py-[2px] flex items-center gap-[3px]">
-            <span className="material-symbols-outlined text-[10px] text-on-primary" style={{ fontVariationSettings: "'FILL' 1" }}>confirmation_number</span>
-            <span className="font-label-sm text-[9px] text-on-primary uppercase tracking-widest">Tickets</span>
+          <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', alignItems: 'center', gap: 3, background: `${C.accent}ee`, borderRadius: 99, padding: '2px 8px' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 9, color: 'white', fontVariationSettings: "'FILL' 1" }}>confirmation_number</span>
+            <span style={{ fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'white', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontWeight: 600 }}>Tickets</span>
           </div>
+
           {ev?.display_price !== undefined && (
-            <div className="absolute top-xs right-xs bg-black/60 backdrop-blur-sm rounded-full px-xs py-[2px] flex items-center justify-center">
-              <span className="font-label-sm text-[10px] text-white font-bold leading-none">
+            <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', borderRadius: 99, padding: '2px 7px' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'white', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
                 {ev.display_price === 0 ? 'FREE' : `From €${Math.ceil(ev.display_price / 100)}`}
               </span>
             </div>
           )}
-          {/* Bottom info */}
-          <div className="absolute bottom-0 left-0 right-0 px-xs pb-xs">
-            <p className="font-body-md font-bold text-white text-sm leading-tight truncate">{place.name}</p>
-            {ev && (
-              <p className="font-label-sm text-[10px] text-white/70 truncate mt-[1px]">{ev.title}</p>
-            )}
-            {ev && (
-              <p className="font-label-sm text-[9px] text-primary/90 uppercase tracking-widest mt-[2px]">
-                {fmtEventDate(ev.date)}
-              </p>
-            )}
+
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 10px 8px' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'white', margin: 0, lineHeight: 1.3, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{place.name}</p>
+            {ev && <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)', margin: '1px 0 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.title}</p>}
+            {ev && <p style={{ fontSize: 9, color: `${C.accent3}dd`, margin: '2px 0 0', letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{fmtEventDate(ev.date)}</p>}
           </div>
         </div>
       </div>
@@ -676,7 +707,6 @@ function EventShelfCard({ place }: { place: Place }) {
   )
 }
 
-// Card for the Rumbas shelf
 function RumbaShelfCard({ rumba }: { rumba: Rumba }) {
   const spotsLeft = Math.max(0, rumba.capacity - (rumba.signup_count ?? 0))
   const isFull    = spotsLeft === 0
@@ -684,32 +714,32 @@ function RumbaShelfCard({ rumba }: { rumba: Rumba }) {
   const dateLabel = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
   const timeLabel = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
   return (
-    <Link href={`/rumbas/${rumba.id}`}>
-      <div className="flex-shrink-0 w-[62vw] max-w-[260px] rounded-xl overflow-hidden relative active:scale-[0.97] transition-transform">
-        <div className="relative h-[140px] bg-surface-container-high">
+    <Link href={`/rumbas/${rumba.id}`} style={{ display: 'block', flexShrink: 0 }}>
+      <div style={{ width: 220, borderRadius: 12, overflow: 'hidden', background: C.surface, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 16px rgba(34,30,26,0.06)' }}>
+        <div style={{ position: 'relative', height: 130, background: C.bg2 }}>
           {rumba.cover_image
-            ? <img src={rumba.cover_image} alt={rumba.title} className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center">
-                <span className="material-symbols-outlined text-[48px] text-primary/30" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
+            ? <img src={rumba.cover_image} alt={rumba.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 40, color: C.accent, opacity: 0.3, fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
               </div>
           }
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-          {/* Fire badge */}
-          <div className="absolute top-xs left-xs bg-primary/90 backdrop-blur-sm rounded-full px-xs py-[2px] flex items-center gap-[3px]">
-            <span className="material-symbols-outlined text-[10px] text-white" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
-            <span className="font-label-sm text-[9px] text-white uppercase tracking-widest">Rumba</span>
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)' }} />
+
+          <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', alignItems: 'center', gap: 3, background: `${C.accent}ee`, borderRadius: 99, padding: '2px 8px' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 9, color: 'white', fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
+            <span style={{ fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'white', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontWeight: 600 }}>Rumba</span>
           </div>
-          {/* Spots badge */}
-          <div className="absolute top-xs right-xs bg-black/60 backdrop-blur-sm rounded-full px-xs py-[2px]">
-            <span className={`font-label-sm text-[10px] font-bold ${isFull ? 'text-red-400' : 'text-white'}`}>
+
+          <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.55)', borderRadius: 99, padding: '2px 7px' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: isFull ? '#E05252' : 'white', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
               {isFull ? 'Full' : `${spotsLeft} left`}
             </span>
           </div>
-          {/* Bottom info */}
-          <div className="absolute bottom-0 left-0 right-0 px-xs pb-xs">
-            <p className="font-body-md font-bold text-white text-sm leading-tight truncate">{rumba.title}</p>
-            <p className="font-label-sm text-[10px] text-white/70 truncate mt-[1px]">{rumba.venue_name}</p>
-            <p className="font-label-sm text-[9px] text-primary/90 uppercase tracking-widest mt-[2px]">
+
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 10px 8px' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'white', margin: 0, lineHeight: 1.3, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rumba.title}</p>
+            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)', margin: '1px 0 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rumba.venue_name}</p>
+            <p style={{ fontSize: 9, color: `${C.accent3}dd`, margin: '2px 0 0', letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
               {dateLabel} · {timeLabel}
             </p>
           </div>
@@ -720,18 +750,22 @@ function RumbaShelfCard({ rumba }: { rumba: Rumba }) {
 }
 
 function ShelfRow({ shelf, saved, onSave, index }: { shelf: Shelf; saved: Set<string>; onSave: (id: string) => void; index: number }) {
-  // Rumba shelf — special rendering
+  const isEventsShelf = shelf.id === 'events_tonight'
+  // Alternate landscape / poster cards for visual rhythm
+  const useLandscape = index % 2 !== 0
+
+  // Rumba shelf
   if (shelf.id === 'rumbas' && shelf._rumbas && shelf._rumbas.length > 0) {
     return (
-      <section className="mb-md">
-        <div className="px-container-padding mb-sm">
-          <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-[2px]">{shelf.subtitle}</p>
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-h1 text-h1 text-on-surface">{shelf.title}</h2>
-            <span className="text-xs text-primary">See all →</span>
+      <section style={{ marginBottom: 32 }}>
+        <div style={{ padding: '0 20px', marginBottom: 12 }}>
+          <p style={{ fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 4px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{shelf.subtitle}</p>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 500, color: C.ink, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{shelf.title}</h2>
+            <span style={{ fontSize: 12, color: C.accent, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{shelf._rumbas.length} events →</span>
           </div>
         </div>
-        <div className="flex gap-sm overflow-x-auto no-scrollbar pl-container-padding pr-sm pb-xs">
+        <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingLeft: 20, paddingRight: 12, paddingBottom: 4, scrollbarWidth: 'none' }}>
           {shelf._rumbas.map(r => <RumbaShelfCard key={r.id} rumba={r} />)}
         </div>
       </section>
@@ -740,23 +774,21 @@ function ShelfRow({ shelf, saved, onSave, index }: { shelf: Shelf; saved: Set<st
 
   if (shelf.featured) {
     return (
-      <section className="mb-md">
-        <div className="px-container-padding mb-sm">
-          <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-[2px]">{shelf.subtitle}</p>
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-h1 text-h1 text-on-surface">{shelf.title}</h2>
-            <span className="text-xs text-primary">See all →</span>
+      <section style={{ marginBottom: 32 }}>
+        <div style={{ padding: '0 20px', marginBottom: 14 }}>
+          <p style={{ fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 3px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{shelf.subtitle}</p>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 500, color: C.ink, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{shelf.title}</h2>
+            <span style={{ fontSize: 12, color: C.accent, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{shelf.places.length} venues →</span>
           </div>
         </div>
-        {/* HeroCard for first place */}
         {shelf.places[0] && (
-          <div className="px-container-padding mb-sm">
+          <div style={{ padding: '0 20px', marginBottom: 14 }}>
             <HeroCard place={shelf.places[0]} isSaved={saved.has(shelf.places[0].place_id)} onSave={onSave} />
           </div>
         )}
-        {/* PosterCards for the rest */}
         {shelf.places.length > 1 && (
-          <div className="flex gap-sm overflow-x-auto no-scrollbar pl-container-padding pr-sm pb-xs">
+          <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingLeft: 20, paddingRight: 12, paddingBottom: 4, scrollbarWidth: 'none' }}>
             {shelf.places.slice(1).map(p => (
               <PosterCard key={p.place_id} place={p} isSaved={saved.has(p.place_id)} onSave={onSave} />
             ))}
@@ -766,30 +798,25 @@ function ShelfRow({ shelf, saved, onSave, index }: { shelf: Shelf; saved: Set<st
     )
   }
 
-  const isEventsShelf = shelf.id === 'events_tonight'
-
-  // Determine card type for this shelf
-  const usePosters = shelf.id.includes('for_you') || index % 2 === 0
-
   return (
-    <section className="mb-md">
-      <div className="px-container-padding mb-sm">
-        <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-[2px]">{shelf.subtitle}</p>
-        <div className="flex items-baseline justify-between">
-          <h2 className="font-h1 text-h1 text-on-surface">{shelf.title}</h2>
+    <section style={{ marginBottom: 32 }}>
+      <div style={{ padding: '0 20px', marginBottom: 12 }}>
+        <p style={{ fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 3px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{shelf.subtitle}</p>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <h2 style={{ fontSize: 16, fontWeight: 500, color: C.ink, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{shelf.title}</h2>
           {isEventsShelf
-            ? <span className="text-[9px] text-primary uppercase tracking-widest bg-primary/10 rounded-full px-xs py-[2px]">Live</span>
-            : <span className="text-xs text-primary">See all →</span>
+            ? <span style={{ fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.accent, background: `${C.accent}18`, borderRadius: 99, padding: '2px 8px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Live</span>
+            : <span style={{ fontSize: 12, color: C.accent, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{shelf.places.length} venues →</span>
           }
         </div>
       </div>
-      <div className="flex gap-sm overflow-x-auto no-scrollbar pl-container-padding pr-sm pb-xs">
+      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingLeft: 20, paddingRight: 12, paddingBottom: 4, scrollbarWidth: 'none' }}>
         {shelf.places.map(p =>
           isEventsShelf
             ? <EventShelfCard key={p.place_id} place={p} />
-            : usePosters
-              ? <PosterCard key={p.place_id} place={p} isSaved={saved.has(p.place_id)} onSave={onSave} />
-              : <LandCard key={p.place_id} place={p} isSaved={saved.has(p.place_id)} onSave={onSave} />
+            : useLandscape
+              ? <LandCard key={p.place_id} place={p} isSaved={saved.has(p.place_id)} onSave={onSave} />
+              : <PosterCard key={p.place_id} place={p} isSaved={saved.has(p.place_id)} onSave={onSave} />
         )}
       </div>
     </section>
@@ -937,72 +964,90 @@ export default function ExplorePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 text-center">
-        <span className="material-symbols-outlined text-[64px] text-primary block mb-md animate-pulse"
-          style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
-        <p className="font-h2 text-h2 text-on-surface mb-xs">Finding clubs near you</p>
-        <p className="font-body-md text-on-surface-variant">Loading tonight's lineup…</p>
+      <div style={{ background: C.bg, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,700;1,400;1,700&display=swap');`}</style>
+        <span className="material-symbols-outlined" style={{ fontSize: 56, color: C.accent, display: 'block', marginBottom: 20, fontVariationSettings: "'FILL' 1" }}>location_on</span>
+        <p style={{ fontFamily: "'Instrument Serif', 'Bodoni Moda', Georgia, serif", fontSize: 24, color: C.ink, marginBottom: 8 }}>Finding clubs near you</p>
+        <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 14, color: C.ink3 }}>Loading tonight's lineup…</p>
       </div>
     )
   }
 
   return (
-    <div className="pt-md pb-8">
-      {/* Search bar header */}
-      <div className="px-container-padding mb-sm">
-        <div className="flex items-center justify-between">
+    <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 100 }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,700;1,400;1,700&display=swap'); .no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
+
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <header style={{ padding: '20px 20px 0', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {/* Wordmark + location */}
           <div>
-            <p className="font-label-sm text-label-sm text-primary uppercase tracking-widest">Barcelona</p>
-            <h1 className="font-display text-h1 text-on-surface tracking-[0.12em] uppercase">{timeGreeting()}</h1>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
+              <span style={{ fontFamily: "'Instrument Serif', 'Bodoni Moda', Georgia, serif", fontSize: 28, fontStyle: 'italic', fontWeight: 400, color: C.ink, letterSpacing: '-0.01em', lineHeight: 1 }}>fuoco.</span>
+            </div>
+            <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 10, color: C.ink3, letterSpacing: '0.08em', margin: 0 }}>
+              Barcelona · {timeGreeting()}
+            </p>
           </div>
-          <button onClick={() => setShowSearch(s => !s)}
-            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${showSearch ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container text-on-surface-variant'}`}>
-            <span className="material-symbols-outlined text-[20px]">{showSearch ? 'close' : 'search'}</span>
-          </button>
+
+          {/* Icons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => setShowSearch(s => !s)}
+              style={{ width: 36, height: 36, borderRadius: '50%', background: showSearch ? C.ink : C.pillBg, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18, color: showSearch ? C.pillInkActive : C.ink2 }}>{showSearch ? 'close' : 'search'}</span>
+            </button>
+            <button style={{ width: 36, height: 36, borderRadius: '50%', background: C.pillBg, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 18, color: C.ink2 }}>bookmark</span>
+            </button>
+          </div>
         </div>
 
-        {/* Search bar — slide in */}
+        {/* Search bar */}
         {showSearch && (
-          <div className="relative mt-sm">
-            <span className="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-[18px]">search</span>
+          <div style={{ position: 'relative', marginTop: 12 }}>
+            <span className="material-symbols-outlined" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 17, color: C.ink3 }}>search</span>
             <input
               autoFocus
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search clubs, neighbourhoods…"
-              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl pl-10 pr-sm py-sm font-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary-container/60"
+              style={{ width: '100%', background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, paddingLeft: 38, paddingRight: 14, paddingTop: 11, paddingBottom: 11, fontSize: 14, color: C.ink, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', outline: 'none', boxSizing: 'border-box' }}
             />
           </div>
         )}
-      </div>
+      </header>
 
-      {/* Error */}
+      {/* ── Error ──────────────────────────────────────────────────────────── */}
       {error && (
-        <div className="mx-container-padding glass-card p-sm rounded-xl border border-error/30 flex items-center gap-sm mb-md">
-          <span className="material-symbols-outlined text-error text-[20px]">error</span>
-          <p className="font-body-md text-on-surface-variant text-sm">{error}</p>
+        <div style={{ margin: '0 20px 16px', background: C.surface, border: `1px solid rgba(140,42,42,0.2)`, borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 18, color: C.accent }}>error</span>
+          <p style={{ fontSize: 13, color: C.ink2, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{error}</p>
         </div>
       )}
 
-      {/* Search results */}
+      {/* ── Search results ─────────────────────────────────────────────────── */}
       {showSearch && search && (
-        <div className="px-container-padding space-y-sm mb-xl">
+        <div style={{ padding: '0 20px', marginBottom: 24 }}>
           {searchResults.length === 0
-            ? <p className="font-body-md text-on-surface-variant/50 text-center py-lg">No clubs found for "{search}"</p>
+            ? <p style={{ textAlign: 'center', padding: '32px 0', color: C.ink3, fontSize: 13, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>No clubs found for "{search}"</p>
             : searchResults.map(p => (
-                <Link key={p.place_id} href={`/clubs/place/${p.place_id}`}>
-                  <div className="glass-card rounded-xl overflow-hidden flex items-center gap-sm p-sm active:scale-[0.99] transition-transform">
-                    <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container-high">
+                <Link key={p.place_id} href={`/clubs/place/${p.place_id}`} style={{ display: 'block' }}>
+                  <div style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 12, padding: 12, marginBottom: 10, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 12px rgba(34,30,26,0.05)' }}>
+                    <div style={{ width: 52, height: 52, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: C.bg2 }}>
                       {p.cover_photo
-                        ? <img src={p.cover_photo} alt={p.name} className="w-full h-full object-cover" />
-                        : <div className="w-full h-full flex items-center justify-center"><span className="material-symbols-outlined text-[20px] text-on-surface-variant/20">nightlife</span></div>
+                        ? <img src={p.cover_photo} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span className="material-symbols-outlined" style={{ fontSize: 20, color: C.ink3, opacity: 0.3 }}>nightlife</span></div>
                       }
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-body-md font-bold text-on-surface truncate">{p.name}</p>
-                      <p className="font-body-md text-on-surface-variant/60 text-sm truncate">{p.address}</p>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 600, color: C.ink, fontSize: 14, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{p.name}</p>
+                      <p style={{ fontSize: 12, color: C.ink3, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{p.address}</p>
                     </div>
-                    {p.is_open === true && <span className="chip-open text-[9px]">OPEN</span>}
+                    {p.is_open === true && (
+                      <span style={{ fontSize: 8, letterSpacing: '0.12em', fontWeight: 600, textTransform: 'uppercase', color: 'white', background: '#2D7A46', borderRadius: 99, padding: '2px 7px', flexShrink: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Open</span>
+                    )}
                   </div>
                 </Link>
               ))
@@ -1010,25 +1055,33 @@ export default function ExplorePage() {
         </div>
       )}
 
-      {/* Shelves + filter chips */}
+      {/* ── Shelves + filter chips ─────────────────────────────────────────── */}
       {(!showSearch || !search) && (
         <>
-          {/* Featured hero shelf (first shelf) */}
+          {/* Featured hero shelf */}
           {shelves.length > 0 && shelves[0].featured && (
             <ShelfRow key={shelves[0].id} shelf={shelves[0]} saved={saved} onSave={handleSave} index={0} />
           )}
 
-          {/* Filter chips bar — after hero, before remaining shelves */}
-          <div className="flex gap-xs overflow-x-auto no-scrollbar px-container-padding py-sm mb-xs">
+          {/* Filter chips */}
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '0 20px 16px', scrollbarWidth: 'none' }}>
             {FILTER_CHIPS.map(chip => (
               <button
                 key={chip.id}
                 onClick={() => setActiveFilter(chip.id)}
-                className={`flex-shrink-0 px-sm py-xs rounded-full text-xs font-medium border transition-all ${
-                  activeFilter === chip.id
-                    ? 'bg-primary-container border-primary/40 text-on-primary-container'
-                    : 'bg-surface-container border-transparent text-on-surface-variant/70'
-                }`}
+                style={{
+                  flexShrink: 0,
+                  padding: '7px 14px',
+                  borderRadius: 99,
+                  fontSize: 13,
+                  fontWeight: activeFilter === chip.id ? 600 : 400,
+                  fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: activeFilter === chip.id ? C.pillBgActive : C.pillBg,
+                  color: activeFilter === chip.id ? C.pillInkActive : C.ink2,
+                  letterSpacing: '-0.01em',
+                }}
               >
                 {chip.label}
               </button>
@@ -1038,9 +1091,9 @@ export default function ExplorePage() {
           {/* Remaining shelves */}
           {shelves.length === 0
             ? (
-              <div className="text-center py-xl text-on-surface-variant px-container-padding">
-                <span className="material-symbols-outlined text-[48px] mb-sm block">location_searching</span>
-                <p className="font-body-md">No clubs found nearby</p>
+              <div style={{ textAlign: 'center', padding: '48px 24px', color: C.ink3 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 44, display: 'block', marginBottom: 12, opacity: 0.4 }}>location_searching</span>
+                <p style={{ fontSize: 14, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>No clubs found nearby</p>
               </div>
             )
             : shelves.slice(shelves[0]?.featured ? 1 : 0).map((shelf, i) => (

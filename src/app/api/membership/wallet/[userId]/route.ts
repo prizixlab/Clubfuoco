@@ -5,31 +5,33 @@ import path from 'path'
 import fs from 'fs'
 
 // ─── Tier themes — mirroring the profile card ─────────────────────────────────
-// bg     = darkest card gradient stop
-// fg     = primary accent (names, values)
-// label  = muted accent (PKPass label text)
-// header = tier display name shown in the pass header
+// bg    = characteristic mid-gradient colour so the pass is visually distinct
+//         Gold:     72% stop  rgb(140, 90, 30)  — warm amber
+//         Sapphire: 45% stop  rgb(31, 53, 144)  — vivid navy
+//         Black:    60% stop  rgb(26, 22, 20)   — very dark neutral
+// fg    = lightest accent used on the card
+// label = label text (slightly dimmed fg)
 const TIER: Record<string, {
   bg: string; fg: string; label: string; header: string; logoText: string
 }> = {
   gold: {
-    bg:       'rgb(36, 20, 12)',
-    fg:       'rgb(255, 232, 181)',
-    label:    'rgb(194, 139,  61)',
+    bg:       'rgb(120, 76, 22)',   // warm amber — unmistakably gold
+    fg:       'rgb(255, 241, 210)',
+    label:    'rgb(255, 218, 150)',
     header:   'ORO',
     logoText: 'Club Fuoco · Oro',
   },
   sapphire: {
-    bg:       'rgb(14, 27, 74)',
+    bg:       'rgb(25, 46, 128)',   // vivid navy — clearly sapphire
     fg:       'rgb(221, 230, 255)',
-    label:    'rgb(74, 107, 196)',
+    label:    'rgb(170, 196, 255)',
     header:   'ZAFFIRO',
     logoText: 'Club Fuoco · Zaffiro',
   },
   black: {
-    bg:       'rgb(8, 8, 8)',
+    bg:       'rgb(22, 18, 14)',    // near-black with a warm undertone
     fg:       'rgb(232, 182, 91)',
-    label:    'rgb(140,  90, 30)',
+    label:    'rgb(185, 140, 65)',
     header:   'NERO',
     logoText: 'Club Fuoco · Nero',
   },
@@ -123,23 +125,23 @@ export async function GET(
     logoText:           t.logoText,
 
     storeCard: {
-      // Top-right: tier name (mirrors the "N° XX  MILANO" corner labels)
+      // Top-right corner: member number (mirrors the N° corner label on the card)
       headerFields: [
-        { key: 'tier_badge', label: '', value: t.header },
+        { key: 'number', label: 'N°', value: memberNum },
       ],
 
-      // Main: member name with Italian/English label
+      // Large centred text: tier name — the most visually dominant element
       primaryFields: [
-        { key: 'member', label: 'SOCIO · MEMBRO', value: fullName },
+        { key: 'tier_name', label: 'CLUB FUOCO', value: t.header },
       ],
 
-      // Row: member number + founding year (mirrors card corners)
+      // Row: member name (smaller than primary) + join year
       secondaryFields: [
-        { key: 'number', label: 'N°',   value: memberNum },
-        { key: 'est',    label: 'EST.', value: joinYear  },
+        { key: 'member', label: 'SOCIO',  value: fullName },
+        { key: 'est',    label: 'EST.',   value: joinYear  },
       ],
 
-      // Row: membership status / expiry
+      // Row: status / expiry
       auxiliaryFields: expirationDate
         ? [{ key: 'valid', label: 'VALIDO FINO A',
              value: new Date(expirationDate).toLocaleDateString('en-GB', {

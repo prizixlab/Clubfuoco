@@ -4,9 +4,10 @@ import { PKPass } from 'passkit-generator'
 import path from 'path'
 import fs from 'fs'
 
-// Public route — membership UUID acts as the credential (not guessable), same
-// pattern as /api/bookings/[id]/wallet. This avoids the cookie problem when
-// Browser.open() / SFSafariViewController opens a cookieless session.
+// Public route — keyed by user ID (UUID, not guessable).
+// Avoids the cookie problem: Browser.open / SFSafariViewController starts a
+// fresh session with no cookies, so session-auth routes redirect to /login.
+// Using the user ID lets us skip auth entirely, same as /api/bookings/[id]/wallet.
 //
 // Env vars (base64-encoded PEM):
 //   APPLE_PASS_TYPE_ID  APPLE_TEAM_ID  APPLE_WWDR_PEM
@@ -39,9 +40,9 @@ const TIER_COLOURS: Record<string, { bg: string; fg: string; label: string }> = 
 
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ membershipId: string }> }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
-  const { membershipId } = await params
+  const { userId } = await params
 
   if (!CONFIGURED) {
     return NextResponse.json(
@@ -52,40 +53,47 @@ export async function GET(
 
   const supabase = await createServiceClient()
 
-  // Membership UUID is the credential — fetch with join to get member name
-  const { data: membership, error: mErr } = await supabase
-    .from('memberships')
-    .select('*, users(id, full_name)')
-    .eq('id', membershipId)
+  // Fetch user profile to get name and tier
+  const { data: user, error: uErr } = await supabase
+    .from('users')
+    .select('id, full_name, membership_tier')
+    .eq('id', userId)
     .single()
 
-  if (mErr || !membership) {
-    return NextResponse.json({ error: 'Membership not found' }, { status: 404 })
+  if (uErr || !user) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
 
-  if (membership.status === 'cancelled') {
+  const tier = user.membership_tier as string
+  if (tier === 'free') {
+    return NextResponse.json({ error: 'No paid membership' }, { status: 400 })
+  }
+
+  // Try to get valid_until from memberships table (may not exist for manually-set tiers)
+  const { data: membership } = await supabase
+    .from('memberships')
+    .select('valid_until, status')
+    .eq('user_id', userId)
+    .single()
+
+  if (membership?.status === 'cancelled') {
     return NextResponse.json({ error: 'Membership cancelled' }, { status: 400 })
   }
 
-  const user      = (membership as any).users
-  const tier      = membership.tier as string
   const colours   = TIER_COLOURS[tier] ?? TIER_COLOURS.gold
-  const fullName  = user?.full_name ?? 'Member'
-  const userId    = user?.id ?? membershipId
+  const fullName  = user.full_name ?? 'Member'
 
   // Member number — same deterministic algo as profile page
   const memberNum = String(
     (userId.charCodeAt(0) * 7 + userId.charCodeAt(userId.length - 1) * 3) % 999 + 1
   ).padStart(3, '0')
 
-  // expirationDate — when Stripe cancels / marks past_due the webhook sets
-  // valid_until to the period end. Once that date passes iOS marks pass expired.
-  const expirationDate = membership.valid_until ?? undefined
+  const expirationDate = membership?.valid_until ?? undefined
 
   const passJson: Record<string, unknown> = {
     formatVersion:      1,
     passTypeIdentifier: process.env.APPLE_PASS_TYPE_ID!,
-    serialNumber:       `membership-${membershipId}`,
+    serialNumber:       `membership-${userId}`,
     teamIdentifier:     process.env.APPLE_TEAM_ID!,
     organizationName:   'Club Fuoco',
     description:        `Club Fuoco ${colours.label} Membership`,
@@ -120,18 +128,19 @@ export async function GET(
     },
     barcodes: [
       {
-        message:         membershipId,
+        message:         userId,
         format:          'PKBarcodeFormatQR',
         messageEncoding: 'iso-8859-1',
       },
     ],
     barcode: {
-      message:         membershipId,
+      message:         userId,
       format:          'PKBarcodeFormatQR',
       messageEncoding: 'iso-8859-1',
     },
   }
 
+  // expirationDate causes iOS to auto-expire the pass when subscription lapses
   if (expirationDate) {
     passJson.expirationDate = new Date(expirationDate).toISOString()
   }

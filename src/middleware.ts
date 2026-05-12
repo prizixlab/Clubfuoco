@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/places/photo') || // photo proxy used by cards
     /^\/api\/(bookings|tickets|guest-lists)\/[^/]+\/wallet$/.test(pathname) || // booking/ticket wallet passes
-    /^\/api\/membership\/wallet\/[^/]+$/.test(pathname)                       // membership wallet pass
+    /^\/api\/membership\/wallet\/[^/]+$/.test(pathname)                        // membership wallet pass
 
   // ── Admin API — allow cron / manual triggers to bypass session ──────────────
   if (pathname.startsWith('/api/admin')) {

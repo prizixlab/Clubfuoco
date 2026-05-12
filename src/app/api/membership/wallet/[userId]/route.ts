@@ -72,19 +72,22 @@ function makeGradientPng(w: number, h: number, stops: { pos: number; rgb: RGB }[
 }
 
 // ─── Tier definitions ─────────────────────────────────────────────────────────
-// Gradient stops mirror the CSS linear-gradient on the profile card exactly.
-// Strip size: 375×84 @1x, 750×168 @2x — placed behind primary field area.
+// gradient  — exact CSS stops from the profile card, used to render strip.png
+// bodyColor — mid-gradient sample so the card body (below the strip) flows
+//             seamlessly from the strip rather than cutting to a flat colour.
+//             Picked at ~55–60% of each gradient so it's visually "inside" it.
 
 const TIER: Record<string, {
   fg: string; label: string; header: string; logoText: string
   gradient: { pos: number; rgb: RGB }[]
+  bodyColor: RGB   // backgroundColor = this → whole card feels gradient-coloured
 }> = {
   gold: {
-    fg:       'rgb(255, 241, 210)',
-    label:    'rgb(220, 175, 100)',
-    header:   'ORO',
-    logoText: 'Club Fuoco · Oro',
-    // Matches: 155deg, rgb(42,24,16) 0%, rgb(74,44,14) 38%, rgb(140,90,30) 72%, rgb(194,139,61) 110%
+    fg:        'rgb(255, 241, 210)',
+    label:     'rgb(220, 175, 100)',
+    header:    'ORO',
+    logoText:  'Club Fuoco · Oro',
+    bodyColor: [112, 70, 22],   // ~55% of the gold gradient → warm amber-brown
     gradient: [
       { pos: 0.00, rgb: [42,  24,  16] },
       { pos: 0.38, rgb: [74,  44,  14] },
@@ -93,11 +96,11 @@ const TIER: Record<string, {
     ],
   },
   sapphire: {
-    fg:       'rgb(221, 230, 255)',
-    label:    'rgb(160, 190, 255)',
-    header:   'ZAFFIRO',
-    logoText: 'Club Fuoco · Zaffiro',
-    // Matches: 135deg, rgb(14,27,74) 0%, rgb(31,53,144) 45%, rgb(74,107,196) 100%
+    fg:        'rgb(221, 230, 255)',
+    label:     'rgb(160, 190, 255)',
+    header:    'ZAFFIRO',
+    logoText:  'Club Fuoco · Zaffiro',
+    bodyColor: [28, 46, 122],   // ~45% of sapphire gradient → vivid navy
     gradient: [
       { pos: 0.00, rgb: [14,  27,  74]  },
       { pos: 0.45, rgb: [31,  53,  144] },
@@ -105,23 +108,17 @@ const TIER: Record<string, {
     ],
   },
   black: {
-    fg:       'rgb(232, 182, 91)',
-    label:    'rgb(175, 130, 55)',
-    header:   'NERO',
-    logoText: 'Club Fuoco · Nero',
-    // Matches: 135deg, rgb(5,5,5) 0%, rgb(26,22,20) 60%, rgb(42,31,18) 100%
+    fg:        'rgb(232, 182, 91)',
+    label:     'rgb(175, 130, 55)',
+    header:    'NERO',
+    logoText:  'Club Fuoco · Nero',
+    bodyColor: [20, 17, 13],    // ~55% of black gradient → dark warm charcoal
     gradient: [
       { pos: 0.00, rgb: [5,  5,  5]  },
       { pos: 0.60, rgb: [26, 22, 20] },
       { pos: 1.00, rgb: [42, 31, 18] },
     ],
   },
-}
-
-// Background solid colour = darkest gradient stop (ensures label readability)
-function bgFromGradient(g: { rgb: RGB }[]): string {
-  const c = g[0].rgb
-  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`
 }
 
 const CONFIGURED =
@@ -211,7 +208,7 @@ export async function GET(
     organizationName:   'Club Fuoco',
     description:        `Club Fuoco ${t.header} Membership`,
     foregroundColor:    t.fg,
-    backgroundColor:    bgFromGradient(t.gradient),
+    backgroundColor:    `rgb(${t.bodyColor[0]}, ${t.bodyColor[1]}, ${t.bodyColor[2]})`,
     labelColor:         t.label,
     logoText:           t.logoText,
 

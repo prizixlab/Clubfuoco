@@ -4,14 +4,36 @@ import { PKPass } from 'passkit-generator'
 import path from 'path'
 import fs from 'fs'
 
-// Public route — keyed by user ID (UUID, not guessable).
-// Avoids the cookie problem: Browser.open / SFSafariViewController starts a
-// fresh session with no cookies, so session-auth routes redirect to /login.
-// Using the user ID lets us skip auth entirely, same as /api/bookings/[id]/wallet.
-//
-// Env vars (base64-encoded PEM):
-//   APPLE_PASS_TYPE_ID  APPLE_TEAM_ID  APPLE_WWDR_PEM
-//   APPLE_SIGNER_CERT_PEM  APPLE_SIGNER_KEY_PEM  APPLE_SIGNER_KEY_PASS
+// ─── Tier themes — mirroring the profile card ─────────────────────────────────
+// bg     = darkest card gradient stop
+// fg     = primary accent (names, values)
+// label  = muted accent (PKPass label text)
+// header = tier display name shown in the pass header
+const TIER: Record<string, {
+  bg: string; fg: string; label: string; header: string; logoText: string
+}> = {
+  gold: {
+    bg:       'rgb(36, 20, 12)',
+    fg:       'rgb(255, 232, 181)',
+    label:    'rgb(194, 139,  61)',
+    header:   'ORO',
+    logoText: 'Club Fuoco · Oro',
+  },
+  sapphire: {
+    bg:       'rgb(14, 27, 74)',
+    fg:       'rgb(221, 230, 255)',
+    label:    'rgb(74, 107, 196)',
+    header:   'ZAFFIRO',
+    logoText: 'Club Fuoco · Zaffiro',
+  },
+  black: {
+    bg:       'rgb(8, 8, 8)',
+    fg:       'rgb(232, 182, 91)',
+    label:    'rgb(140,  90, 30)',
+    header:   'NERO',
+    logoText: 'Club Fuoco · Nero',
+  },
+}
 
 const CONFIGURED =
   !!process.env.APPLE_PASS_TYPE_ID &&
@@ -20,24 +42,6 @@ const CONFIGURED =
   !!process.env.APPLE_SIGNER_CERT_PEM &&
   !!process.env.APPLE_SIGNER_KEY_PEM
 
-const TIER_COLOURS: Record<string, { bg: string; fg: string; label: string }> = {
-  gold: {
-    bg:    'rgb(42, 24, 16)',
-    fg:    'rgb(255, 232, 181)',
-    label: 'Oro · Gold',
-  },
-  sapphire: {
-    bg:    'rgb(14, 27, 74)',
-    fg:    'rgb(221, 230, 255)',
-    label: 'Zaffiro · Sapphire',
-  },
-  black: {
-    bg:    'rgb(5, 5, 5)',
-    fg:    'rgb(232, 182, 91)',
-    label: 'Nero · Black',
-  },
-}
-
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ userId: string }> }
@@ -45,18 +49,14 @@ export async function GET(
   const { userId } = await params
 
   if (!CONFIGURED) {
-    return NextResponse.json(
-      { error: 'Apple Wallet not configured yet' },
-      { status: 503 }
-    )
+    return NextResponse.json({ error: 'Apple Wallet not configured yet' }, { status: 503 })
   }
 
   const supabase = await createServiceClient()
 
-  // Fetch user profile to get name and tier
   const { data: user, error: uErr } = await supabase
     .from('users')
-    .select('id, full_name, membership_tier')
+    .select('id, full_name, membership_tier, created_at')
     .eq('id', userId)
     .single()
 
@@ -69,7 +69,7 @@ export async function GET(
     return NextResponse.json({ error: 'No paid membership' }, { status: 400 })
   }
 
-  // Try to get valid_until from memberships table (may not exist for manually-set tiers)
+  // Membership row is optional (manually-set tiers may not have one)
   const { data: membership } = await supabase
     .from('memberships')
     .select('valid_until, status')
@@ -80,15 +80,35 @@ export async function GET(
     return NextResponse.json({ error: 'Membership cancelled' }, { status: 400 })
   }
 
-  const colours   = TIER_COLOURS[tier] ?? TIER_COLOURS.gold
-  const fullName  = user.full_name ?? 'Member'
+  const t        = TIER[tier] ?? TIER.gold
+  const fullName = (user.full_name ?? 'Member').trim()
+  const joinYear = user.created_at
+    ? String(new Date(user.created_at).getFullYear())
+    : '—'
 
-  // Member number — same deterministic algo as profile page
+  // Deterministic member number — matches profile page
   const memberNum = String(
     (userId.charCodeAt(0) * 7 + userId.charCodeAt(userId.length - 1) * 3) % 999 + 1
   ).padStart(3, '0')
 
-  const expirationDate = membership?.valid_until ?? undefined
+  const expirationDate = membership?.valid_until
+
+  // ── Pass layout (inspired by profile card) ────────────────────────────────
+  //
+  //  ┌────────────────────────────────────────────┐
+  //  │  [logo]  Club Fuoco · Oro        [ORO]     │  ← headerFields
+  //  │                                            │
+  //  │  SOCIO · MEMBRO                            │
+  //  │  [Full Name]                               │  ← primaryFields
+  //  │                                            │
+  //  │  N°          EST.                          │  ← secondaryFields
+  //  │  042         2025                          │
+  //  │                                            │
+  //  │  STATO / VALIDO FINO A                     │  ← auxiliaryFields
+  //  │  Attivo / 12 June 2026                     │
+  //  │                                            │
+  //  │  [QR code]                                 │
+  //  └────────────────────────────────────────────┘
 
   const passJson: Record<string, unknown> = {
     formatVersion:      1,
@@ -96,51 +116,55 @@ export async function GET(
     serialNumber:       `membership-${userId}`,
     teamIdentifier:     process.env.APPLE_TEAM_ID!,
     organizationName:   'Club Fuoco',
-    description:        `Club Fuoco ${colours.label} Membership`,
-    foregroundColor:    colours.fg,
-    backgroundColor:    colours.bg,
-    labelColor:         colours.fg,
-    logoText:           'Club Fuoco',
+    description:        `Club Fuoco ${t.header} Membership`,
+    foregroundColor:    t.fg,
+    backgroundColor:    t.bg,
+    labelColor:         t.label,
+    logoText:           t.logoText,
+
     storeCard: {
+      // Top-right: tier name (mirrors the "N° XX  MILANO" corner labels)
+      headerFields: [
+        { key: 'tier_badge', label: '', value: t.header },
+      ],
+
+      // Main: member name with Italian/English label
       primaryFields: [
-        { key: 'member', label: 'MEMBER', value: fullName },
+        { key: 'member', label: 'SOCIO · MEMBRO', value: fullName },
       ],
+
+      // Row: member number + founding year (mirrors card corners)
       secondaryFields: [
-        { key: 'tier',   label: 'TIER',   value: colours.label },
-        { key: 'number', label: 'N°',     value: memberNum },
+        { key: 'number', label: 'N°',   value: memberNum },
+        { key: 'est',    label: 'EST.', value: joinYear  },
       ],
-      auxiliaryFields: [
-        ...(expirationDate
-          ? [{ key: 'valid', label: 'VALID UNTIL',
-               value: new Date(expirationDate).toLocaleDateString('en-GB', {
-                 day: 'numeric', month: 'long', year: 'numeric',
-               }) }]
-          : [{ key: 'valid', label: 'STATUS', value: 'Active' }]
-        ),
-        { key: 'city', label: 'CITY', value: 'Milano' },
-      ],
+
+      // Row: membership status / expiry
+      auxiliaryFields: expirationDate
+        ? [{ key: 'valid', label: 'VALIDO FINO A',
+             value: new Date(expirationDate).toLocaleDateString('en-GB', {
+               day: 'numeric', month: 'long', year: 'numeric',
+             }) }]
+        : [{ key: 'valid', label: 'STATO', value: 'Attivo' }],
+
+      // Back of card
       backFields: [
-        { key: 'name',    label: 'FULL NAME', value: fullName },
-        { key: 'support', label: 'SUPPORT',   value: 'members@clubfuoco.com' },
-        { key: 'terms',   label: 'TERMS',
-          value: 'Non-transferable. Card auto-expires when subscription lapses.' },
+        { key: 'name',    label: 'NOME COMPLETO', value: fullName },
+        { key: 'tier',    label: 'LIVELLO',        value: t.header },
+        { key: 'number',  label: 'N° SOCIO',       value: memberNum },
+        { key: 'support', label: 'SUPPORTO',       value: 'members@clubfuoco.com' },
+        { key: 'terms',   label: 'NOTE',
+          value: 'Non trasferibile. La tessera scade automaticamente alla fine del periodo di abbonamento.' },
       ],
     },
+
     barcodes: [
-      {
-        message:         userId,
-        format:          'PKBarcodeFormatQR',
-        messageEncoding: 'iso-8859-1',
-      },
+      { message: userId, format: 'PKBarcodeFormatQR', messageEncoding: 'iso-8859-1' },
     ],
-    barcode: {
-      message:         userId,
-      format:          'PKBarcodeFormatQR',
-      messageEncoding: 'iso-8859-1',
-    },
+    barcode:
+      { message: userId, format: 'PKBarcodeFormatQR', messageEncoding: 'iso-8859-1' },
   }
 
-  // expirationDate causes iOS to auto-expire the pass when subscription lapses
   if (expirationDate) {
     passJson.expirationDate = new Date(expirationDate).toISOString()
   }

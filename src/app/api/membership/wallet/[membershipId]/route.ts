@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { PKPass } from 'passkit-generator'
 import path from 'path'
 import fs from 'fs'
 
-// Apple Wallet membership card
-// Same env vars as the booking wallet route:
+// Public route — membership UUID acts as the credential (not guessable), same
+// pattern as /api/bookings/[id]/wallet. This avoids the cookie problem when
+// Browser.open() / SFSafariViewController opens a cookieless session.
+//
+// Env vars (base64-encoded PEM):
 //   APPLE_PASS_TYPE_ID  APPLE_TEAM_ID  APPLE_WWDR_PEM
 //   APPLE_SIGNER_CERT_PEM  APPLE_SIGNER_KEY_PEM  APPLE_SIGNER_KEY_PASS
 
@@ -16,7 +19,6 @@ const CONFIGURED =
   !!process.env.APPLE_SIGNER_CERT_PEM &&
   !!process.env.APPLE_SIGNER_KEY_PEM
 
-// Tier-specific pass colours (PKPass uses "rgb(r,g,b)" strings)
 const TIER_COLOURS: Record<string, { bg: string; fg: string; label: string }> = {
   gold: {
     bg:    'rgb(42, 24, 16)',
@@ -35,7 +37,12 @@ const TIER_COLOURS: Record<string, { bg: string; fg: string; label: string }> = 
   },
 }
 
-export async function GET() {
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ membershipId: string }> }
+) {
+  const { membershipId } = await params
+
   if (!CONFIGURED) {
     return NextResponse.json(
       { error: 'Apple Wallet not configured yet' },
@@ -43,50 +50,42 @@ export async function GET() {
     )
   }
 
-  // ── Auth: get current user session ──────────────────────────────────────────
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const supabase = await createServiceClient()
+
+  // Membership UUID is the credential — fetch with join to get member name
+  const { data: membership, error: mErr } = await supabase
+    .from('memberships')
+    .select('*, users(id, full_name)')
+    .eq('id', membershipId)
+    .single()
+
+  if (mErr || !membership) {
+    return NextResponse.json({ error: 'Membership not found' }, { status: 404 })
   }
 
-  // ── Fetch user profile (name) and membership (tier, valid_until) ─────────────
-  const service = await createServiceClient()
-
-  const [{ data: profile }, { data: membership }] = await Promise.all([
-    service.from('users').select('full_name, membership_tier').eq('id', user.id).single(),
-    service.from('memberships').select('*').eq('user_id', user.id).single(),
-  ])
-
-  const tier = profile?.membership_tier ?? 'free'
-
-  // Free users don't get a pass
-  if (tier === 'free' || !membership) {
-    return NextResponse.json({ error: 'No active membership' }, { status: 400 })
+  if (membership.status === 'cancelled') {
+    return NextResponse.json({ error: 'Membership cancelled' }, { status: 400 })
   }
 
-  const colours  = TIER_COLOURS[tier] ?? TIER_COLOURS.gold
-  const fullName = profile?.full_name ?? 'Member'
-  const nameParts = fullName.trim().split(/\s+/).filter(Boolean)
-  const firstName = nameParts[0] ?? 'Member'
-  const lastName  = nameParts.slice(1).join(' ')
+  const user      = (membership as any).users
+  const tier      = membership.tier as string
+  const colours   = TIER_COLOURS[tier] ?? TIER_COLOURS.gold
+  const fullName  = user?.full_name ?? 'Member'
+  const userId    = user?.id ?? membershipId
 
-  // Member number derived from user id (same algorithm as profile page)
+  // Member number — same deterministic algo as profile page
   const memberNum = String(
-    (user.id.charCodeAt(0) * 7 + user.id.charCodeAt(user.id.length - 1) * 3) % 999 + 1
+    (userId.charCodeAt(0) * 7 + userId.charCodeAt(userId.length - 1) * 3) % 999 + 1
   ).padStart(3, '0')
 
-  // Pass serial: prefix + user id (makes it unique per user)
-  const serialNumber = `membership-${user.id}`
-
-  // Expiration: when valid_until is set (subscription cancelled / payment lapsed),
-  // iOS will mark the pass as expired and optionally remove it from Wallet.
+  // expirationDate — when Stripe cancels / marks past_due the webhook sets
+  // valid_until to the period end. Once that date passes iOS marks pass expired.
   const expirationDate = membership.valid_until ?? undefined
 
   const passJson: Record<string, unknown> = {
     formatVersion:      1,
     passTypeIdentifier: process.env.APPLE_PASS_TYPE_ID!,
-    serialNumber,
+    serialNumber:       `membership-${membershipId}`,
     teamIdentifier:     process.env.APPLE_TEAM_ID!,
     organizationName:   'Club Fuoco',
     description:        `Club Fuoco ${colours.label} Membership`,
@@ -104,32 +103,35 @@ export async function GET() {
       ],
       auxiliaryFields: [
         ...(expirationDate
-          ? [{ key: 'valid', label: 'VALID UNTIL', value: new Date(expirationDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) }]
-          : [{ key: 'valid', label: 'STATUS',      value: 'Active' }]
+          ? [{ key: 'valid', label: 'VALID UNTIL',
+               value: new Date(expirationDate).toLocaleDateString('en-GB', {
+                 day: 'numeric', month: 'long', year: 'numeric',
+               }) }]
+          : [{ key: 'valid', label: 'STATUS', value: 'Active' }]
         ),
         { key: 'city', label: 'CITY', value: 'Milano' },
       ],
       backFields: [
-        { key: 'name',    label: 'FULL NAME',  value: fullName },
-        { key: 'support', label: 'SUPPORT',    value: 'members@clubfuoco.com' },
-        { key: 'terms',   label: 'TERMS',      value: 'Non-transferable. Membership automatically removed when subscription lapses.' },
+        { key: 'name',    label: 'FULL NAME', value: fullName },
+        { key: 'support', label: 'SUPPORT',   value: 'members@clubfuoco.com' },
+        { key: 'terms',   label: 'TERMS',
+          value: 'Non-transferable. Card auto-expires when subscription lapses.' },
       ],
     },
     barcodes: [
       {
-        message:         user.id,
+        message:         membershipId,
         format:          'PKBarcodeFormatQR',
         messageEncoding: 'iso-8859-1',
       },
     ],
     barcode: {
-      message:         user.id,
+      message:         membershipId,
       format:          'PKBarcodeFormatQR',
       messageEncoding: 'iso-8859-1',
     },
   }
 
-  // Add expiration date so the pass auto-invalidates when subscription lapses
   if (expirationDate) {
     passJson.expirationDate = new Date(expirationDate).toISOString()
   }

@@ -23,14 +23,43 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (request.nextUrl.pathname.startsWith('/api/admin')) {
-    // Allow cron jobs (Bearer token) and manual triggers (?manual=1) to bypass session check
+  const { pathname } = request.nextUrl
+
+  // ── Public routes — always accessible ──────────────────────────────────────
+  const isPublic =
+    pathname === '/' ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/signup') ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/places/photo') || // photo proxy used by cards
+    /^\/api\/(bookings|tickets|guest-lists)\/[^/]+\/wallet$/.test(pathname) || // booking/ticket wallet passes
+    /^\/api\/membership\/wallet\/[^/]+$/.test(pathname)                       // membership wallet pass
+
+  // ── Admin API — allow cron / manual triggers to bypass session ──────────────
+  if (pathname.startsWith('/api/admin')) {
     const authHeader = request.headers.get('authorization')
     const isCron     = authHeader === `Bearer ${process.env.CRON_SECRET}`
     const isManual   = request.nextUrl.searchParams.get('manual') === '1'
     if (!user && !isCron && !isManual) {
       return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 })
     }
+  }
+
+  // ── Redirect unauthenticated users to /login ────────────────────────────────
+  if (!user && !isPublic) {
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/login'
+    loginUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  // ── Redirect logged-in users away from auth/splash pages ───────────────────
+  if (user && (pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/signup'))) {
+    const homeUrl = request.nextUrl.clone()
+    homeUrl.pathname = '/explore'
+    homeUrl.search = ''
+    return NextResponse.redirect(homeUrl)
   }
 
   return supabaseResponse

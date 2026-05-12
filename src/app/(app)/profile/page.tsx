@@ -90,22 +90,23 @@ const TIERS: Record<TierKey, TierTheme> = {
 
 const SERIF = '"Instrument Serif", Georgia, serif'
 
-async function addMembershipToWallet() {
+async function addMembershipToWallet(membershipId: string) {
+  const url = window.location.origin + `/api/membership/wallet/${membershipId}`
   try {
     const { Browser } = await import('@capacitor/browser')
-    await Browser.open({ url: window.location.origin + '/api/membership/wallet' })
+    await Browser.open({ url })
   } catch {
-    // Fallback for web
-    window.open('/api/membership/wallet', '_blank')
+    window.open(url, '_blank')
   }
 }
 
 export default function ProfilePage() {
   const router = useRouter()
-  const [profile, setProfile] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [nights,  setNights]  = useState<number | null>(null)
-  const [saved,   setSaved]   = useState<number | null>(null)
+  const [profile,      setProfile]      = useState<User | null>(null)
+  const [loading,      setLoading]      = useState(true)
+  const [nights,       setNights]       = useState<number | null>(null)
+  const [saved,        setSaved]        = useState<number | null>(null)
+  const [membershipId, setMembershipId] = useState<string | null>(null)
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -127,6 +128,11 @@ export default function ProfilePage() {
       .then(r => r.json())
       .then(d => setSaved(d.data?.length ?? 0))
       .catch(() => setSaved(0))
+
+    fetch('/api/memberships/me')
+      .then(r => r.json())
+      .then(d => { if (d.data?.id) setMembershipId(d.data.id) })
+      .catch(() => {})
   }, [])
 
   async function signOut() {
@@ -276,7 +282,8 @@ export default function ProfilePage() {
             {/* Add to Wallet — only for paid tiers */}
             {tier !== 'free' && (
               <button
-                onClick={addMembershipToWallet}
+                onClick={() => membershipId && addMembershipToWallet(membershipId)}
+                disabled={!membershipId}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   background: 'rgba(0,0,0,0.35)',

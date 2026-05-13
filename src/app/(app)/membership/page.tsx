@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import NavSpacer from '@/components/NavSpacer'
+import MemberDashboard from '@/components/MemberDashboard'
+import { getMe } from '@/lib/supabase/queries'
+import type { User } from '@/types'
 
 /* ─── Check icon ─────────────────────────────────────────────────────────── */
 
@@ -178,6 +181,12 @@ export default function MembershipPage() {
   const router = useRouter()
   const [banner, setBanner] = useState('')
   const params = useSearchParams()
+  const [me, setMe]     = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getMe().then(u => { setMe(u as User | null); setLoading(false) })
+  }, [])
 
   useEffect(() => {
     if (params.get('success')) {
@@ -187,6 +196,11 @@ export default function MembershipPage() {
       setBanner('Subscription cancelled — you can subscribe any time.')
     }
   }, [params])
+
+  // Show tier-specific dashboard for paid members
+  if (!loading && me && me.membership_tier !== 'free') {
+    return <MemberDashboard user={me} />
+  }
 
   return (
     <div style={{ padding: '24px 20px 40px', maxWidth: 480, margin: '0 auto' }}>
@@ -263,6 +277,8 @@ export default function MembershipPage() {
           </p>
         ))}
       </div>
+
+      <NavSpacer />
     </div>
   )
 }
@@ -438,7 +454,6 @@ function Card({ plan, onOpen }: {
           </svg>
         )}
       </button>
-      <NavSpacer />
     </div>
   )
 }

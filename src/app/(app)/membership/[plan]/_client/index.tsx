@@ -238,7 +238,7 @@ export default function MembershipDetailPage() {
     }}>
 
       {/* ── Scrollable body ─────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 80 }}>
 
         {/* Hero section */}
         <div style={{
@@ -444,9 +444,10 @@ export default function MembershipDetailPage() {
 
       {/* ── Sticky bottom bar ───────────────────────────────────────── */}
       <div style={{
+        flexShrink: 0,
         background: cfg.barBg,
         padding: '10px 20px',
-        paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
+        paddingBottom: 'calc(76px + env(safe-area-inset-bottom, 0px))',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
         borderTop: `1px solid ${cfg.ruleColor}`,
       }}>

@@ -1,7 +1,18 @@
 import { createServerClient, type CookieMethodsServer } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
+
 export async function middleware(request: NextRequest) {
+  // ── CORS preflight — Capacitor sends OPTIONS before every POST ──────────────
+  if (request.method === 'OPTIONS' && request.nextUrl.pathname.startsWith('/api/')) {
+    return new NextResponse(null, { status: 204, headers: CORS_HEADERS })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   // ── Support Bearer token auth from Capacitor (cross-origin, no cookies) ──────
@@ -77,6 +88,11 @@ export async function middleware(request: NextRequest) {
     homeUrl.pathname = '/explore'
     homeUrl.search = ''
     return NextResponse.redirect(homeUrl)
+  }
+
+  // ── Attach CORS headers to every API response ──────────────────────────────
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    Object.entries(CORS_HEADERS).forEach(([k, v]) => supabaseResponse.headers.set(k, v))
   }
 
   return supabaseResponse

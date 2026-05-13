@@ -4,11 +4,23 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
+  // ── Support Bearer token auth from Capacitor (cross-origin, no cookies) ──────
+  // apiFetch() attaches `Authorization: Bearer <access_token>` when running
+  // inside the native shell. We inject it as a cookie so createServerClient
+  // can verify it the same way as a browser session.
+  const bearerToken = request.headers.get('authorization')?.replace(/^Bearer\s+/, '')
+  let patchedRequest = request
+  if (bearerToken) {
+    const headers = new Headers(request.headers)
+    headers.set('x-capacitor-token', bearerToken)
+    patchedRequest = new Request(request, { headers })
+  }
+
   const cookieMethods: CookieMethodsServer = {
-    getAll: () => request.cookies.getAll(),
+    getAll: () => patchedRequest.cookies.getAll(),
     setAll: (cookiesToSet) => {
-      cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-      supabaseResponse = NextResponse.next({ request })
+      cookiesToSet.forEach(({ name, value }) => patchedRequest.cookies.set(name, value))
+      supabaseResponse = NextResponse.next({ request: patchedRequest })
       cookiesToSet.forEach(({ name, value, options }) =>
         supabaseResponse.cookies.set(name, value, options)
       )
@@ -21,7 +33,15 @@ export async function middleware(request: NextRequest) {
     { cookies: cookieMethods }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // If a Bearer token was supplied, verify it directly
+  let user = null
+  if (bearerToken) {
+    const { data } = await supabase.auth.getUser(bearerToken)
+    user = data.user
+  } else {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  }
 
   const { pathname } = request.nextUrl
 

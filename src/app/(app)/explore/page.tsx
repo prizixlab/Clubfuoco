@@ -1,7 +1,14 @@
 'use client'
+import {
+  getNearbyClubs,
+  getPlaceFavorites, savePlaceFavorite, removePlaceFavorite,
+  getUserPreferences, getSurveyPreferences, getTasteProfile,
+  getEvents, getRumbas,
+} from '@/lib/supabase/queries'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import ExploreLoader from '@/components/ExploreLoader'
 import type { ExternalEvent } from '@/lib/tickets'
 import type { Rumba } from '@/types'
 
@@ -866,6 +873,7 @@ function filterPlaces(places: Place[], activeFilter: string): Place[] {
 export default function ExplorePage() {
   const [places,       setPlaces]       = useState<Place[]>([])
   const [loading,      setLoading]      = useState(true)
+  const [loaderGone,   setLoaderGone]   = useState(false)
   const [prefs,        setPrefs]        = useState<any>(null)
   const [surveyPrefs,  setSurveyPrefs]  = useState<any>(null)
   const [tasteProfile, setTasteProfile] = useState<any>(null)
@@ -877,46 +885,94 @@ export default function ExplorePage() {
   const [rumbas,       setRumbas]       = useState<Rumba[]>([])
   const [activeFilter, setActiveFilter] = useState('all')
   const [saved,        setSaved]        = useState<Set<string>>(new Set())
+  const [showSaved,    setShowSaved]    = useState(false)
 
   const BARCELONA = { lat: 41.3851, lng: 2.1734 }
 
-  function handleSave(placeId: string) {
+  // Push a history entry when saved view opens so back button closes it
+  useEffect(() => {
+    if (showSaved) {
+      window.history.pushState({ savedView: true }, '')
+    }
+  }, [showSaved])
+
+  useEffect(() => {
+    function onPop(e: PopStateEvent) {
+      if (showSaved) {
+        setShowSaved(false)
+      }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [showSaved])
+
+  // Load saved clubs from Supabase on mount
+  useEffect(() => {
+    getPlaceFavorites()
+      .then(favs => setSaved(new Set(favs.map((f: any) => f.place_id))))
+      .catch(() => {})
+  }, [])
+
+  async function handleSave(placeId: string) {
+    const isCurrentlySaved = saved.has(placeId)
+
+    // Optimistic update
     setSaved(prev => {
       const next = new Set(prev)
-      if (next.has(placeId)) next.delete(placeId)
+      if (isCurrentlySaved) next.delete(placeId)
       else next.add(placeId)
       return next
     })
+
+    // Persist to Supabase
+    try {
+      if (isCurrentlySaved) {
+        await removePlaceFavorite(placeId)
+      } else {
+        const place = places.find(p => p.place_id === placeId)
+        await savePlaceFavorite({
+          place_id:    placeId,
+          name:        place?.name        ?? '',
+          address:     place?.address     ?? '',
+          cover_photo: place?.cover_photo ?? null,
+          rating:      place?.rating      ?? null,
+        })
+      }
+    } catch {
+      // Revert optimistic update on failure
+      setSaved(prev => {
+        const next = new Set(prev)
+        if (isCurrentlySaved) next.add(placeId)
+        else next.delete(placeId)
+        return next
+      })
+    }
   }
 
   useEffect(() => {
-    fetch('/api/preferences')
-      .then(r => r.json())
-      .then(d => setPrefs(d.data?.preferences ?? null))
+    getUserPreferences()
+      .then(d => setPrefs(d?.preferences ?? null))
+      .catch(() => {})
     // Survey-derived preference profile for personalised recommendations
-    fetch('/api/surveys/preferences')
-      .then(r => r.json())
-      .then(d => setSurveyPrefs(d.data ?? null))
+    getSurveyPreferences()
+      .then(d => setSurveyPrefs(d ?? null))
       .catch(() => {})
     // Computed taste profile from bookings + surveys + tags
-    fetch('/api/me/taste-profile')
-      .then(r => r.json())
-      .then(d => setTasteProfile(d.data ?? null))
+    getTasteProfile()
+      .then(d => setTasteProfile(d ?? null))
       .catch(() => {})
     // Fetch all upcoming Barcelona RA events for the events shelf
     const fetchEvents = () =>
-      fetch('/api/events?all=true')
-        .then(r => r.json())
-        .then(d => setRaEvents(d.data ?? []))
+      getEvents()
+        .then(d => setRaEvents(d))
         .catch(() => {})
     fetchEvents()
     // Auto-refresh events every 5 minutes so tonight's listings stay current
     const eventsTimer = setInterval(fetchEvents, 5 * 60 * 1000)
 
     // Fetch active rumbas for the rumba shelf
-    fetch('/api/rumbas')
-      .then(r => r.json())
-      .then(d => setRumbas(d.data ?? []))
+    getRumbas()
+      .then(d => setRumbas(d))
       .catch(() => {})
 
     return () => clearInterval(eventsTimer)
@@ -924,24 +980,48 @@ export default function ExplorePage() {
 
   useEffect(() => {
     if (!navigator.geolocation) { loadPlaces(BARCELONA); return }
+
+    // Manual safety timeout — the browser's built-in `timeout` option doesn't
+    // always fire in Capacitor's WKWebView when location permission is denied
+    // or not yet configured. Force a fallback to Barcelona after 3s.
+    let settled = false
+    const safetyTimer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      loadPlaces(BARCELONA)
+    }, 3000)
+
     navigator.geolocation.getCurrentPosition(
       pos => {
+        if (settled) return
+        settled = true
+        clearTimeout(safetyTimer)
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        setUserPos(coords)
-        loadPlaces(coords)
+        // Only use the user's real position if they're within ~50 km of Barcelona.
+        // Anyone further away would see an empty feed — show Barcelona content instead.
+        const nearBarcelona = haversineKm(coords.lat, coords.lng, BARCELONA.lat, BARCELONA.lng) < 50
+        if (nearBarcelona) {
+          setUserPos(coords)
+          loadPlaces(coords)
+        } else {
+          loadPlaces(BARCELONA)
+        }
       },
-      () => loadPlaces(BARCELONA),
-      { timeout: 8000, enableHighAccuracy: true }
+      () => {
+        if (settled) return
+        settled = true
+        clearTimeout(safetyTimer)
+        loadPlaces(BARCELONA)
+      },
+      { timeout: 3000, enableHighAccuracy: false }
     )
   }, [])
 
   async function loadPlaces(coords: { lat: number; lng: number }) {
     setLoading(true)
     try {
-      const res  = await fetch(`/api/places/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=3000`)
-      const data = await res.json()
-      if (data.error) { setError(data.error); setLoading(false); return }
-      const withDist = (data.data ?? []).map((p: Place) => ({
+      const clubs = await getNearbyClubs(coords.lat, coords.lng, 8000)
+      const withDist = clubs.map((p: Place) => ({
         ...p,
         distance: haversineKm(coords.lat, coords.lng, p.lat, p.lng),
       }))
@@ -962,23 +1042,25 @@ export default function ExplorePage() {
       )
     : []
 
-  if (loading) {
-    return (
-      <div style={{ background: C.bg, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,700;1,400;1,700&display=swap');`}</style>
-        <span className="material-symbols-outlined" style={{ fontSize: 56, color: C.accent, display: 'block', marginBottom: 20, fontVariationSettings: "'FILL' 1" }}>location_on</span>
-        <p style={{ fontFamily: "'Instrument Serif', 'Bodoni Moda', Georgia, serif", fontSize: 24, color: C.ink, marginBottom: 8 }}>Finding clubs near you</p>
-        <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 14, color: C.ink3 }}>Loading tonight's lineup…</p>
-      </div>
-    )
-  }
+  // loading state handled via overlay below (see ExploreLoader)
 
   return (
-    <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 100 }}>
+    <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 0, overflow: 'hidden' }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,700;1,400;1,700&display=swap'); .no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header style={{ padding: '20px 20px 0', marginBottom: 20 }}>
+      {/* ── Cinematic loader overlay — self-removes after exit animation ── */}
+      {!loaderGone && (
+        <ExploreLoader done={!loading} onGone={() => setLoaderGone(true)} />
+      )}
+
+      {/* ── Header */}
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 50,
+        background: C.bg,
+        padding: '16px 20px 12px',
+        marginBottom: 8,
+        borderBottom: '1px solid rgba(34,30,26,0.06)',
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           {/* Wordmark + location */}
           <div>
@@ -993,13 +1075,16 @@ export default function ExplorePage() {
           {/* Icons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
-              onClick={() => setShowSearch(s => !s)}
+              onClick={() => { setShowSearch(s => !s); setShowSaved(false) }}
               style={{ width: 36, height: 36, borderRadius: '50%', background: showSearch ? C.ink : C.pillBg, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 18, color: showSearch ? C.pillInkActive : C.ink2 }}>{showSearch ? 'close' : 'search'}</span>
             </button>
-            <button style={{ width: 36, height: 36, borderRadius: '50%', background: C.pillBg, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18, color: C.ink2 }}>bookmark</span>
+            <button
+              onClick={() => { setShowSaved(s => !s); setShowSearch(false); setSearch('') }}
+              style={{ width: 36, height: 36, borderRadius: '50%', background: showSaved ? C.ink : C.pillBg, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18, color: showSaved ? C.pillInkActive : C.ink2, fontVariationSettings: showSaved ? "'FILL' 1" : "'FILL' 0" }}>bookmark</span>
             </button>
           </div>
         </div>
@@ -1028,7 +1113,7 @@ export default function ExplorePage() {
       )}
 
       {/* ── Search results ─────────────────────────────────────────────────── */}
-      {showSearch && search && (
+      {!showSaved && showSearch && search && (
         <div style={{ padding: '0 20px', marginBottom: 24 }}>
           {searchResults.length === 0
             ? <p style={{ textAlign: 'center', padding: '32px 0', color: C.ink3, fontSize: 13, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>No clubs found for "{search}"</p>
@@ -1055,8 +1140,58 @@ export default function ExplorePage() {
         </div>
       )}
 
+      {/* ── Saved clubs view ──────────────────────────────────────────────── */}
+      {showSaved && (() => {
+        const savedPlaces = places.filter(p => saved.has(p.place_id))
+        return (
+          <div style={{ paddingBottom: 0 }}>
+            {/* Italian title */}
+            <div style={{ padding: '4px 20px 20px' }}>
+              <h2 style={{
+                fontFamily: '"Instrument Serif", Georgia, serif',
+                fontSize: 44, fontWeight: 400, fontStyle: 'italic',
+                lineHeight: 1.05, letterSpacing: '-0.88px',
+                color: C.ink, margin: '0 0 4px',
+              }}>
+                I miei locali
+              </h2>
+              <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 13, color: C.ink3, margin: 0 }}>
+                {savedPlaces.length === 0
+                  ? 'No saved clubs yet'
+                  : `${savedPlaces.length} ${savedPlaces.length === 1 ? 'club saved' : 'clubs saved'}`}
+              </p>
+            </div>
+
+            {/* Empty state */}
+            {savedPlaces.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '48px 20px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 48, color: C.ink3, opacity: 0.3, display: 'block', marginBottom: 12, fontVariationSettings: "'FILL' 0" }}>bookmark</span>
+                <p style={{ fontSize: 14, color: C.ink3, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', margin: '0 0 4px' }}>Nothing saved yet</p>
+                <p style={{ fontSize: 12, color: C.ink3, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', margin: 0, opacity: 0.7 }}>Tap the bookmark on any club to save it here</p>
+              </div>
+            )}
+
+            {/* Hero card — first saved place */}
+            {savedPlaces.length > 0 && (
+              <div style={{ padding: '0 20px', marginBottom: 14 }}>
+                <HeroCard place={savedPlaces[0]} isSaved={true} onSave={handleSave} />
+              </div>
+            )}
+
+            {/* Remaining saved places as poster cards */}
+            {savedPlaces.length > 1 && (
+              <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingLeft: 20, paddingRight: 12, paddingBottom: 4, scrollbarWidth: 'none' }}>
+                {savedPlaces.slice(1).map(p => (
+                  <PosterCard key={p.place_id} place={p} isSaved={true} onSave={handleSave} />
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
       {/* ── Shelves + filter chips ─────────────────────────────────────────── */}
-      {(!showSearch || !search) && (
+      {!showSaved && (!showSearch || !search) && (
         <>
           {/* Featured hero shelf */}
           {shelves.length > 0 && shelves[0].featured && (

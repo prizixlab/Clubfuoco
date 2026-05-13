@@ -1,8 +1,31 @@
 'use client'
+import { apiFetch } from '@/lib/api'
+import { getMyBookings, getPendingSurveys } from '@/lib/supabase/queries'
 
 import { useEffect, useRef, useState } from 'react'
 import type { Booking } from '@/types'
 import SurveySheet from '@/components/SurveySheet'
+import NavSpacer from '@/components/NavSpacer'
+
+/** In Capacitor the WebView origin is capacitor://localhost — not a valid HTTPS URL.
+ *  Always point wallet pass URLs at the real Vercel backend. */
+function walletBase() {
+  if (typeof window !== 'undefined' && window.location.protocol === 'capacitor:') {
+    return 'https://clubfuoco.vercel.app'
+  }
+  return typeof window !== 'undefined' ? window.location.origin : 'https://clubfuoco.vercel.app'
+}
+
+/** Open the pass URL in SFSafariViewController — iOS intercepts .pkpass and shows Add to Wallet */
+async function addToWallet(apiPath: string) {
+  try {
+    const { Browser } = await import('@capacitor/browser')
+    await Browser.open({ url: walletBase() + apiPath })
+  } catch (e: any) {
+    console.error('[wallet]', e)
+    alert('Could not open Wallet. Please try again.')
+  }
+}
 
 interface PendingBooking {
   id:           string
@@ -154,20 +177,18 @@ export default function BookingsPage() {
   const [toast,        setToast]        = useState<{ msg: string; ok: boolean } | null>(null)
 
   useEffect(() => {
-    fetch('/api/bookings')
-      .then(r => r.json())
+    getMyBookings()
       .then(d => {
-        setBookings(d.data?.bookings ?? d.data ?? [])
-        setGuestSignups(d.data?.guest_signups ?? [])
-        setTicketOrders(d.data?.ticket_orders ?? [])
+        setBookings(d.bookings as any)
+        setGuestSignups(d.signups as any)
+        setTicketOrders(d.tickets as any)
         setLoading(false)
       })
       .catch(() => setLoading(false))
 
     // Load pending post-visit surveys
-    fetch('/api/surveys')
-      .then(r => r.json())
-      .then(d => setPendingSurveys(d.data ?? []))
+    getPendingSurveys()
+      .then(d => setPendingSurveys(d as any))
       .catch(() => {})
   }, [])
 
@@ -180,7 +201,7 @@ export default function BookingsPage() {
     setConfirmId(null)
     setCancelling(id)
     try {
-      const res  = await fetch(`/api/bookings/${id}`, { method: 'DELETE' })
+      const res  = await apiFetch(`/api/bookings/${id}`, { method: 'DELETE' })
       const data = await res.json()
       if (!res.ok) {
         showToast(data.error ?? 'Cancel failed', false)
@@ -443,7 +464,7 @@ export default function BookingsPage() {
                 <button
                   onClick={() => setConfirmId(booking.id)}
                   style={{ fontSize: 11, color: '#8C2A2A', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontSize: 14 }}>✕</span> Cancel ticket
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: "'FILL' 0, 'wght' 300" }}>close</span> Cancel ticket
                 </button>
               )}
             </div>
@@ -548,6 +569,22 @@ export default function BookingsPage() {
               <div style={{ fontSize: 12, color: '#9F9486', fontFamily: 'monospace' }}>{signup.id.slice(-6).toUpperCase()}</div>
             </div>
           </div>
+
+          {!isCancelled && !isPast && (
+            <button
+              onClick={() => addToWallet(`/api/guest-lists/${signup.id}/wallet`)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                marginTop: 14, padding: '10px 0', width: '100%',
+                background: '#000000', borderRadius: 10, border: 'none', cursor: 'pointer',
+                color: '#FFFFFF',
+                fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em',
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: "'FILL' 1" }}>wallet</span>
+              Add to Apple Wallet
+            </button>
+          )}
         </div>
       </div>
     )
@@ -615,7 +652,7 @@ export default function BookingsPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 48, height: 48, borderRadius: 8, border: '1px solid #E8E2D8', background: '#F8F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
-              🎟
+              <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#8C2A2A' }}>confirmation_number</span>
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9F9486' }}>Code</div>
@@ -626,6 +663,22 @@ export default function BookingsPage() {
               <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 18, fontWeight: 700, color: '#221E1A' }}>€{totalEur}</div>
             </div>
           </div>
+
+          {order.status === 'paid' && !isPast && (
+            <button
+              onClick={() => addToWallet(`/api/tickets/${order.id}/wallet`)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                marginTop: 14, padding: '10px 0', width: '100%',
+                background: '#000000', borderRadius: 10, border: 'none', cursor: 'pointer',
+                color: '#FFFFFF',
+                fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em',
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: "'FILL' 1" }}>wallet</span>
+              Add to Apple Wallet
+            </button>
+          )}
         </div>
       </div>
     )
@@ -645,7 +698,7 @@ export default function BookingsPage() {
   async function seedTestBooking() {
     setSeeding(true)
     try {
-      const res  = await fetch('/api/dev/test-booking', { method: 'POST' })
+      const res  = await apiFetch('/api/dev/test-booking', { method: 'POST' })
       const data = await res.json()
       if (res.ok && data.data) {
         setBookings(prev => [data.data, ...prev])
@@ -682,12 +735,11 @@ export default function BookingsPage() {
       <div style={{ padding: '24px 16px 8px' }}>
         {/* Kicker */}
         <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.18em', color: '#9F9486', marginBottom: 4 }}>
-          N° {totalCount} · {getTodayMonth()}
+          N° {String(new Date().getDate()).padStart(2, '0')} · {getTodayMonth()}
         </div>
         {/* H1 */}
-        <h1 style={{ fontSize: 32, color: '#221E1A', margin: 0, fontWeight: 400, lineHeight: 1.2 }}>
-          I tuoi{' '}
-          <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic' }}>biglietti</span>
+        <h1 style={{ fontSize: 32, color: '#221E1A', margin: 0, fontWeight: 400, lineHeight: 1.2, fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic' }}>
+          I tuoi biglietti
         </h1>
         {/* Sub */}
         <div style={{ fontSize: 12, color: '#9F9486', marginTop: 4 }}>
@@ -729,7 +781,7 @@ export default function BookingsPage() {
         {/* Empty state */}
         {!loading && isEmpty && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 0', color: '#9F9486' }}>
-            <span style={{ fontSize: 40, marginBottom: 12 }}>🎟</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 40, marginBottom: 12, color: '#9F9486' }}>confirmation_number</span>
             <div style={{
               fontFamily: '"Instrument Serif", Georgia, serif',
               fontStyle: 'italic',
@@ -753,7 +805,7 @@ export default function BookingsPage() {
                 display: 'flex', alignItems: 'center', gap: 12,
                 border: '1px solid rgba(140,42,42,0.15)',
               }}>
-                <span style={{ fontSize: 28, flexShrink: 0 }}>⭐</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 28, flexShrink: 0, color: '#8C2A2A' }}>star</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: '#221E1A' }}>
                     How was {s.clubs?.name ?? 'last night'}?
@@ -848,6 +900,8 @@ export default function BookingsPage() {
           }}
         />
       )}
+
+      <NavSpacer />
 
       {/* Fullscreen QR overlay */}
       {qrFullscreen && (
@@ -978,21 +1032,14 @@ export default function BookingsPage() {
             <div>
               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#9F9486', marginBottom: 12 }}>Manage</div>
               {[
-                { icon: '📅', label: 'Add to Calendar', action: () => {} },
-                { icon: '💳', label: 'Add to Wallet', href: `/api/bookings/${qrFullscreen.bookingId}/wallet` },
-                { icon: '↑', label: 'Share', action: async () => { try { await navigator.share({ title: qrFullscreen.clubName }) } catch {} } },
-              ].map(({ icon, label, action, href }) => (
-                href ? (
-                  <a key={label} href={href} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '1px solid #F0EDE8', textDecoration: 'none', color: '#221E1A' }}>
-                    <span style={{ fontSize: 18, width: 28, textAlign: 'center' }}>{icon}</span>
-                    <span style={{ fontSize: 14 }}>{label}</span>
-                  </a>
-                ) : (
-                  <button key={label} onClick={action} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', width: '100%', background: 'none', border: 'none', borderBottom: '1px solid #F0EDE8', cursor: 'pointer', color: '#221E1A' }}>
-                    <span style={{ fontSize: 18, width: 28, textAlign: 'center' }}>{icon}</span>
-                    <span style={{ fontSize: 14 }}>{label}</span>
-                  </button>
-                )
+                { icon: 'calendar_month', label: 'Add to Calendar', action: () => {} },
+                { icon: 'account_balance_wallet', label: 'Add to Wallet', action: () => addToWallet(`/api/bookings/${qrFullscreen.bookingId}/wallet`) },
+                { icon: 'ios_share', label: 'Share', action: async () => { try { await navigator.share({ title: qrFullscreen.clubName }) } catch {} } },
+              ].map(({ icon, label, action }) => (
+                <button key={label} onClick={action} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', width: '100%', background: 'none', border: 'none', borderBottom: '1px solid #F0EDE8', cursor: 'pointer', color: '#221E1A' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 22, width: 28, textAlign: 'center', fontVariationSettings: "'FILL' 0, 'wght' 300" }}>{icon}</span>
+                  <span style={{ fontSize: 14 }}>{label}</span>
+                </button>
               ))}
               {/* Cancel ticket — separated */}
               <button
@@ -1008,11 +1055,12 @@ export default function BookingsPage() {
                   cursor: 'pointer', color: '#8C2A2A',
                   marginTop: 4,
                 }}>
-                <span style={{ fontSize: 18, width: 28, textAlign: 'center' }}>🗑</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 22, width: 28, textAlign: 'center', fontVariationSettings: "'FILL' 0, 'wght' 300" }}>delete</span>
                 <span style={{ fontSize: 14, fontWeight: 500 }}>Cancel ticket</span>
               </button>
             </div>
           </div>
+          <NavSpacer />
         </div>
       )}
     </div>

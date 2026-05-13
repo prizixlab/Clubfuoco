@@ -1,4 +1,5 @@
 'use client'
+import { getMe, getMyBookings, getPlaceFavorites } from '@/lib/supabase/queries'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -90,8 +91,15 @@ const TIERS: Record<TierKey, TierTheme> = {
 
 const SERIF = '"Instrument Serif", Georgia, serif'
 
+function apiOrigin() {
+  if (typeof window !== 'undefined' && window.location.protocol === 'capacitor:') {
+    return 'https://clubfuoco.vercel.app'
+  }
+  return typeof window !== 'undefined' ? window.location.origin : 'https://clubfuoco.vercel.app'
+}
+
 async function addMembershipToWallet(userId: string) {
-  const url = window.location.origin + `/api/membership/wallet/${userId}`
+  const url = `${apiOrigin()}/api/membership/wallet/${userId}`
   try {
     const { Browser } = await import('@capacitor/browser')
     await Browser.open({ url })
@@ -113,21 +121,17 @@ export default function ProfilePage() {
   )
 
   useEffect(() => {
-    fetch('/api/auth/me')
-      .then(r => r.json())
-      .then(d => { setProfile(d.data ?? null); setLoading(false) })
+    getMe()
+      .then(d => { setProfile(d ?? null); setLoading(false) })
       .catch(() => setLoading(false))
 
-    fetch('/api/bookings')
-      .then(r => r.json())
-      .then(d => setNights(d.data?.length ?? 0))
+    getMyBookings()
+      .then(d => setNights(d.bookings.length ?? 0))
       .catch(() => setNights(0))
 
-    fetch('/api/place-favorites')
-      .then(r => r.json())
-      .then(d => setSaved(d.data?.length ?? 0))
+    getPlaceFavorites()
+      .then(d => setSaved(d.length ?? 0))
       .catch(() => setSaved(0))
-
   }, [])
 
   async function signOut() {

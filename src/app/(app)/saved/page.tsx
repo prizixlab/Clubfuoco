@@ -1,7 +1,9 @@
 'use client'
+import { getPlaceFavorites, removePlaceFavorite } from '@/lib/supabase/queries'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import NavSpacer from '@/components/NavSpacer'
 
 interface PlaceFavorite {
   id:          string
@@ -18,19 +20,14 @@ export default function SavedPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/place-favorites')
-      .then(r => r.json())
-      .then(d => { setPlaces(d.data ?? []); setLoading(false) })
+    getPlaceFavorites()
+      .then(d => { setPlaces(d as PlaceFavorite[]); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 
   async function remove(placeId: string) {
     setPlaces(prev => prev.filter(p => p.place_id !== placeId))
-    await fetch('/api/place-favorites', {
-      method:  'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ place_id: placeId }),
-    })
+    await removePlaceFavorite(placeId)
   }
 
   return (
@@ -101,6 +98,7 @@ export default function SavedPage() {
           </div>
         ))}
       </div>
+      <NavSpacer />
     </div>
   )
 }

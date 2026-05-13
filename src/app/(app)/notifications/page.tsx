@@ -1,7 +1,9 @@
 'use client'
+import { getNotifications, markNotificationsRead } from '@/lib/supabase/queries'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import NavSpacer from '@/components/NavSpacer'
 
 interface Notification {
   id: string
@@ -42,14 +44,13 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/notifications')
-      .then(r => r.json())
+    getNotifications()
       .then(d => {
-        setNotifications(d.data ?? [])
+        setNotifications(d as Notification[])
         setLoading(false)
-        // Mark all as read
-        fetch('/api/notifications', { method: 'PATCH' })
+        markNotificationsRead().catch(() => {})
       })
+      .catch(() => setLoading(false))
   }, [])
 
   function handleTap(n: Notification) {
@@ -122,6 +123,7 @@ export default function NotificationsPage() {
           </button>
         ))}
       </div>
+      <NavSpacer />
     </div>
   )
 }

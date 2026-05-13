@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { requireAuth } from '@/lib/auth'
+import { createServiceClient } from '@/lib/supabase/server'
 import { PKPass } from 'passkit-generator'
+import path from 'path'
+import fs from 'fs'
 
 // Apple Wallet pass generation
 // Required env vars (all cert values are base64-encoded PEM):
@@ -24,8 +25,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const { user, response } = await requireAuth()
-  if (response) return response
 
   if (!CONFIGURED) {
     return NextResponse.json(
@@ -34,7 +33,7 @@ export async function GET(
     )
   }
 
-  const supabase = await createClient()
+  const supabase = await createServiceClient()
   const { data: booking, error } = await supabase
     .from('bookings')
     .select(`
@@ -42,7 +41,6 @@ export async function GET(
       clubs (id, name, address, neighborhood)
     `)
     .eq('id', id)
-    .eq('user_id', user!.id)
     .single()
 
   if (error || !booking) {
@@ -106,14 +104,23 @@ export async function GET(
     },
   }
 
+  const assetsDir = path.join(process.cwd(), 'public', 'pass-assets')
+
   try {
     const pass = new PKPass(
-      { 'pass.json': Buffer.from(JSON.stringify(passJson)) },
       {
-        wwdr:               Buffer.from(process.env.APPLE_WWDR_PEM!,       'base64'),
-        signerCert:         Buffer.from(process.env.APPLE_SIGNER_CERT_PEM!, 'base64'),
-        signerKey:          Buffer.from(process.env.APPLE_SIGNER_KEY_PEM!,  'base64'),
-        signerKeyPassphrase: process.env.APPLE_SIGNER_KEY_PASS ?? '',
+        'pass.json':   Buffer.from(JSON.stringify(passJson)),
+        'icon.png':    fs.readFileSync(path.join(assetsDir, 'icon.png')),
+        'icon@2x.png': fs.readFileSync(path.join(assetsDir, 'icon@2x.png')),
+        'icon@3x.png': fs.readFileSync(path.join(assetsDir, 'icon@3x.png')),
+        'logo.png':    fs.readFileSync(path.join(assetsDir, 'logo.png')),
+        'logo@2x.png': fs.readFileSync(path.join(assetsDir, 'logo@2x.png')),
+      },
+      {
+        wwdr:                Buffer.from(process.env.APPLE_WWDR_PEM!,        'base64'),
+        signerCert:          Buffer.from(process.env.APPLE_SIGNER_CERT_PEM!, 'base64'),
+        signerKey:           Buffer.from(process.env.APPLE_SIGNER_KEY_PEM!,  'base64'),
+        signerKeyPassphrase: process.env.APPLE_SIGNER_KEY_PASS!,
       }
     )
 

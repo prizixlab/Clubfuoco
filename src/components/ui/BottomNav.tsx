@@ -7,8 +7,7 @@ type AccountType = 'user' | 'club' | 'dj'
 
 const TAB_SETS: Record<AccountType, { href: string; icon: string; label: string }[]> = {
   user: [
-    { href: '/explore',    icon: 'home',                label: 'Home'    },
-    { href: '/saved',      icon: 'explore',             label: 'Explore' },
+    { href: '/explore',    icon: 'explore',             label: 'Explore' },
     { href: '/bookings',   icon: 'confirmation_number', label: 'Tickets' },
     { href: '/membership', icon: 'workspace_premium',   label: 'Members' },
     { href: '/profile',    icon: 'person',              label: 'You'     },
@@ -32,14 +31,21 @@ export function BottomNav({ accountType = 'user' }: { accountType?: AccountType 
   const tabs = TAB_SETS[accountType] ?? TAB_SETS.user
 
   return (
+    <div style={{
+      position: 'absolute',
+      bottom: 8,
+      left: 0, right: 0,
+      zIndex: 50,
+      pointerEvents: 'none',
+    }}>
     <nav style={{
-      position: 'fixed', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-      left: '16px', right: '16px', zIndex: 50,
+      margin: '0 16px',
       backgroundColor: '#FFFFFF',
       borderRadius: '24px',
       boxShadow: '0 4px 24px rgba(34,30,26,0.12), 0 1px 4px rgba(34,30,26,0.06)',
       display: 'flex', justifyContent: 'space-around', alignItems: 'center',
       height: 60,
+      pointerEvents: 'auto',
     }}>
       {tabs.map(({ href, icon, label }) => {
         const [hrefPath] = href.split('?')
@@ -68,5 +74,6 @@ export function BottomNav({ accountType = 'user' }: { accountType?: AccountType 
         )
       })}
     </nav>
+    </div>
   )
 }

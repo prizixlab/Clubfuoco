@@ -1,138 +1,296 @@
 'use client'
+import { apiFetch } from '@/lib/api'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import DrinkStep from '@/components/DrinkStep'
-import { DRINK_CATEGORIES, MUSIC_OPTIONS, VIBE_OPTIONS, BUDGET_NO_LIMIT } from '@/lib/preferences'
+
+// ── Onboarding questionnaire — cinema design style
+// Matches the auth flow visual language exactly.
+
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const C = {
+  cream:  '#F8F5EE',
+  ink:    '#221E1A',
+  stone:  '#6E6356',
+  sand:   '#9F9486',
+  red:    '#8C2A2A',
+  white:  '#FFFFFF',
+}
+
+// ─── Data ─────────────────────────────────────────────────────────────────────
+const MUSIC_GENRES = [
+  { value: 'House',       label: 'House'       },
+  { value: 'Techno',      label: 'Techno'      },
+  { value: 'Hip-Hop',     label: 'Hip-Hop'     },
+  { value: 'R&B',         label: 'R&B'         },
+  { value: 'Latin',       label: 'Latin'       },
+  { value: 'Reggaeton',   label: 'Reggaeton'   },
+  { value: 'Afrobeats',   label: 'Afrobeats'   },
+  { value: 'Electronic',  label: 'Electronic'  },
+  { value: 'Drum & Bass', label: 'Drum & Bass' },
+  { value: 'Commercial',  label: 'Commercial'  },
+  { value: 'Live Music',  label: 'Live Music'  },
+  { value: 'Jazz',        label: 'Jazz'        },
+]
+
+const VIBES = [
+  { value: 'wild',        label: 'Wild & loud'   },
+  { value: 'intimate',    label: 'Intimate'      },
+  { value: 'underground', label: 'Underground'   },
+  { value: 'upscale',     label: 'Upscale'       },
+  { value: 'rooftop',     label: 'Rooftop'       },
+  { value: 'beach',       label: 'Beachfront'    },
+  { value: 'dancing',     label: 'Dance floor'   },
+  { value: 'chill',       label: 'Chill bar'     },
+]
+
+const DRINKS = [
+  { value: 'cocktails',    label: 'Cocktails'       },
+  { value: 'beer',         label: 'Beer'            },
+  { value: 'wine',         label: 'Wine & Rosé'     },
+  { value: 'spirits',      label: 'Spirits'         },
+  { value: 'shots',        label: 'Shots'           },
+  { value: 'non_alcoholic',label: 'Alcohol-free'    },
+  { value: 'champagne',    label: 'Champagne'       },
+  { value: 'everything',   label: 'Everything'      },
+]
+
+const NIGHTS = [
+  { value: 'thursday',  label: 'Thursday'          },
+  { value: 'friday',    label: 'Friday'            },
+  { value: 'saturday',  label: 'Saturday'          },
+  { value: 'sunday',    label: 'Sunday'            },
+  { value: 'wednesday', label: 'Wednesday'         },
+  { value: 'monday',    label: 'Monday'            },
+  { value: 'tuesday',   label: 'Tuesday'           },
+  { value: 'special',   label: 'Special occasions' },
+]
+
+const CROWD = [
+  { value: 'mixed',         label: 'Mixed crowd'      },
+  { value: 'lgbtq',         label: 'LGBTQ+ friendly'  },
+  { value: 'local',         label: 'Mostly locals'    },
+  { value: 'international', label: 'International'    },
+  { value: 'mature',        label: 'Mature (25+)'     },
+  { value: 'young',         label: 'Young energy'     },
+]
+
+// How big is the group you go out with
+const SQUAD = [
+  { value: 'solo',   label: 'Solo', sub: 'Just me' },
+  { value: 'duo',    label: 'Duo',  sub: 'Me + 1'  },
+  { value: 'small',  label: 'Crew', sub: '3 – 5'   },
+  { value: 'large',  label: 'Gang', sub: '6+'       },
+]
+
+const BUDGET_NO_LIMIT = 999
+
+// Step metadata
+const STEPS = [
+  { key: 'music',  kicker: 'N° 01 · Musica',     title: 'What gets you',   italic: 'moving?',   sub: 'Pick all the genres you love.',       multi: true  },
+  { key: 'vibes',  kicker: 'N° 02 · Atmosfera',  title: "What's your",     italic: 'vibe?',     sub: 'Pick up to 3 that fit you best.',     multi: true  },
+  { key: 'drinks', kicker: 'N° 03 · Bevande',    title: "What's in your",  italic: 'glass?',    sub: 'Pick everything you drink.',          multi: true  },
+  { key: 'nights', kicker: 'N° 04 · Serate',     title: 'When do you come', italic: 'alive?',   sub: 'Pick every night you go out.',        multi: true  },
+  { key: 'budget', kicker: 'N° 05 · Budget',     title: "What's your",     italic: 'limit?',    sub: 'How much do you spend on a night out?', multi: false },
+  { key: 'squad',  kicker: 'N° 06 · Compagnia',  title: 'Who do you roll',  italic: 'with?',    sub: 'How big is the crew you go out with.', multi: false },
+  { key: 'crowd',  kicker: 'N° 07 · Folla',      title: "Who's your",       italic: 'crowd?',   sub: 'The kind of people around you.',      multi: false },
+] as const
+
+type StepKey = typeof STEPS[number]['key']
 
 interface Prefs {
   music:   string[]
   vibes:   string[]
-  crowd:   string
   drinks:  string[]
-  budget:  number    // euro amount; 999 = no limit
-  nights:  string[]  // multi-select days
+  nights:  string[]
+  budget:  number
+  squad:   string
+  crowd:   string
 }
 
-const STEPS = [
-  'music', 'vibes', 'drinks', 'budget', 'nights', 'crowd',
-] as const
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
-const STEP_META: Record<string, { title: string; subtitle: string; multi?: boolean }> = {
-  music:  { title: 'What gets you moving?',   subtitle: 'Pick all the genres you love',        multi: true  },
-  vibes:  { title: "What's your vibe?",        subtitle: 'Pick up to 3',                        multi: true  },
-  drinks: { title: "What's in your glass?",    subtitle: 'Pick your drinks — get specific',     multi: true  },
-  budget: { title: "What's your budget?",      subtitle: 'Drag to set your limit for a night',  multi: false },
-  nights: { title: 'When do you come alive?',  subtitle: 'Pick every night you go out',         multi: true  },
-  crowd:  { title: "Who's your crowd?",        subtitle: 'The vibe of the people around you',   multi: false },
+function ProgressBar({ step, total }: { step: number; total: number }) {
+  return (
+    <div style={{ display: 'flex', gap: 5 }}>
+      {Array.from({ length: total }).map((_, i) => (
+        <div key={i} style={{
+          flex: 1, height: 2, borderRadius: 1,
+          background: i < step ? C.red : 'rgba(34,30,26,0.16)',
+          transition: 'background 0.3s',
+        }} />
+      ))}
+    </div>
+  )
 }
 
-const OPTIONS: Record<string, { value: string; label: string }[]> = {
-  music: [
-    { value: 'House',       label: 'House'       },
-    { value: 'Techno',      label: 'Techno'      },
-    { value: 'Hip-Hop',     label: 'Hip-Hop'     },
-    { value: 'Latin',       label: 'Latin'       },
-    { value: 'R&B',         label: 'R&B'         },
-    { value: 'Electronic',  label: 'Electronic'  },
-    { value: 'Reggaeton',   label: 'Reggaeton'   },
-    { value: 'Afrobeats',   label: 'Afrobeats'   },
-    { value: 'Commercial',  label: 'Commercial'  },
-    { value: 'Drum & Bass', label: 'Drum & Bass' },
-  ],
-  vibes: [
-    { value: 'wild',        label: 'Wild & loud' },
-    { value: 'intimate',    label: 'Intimate'    },
-    { value: 'underground', label: 'Underground' },
-    { value: 'upscale',     label: 'Upscale'     },
-    { value: 'beach',       label: 'Beachfront'  },
-    { value: 'rooftop',     label: 'Rooftop'     },
-    { value: 'live_music',  label: 'Live music'  },
-    { value: 'dancing',     label: 'Dance floor' },
-  ],
-  nights: [
-    { value: 'monday',    label: 'Monday'            },
-    { value: 'tuesday',   label: 'Tuesday'           },
-    { value: 'wednesday', label: 'Wednesday'         },
-    { value: 'thursday',  label: 'Thursday'          },
-    { value: 'friday',    label: 'Friday'            },
-    { value: 'saturday',  label: 'Saturday'          },
-    { value: 'sunday',    label: 'Sunday'            },
-    { value: 'special',   label: 'Special occasions' },
-  ],
-  crowd: [
-    { value: 'mixed',        label: 'Mixed crowd'     },
-    { value: 'lgbtq',        label: 'LGBTQ+ friendly' },
-    { value: 'local',        label: 'Mostly locals'   },
-    { value: 'international',label: 'International'   },
-    { value: 'mature',       label: 'Mature (25+)'    },
-    { value: 'young',        label: 'Young energy'    },
-  ],
+// Chip button — used for multi-select and single-select options
+function Chip({
+  label, selected, onClick, small,
+}: {
+  label: string, selected: boolean, onClick: () => void, small?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: small ? '8px 14px' : '10px 18px',
+        borderRadius: 999,
+        border: selected ? `1px solid ${C.red}` : '1px solid rgba(34,30,26,0.12)',
+        background: selected ? C.red : C.white,
+        cursor: 'pointer',
+        fontFamily: '"Instrument Serif", Georgia, serif',
+        fontSize: small ? 15 : 17,
+        fontStyle: 'italic',
+        color: selected ? C.cream : C.ink,
+        transition: 'all 0.15s',
+        whiteSpace: 'nowrap' as const,
+        display: 'flex', alignItems: 'center', gap: 6,
+      }}
+    >
+      {selected && (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+          <path d="M2 6l2.5 2.5L10 4" stroke={C.cream} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )}
+      {label}
+    </button>
+  )
 }
 
+// Squad card — bigger tappable card
+function SquadCard({
+  label, sub, selected, onClick,
+}: {
+  label: string, sub: string, selected: boolean, onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        flex: 1, padding: '20px 12px',
+        borderRadius: 16,
+        border: selected ? `1.5px solid ${C.red}` : '1px solid rgba(34,30,26,0.08)',
+        background: selected ? 'rgba(140,42,42,0.06)' : C.white,
+        cursor: 'pointer', textAlign: 'center',
+        display: 'flex', flexDirection: 'column', gap: 4,
+        transition: 'all 0.15s',
+      }}
+    >
+      <span style={{
+        fontFamily: '"Instrument Serif", Georgia, serif',
+        fontSize: 24, fontStyle: 'italic',
+        color: selected ? C.red : C.ink,
+      }}>
+        {label}
+      </span>
+      <span style={{
+        fontFamily: 'var(--font-geist-mono), monospace',
+        fontSize: 9, color: C.sand, letterSpacing: '1.6px',
+        textTransform: 'uppercase' as const,
+      }}>
+        {sub}
+      </span>
+    </button>
+  )
+}
 
-function BudgetSlider({ budget, setBudget }: { budget: number; setBudget: (v: number) => void }) {
-  const noLimit = budget >= BUDGET_NO_LIMIT
+// Budget slider
+function BudgetSlider({
+  budget, onChange,
+}: {
+  budget: number, onChange: (v: number) => void
+}) {
+  const noLimit  = budget >= BUDGET_NO_LIMIT
   const sliderVal = noLimit ? 200 : budget
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const v = parseInt(e.target.value)
-    setBudget(v >= 200 ? BUDGET_NO_LIMIT : v)
-  }
+  const PRESETS   = [20, 50, 100, 150]
 
   return (
-    <div className="flex-1 flex flex-col justify-center gap-xl">
-      {/* Amount display */}
-      <div className="text-center">
-        <p className="font-label-sm text-label-sm text-on-surface-variant/50 uppercase tracking-widest mb-xs">
-          your limit
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+      {/* Big number */}
+      <div style={{ textAlign: 'center' }}>
+        <p style={{
+          fontFamily: 'var(--font-geist-mono), monospace',
+          fontSize: 9, color: C.sand, letterSpacing: '1.8px',
+          textTransform: 'uppercase' as const, margin: '0 0 8px',
+        }}>
+          Your limit per night
         </p>
-        <p className="font-display text-[56px] text-primary leading-none">
+        <p style={{
+          fontFamily: '"Instrument Serif", Georgia, serif',
+          fontSize: 72, fontStyle: 'italic',
+          color: C.red, margin: 0, lineHeight: 1,
+          letterSpacing: '-2px',
+        }}>
           {noLimit ? '∞' : `€${sliderVal}`}
         </p>
-        <p className="font-body-md text-on-surface-variant mt-xs">
-          {noLimit ? 'No limit — VIP mode' : `under €${sliderVal} per night`}
+        <p style={{
+          fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+          fontSize: 13, color: C.stone, margin: '8px 0 0',
+        }}>
+          {noLimit ? 'No limit — full VIP mode' : `under €${sliderVal} per night`}
         </p>
       </div>
 
       {/* Slider */}
-      <div className="px-sm space-y-sm">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <input
-          type="range"
-          min={10}
-          max={200}
-          step={5}
+          type="range" min={10} max={200} step={5}
           value={sliderVal}
-          onChange={handleChange}
-          className="w-full h-2 rounded-full appearance-none cursor-pointer accent-primary bg-surface-container-highest"
+          onChange={e => {
+            const v = parseInt(e.target.value)
+            onChange(v >= 200 ? BUDGET_NO_LIMIT : v)
+          }}
+          style={{ width: '100%', accentColor: C.red, cursor: 'pointer' }}
         />
-        <div className="flex justify-between font-label-sm text-[10px] text-on-surface-variant/40 uppercase tracking-widest">
-          <span>€10</span>
-          <span>€50</span>
-          <span>€100</span>
-          <span>€150</span>
-          <span>No limit</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          {['€10', '€50', '€100', '€150', 'No limit'].map(l => (
+            <span key={l} style={{
+              fontFamily: 'var(--font-geist-mono), monospace',
+              fontSize: 8.5, color: C.sand, letterSpacing: '0.8px',
+              textTransform: 'uppercase' as const,
+            }}>
+              {l}
+            </span>
+          ))}
         </div>
       </div>
 
       {/* Quick presets */}
-      <div className="flex gap-sm justify-center flex-wrap">
-        {[20, 50, 100, 150].map(v => (
-          <button key={v} onClick={() => setBudget(v)}
-            className={`px-md py-xs rounded-full border font-label-sm text-label-sm uppercase tracking-widest transition-all active:scale-95 ${
-              budget === v
-                ? 'border-primary bg-primary-container/30 text-primary'
-                : 'border-outline-variant/20 bg-surface-container text-on-surface-variant'
-            }`}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, justifyContent: 'center' }}>
+        {PRESETS.map(v => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onChange(v)}
+            style={{
+              padding: '8px 16px', borderRadius: 999,
+              border: budget === v ? `1px solid ${C.red}` : '1px solid rgba(34,30,26,0.12)',
+              background: budget === v ? C.red : C.white,
+              fontFamily: '"Instrument Serif", Georgia, serif',
+              fontSize: 15, fontStyle: 'italic',
+              color: budget === v ? C.cream : C.ink,
+              cursor: 'pointer',
+            }}
+          >
             €{v}
           </button>
         ))}
-        <button onClick={() => setBudget(BUDGET_NO_LIMIT)}
-          className={`px-md py-xs rounded-full border font-label-sm text-label-sm uppercase tracking-widest transition-all active:scale-95 ${
-            noLimit
-              ? 'border-primary bg-primary-container/30 text-primary'
-              : 'border-outline-variant/20 bg-surface-container text-on-surface-variant'
-          }`}>
+        <button
+          type="button"
+          onClick={() => onChange(BUDGET_NO_LIMIT)}
+          style={{
+            padding: '8px 16px', borderRadius: 999,
+            border: noLimit ? `1px solid ${C.red}` : '1px solid rgba(34,30,26,0.12)',
+            background: noLimit ? C.red : C.white,
+            fontFamily: '"Instrument Serif", Georgia, serif',
+            fontSize: 15, fontStyle: 'italic',
+            color: noLimit ? C.cream : C.ink,
+            cursor: 'pointer',
+          }}
+        >
           No limit
         </button>
       </div>
@@ -140,140 +298,245 @@ function BudgetSlider({ budget, setBudget }: { budget: number; setBudget: (v: nu
   )
 }
 
-
+// ─── Main page ────────────────────────────────────────────────────────────────
 export default function OnboardingPage() {
   const router = useRouter()
-  const [step, setStep]     = useState(0)
+  const [step,   setStep]   = useState(0)
   const [saving, setSaving] = useState(false)
-  const [prefs, setPrefs]   = useState<Prefs>({
-    music: [], vibes: [], crowd: '', drinks: [],
-    budget: 50, nights: [],
+  const [prefs,  setPrefs]  = useState<Prefs>({
+    music: [], vibes: [], drinks: [], nights: [],
+    budget: 50, squad: '', crowd: '',
   })
 
-  const currentKey = STEPS[step]
-  const meta       = STEP_META[currentKey]
-  const opts       = OPTIONS[currentKey] ?? []
-  const isMulti    = meta.multi
-  const progress   = ((step + 1) / STEPS.length) * 100
+  const current = STEPS[step]
+  const isLast  = step === STEPS.length - 1
 
-  function toggle(key: keyof Prefs, value: string) {
+  // ── Toggle helpers
+  function toggleMulti(key: 'music' | 'vibes' | 'drinks' | 'nights', value: string) {
     setPrefs(p => {
-      if (isMulti) {
-        const arr = p[key] as string[]
-        const next = arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]
-        if (key === 'vibes' && next.length > 3) return p
-        return { ...p, [key]: next }
-      }
-      return { ...p, [key]: value }
+      const arr  = p[key]
+      const next = arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]
+      // Max 3 for vibes
+      if (key === 'vibes' && next.length > 3) return p
+      return { ...p, [key]: next }
     })
   }
 
-  function isSelected(key: keyof Prefs, value: string) {
-    const v = prefs[key]
-    if (Array.isArray(v)) return v.includes(value)
-    return String(v) === value
+  function setSingle(key: 'squad' | 'crowd', value: string) {
+    setPrefs(p => ({ ...p, [key]: value }))
   }
 
-  function canAdvance() {
-    if (currentKey === 'drinks') return prefs.drinks.length > 0
-    if (currentKey === 'budget') return true
-    const v = prefs[currentKey as keyof Prefs]
-    if (Array.isArray(v)) return v.length > 0
-    return v !== '' && v !== undefined
+  function isSelected(key: StepKey, value: string): boolean {
+    if (key === 'budget') return false
+    const v = prefs[key as keyof Prefs]
+    if (Array.isArray(v)) return v.includes(value)
+    return v === value
+  }
+
+  function canAdvance(): boolean {
+    switch (current.key) {
+      case 'music':  return prefs.music.length  > 0
+      case 'vibes':  return prefs.vibes.length  > 0
+      case 'drinks': return prefs.drinks.length > 0
+      case 'nights': return prefs.nights.length > 0
+      case 'budget': return true
+      case 'squad':  return prefs.squad !== ''
+      case 'crowd':  return prefs.crowd !== ''
+      default:       return true
+    }
   }
 
   async function finish() {
     setSaving(true)
-    await fetch('/api/preferences', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(prefs),
-    })
-    router.replace('/explore')
+    try {
+      await apiFetch('/api/preferences', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(prefs),
+      })
+    } finally {
+      router.replace('/explore')
+    }
   }
 
-  const isLast = step === STEPS.length - 1
+  function advance() {
+    if (isLast) finish()
+    else setStep(s => s + 1)
+  }
+
+  function skip() {
+    if (isLast) finish()
+    else setStep(s => s + 1)
+  }
+
+  const OPTS: Record<StepKey, typeof MUSIC_GENRES> = {
+    music:  MUSIC_GENRES,
+    vibes:  VIBES,
+    drinks: DRINKS,
+    nights: NIGHTS,
+    budget: [],
+    squad:  [],
+    crowd:  CROWD,
+  }
 
   return (
-    <div className="min-h-screen flex flex-col px-container-padding pt-md pb-8">
-      {/* Progress bar */}
-      <div className="h-1 bg-surface-container-highest rounded-full mb-lg overflow-hidden">
-        <div className="h-full bg-primary-container rounded-full transition-all duration-500"
-          style={{ width: `${progress}%` }} />
-      </div>
+    <div style={{
+      position: 'fixed', inset: 0,
+      background: C.cream,
+      overflowY: 'auto',
+      WebkitOverflowScrolling: 'touch',
+    } as React.CSSProperties}>
 
-      {/* Step counter */}
-      <p className="font-label-sm text-label-sm text-on-surface-variant/50 uppercase tracking-widest mb-xs">
-        {step + 1} of {STEPS.length}
-      </p>
-
-      {/* Question */}
-      <div className="mb-lg">
-        <h1 className="font-h1 text-h1 text-primary uppercase tracking-[0.08em] leading-tight mb-xs">
-          {meta.title}
-        </h1>
-        <p className="font-body-md text-on-surface-variant">{meta.subtitle}</p>
-      </div>
-
-      {/* Step-specific rendering */}
-      {currentKey === 'drinks' ? (
-        <DrinkStep
-          drinks={prefs.drinks}
-          setDrinks={fn => setPrefs(p => ({ ...p, drinks: fn(p.drinks) }))}
-        />
-      ) : currentKey === 'budget' ? (
-        <BudgetSlider
-          budget={prefs.budget}
-          setBudget={v => setPrefs(p => ({ ...p, budget: v }))}
-        />
-      ) : (
-        <div className="flex flex-wrap gap-sm content-start flex-1">
-          {opts.map(opt => {
-            const selected = isSelected(currentKey as keyof Prefs, opt.value)
-            return (
-              <button key={opt.value}
-                onClick={() => toggle(currentKey as keyof Prefs, opt.value)}
-                className={`flex items-center gap-xs px-md py-sm rounded-2xl border-2 text-left transition-all active:scale-[0.97] ${
-                  selected
-                    ? 'border-primary bg-primary-container/20'
-                    : 'border-outline-variant/20 bg-surface-container'
-                }`}>
-                {selected && (
-                  <span className="material-symbols-outlined text-primary text-[16px] flex-shrink-0"
-                    style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                )}
-                <span className={`font-body-md font-bold whitespace-nowrap ${selected ? 'text-on-surface' : 'text-on-surface-variant'}`}>
-                  {opt.label}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Navigation */}
-      <div className="flex gap-sm mt-lg">
-        {step > 0 && (
-          <button onClick={() => setStep(s => s - 1)}
-            className="h-14 px-md border border-outline-variant/30 text-on-surface-variant font-h2 rounded-xl active:scale-95">
-            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
-          </button>
-        )}
+      {/* ── Header */}
+      <div style={{ padding: '16px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button
-          onClick={() => isLast ? finish() : setStep(s => s + 1)}
-          disabled={!canAdvance() || saving}
-          className="flex-1 h-14 bg-primary-container text-on-primary-container font-h2 rounded-xl ignite-glow active:scale-[0.98] disabled:opacity-40 transition-all">
-          {saving ? 'Saving…' : isLast ? "Let's go" : 'Next'}
+          onClick={() => step === 0 ? router.push('/explore') : setStep(s => s - 1)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontFamily: 'var(--font-geist-mono), monospace',
+            fontSize: 10, color: C.stone, letterSpacing: '1.8px',
+            textTransform: 'uppercase' as const, background: 'none', border: 'none',
+            cursor: 'pointer', padding: 0,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Back
         </button>
+
+        <p style={{
+          fontFamily: 'var(--font-geist-mono), monospace',
+          fontSize: 8.5, color: C.sand, letterSpacing: '1.87px',
+          textTransform: 'uppercase' as const, margin: 0,
+        }}>
+          {String(step + 1).padStart(2, '0')} / {String(STEPS.length).padStart(2, '0')}
+        </p>
       </div>
 
-      {/* Skip */}
-      {!isLast && (
-        <button onClick={() => setStep(s => s + 1)}
-          className="text-center font-label-sm text-label-sm text-on-surface-variant/40 uppercase tracking-widest mt-sm active:scale-95">
-          Skip this one
-        </button>
-      )}
+      {/* Progress bar */}
+      <div style={{ padding: '12px 20px 0' }}>
+        <ProgressBar step={step + 1} total={STEPS.length} />
+      </div>
+
+      {/* ── Body */}
+      <div style={{
+        padding: '28px 24px',
+        paddingBottom: 'calc(40px + env(safe-area-inset-bottom, 0px))',
+      }}>
+        {/* Kicker */}
+        <p style={{
+          fontFamily: 'var(--font-geist-mono), monospace',
+          fontSize: 9.5, color: C.red, letterSpacing: '2.09px',
+          textTransform: 'uppercase' as const, margin: '0 0 12px',
+        }}>
+          {current.kicker}
+        </p>
+
+        {/* Headline */}
+        <h1 style={{
+          fontFamily: '"Instrument Serif", Georgia, serif',
+          fontSize: 48, fontWeight: 400, lineHeight: 1.1,
+          letterSpacing: '-1.04px', color: C.ink, margin: '0 0 8px',
+        }}>
+          {current.title}<br /><em>{current.italic}</em>
+        </h1>
+        <p style={{
+          fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+          fontSize: 13.5, color: C.stone, letterSpacing: '-0.07px',
+          margin: '0 0 32px',
+        }}>
+          {current.sub}
+          {current.key === 'vibes' && (
+            <span style={{ color: C.sand }}>{' '}· {prefs.vibes.length}/3</span>
+          )}
+        </p>
+
+        {/* ── Music, Vibes, Drinks, Nights, Crowd — chip grid */}
+        {current.key !== 'budget' && current.key !== 'squad' && (
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 10, marginBottom: 32 }}>
+            {OPTS[current.key].map(opt => (
+              <Chip
+                key={opt.value}
+                label={opt.label}
+                selected={isSelected(current.key, opt.value)}
+                onClick={() => {
+                  if (current.multi) {
+                    toggleMulti(current.key as 'music' | 'vibes' | 'drinks' | 'nights', opt.value)
+                  } else {
+                    setSingle(current.key as 'crowd', opt.value)
+                  }
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ── Budget */}
+        {current.key === 'budget' && (
+          <div style={{ marginBottom: 32 }}>
+            <BudgetSlider
+              budget={prefs.budget}
+              onChange={v => setPrefs(p => ({ ...p, budget: v }))}
+            />
+          </div>
+        )}
+
+        {/* ── Squad size */}
+        {current.key === 'squad' && (
+          <div style={{ display: 'flex', gap: 10, marginBottom: 32 }}>
+            {SQUAD.map(s => (
+              <SquadCard
+                key={s.value}
+                label={s.label}
+                sub={s.sub}
+                selected={prefs.squad === s.value}
+                onClick={() => setSingle('squad', s.value)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ── CTA */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <button
+            type="button"
+            onClick={advance}
+            disabled={!canAdvance() || saving}
+            style={{
+              width: '100%', height: 55,
+              background: !canAdvance() ? 'rgba(140,42,42,0.3)' : C.red,
+              color: C.cream, borderRadius: 14, border: 'none',
+              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+              fontSize: 15, fontWeight: 500,
+              cursor: !canAdvance() ? 'default' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              transition: 'background 0.2s',
+            }}
+          >
+            {saving ? 'Saving…' : isLast ? "Let's go" : (
+              <>
+                Continue
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={skip}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+              fontSize: 13, color: C.sand, padding: '8px 0', textAlign: 'center',
+            }}
+          >
+            Skip for now
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch } from '@/lib/api'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -28,7 +29,7 @@ export default function NewRumbaPage() {
     setSaving(true)
     setError('')
 
-    const res  = await fetch('/api/rumbas', {
+    const res  = await apiFetch('/api/rumbas', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(form),

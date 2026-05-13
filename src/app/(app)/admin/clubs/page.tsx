@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch } from '@/lib/api'
 
 import { useEffect, useState } from 'react'
 
@@ -37,7 +38,7 @@ export default function AdminClubsPage() {
   }
 
   useEffect(() => {
-    fetch('/api/admin/clubs/list')
+    apiFetch('/api/admin/clubs/list')
       .then(r => r.json())
       .then(d => { setClubs(d.data ?? []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -48,7 +49,7 @@ export default function AdminClubsPage() {
     setSearching(true)
     setResults([])
     try {
-      const res  = await fetch(`/api/admin/clubs/search?q=${encodeURIComponent(query)}`)
+      const res  = await apiFetch(`/api/admin/clubs/search?q=${encodeURIComponent(query)}`)
       const data = await res.json()
       setResults(data.data ?? [])
     } catch {
@@ -61,7 +62,7 @@ export default function AdminClubsPage() {
   async function importClub(placeId: string) {
     setImporting(placeId)
     try {
-      const res  = await fetch('/api/admin/clubs/import', {
+      const res  = await apiFetch('/api/admin/clubs/import', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ place_id: placeId }),
@@ -82,7 +83,7 @@ export default function AdminClubsPage() {
   }
 
   async function togglePartner(club: Club) {
-    const res  = await fetch(`/api/admin/clubs/${club.id}/partner`, {
+    const res  = await apiFetch(`/api/admin/clubs/${club.id}/partner`, {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ is_partner: !club.is_partner }),
@@ -95,7 +96,7 @@ export default function AdminClubsPage() {
   async function syncAll() {
     setSyncing(true)
     try {
-      const res  = await fetch('/api/admin/sync', {
+      const res  = await apiFetch('/api/admin/sync', {
         headers: { Authorization: `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET ?? 'dev'}` }
       })
       const data = await res.json()

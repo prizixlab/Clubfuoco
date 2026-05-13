@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch } from '@/lib/api'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -32,8 +33,8 @@ export default function ClubVerifyPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/club-verify').then(r => r.json()),
-      fetch('/api/clubs?limit=50').then(r => r.json()),
+      apiFetch('/api/club-verify').then(r => r.json()),
+      apiFetch('/api/clubs?limit=50').then(r => r.json()),
     ]).then(([statusRes, clubsRes]) => {
       if (statusRes.data) {
         setExisting(statusRes.data)
@@ -47,7 +48,7 @@ export default function ClubVerifyPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
-    const res = await fetch('/api/club-verify', {
+    const res = await apiFetch('/api/club-verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, ...form }),
@@ -61,7 +62,7 @@ export default function ClubVerifyPage() {
 
   async function submitMapsUrl() {
     setAddingMaps(true)
-    const res = await fetch('/api/club-verify', {
+    const res = await apiFetch('/api/club-verify', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ google_maps_url: mapsUrl }),
@@ -73,7 +74,7 @@ export default function ClubVerifyPage() {
 
   async function withdraw() {
     if (!confirm('Withdraw your verification request?')) return
-    await fetch('/api/club-verify', { method: 'DELETE' })
+    await apiFetch('/api/club-verify', { method: 'DELETE' })
     setExisting(null)
     setStep('choose')
   }

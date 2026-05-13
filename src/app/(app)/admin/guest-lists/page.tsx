@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch } from '@/lib/api'
 
 import { useEffect, useState } from 'react'
 
@@ -37,8 +38,8 @@ export default function AdminGuestListsPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/guest-lists?admin=1').then(r => r.json()),
-      fetch('/api/clubs').then(r => r.json()),
+      apiFetch('/api/guest-lists?admin=1').then(r => r.json()),
+      apiFetch('/api/clubs').then(r => r.json()),
     ]).then(([listsData, clubsData]) => {
       setLists(listsData.data ?? [])
       setClubs(clubsData.data ?? [])
@@ -47,7 +48,7 @@ export default function AdminGuestListsPage() {
 
     // Auto-refresh counts every 30 seconds
     const interval = setInterval(() => {
-      fetch('/api/guest-lists?admin=1').then(r => r.json()).then(d => {
+      apiFetch('/api/guest-lists?admin=1').then(r => r.json()).then(d => {
         if (d.data) setLists(d.data)
       })
     }, 30000)
@@ -57,7 +58,7 @@ export default function AdminGuestListsPage() {
   async function toggleActive(list: GuestList) {
     const updated = { ...list, is_active: !list.is_active }
     setLists(prev => prev.map(l => l.id === list.id ? updated : l))
-    await fetch(`/api/guest-lists/${list.id}`, {
+    await apiFetch(`/api/guest-lists/${list.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_active: !list.is_active }),
@@ -66,13 +67,13 @@ export default function AdminGuestListsPage() {
 
   async function deleteList(id: string) {
     setLists(prev => prev.filter(l => l.id !== id))
-    await fetch(`/api/guest-lists/${id}`, { method: 'DELETE' })
+    await apiFetch(`/api/guest-lists/${id}`, { method: 'DELETE' })
   }
 
   async function createList(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const res = await fetch('/api/guest-lists', {
+    const res = await apiFetch('/api/guest-lists', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
@@ -84,14 +85,14 @@ export default function AdminGuestListsPage() {
   }
 
   async function refreshLists() {
-    const res = await fetch('/api/guest-lists?admin=1')
+    const res = await apiFetch('/api/guest-lists?admin=1')
     const data = await res.json()
     if (data.data) setLists(data.data)
   }
 
   async function viewSignups(id: string) {
     setSelectedList(id)
-    const res = await fetch(`/api/guest-lists/${id}?view=signups`)
+    const res = await apiFetch(`/api/guest-lists/${id}?view=signups`)
     const data = await res.json()
     const rows = data.data ?? []
     setSignups(rows)
@@ -115,14 +116,14 @@ export default function AdminGuestListsPage() {
     // Optimistic update
     setSignups(prev => prev.map(s => s.id === signupId ? { ...s, checked_in: checked } : s))
 
-    const res = await fetch(`/api/guest-lists/${listId}/signup`, {
+    const res = await apiFetch(`/api/guest-lists/${listId}/signup`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ signup_id: signupId, checked_in: checked }),
     })
 
     // Refetch from DB to confirm — reverts if the update failed
-    const fresh = await fetch(`/api/guest-lists/${listId}?view=signups`)
+    const fresh = await apiFetch(`/api/guest-lists/${listId}?view=signups`)
     const data = await fresh.json()
     if (data.data) {
       setSignups(data.data)

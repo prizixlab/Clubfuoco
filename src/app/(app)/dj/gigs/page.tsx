@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch } from '@/lib/api'
 
 import { useEffect, useState } from 'react'
 
@@ -7,7 +8,7 @@ export default function DJGigsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/dj-dashboard')
+    apiFetch('/api/dj-dashboard')
       .then(r => r.json())
       .then(d => {
         const all = d.data?.dj_gigs ?? []

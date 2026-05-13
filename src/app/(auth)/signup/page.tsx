@@ -1,174 +1,360 @@
 'use client'
+import { apiFetch } from '@/lib/api'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient } from '@/lib/supabase/client'
+
+// ── Design tokens
+const C = {
+  cream:  '#F8F5EE',
+  ink:    '#221E1A',
+  stone:  '#6E6356',
+  sand:   '#9F9486',
+  red:    '#8C2A2A',
+  white:  '#FFFFFF',
+  warm:   'rgb(244,236,221)',
+}
 
 type AccountType = 'user' | 'club' | 'dj'
 
-const ACCOUNT_TYPES = [
-  {
-    type: 'user' as AccountType,
-    icon: 'nightlife',
-    label: 'Night Out',
-    sublabel: 'I want to discover clubs',
-    description: 'Explore Barcelona\'s nightlife, book tables, join guest lists and follow your favourite DJs.',
-    color: 'border-primary-container/60 bg-primary-container/10',
-    activeColor: 'border-primary bg-primary-container/30',
-  },
-  {
-    type: 'club' as AccountType,
-    icon: 'domain',
-    label: 'Club / Venue',
-    sublabel: 'I manage a venue',
-    description: 'Manage your club\'s live status, guest lists, bookings and DJ lineup from one dashboard.',
-    color: 'border-outline-variant/20 bg-surface-container',
-    activeColor: 'border-primary bg-primary-container/30',
-  },
-  {
-    type: 'dj' as AccountType,
-    icon: 'queue_music',
-    label: 'DJ / Artist',
-    sublabel: 'I perform at clubs',
-    description: 'Build your public profile, manage your gig schedule and grow your follower base.',
-    color: 'border-outline-variant/20 bg-surface-container',
-    activeColor: 'border-primary bg-primary-container/30',
-  },
-]
-
-const SIGNUP_PLANS = [
-  {
-    id: 'free',
-    name: 'Free',
-    price: '€0',
-    icon: 'person',
-    iconBg: 'bg-surface-container-high',
-    iconColor: 'text-on-surface-variant/60',
-    border: 'border-outline-variant/20',
-    activeBorder: 'border-primary',
-    activeBg: 'bg-primary-container/10',
-    perks: ['Browse & discover clubs', 'Book entry tickets', 'Basic crowd info'],
-  },
-  {
-    id: 'gold',
-    name: 'Gold',
-    price: '€19/mo',
-    icon: 'workspace_premium',
-    iconBg: 'bg-yellow-500/10',
-    iconColor: 'text-yellow-400',
-    border: 'border-yellow-500/20',
-    activeBorder: 'border-yellow-400',
-    activeBg: 'bg-yellow-500/10',
-    badge: 'POPULAR',
-    perks: ['Priority entry at partner clubs', '15% discount on bookings', 'Monthly guest pass'],
-  },
-  {
-    id: 'sapphire',
-    name: 'Sapphire',
-    price: '€49/mo',
-    icon: 'diamond',
-    iconBg: 'bg-primary-container/30',
-    iconColor: 'text-primary',
-    border: 'border-primary/20',
-    activeBorder: 'border-primary',
-    activeBg: 'bg-primary-container/20',
-    badge: 'ELITE',
-    perks: ['25% discount on bookings', 'Guest list access (4×/mo)', 'WhatsApp concierge'],
-  },
-  {
-    id: 'black',
-    name: 'Black',
-    price: '€500/mo',
-    icon: 'local_fire_department',
-    iconBg: 'bg-white/[0.06]',
-    iconColor: 'text-white',
-    border: 'border-white/10',
-    activeBorder: 'border-white/40',
-    activeBg: 'bg-white/[0.04]',
-    badge: 'ULTIMATE',
-    dark: true,
-    perks: ['Free VIP entry everywhere', 'Unlimited guest lists', '24/7 dedicated concierge'],
-  },
-]
-
 const HOME: Record<AccountType, string> = {
-  user:  '/explore',
-  club:  '/club-dashboard',
-  dj:    '/dj-dashboard',
+  user: '/explore',
+  club: '/club-dashboard',
+  dj:   '/dj-dashboard',
 }
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+// Months for birthday drum
+const MONTHS_EN  = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const MONTHS_IT  = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre']
 const currentYear = new Date().getFullYear()
-const YEARS = Array.from({ length: 82 }, (_, i) => currentYear - 17 - i)
+const DAYS  = Array.from({ length: 31 },  (_, i) => i + 1)
+const YEARS = Array.from({ length: 84 },  (_, i) => currentYear - 17 - i)
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DrumPicker — iOS-style scroll snap picker
+// ─────────────────────────────────────────────────────────────────────────────
+const ITEM_H = 40
+
+function DrumPicker({
+  values, labels, selected, onSelect, label,
+}: {
+  values: (string | number)[]
+  labels?: string[]
+  selected: string
+  onSelect: (v: string) => void
+  label: string
+}) {
+  const items = values.map((v, i) => ({ value: String(v), label: labels?.[i] ?? String(v) }))
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [localIdx, setLocalIdx] = useState(() => Math.max(0, items.findIndex(i => i.value === selected)))
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  // Scroll to selection on mount / external change
+  useEffect(() => {
+    const idx = items.findIndex(i => i.value === selected)
+    if (idx >= 0) {
+      setLocalIdx(idx)
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = idx * ITEM_H
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected])
+
+  const onScroll = useCallback(() => {
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      if (!scrollRef.current) return
+      const idx = Math.round(scrollRef.current.scrollTop / ITEM_H)
+      const clamped = Math.max(0, Math.min(idx, items.length - 1))
+      setLocalIdx(clamped)
+      onSelect(items[clamped].value)
+    }, 80)
+  }, [items, onSelect])
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+      <p style={{
+        fontFamily: 'var(--font-geist-mono), monospace',
+        fontSize: 9, color: C.sand, letterSpacing: '1.8px',
+        textTransform: 'uppercase' as const, textAlign: 'center', margin: 0,
+      }}>
+        {label}
+      </p>
+
+      <div style={{
+        position: 'relative', background: C.white, borderRadius: 12,
+        overflow: 'hidden', border: '1px solid rgba(34,30,26,0.08)',
+        height: ITEM_H * 5,
+      }}>
+        {/* Fade top */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H * 2.2,
+          background: 'linear-gradient(to bottom, rgba(255,255,255,1) 40%, rgba(255,255,255,0))',
+          zIndex: 2, pointerEvents: 'none',
+        }} />
+        {/* Fade bottom */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H * 2.2,
+          background: 'linear-gradient(to top, rgba(255,255,255,1) 40%, rgba(255,255,255,0))',
+          zIndex: 2, pointerEvents: 'none',
+        }} />
+        {/* Top band */}
+        <div style={{
+          position: 'absolute', top: ITEM_H * 2, left: 0, right: 0,
+          height: 1, background: 'rgba(34,30,26,0.16)', zIndex: 3, pointerEvents: 'none',
+        }} />
+        {/* Bottom band */}
+        <div style={{
+          position: 'absolute', top: ITEM_H * 3, left: 0, right: 0,
+          height: 1, background: 'rgba(34,30,26,0.16)', zIndex: 3, pointerEvents: 'none',
+        }} />
+
+        {/* Scroll list */}
+        <div
+          ref={scrollRef}
+          onScroll={onScroll}
+          className="drum-scroll"
+          style={{
+            height: '100%',
+            overflowY: 'scroll',
+            scrollSnapType: 'y mandatory',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          } as React.CSSProperties}
+        >
+          {/* top spacer */}
+          <div style={{ height: ITEM_H * 2, flexShrink: 0 }} />
+          {items.map((item, i) => {
+            const dist = Math.abs(i - localIdx)
+            const isSel = dist === 0
+            return (
+              <div
+                key={item.value}
+                style={{
+                  height: ITEM_H, scrollSnapAlign: 'center',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: '"Instrument Serif", Georgia, serif',
+                  fontSize: isSel ? 26 : 20,
+                  fontStyle: isSel ? 'italic' : 'normal',
+                  color: isSel ? C.red : C.ink,
+                  opacity: dist === 0 ? 1 : dist === 1 ? 0.5 : 0.25,
+                  letterSpacing: '-0.07px',
+                  userSelect: 'none',
+                  cursor: 'pointer',
+                  transition: 'font-size 0.12s, color 0.12s',
+                }}
+                onClick={() => {
+                  onSelect(item.value)
+                  scrollRef.current?.scrollTo({ top: i * ITEM_H, behavior: 'smooth' })
+                }}
+              >
+                {item.label}
+              </div>
+            )
+          })}
+          {/* bottom spacer */}
+          <div style={{ height: ITEM_H * 2, flexShrink: 0 }} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared: AuthField wrapper
+// ─────────────────────────────────────────────────────────────────────────────
+function AuthField({
+  label, children, rightSlot, error,
+}: {
+  label: string, children: React.ReactNode,
+  rightSlot?: React.ReactNode, error?: boolean,
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <p style={{
+        fontFamily: 'var(--font-geist-mono), monospace',
+        fontSize: 9, color: C.sand, letterSpacing: '1.8px',
+        textTransform: 'uppercase' as const, margin: 0,
+      }}>
+        {label}
+      </p>
+      <div style={{
+        background: error ? 'rgba(140,42,42,0.04)' : C.white,
+        border: error ? '1px solid #8C2A2A' : '1px solid rgba(34,30,26,0.08)',
+        borderRadius: 12, padding: '0 16px',
+        display: 'flex', alignItems: 'center', gap: 8,
+        transition: 'border-color 0.2s',
+      }}>
+        {children}
+        {rightSlot}
+      </div>
+    </div>
+  )
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', background: 'transparent', border: 'none', outline: 'none',
+  fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+  fontSize: 16, color: C.ink, padding: '14px 0', lineHeight: '1.3', flex: 1, // 16px minimum prevents iOS auto-zoom
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared: Progress bar (4 segments)
+// ─────────────────────────────────────────────────────────────────────────────
+function ProgressBar({ step, total = 4 }: { step: number; total?: number }) {
+  return (
+    <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+      {Array.from({ length: total }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            flex: 1, height: 2, borderRadius: 1,
+            background: i < step ? C.red : 'rgba(34,30,26,0.16)',
+            transition: 'background 0.3s',
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared: Primary CTA button
+// ─────────────────────────────────────────────────────────────────────────────
+function PrimaryBtn({
+  children, onClick, disabled, type = 'button', loading,
+}: {
+  children: React.ReactNode
+  onClick?: () => void
+  disabled?: boolean
+  type?: 'button' | 'submit'
+  loading?: boolean
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled || loading}
+      style={{
+        width: '100%', height: 55,
+        background: disabled && !loading ? 'rgba(140,42,42,0.3)' : C.red,
+        color: C.cream, borderRadius: 14, border: 'none',
+        fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+        fontSize: 15, fontWeight: 500, cursor: disabled ? 'default' : 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        transition: 'opacity 0.2s, background 0.2s',
+        opacity: loading ? 0.7 : 1,
+      }}
+    >
+      {loading ? 'Please wait…' : (
+        <>
+          {children}
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </>
+      )}
+    </button>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main page
+// ─────────────────────────────────────────────────────────────────────────────
 export default function SignupPage() {
   const router = useRouter()
-  const [step,        setStep]        = useState<1 | 2 | 3 | 4>(1)
-  const [accountType, setAccountType] = useState<AccountType>('user')
-  const [fullName,    setFullName]    = useState('')
-  const [email,       setEmail]       = useState('')
-  const [password,    setPassword]    = useState('')
-  const [bDay,        setBDay]        = useState('')
-  const [bMonth,      setBMonth]      = useState('')
-  const [bYear,       setBYear]       = useState('')
-  const [userId,      setUserId]      = useState<string | null>(null)
-  const [selectedPlan, setSelectedPlan] = useState('free')
-  const [loading,     setLoading]     = useState(false)
-  const [memberLoading, setMemberLoading] = useState(false)
-  const [error,       setError]       = useState('')
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const [step,         setStep]        = useState<1 | 2 | 3 | 4>(1)
+  const [accountType,  setAccountType] = useState<AccountType>('user')
+  const [firstName,    setFirstName]   = useState('')
+  const [lastName,     setLastName]    = useState('')
+  const [email,        setEmail]       = useState('')
+  const [password,     setPassword]    = useState('')
+  const [showPwd,      setShowPwd]     = useState(false)
+  const [bDay,         setBDay]        = useState(String(DAYS[16]))       // 17
+  const [bMonth,       setBMonth]      = useState(String(5))              // May
+  const [bYear,        setBYear]       = useState(String(currentYear - 25))
+  const [userId,       setUserId]      = useState<string | null>(null)
+  const [selectedPlan, setSelectedPlan] = useState<'free' | 'gold' | 'sapphire' | 'black'>('free')
+  const [loading,      setLoading]     = useState(false)
+  const [error,        setError]       = useState('')
 
+  const supabase = createClient()
+
+  // Account type labels
+  const kindLabel: Record<AccountType, string> = {
+    user: 'Notturno',
+    club: 'Locale',
+    dj:   'Artista',
+  }
+  const kindSubLabel: Record<AccountType, string> = {
+    user: 'Night Out',
+    club: 'Club / Venue',
+    dj:   'DJ / Artist',
+  }
+
+  // ── Step 2: Create account
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
 
     const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName, account_type: accountType } },
+      email, password,
+      options: {
+        data: {
+          full_name: `${firstName} ${lastName}`.trim(),
+          first_name: firstName,
+          last_name:  lastName,
+          account_type: accountType,
+        },
+      },
     })
 
-    if (signUpError) { setError(signUpError.message); setLoading(false); return }
+    if (signUpError) {
+      setError(signUpError.message)
+      setLoading(false)
+      return
+    }
 
     if (data.user) {
-      await supabase.from('users').update({ account_type: accountType }).eq('id', data.user.id)
+      await (supabase as any).from('users').update({ account_type: accountType }).eq('id', data.user.id)
       setUserId(data.user.id)
     }
 
     setLoading(false)
     if (accountType === 'user') {
-      setStep(3) // birthday
+      setStep(3)
     } else {
       router.push(HOME[accountType])
     }
   }
 
+  // ── Step 3: Birthday
   async function handleBirthday(skip = false) {
     if (!skip && userId && bDay && bMonth && bYear) {
       const month = String(bMonth).padStart(2, '0')
       const day   = String(bDay).padStart(2, '0')
-      await supabase.from('users').update({ birthday: `${bYear}-${month}-${day}` }).eq('id', userId)
+      await (supabase as any).from('users').update({ birthday: `${bYear}-${month}-${day}` }).eq('id', userId)
     }
-    setStep(4) // go to membership
+    setStep(4)
   }
 
-  async function handleMembership(planId: string) {
-    if (planId === 'free') {
+  // ── Step 4: Membership
+  async function handleMembership(plan: string) {
+    if (plan === 'free') {
       router.push('/onboarding')
       return
     }
-    setMemberLoading(true)
+    setLoading(true)
     try {
-      const res  = await fetch('/api/memberships/subscribe', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ plan: planId }),
+      const res  = await apiFetch('/api/memberships/subscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan }),
       })
       const data = await res.json()
       if (data.data?.checkout_url) {
@@ -181,277 +367,880 @@ export default function SignupPage() {
     }
   }
 
-  const selected    = ACCOUNT_TYPES.find(a => a.type === accountType)!
-  const totalSteps  = accountType === 'user' ? 4 : 2
-  const birthdaySet = bDay && bMonth && bYear
-
-  const stepSubtitle: Record<number, string> = {
-    1: 'How will you use Club Fuoco?',
-    2: `Signing up as ${selected.label}`,
-    3: 'One last thing',
-    4: 'Choose your membership',
+  function goBack() {
+    if (step === 1) router.push('/')
+    else setStep(s => (s - 1) as 1 | 2 | 3 | 4)
   }
 
+  // Layout wrapper (cream bg, full height)
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-container-padding bg-background py-xl">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-xl">
-          <span className="material-symbols-outlined text-[48px] text-primary bloom-glow mb-base block"
-            style={{ fontVariationSettings: "'FILL' 1" }}>
-            local_fire_department
-          </span>
-          <h1 className="font-display text-h1 text-primary tracking-[0.2em] uppercase">CLUB FUOCO</h1>
-          <p className="font-body-md text-on-surface-variant mt-xs">{stepSubtitle[step]}</p>
-        </div>
+    <div style={{ position: 'fixed', inset: 0, background: C.cream, overflow: 'hidden' } as React.CSSProperties}>
 
-        {/* Step indicator */}
-        <div className="flex gap-xs justify-center mb-lg">
-          {Array.from({ length: totalSteps }, (_, i) => i + 1).map(s => (
-            <div key={s} className={`h-1 rounded-full transition-all ${
-              s === step ? 'w-8 bg-primary' : s < step ? 'w-4 bg-primary/40' : 'w-4 bg-outline-variant/30'
-            }`} />
-          ))}
-        </div>
+      {/* ── Header */}
+      <div style={{
+        padding: '12px 20px 0',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <button
+          onClick={goBack}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontFamily: 'var(--font-geist-mono), monospace',
+            fontSize: 10, color: C.stone, letterSpacing: '1.8px',
+            textTransform: 'uppercase', background: 'none', border: 'none',
+            cursor: 'pointer', padding: 0,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Back
+        </button>
 
-        {/* ── Step 1: Account type ── */}
+        {step > 1 && (
+          <p style={{
+            fontFamily: 'var(--font-geist-mono), monospace',
+            fontSize: 8.5, color: C.sand, letterSpacing: '1.87px',
+            textTransform: 'uppercase', margin: 0,
+          }}>
+            Step {step === 2 ? '02' : step === 3 ? '03' : '04'} / 04
+          </p>
+        )}
+      </div>
+
+      {/* Progress bar (steps 2+) */}
+      {step > 1 && (
+        <div style={{ padding: '12px 20px 0' }}>
+          <ProgressBar step={step - 1} total={4} />
+        </div>
+      )}
+
+      <div style={{ padding: '16px 20px 20px' }}>
+
+        {/* ══ Step 1: Who ══════════════════════════════════════════════════ */}
         {step === 1 && (
-          <div className="space-y-sm">
-            {ACCOUNT_TYPES.map(a => (
-              <button key={a.type} type="button" onClick={() => setAccountType(a.type)}
-                className={`w-full text-left p-md rounded-xl border-2 transition-all active:scale-[0.98] ${
-                  accountType === a.type ? a.activeColor : a.color
-                }`}>
-                <div className="flex items-center gap-sm">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                    accountType === a.type ? 'bg-primary-container' : 'bg-surface-container-high'
-                  }`}>
-                    <span className={`material-symbols-outlined text-[24px] ${accountType === a.type ? 'text-on-primary-container' : 'text-on-surface-variant/60'}`}
-                      style={accountType === a.type ? { fontVariationSettings: "'FILL' 1" } : undefined}>
-                      {a.icon}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <p className={`font-h2 text-h2 ${accountType === a.type ? 'text-on-surface' : 'text-on-surface-variant'}`}>{a.label}</p>
-                    <p className="font-body-md text-on-surface-variant/60 text-sm">{a.sublabel}</p>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                    accountType === a.type ? 'border-primary bg-primary' : 'border-outline-variant/40'
-                  }`}>
-                    {accountType === a.type && (
-                      <span className="material-symbols-outlined text-[12px] text-on-primary" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
-                    )}
-                  </div>
+          <div>
+            {/* Kicker */}
+            <p style={{
+              fontFamily: 'var(--font-geist-mono), monospace',
+              fontSize: 9.5, color: C.red, letterSpacing: '2.09px',
+              textTransform: 'uppercase', margin: '0 0 6px',
+            }}>
+              N° 01 · Chi sei
+            </p>
+
+            {/* Headline */}
+            <h1 style={{
+              fontFamily: '"Instrument Serif", Georgia, serif',
+              fontSize: 38, fontWeight: 400, lineHeight: 1.1,
+              letterSpacing: '-1.04px', color: C.ink, margin: '0 0 6px',
+            }}>
+              How will you use <em>Club Fuoco?</em>
+            </h1>
+            <p style={{
+              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+              fontSize: 13, color: C.stone, letterSpacing: '-0.07px',
+              margin: '0 0 16px',
+            }}>
+              Pick what fits — you can change later.
+            </p>
+
+            {/* Hero card — Notturno */}
+            <button
+              onClick={() => setAccountType('user')}
+              style={{
+                width: '100%', padding: '14px 16px',
+                background: 'linear-gradient(155deg, rgb(26,20,16) 0%, rgb(42,24,16) 38%, rgb(91,31,28) 72%, rgb(194,86,45) 110%)',
+                borderRadius: 16,
+                border: accountType === 'user'
+                  ? '1px solid rgba(255,224,165,0.22)'
+                  : '1px solid rgba(255,224,165,0.1)',
+                cursor: 'pointer', textAlign: 'left',
+                position: 'relative', overflow: 'hidden',
+                marginBottom: 10,
+              }}
+            >
+              {/* Watermark number */}
+              <div style={{
+                position: 'absolute', top: 8, right: 16,
+                fontFamily: '"Instrument Serif", Georgia, serif',
+                fontSize: 56, fontStyle: 'italic',
+                color: 'rgba(255,232,181,0.18)',
+                lineHeight: 1, userSelect: 'none',
+              }}>
+                N° 01
+              </div>
+
+              {/* Badge */}
+              <div style={{
+                display: 'inline-flex', alignItems: 'center',
+                background: 'rgb(232,182,91)', borderRadius: 4,
+                padding: '3px 7px', marginBottom: 8,
+              }}>
+                <span style={{
+                  fontFamily: 'var(--font-geist-mono), monospace',
+                  fontSize: 9, fontWeight: 700, color: 'rgb(42,24,16)',
+                  letterSpacing: '2.16px', textTransform: 'uppercase',
+                }}>
+                  Recommended · Most users
+                </span>
+              </div>
+
+              {/* Name */}
+              <h2 style={{
+                fontFamily: '"Instrument Serif", Georgia, serif',
+                fontSize: 36, fontStyle: 'italic', fontWeight: 400,
+                color: 'rgb(244,236,221)', letterSpacing: '-0.44px',
+                margin: '0 0 3px', lineHeight: 1,
+              }}>
+                Notturno
+              </h2>
+
+              {/* Subtitle */}
+              <p style={{
+                fontFamily: 'var(--font-geist-mono), monospace',
+                fontSize: 10.5, color: 'rgba(244,236,221,0.7)',
+                letterSpacing: '2.31px', textTransform: 'uppercase',
+                margin: '0 0 8px',
+              }}>
+                Night Out
+              </p>
+
+              {/* Tags */}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+                {['Discover clubs', 'Book entry', 'Save events'].map((tag, i) => (
+                  <span key={tag} style={{
+                    fontFamily: 'var(--font-geist-mono), monospace',
+                    fontSize: 9.5, color: 'rgba(244,236,221,0.65)',
+                    letterSpacing: '1.52px', textTransform: 'uppercase',
+                  }}>
+                    {i > 0 && <span style={{ marginRight: 8 }}>·</span>}
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              {/* Selected indicator */}
+              {accountType === 'user' && (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  background: 'rgba(255,232,181,0.14)',
+                  border: '1px solid rgba(255,232,181,0.4)',
+                  borderRadius: 999, padding: '4px 10px',
+                }}>
+                  <span style={{
+                    width: 14, height: 14, borderRadius: '50%',
+                    border: '1.5px solid rgb(255,232,181)',
+                    display: 'inline-block',
+                  }} />
+                  <span style={{
+                    fontFamily: 'var(--font-geist-mono), monospace',
+                    fontSize: 10, color: 'rgb(255,232,181)',
+                    letterSpacing: '2px', textTransform: 'uppercase',
+                  }}>
+                    Selected
+                  </span>
                 </div>
-                {accountType === a.type && (
-                  <p className="font-body-md text-on-surface-variant/70 text-sm mt-sm leading-relaxed">{a.description}</p>
-                )}
-              </button>
-            ))}
-            <button onClick={() => setStep(2)}
-              className="w-full h-14 bg-primary-container text-on-primary-container font-h2 text-h2 rounded-xl ignite-glow active:scale-[0.98] mt-sm">
-              Continue as {selected.label}
+              )}
             </button>
+
+            {/* Divider */}
+            <p style={{
+              fontFamily: '"Instrument Serif", Georgia, serif',
+              fontSize: 12.5, fontStyle: 'italic', color: C.sand,
+              textAlign: 'center', margin: '0 0 10px',
+            }}>
+              or, if you&apos;re on the other side
+            </p>
+
+            {/* Mini cards row */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              {/* Locale */}
+              <button
+                onClick={() => setAccountType('club')}
+                style={{
+                  flex: 1, padding: '12px 10px',
+                  background: accountType === 'club' ? 'rgba(140,42,42,0.04)' : C.white,
+                  border: accountType === 'club'
+                    ? '1px solid rgba(140,42,42,0.4)'
+                    : '1px solid rgba(34,30,26,0.08)',
+                  borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                  display: 'flex', flexDirection: 'column', gap: 6,
+                  transition: 'border-color 0.2s',
+                }}
+              >
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  border: '1px solid rgba(34,30,26,0.08)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M3 21V9l9-7 9 7v12H3z" stroke={accountType === 'club' ? C.red : C.sand} strokeWidth="1.5" strokeLinejoin="round"/>
+                    <rect x="9" y="15" width="6" height="6" stroke={accountType === 'club' ? C.red : C.sand} strokeWidth="1.5"/>
+                  </svg>
+                </div>
+                <span style={{
+                  fontFamily: '"Instrument Serif", Georgia, serif',
+                  fontSize: 22, fontStyle: 'italic', color: C.ink,
+                }}>
+                  Locale
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-geist-mono), monospace',
+                  fontSize: 9, color: C.sand, letterSpacing: '1.62px',
+                  textTransform: 'uppercase',
+                }}>
+                  Club / Venue
+                </span>
+              </button>
+
+              {/* Artista */}
+              <button
+                onClick={() => setAccountType('dj')}
+                style={{
+                  flex: 1, padding: '12px 10px',
+                  background: accountType === 'dj' ? 'rgba(140,42,42,0.04)' : C.white,
+                  border: accountType === 'dj'
+                    ? '1px solid rgba(140,42,42,0.4)'
+                    : '1px solid rgba(34,30,26,0.08)',
+                  borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                  display: 'flex', flexDirection: 'column', gap: 6,
+                  transition: 'border-color 0.2s',
+                }}
+              >
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  border: '1px solid rgba(34,30,26,0.08)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="3" stroke={accountType === 'dj' ? C.red : C.sand} strokeWidth="1.5"/>
+                    <path d="M12 9V3M15 12h6M12 15v6M9 12H3" stroke={accountType === 'dj' ? C.red : C.sand} strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </div>
+                <span style={{
+                  fontFamily: '"Instrument Serif", Georgia, serif',
+                  fontSize: 22, fontStyle: 'italic', color: C.ink,
+                }}>
+                  Artista
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-geist-mono), monospace',
+                  fontSize: 9, color: C.sand, letterSpacing: '1.62px',
+                  textTransform: 'uppercase',
+                }}>
+                  DJ / Artist
+                </span>
+              </button>
+            </div>
+
+            <PrimaryBtn onClick={() => setStep(2)}>Continue</PrimaryBtn>
+
+            <p style={{
+              textAlign: 'center', marginTop: 14,
+              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+              fontSize: 13, color: C.stone,
+            }}>
+              Already a member?{' '}
+              <Link href="/login" style={{ color: C.red, textDecoration: 'none' }}>
+                Sign in →
+              </Link>
+            </p>
           </div>
         )}
 
-        {/* ── Step 2: Credentials ── */}
+        {/* ══ Step 2: Details ═══════════════════════════════════════════════ */}
         {step === 2 && (
-          <form onSubmit={handleSignup} className="space-y-gutter">
-            <div className="glass-card p-sm rounded-xl flex items-center gap-sm mb-sm">
-              <span className="material-symbols-outlined text-primary text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                {selected.icon}
+          <div>
+            {/* Account pill */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              background: 'rgba(248,245,238,0.9)',
+              border: '1px solid rgba(42,31,18,0.18)',
+              borderRadius: 999, padding: '6px 14px 6px 10px',
+              marginBottom: 24,
+            }}>
+              <span style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: C.red, flexShrink: 0,
+              }} />
+              <span style={{
+                fontFamily: 'var(--font-geist-mono), monospace',
+                fontSize: 9.5, color: C.stone, letterSpacing: '1.2px',
+                textTransform: 'uppercase',
+              }}>
+                Account ·{' '}
               </span>
-              <span className="font-body-md text-on-surface">{selected.label}</span>
-              <button type="button" onClick={() => setStep(1)} className="ml-auto font-label-sm text-label-sm text-primary uppercase tracking-widest">
+              <span style={{
+                fontFamily: '"Instrument Serif", Georgia, serif',
+                fontSize: 14, fontStyle: 'italic', color: C.ink,
+              }}>
+                {kindLabel[accountType]}
+              </span>
+              <span style={{
+                fontFamily: 'var(--font-geist-mono), monospace',
+                fontSize: 9.5, color: C.stone, letterSpacing: '1.2px',
+                textTransform: 'uppercase',
+              }}>
+                ({kindSubLabel[accountType]})
+              </span>
+              <button
+                onClick={() => setStep(1)}
+                style={{
+                  fontFamily: 'var(--font-geist-mono), monospace',
+                  fontSize: 9.5, color: C.red, letterSpacing: '1.71px',
+                  textTransform: 'uppercase', background: 'none', border: 'none',
+                  cursor: 'pointer', padding: 0, marginLeft: 4,
+                }}
+              >
                 Change
               </button>
             </div>
 
-            <div className="space-y-xs">
-              <label className="font-label-sm text-label-sm text-on-surface-variant/60 uppercase tracking-widest">Full Name</label>
-              <input type="text" value={fullName} onChange={e => setFullName(e.target.value)}
-                required className="vibe-input w-full" placeholder="Alex Vance" />
-            </div>
-            <div className="space-y-xs">
-              <label className="font-label-sm text-label-sm text-on-surface-variant/60 uppercase tracking-widest">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                required className="vibe-input w-full" placeholder="you@example.com" />
-            </div>
-            <div className="space-y-xs">
-              <label className="font-label-sm text-label-sm text-on-surface-variant/60 uppercase tracking-widest">Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                required minLength={8} className="vibe-input w-full" placeholder="8+ characters" />
-            </div>
+            {/* Kicker */}
+            <p style={{
+              fontFamily: 'var(--font-geist-mono), monospace',
+              fontSize: 9.5, color: C.red, letterSpacing: '2.09px',
+              textTransform: 'uppercase', margin: '0 0 12px',
+            }}>
+              N° 02 · I tuoi dati
+            </p>
 
-            {error && <p className="font-body-md text-error text-center">{error}</p>}
+            {/* Headline */}
+            <h1 style={{
+              fontFamily: '"Instrument Serif", Georgia, serif',
+              fontSize: 48, fontWeight: 400, lineHeight: 1.1,
+              letterSpacing: '-1.04px', color: C.ink, margin: '0 0 8px',
+            }}>
+              Your <em>details</em>
+            </h1>
+            <p style={{
+              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+              fontSize: 13.5, color: C.stone, letterSpacing: '-0.07px',
+              margin: '0 0 28px',
+            }}>
+              A real name on the door · a real email for the guest list.
+            </p>
 
-            <button type="submit" disabled={loading}
-              className="w-full h-14 bg-primary-container text-on-primary-container font-h2 text-h2 rounded-xl ignite-glow active:scale-[0.98] disabled:opacity-50">
-              {loading ? 'Creating account…' : 'Create Account'}
-            </button>
-          </form>
+            <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Name row */}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <AuthField label="First Name">
+                  <input
+                    type="text" value={firstName}
+                    onChange={e => setFirstName(e.target.value)}
+                    required placeholder="Marco" style={inputStyle}
+                  />
+                </AuthField>
+                <AuthField label="Last Name">
+                  <input
+                    type="text" value={lastName}
+                    onChange={e => setLastName(e.target.value)}
+                    required placeholder="Bernardi" style={inputStyle}
+                  />
+                </AuthField>
+              </div>
+
+              <AuthField label="Email" error={!!error && error.toLowerCase().includes('email')}>
+                <input
+                  type="email" value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required placeholder="you@fuoco.club" style={inputStyle}
+                />
+              </AuthField>
+
+              <AuthField label="Password" error={!!error && error.toLowerCase().includes('password')} rightSlot={
+                <button
+                  type="button" onClick={() => setShowPwd(v => !v)}
+                  style={{
+                    fontFamily: 'var(--font-geist-mono), monospace',
+                    fontSize: 10, color: C.red, letterSpacing: '1.6px',
+                    textTransform: 'uppercase', background: 'none', border: 'none',
+                    cursor: 'pointer', padding: '4px 0', flexShrink: 0,
+                  }}
+                >
+                  {showPwd ? 'Hide' : 'Show'}
+                </button>
+              }>
+                <input
+                  type={showPwd ? 'text' : 'password'} value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required minLength={8} placeholder="••••••••"
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+              </AuthField>
+
+              {/* Password hint */}
+              <p style={{
+                fontFamily: 'var(--font-geist-mono), monospace',
+                fontSize: 9.5, color: C.sand, letterSpacing: '1.14px',
+                textTransform: 'uppercase', margin: '-4px 0 0',
+              }}>
+                8+ characters · one number · one symbol
+              </p>
+
+              {/* Error message */}
+              {error && (
+                <p style={{
+                  fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+                  fontSize: 12, color: C.red, margin: 0, lineHeight: 1.4,
+                }}>
+                  {error}{' '}
+                  {error.toLowerCase().includes('email') && (
+                    <Link href="/login" style={{ color: C.red }}>Try signing in.</Link>
+                  )}
+                </p>
+              )}
+
+              <div style={{ paddingTop: 8 }}>
+                <PrimaryBtn type="submit" loading={loading}>Create account</PrimaryBtn>
+              </div>
+
+              {/* Legal links */}
+              <p style={{
+                textAlign: 'center',
+                fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+                fontSize: 11.5, color: C.sand, margin: '4px 0 0',
+              }}>
+                <button style={{ background: 'none', border: 'none', fontSize: 11.5, color: C.sand, cursor: 'pointer' }}>Terms</button>
+                {' · '}
+                <button style={{ background: 'none', border: 'none', fontSize: 11.5, color: C.sand, cursor: 'pointer' }}>Privacy</button>
+                {' · '}
+                <button style={{ background: 'none', border: 'none', fontSize: 11.5, color: C.sand, cursor: 'pointer' }}>House Rules</button>
+              </p>
+            </form>
+          </div>
         )}
 
-        {/* ── Step 3: Birthday ── */}
+        {/* ══ Step 3: Birthday ══════════════════════════════════════════════ */}
         {step === 3 && (
-          <div className="space-y-lg">
-            <div className="text-center space-y-sm">
-              <div className="w-20 h-20 mx-auto rounded-2xl bg-primary-container/30 border border-primary/20 flex items-center justify-center">
-                <span className="material-symbols-outlined text-[40px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>cake</span>
-              </div>
-              <div>
-                <h2 className="font-h1 text-h1 text-on-surface">When's your birthday?</h2>
-                <p className="font-body-md text-on-surface-variant/60 text-sm mt-xs leading-relaxed">
-                  Unlock exclusive deals and surprises on your night out
-                </p>
-              </div>
+          <div>
+            {/* Icon */}
+            <div style={{
+              width: 64, height: 64,
+              background: C.white,
+              border: '1px solid rgba(34,30,26,0.08)',
+              borderRadius: 24,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: 20,
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="6" width="18" height="15" rx="2" stroke={C.sand} strokeWidth="1.5"/>
+                <path d="M3 11h18" stroke={C.sand} strokeWidth="1.5"/>
+                <path d="M8 3v3M16 3v3" stroke={C.sand} strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
             </div>
 
-            <div className="flex gap-sm">
-              <div className="flex-1 space-y-xs">
-                <p className="text-center font-label-sm text-[10px] text-on-surface-variant/40 uppercase tracking-widest">Day</p>
-                <select value={bDay} onChange={e => setBDay(e.target.value)} style={{ textAlignLast: 'center' }}
-                  className="w-full h-16 bg-surface-container rounded-2xl border border-white/[0.06] text-center text-on-surface font-semibold text-[18px] appearance-none cursor-pointer focus:outline-none focus:border-primary/50 transition-colors">
-                  <option value="">—</option>
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
-              <div className="flex-[2] space-y-xs">
-                <p className="text-center font-label-sm text-[10px] text-on-surface-variant/40 uppercase tracking-widest">Month</p>
-                <select value={bMonth} onChange={e => setBMonth(e.target.value)} style={{ textAlignLast: 'center' }}
-                  className="w-full h-16 bg-surface-container rounded-2xl border border-white/[0.06] text-center text-on-surface font-semibold text-[15px] appearance-none cursor-pointer focus:outline-none focus:border-primary/50 transition-colors">
-                  <option value="">—</option>
-                  {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-                </select>
-              </div>
-              <div className="flex-[1.3] space-y-xs">
-                <p className="text-center font-label-sm text-[10px] text-on-surface-variant/40 uppercase tracking-widest">Year</p>
-                <select value={bYear} onChange={e => setBYear(e.target.value)} style={{ textAlignLast: 'center' }}
-                  className="w-full h-16 bg-surface-container rounded-2xl border border-white/[0.06] text-center text-on-surface font-semibold text-[16px] appearance-none cursor-pointer focus:outline-none focus:border-primary/50 transition-colors">
-                  <option value="">—</option>
-                  {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
+            {/* Kicker */}
+            <p style={{
+              fontFamily: 'var(--font-geist-mono), monospace',
+              fontSize: 9.5, color: C.red, letterSpacing: '2.09px',
+              textTransform: 'uppercase', margin: '0 0 12px',
+            }}>
+              N° 03 · Compleanno
+            </p>
+
+            {/* Headline */}
+            <h1 style={{
+              fontFamily: '"Instrument Serif", Georgia, serif',
+              fontSize: 48, fontWeight: 400, lineHeight: 1.1,
+              letterSpacing: '-1.04px', color: C.ink, margin: '0 0 8px',
+            }}>
+              When&apos;s your<br /><em>birthday?</em>
+            </h1>
+            <p style={{
+              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+              fontSize: 13.5, color: C.stone, letterSpacing: '-0.07px',
+              margin: '0 0 32px',
+            }}>
+              Unlock exclusive deals and surprises on your night out.
+            </p>
+
+            {/* Drum pickers */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
+              <DrumPicker
+                label="Day"
+                values={DAYS}
+                selected={bDay}
+                onSelect={setBDay}
+              />
+              <DrumPicker
+                label="Month"
+                values={Array.from({ length: 12 }, (_, i) => i + 1)}
+                labels={MONTHS_EN}
+                selected={bMonth}
+                onSelect={setBMonth}
+              />
+              <DrumPicker
+                label="Year"
+                values={YEARS}
+                selected={bYear}
+                onSelect={setBYear}
+              />
             </div>
 
-            <div className="space-y-sm pt-sm">
-              <button onClick={() => handleBirthday(false)} disabled={!birthdaySet}
-                className="w-full h-14 bg-primary-container text-on-primary-container font-h2 text-h2 rounded-xl ignite-glow active:scale-[0.98] disabled:opacity-30 transition-all">
-                Continue 🎉
-              </button>
-              <button type="button" onClick={() => handleBirthday(true)}
-                className="w-full py-sm font-label-sm text-label-sm text-on-surface-variant/40 uppercase tracking-widest">
+            {/* Selected date display */}
+            <div style={{ textAlign: 'center', marginBottom: 28 }}>
+              <p style={{
+                fontFamily: 'var(--font-geist-mono), monospace',
+                fontSize: 9, color: C.sand, letterSpacing: '1.98px',
+                textTransform: 'uppercase', margin: '0 0 4px',
+              }}>
+                Selected
+              </p>
+              <p style={{
+                fontFamily: '"Instrument Serif", Georgia, serif',
+                fontSize: 18, fontStyle: 'italic', color: C.red,
+                margin: 0,
+              }}>
+                {bDay} {MONTHS_IT[parseInt(bMonth) - 1]} {bYear}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <PrimaryBtn onClick={() => handleBirthday(false)}>Continue</PrimaryBtn>
+              <button
+                onClick={() => handleBirthday(true)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+                  fontSize: 13, color: C.sand, padding: '8px 0',
+                  textAlign: 'center',
+                }}
+              >
                 Skip for now
               </button>
             </div>
           </div>
         )}
 
-        {/* ── Step 4: Membership ── */}
+        {/* ══ Step 4: Membership ════════════════════════════════════════════ */}
         {step === 4 && (
-          <div className="space-y-sm">
-            {SIGNUP_PLANS.map(plan => {
-              const isSelected = selectedPlan === plan.id
-              return (
-                <button
-                  key={plan.id}
-                  type="button"
-                  onClick={() => setSelectedPlan(plan.id)}
-                  className={`w-full text-left p-md rounded-2xl border-2 transition-all active:scale-[0.98] relative
-                    ${isSelected
-                      ? `${plan.activeBorder} ${plan.activeBg}`
-                      : `${plan.border} ${plan.dark ? 'bg-surface-container/50' : 'bg-surface-container'}`
-                    }`}
-                  style={plan.dark ? { background: isSelected ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.3)' } : undefined}
-                >
-                  {plan.badge && (
-                    <span className={`absolute top-sm right-sm text-[9px] font-bold uppercase tracking-widest px-xs py-[2px] rounded-full border
-                      ${plan.id === 'gold'
-                        ? 'border-yellow-500/40 text-yellow-400 bg-yellow-500/10'
-                        : plan.dark
-                          ? 'border-white/20 text-white/60 bg-white/[0.05]'
-                          : 'border-primary/30 text-primary bg-primary/10'
-                      }`}>
-                      {plan.badge}
-                    </span>
-                  )}
+          <div>
+            {/* Kicker */}
+            <p style={{
+              fontFamily: 'var(--font-geist-mono), monospace',
+              fontSize: 9.5, color: C.red, letterSpacing: '2.09px',
+              textTransform: 'uppercase', margin: '0 0 12px',
+            }}>
+              N° 04 · Membership
+            </p>
 
-                  <div className="flex items-center gap-md">
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${plan.iconBg}`}>
-                      <span className={`material-symbols-outlined text-[22px] ${plan.iconColor}`}
-                        style={{ fontVariationSettings: "'FILL' 1" }}>
-                        {plan.icon}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-sm">
-                        <span className={`font-h2 text-h2 ${plan.dark ? 'text-white' : 'text-on-surface'}`}>{plan.name}</span>
-                        <span className={`font-label-sm text-[11px] ${plan.dark ? 'text-white/50' : 'text-on-surface-variant/60'}`}>{plan.price}</span>
-                      </div>
-                      <p className={`font-body-md text-xs mt-[2px] ${plan.dark ? 'text-white/50' : 'text-on-surface-variant/60'}`}>
-                        {plan.perks[0]}
-                      </p>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                      isSelected
-                        ? plan.dark ? 'border-white bg-white' : 'border-primary bg-primary'
-                        : plan.dark ? 'border-white/20' : 'border-outline-variant/40'
-                    }`}>
-                      {isSelected && (
-                        <span className={`material-symbols-outlined text-[12px] ${plan.dark ? 'text-black' : 'text-on-primary'}`}
-                          style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
-                      )}
-                    </div>
-                  </div>
+            {/* Headline */}
+            <h1 style={{
+              fontFamily: '"Instrument Serif", Georgia, serif',
+              fontSize: 48, fontWeight: 400, lineHeight: 1.1,
+              letterSpacing: '-1.04px', color: C.ink, margin: '0 0 8px',
+            }}>
+              Choose your<br /><em>membership</em>
+            </h1>
+            <p style={{
+              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+              fontSize: 13.5, color: C.stone, letterSpacing: '-0.07px',
+              margin: '0 0 28px',
+            }}>
+              Start free, upgrade later · cancel anytime.
+            </p>
 
-                  {/* Expanded perks when selected */}
-                  {isSelected && plan.perks.length > 1 && (
-                    <ul className="mt-sm space-y-xs pl-[55px]">
-                      {plan.perks.slice(1).map(perk => (
-                        <li key={perk} className={`flex items-center gap-xs font-body-md text-xs ${plan.dark ? 'text-white/60' : 'text-on-surface-variant/70'}`}>
-                          <span className={`material-symbols-outlined text-[12px] ${plan.dark ? 'text-white/50' : 'text-primary/60'}`}
-                            style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                          {perk}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </button>
-              )
-            })}
+            {/* Tier cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
 
-            <div className="pt-sm space-y-sm">
-              <button
-                onClick={() => handleMembership(selectedPlan)}
-                disabled={memberLoading}
-                className="w-full h-14 bg-primary-container text-on-primary-container font-h2 text-h2 rounded-xl ignite-glow active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-sm transition-all"
+              {/* ── Libero (Free) */}
+              <TierCard
+                selected={selectedPlan === 'free'}
+                onClick={() => setSelectedPlan('free')}
+                background="linear-gradient(135deg, rgb(248,239,220) 0%, rgb(239,224,195) 55%, rgb(229,210,168) 100%)"
+                border={selectedPlan === 'free' ? 'rgba(42,31,18,0.35)' : 'rgba(42,31,18,0.18)'}
+                nameColor="rgb(107,31,31)"
+                subColor="rgb(42,31,18)"
+                priceColor="rgb(107,31,31)"
+                cadColor="rgb(42,31,18)"
+                radioColor="rgba(34,30,26,0.3)"
+                radioFill={selectedPlan === 'free' ? 'rgb(107,31,31)' : undefined}
               >
-                {memberLoading
-                  ? <><span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span> Setting up…</>
-                  : selectedPlan === 'free' ? 'Start for Free' : `Subscribe to ${SIGNUP_PLANS.find(p => p.id === selectedPlan)?.name}`
-                }
-              </button>
-              {selectedPlan !== 'free' && (
-                <button type="button" onClick={() => router.push('/onboarding')}
-                  className="w-full py-sm font-label-sm text-label-sm text-on-surface-variant/40 uppercase tracking-widest">
-                  Start free, upgrade later
-                </button>
+                <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 20, fontStyle: 'italic', color: 'rgb(107,31,31)' }}>Libero</span>
+                <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 9.5, color: 'rgb(42,31,18)', letterSpacing: '1.9px', textTransform: 'uppercase' as const }}>Free</span>
+                <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 19, color: 'rgb(107,31,31)' }}>€0</span>
+              </TierCard>
+
+              {/* ── Oro (Gold) */}
+              <TierCard
+                selected={selectedPlan === 'gold'}
+                onClick={() => setSelectedPlan('gold')}
+                background="linear-gradient(135deg, rgb(74,44,14) 0%, rgb(140,90,30) 45%, rgb(194,139,61) 100%)"
+                border={selectedPlan === 'gold' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.2)'}
+                badge="Popular"
+                badgeBg="rgba(255,255,255,0.18)"
+                badgeBorder="rgba(255,255,255,0.3)"
+                badgeColor="rgb(255,232,181)"
+                nameColor="rgb(255,232,181)"
+                subColor="rgb(255,241,210)"
+                priceColor="rgb(255,232,181)"
+                cadColor="rgb(255,241,210)"
+                radioColor="rgb(255,241,210)"
+                radioFill={selectedPlan === 'gold' ? 'rgb(255,241,210)' : undefined}
+              >
+                <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 20, fontStyle: 'italic', color: 'rgb(255,232,181)' }}>Oro</span>
+                <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 9.5, color: 'rgb(255,241,210)', letterSpacing: '1.9px', textTransform: 'uppercase' as const }}>Gold</span>
+                <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 19, color: 'rgb(255,232,181)' }}>€19</span>
+                <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 10, color: 'rgb(255,241,210)', letterSpacing: '1.2px' }}> / month</span>
+              </TierCard>
+
+              {/* Gold expanded perks when selected */}
+              {selectedPlan === 'gold' && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgb(74,44,14) 0%, rgb(140,90,30) 45%, rgb(194,139,61) 100%)',
+                  borderRadius: '0 0 12px 12px', marginTop: -10,
+                  padding: '10px 20px 16px', border: '1px solid rgba(255,255,255,0.2)',
+                  borderTop: 'none',
+                }}>
+                  <div style={{ height: 1, background: 'rgba(255,255,255,0.12)', marginBottom: 12 }} />
+                  {['Priority entry at partner clubs', '15% discount on bookings', '1 monthly guest pass'].map(p => (
+                    <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M2 7l3 3 7-6" stroke="rgb(255,241,210)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span style={{ fontFamily: 'var(--font-geist-sans), Inter, sans-serif', fontSize: 13, color: 'rgb(255,241,210)' }}>{p}</span>
+                    </div>
+                  ))}
+                  <div style={{
+                    marginTop: 12,
+                    border: '1px dashed rgba(255,255,255,0.2)',
+                    borderRadius: 8, padding: '8px 12px',
+                  }}>
+                    <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 9, color: 'rgba(255,241,210,0.6)', letterSpacing: '1.08px', textTransform: 'uppercase' as const }}>
+                      Benefits at{' '}
+                      <span style={{ color: 'rgb(255,241,210)' }}>partner clubs</span>
+                      {' '}only · 124 venues in network
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Zaffiro (Sapphire) */}
+              <TierCard
+                selected={selectedPlan === 'sapphire'}
+                onClick={() => setSelectedPlan('sapphire')}
+                background="linear-gradient(135deg, rgb(14,27,74) 0%, rgb(31,53,144) 45%, rgb(74,107,196) 100%)"
+                border={selectedPlan === 'sapphire' ? 'rgba(194,217,255,0.65)' : 'rgba(194,217,255,0.45)'}
+                badge="Elite"
+                badgeBg="rgba(255,255,255,0.1)"
+                badgeBorder="rgba(194,217,255,0.4)"
+                badgeColor="rgb(194,217,255)"
+                nameColor="rgb(221,230,255)"
+                subColor="rgb(234,238,251)"
+                priceColor="rgb(221,230,255)"
+                cadColor="rgb(234,238,251)"
+                radioColor="rgba(34,30,26,0.16)"
+                radioFill={selectedPlan === 'sapphire' ? 'rgb(234,238,251)' : undefined}
+              >
+                <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 20, fontStyle: 'italic', color: 'rgb(221,230,255)' }}>Zaffiro</span>
+                <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 9.5, color: 'rgb(234,238,251)', letterSpacing: '1.9px', textTransform: 'uppercase' as const }}>Sapphire</span>
+                <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 19, color: 'rgb(221,230,255)' }}>€49</span>
+                <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 10, color: 'rgb(234,238,251)', letterSpacing: '1.2px' }}> / month</span>
+              </TierCard>
+
+              {/* Sapphire expanded perks when selected */}
+              {selectedPlan === 'sapphire' && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgb(14,27,74) 0%, rgb(31,53,144) 45%, rgb(74,107,196) 100%)',
+                  borderRadius: '0 0 12px 12px', marginTop: -10,
+                  padding: '10px 20px 16px', border: '1px solid rgba(194,217,255,0.45)',
+                  borderTop: 'none',
+                }}>
+                  <div style={{ height: 1, background: 'rgba(255,255,255,0.12)', marginBottom: 12 }} />
+                  {[
+                    '25% discount on all bookings',
+                    'Guest list access (4× per month)',
+                    'WhatsApp concierge support',
+                    'Priority access to all events',
+                  ].map(p => (
+                    <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M2 7l3 3 7-6" stroke="rgb(194,217,255)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span style={{ fontFamily: 'var(--font-geist-sans), Inter, sans-serif', fontSize: 13, color: 'rgb(221,230,255)' }}>{p}</span>
+                    </div>
+                  ))}
+                  <div style={{
+                    marginTop: 12,
+                    border: '1px dashed rgba(194,217,255,0.2)',
+                    borderRadius: 8, padding: '8px 12px',
+                  }}>
+                    <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 9, color: 'rgba(221,230,255,0.6)', letterSpacing: '1.08px', textTransform: 'uppercase' as const }}>
+                      Access at{' '}
+                      <span style={{ color: 'rgb(221,230,255)' }}>all venues</span>
+                      {' '}· 124 clubs in the network
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Nero (Black) */}
+              <TierCard
+                selected={selectedPlan === 'black'}
+                onClick={() => setSelectedPlan('black')}
+                background="linear-gradient(135deg, rgb(5,5,5) 0%, rgb(26,22,20) 60%, rgb(42,31,18) 100%)"
+                border={selectedPlan === 'black' ? 'rgba(232,182,91,0.5)' : 'rgba(232,182,91,0.25)'}
+                badge="Ultimate"
+                badgeBg="rgba(232,182,91,0.15)"
+                badgeBorder="rgba(232,182,91,0.4)"
+                badgeColor="rgb(232,182,91)"
+                nameColor="rgb(232,182,91)"
+                subColor="rgb(240,228,210)"
+                priceColor="rgb(232,182,91)"
+                cadColor="rgb(240,228,210)"
+                radioColor="rgba(34,30,26,0.16)"
+                radioFill={selectedPlan === 'black' ? 'rgb(232,182,91)' : undefined}
+              >
+                <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 20, fontStyle: 'italic', color: 'rgb(232,182,91)' }}>Nero</span>
+                <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 9.5, color: 'rgb(240,228,210)', letterSpacing: '1.9px', textTransform: 'uppercase' as const }}>Black</span>
+                <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 19, color: 'rgb(232,182,91)' }}>€500</span>
+                <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 10, color: 'rgb(240,228,210)', letterSpacing: '1.2px' }}> / month</span>
+              </TierCard>
+              {/* Black expanded perks when selected */}
+              {selectedPlan === 'black' && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgb(5,5,5) 0%, rgb(26,22,20) 60%, rgb(42,31,18) 100%)',
+                  borderRadius: '0 0 12px 12px', marginTop: -10,
+                  padding: '10px 20px 16px', border: '1px solid rgba(232,182,91,0.25)',
+                  borderTop: 'none',
+                }}>
+                  <div style={{ height: 1, background: 'rgba(232,182,91,0.15)', marginBottom: 12 }} />
+                  {[
+                    'Free VIP entry at every partner club',
+                    'Unlimited guest list access',
+                    '24/7 dedicated personal concierge',
+                    'Private event invitations',
+                    'Your name at the door, always',
+                  ].map(p => (
+                    <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M2 7l3 3 7-6" stroke="rgb(232,182,91)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span style={{ fontFamily: 'var(--font-geist-sans), Inter, sans-serif', fontSize: 13, color: 'rgb(240,228,210)' }}>{p}</span>
+                    </div>
+                  ))}
+                  <div style={{
+                    marginTop: 12,
+                    border: '1px dashed rgba(232,182,91,0.2)',
+                    borderRadius: 8, padding: '8px 12px',
+                  }}>
+                    <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 9, color: 'rgba(232,182,91,0.6)', letterSpacing: '1.08px', textTransform: 'uppercase' as const }}>
+                      By invitation or application only ·{' '}
+                      <span style={{ color: 'rgb(232,182,91)' }}>limited membership</span>
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
 
-            <p className="text-center font-label-sm text-[10px] text-on-surface-variant/30 uppercase tracking-widest pt-xs">
-              Billed monthly · Cancel anytime
-            </p>
+            {/* Subscribe CTA */}
+            <PrimaryBtn onClick={() => handleMembership(selectedPlan)} loading={loading}>
+              {selectedPlan === 'free'
+                ? 'Start for free'
+                : `Subscribe to ${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}`
+              }
+            </PrimaryBtn>
+
+            {selectedPlan !== 'free' && (
+              <button
+                onClick={() => router.push('/explore')}
+                style={{
+                  display: 'block', width: '100%', marginTop: 12,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+                  fontSize: 13, color: C.sand, textAlign: 'center',
+                }}
+              >
+                Start free, upgrade later
+              </button>
+            )}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
 
-        {step < 3 && (
-          <p className="text-center font-body-md text-on-surface-variant mt-md">
-            Already a member?{' '}
-            <Link href="/login" className="text-primary font-bold">Log in</Link>
-          </p>
+// ─────────────────────────────────────────────────────────────────────────────
+// TierCard — generic membership tier card
+// ─────────────────────────────────────────────────────────────────────────────
+function TierCard({
+  children, selected, onClick,
+  background, border,
+  badge, badgeBg, badgeBorder, badgeColor,
+  nameColor: _nameColor, subColor: _subColor, priceColor: _priceColor, cadColor: _cadColor,
+  radioColor, radioFill,
+}: {
+  children: React.ReactNode
+  selected: boolean
+  onClick: () => void
+  background: string
+  border: string
+  badge?: string
+  badgeBg?: string
+  badgeBorder?: string
+  badgeColor?: string
+  nameColor?: string
+  subColor?: string
+  priceColor?: string
+  cadColor?: string
+  radioColor: string
+  radioFill?: string
+}) {
+  const childArr = Array.isArray(children) ? children : [children]
+  const [name, sub, price, cad] = childArr
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background, borderRadius: 12,
+        border: `1px solid ${border}`,
+        padding: '14px 16px', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', gap: 12,
+        transition: 'border-color 0.2s',
+        position: 'relative',
+      }}
+    >
+      {/* Radio */}
+      <div style={{
+        width: 18, height: 18, borderRadius: '50%',
+        border: `1.5px solid ${radioColor}`,
+        flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: radioFill ? `${radioFill}22` : 'transparent',
+      }}>
+        {radioFill && (
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: radioFill }} />
         )}
       </div>
+
+      {/* Text */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          {name}{sub}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+          {price}{cad}
+        </div>
+      </div>
+
+      {/* Badge */}
+      {badge && (
+        <div style={{
+          background: badgeBg, border: `1px solid ${badgeBorder}`,
+          borderRadius: 4, padding: '3px 6px',
+        }}>
+          <span style={{
+            fontFamily: 'var(--font-geist-mono), monospace',
+            fontSize: 8.5, color: badgeColor, letterSpacing: '1.87px',
+            textTransform: 'uppercase' as const,
+          }}>
+            {badge}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

@@ -54,10 +54,11 @@ export async function GET(request: NextRequest) {
     .not('lat', 'is', null)
     .gte('lat', lat - latDelta).lte('lat', lat + latDelta)
     .gte('lng', lng - lngDelta).lte('lng', lng + lngDelta)
-    .order('is_featured', { ascending: false })
-    .order('rating',      { ascending: false, nullsFirst: false })
-    .order('ratings_total', { ascending: false, nullsFirst: false })
-    .limit(300)
+    .order('is_featured',    { ascending: false })
+    .order('is_partner',     { ascending: false })
+    .order('ratings_total',  { ascending: false, nullsFirst: false })
+    .order('rating',         { ascending: false, nullsFirst: false })
+    .limit(2000)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

@@ -2,12 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Ensure the dark theme can never be overridden by injected styles */
 html, body {
   background-color: #F8F5EE !important;
   color: #221E1A;
   margin: 0;
+  height: 100%;
 }
+
+/* Hide scrollbars in drum pickers */
+.drum-scroll::-webkit-scrollbar { display: none; }
 
 /* Barcelona Noir — shared CSS primitives used across all screens */
 @layer components {
@@ -76,6 +79,11 @@ html, body {
   .neon-glow {
     box-shadow: 0 0 15px rgba(255, 76, 47, 0.15);
   }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 /* No scrollbar on filter chip rows */

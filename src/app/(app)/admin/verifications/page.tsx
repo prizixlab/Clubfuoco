@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch } from '@/lib/api'
 
 import { useEffect, useState } from 'react'
 
@@ -31,7 +32,7 @@ export default function AdminVerificationsPage() {
   const [acting, setActing] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/admin/verifications')
+    apiFetch('/api/admin/verifications')
       .then(r => r.json())
       .then(d => {
         if (d.error) { setError(d.error); setLoading(false); return }
@@ -42,7 +43,7 @@ export default function AdminVerificationsPage() {
 
   async function act(id: string, action: string) {
     setActing(id + action)
-    const res = await fetch(`/api/admin/verifications/${id}`, {
+    const res = await apiFetch(`/api/admin/verifications/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, admin_note: actionNote[id] ?? '' }),

@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch } from '@/lib/api'
 
 import { useEffect, useState } from 'react'
 
@@ -10,14 +11,14 @@ export default function DJOpeningsPage() {
   const [applyMessage, setApplyMessage] = useState('')
 
   useEffect(() => {
-    fetch('/api/gig-openings')
+    apiFetch('/api/gig-openings')
       .then(r => r.json())
       .then(d => { setOpenings(d.data ?? []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 
   async function applyToOpening(openingId: string) {
-    const res = await fetch(`/api/gig-openings/${openingId}/apply`, {
+    const res = await apiFetch(`/api/gig-openings/${openingId}/apply`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: applyMessage }),

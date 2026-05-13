@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch } from '@/lib/api'
 
 import { useEffect, useState } from 'react'
 
@@ -45,7 +46,7 @@ export default function AdminDiscoverPage() {
 
   async function load() {
     setLoading(true)
-    const res  = await fetch(`/api/admin/discover/list?status=${filter}`)
+    const res  = await apiFetch(`/api/admin/discover/list?status=${filter}`)
     const data = await res.json()
     setSuggestions(data.data ?? [])
     setLoading(false)
@@ -56,7 +57,7 @@ export default function AdminDiscoverPage() {
   async function scan() {
     setScanning(true)
     try {
-      const res  = await fetch('/api/admin/discover?manual=1')
+      const res  = await apiFetch('/api/admin/discover?manual=1')
       const data = await res.json()
       showToast(`Scan complete — ${data.queued} new venues queued`, true)
       await load()
@@ -70,7 +71,7 @@ export default function AdminDiscoverPage() {
   async function act(id: string, action: 'approve' | 'reject') {
     setActing(id)
     try {
-      const res  = await fetch(`/api/admin/discover/${id}`, {
+      const res  = await apiFetch(`/api/admin/discover/${id}`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ action }),

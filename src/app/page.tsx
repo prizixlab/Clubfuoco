@@ -1,54 +1,186 @@
+'use client'
+
 import Link from 'next/link'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 
+// ── Splash screen — dark cinema theme
 export default function SplashPage() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
+
+  // Replaces the middleware redirect: logged-in users skip straight to the app
+  useEffect(() => {
+    if (!loading && user) router.replace('/explore')
+  }, [user, loading, router])
   return (
-    <div className="bg-black text-on-surface font-body-md overflow-hidden h-screen flex flex-col">
-      <main className="relative flex-1 flex flex-col items-center justify-end overflow-hidden">
-        {/* Background */}
-        <div className="absolute inset-0 z-0">
-          <div className="w-full h-full bg-gradient-to-b from-black via-[#1a0a05] to-black opacity-90" />
-          <div className="absolute inset-0 glass-scrim" />
+    <div
+      style={{
+        background: 'rgb(10, 8, 7)',
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Fire glow — centered radial */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -70%)',
+          width: 760,
+          height: 760,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(232,182,91,0.55) 0%, rgba(194,86,45,0.42) 22%, rgba(107,31,31,0.32) 42%, rgba(20,12,8,0) 62%)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Top kicker */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 64,
+          left: 0,
+          right: 0,
+          textAlign: 'center',
+          fontFamily: 'var(--font-geist-mono), ui-monospace, monospace',
+          fontSize: 9.5,
+          color: 'rgba(244,236,221,0.6)',
+          letterSpacing: '2.66px',
+          textTransform: 'uppercase',
+        }}
+      >
+        EST · MMXXVI · BROOKLYN — MILANO
+      </div>
+
+      {/* Main content */}
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          width: '100%',
+          maxWidth: 430,
+          padding: '0 24px 48px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+          gap: 0,
+          paddingBottom: 'calc(48px + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
+        {/* Edition kicker */}
+        <p
+          style={{
+            fontFamily: 'var(--font-geist-mono), ui-monospace, monospace',
+            fontSize: 9,
+            color: 'rgba(244,236,221,0.45)',
+            letterSpacing: '2.52px',
+            textTransform: 'uppercase',
+            marginBottom: 20,
+          }}
+        >
+          N° 01 · BARCELLONA
+        </p>
+
+        {/* Logo title */}
+        <h1
+          style={{
+            fontFamily: '"Instrument Serif", Georgia, serif',
+            fontSize: 34,
+            fontWeight: 400,
+            color: 'rgb(244,236,221)',
+            letterSpacing: '10.88px',
+            textTransform: 'uppercase',
+            margin: '0 0 16px',
+            lineHeight: 1.1,
+          }}
+        >
+          CLUB FUOCO
+        </h1>
+
+        {/* Tagline */}
+        <p
+          style={{
+            fontFamily: '"Instrument Serif", Georgia, serif',
+            fontSize: 20,
+            fontStyle: 'italic',
+            color: 'rgba(244,236,221,0.75)',
+            letterSpacing: '-0.12px',
+            margin: '0 0 48px',
+            lineHeight: 1.3,
+          }}
+        >
+          Where the night begins before you arrive.
+        </p>
+
+        {/* CTAs */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+          <Link
+            href="/signup"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              height: 55,
+              background: 'rgb(194,86,45)',
+              color: 'rgb(255,246,229)',
+              borderRadius: 14,
+              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+              fontSize: 15,
+              fontWeight: 500,
+              textDecoration: 'none',
+              letterSpacing: '0.01em',
+            }}
+          >
+            Create account
+          </Link>
+
+          <Link
+            href="/login"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              height: 55,
+              background: 'rgba(255,246,229,0.06)',
+              border: '1px solid rgba(244,236,221,0.22)',
+              color: 'rgb(244,236,221)',
+              borderRadius: 14,
+              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+              fontSize: 15,
+              fontWeight: 400,
+              textDecoration: 'none',
+            }}
+          >
+            Sign in
+          </Link>
         </div>
 
-        {/* Content */}
-        <div className="relative z-10 w-full px-container-padding pb-xl flex flex-col items-center text-center">
-          {/* Flame icon */}
-          <div className="mb-lg bloom-glow">
-            <span
-              className="material-symbols-outlined text-[64px] text-primary"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              local_fire_department
-            </span>
-          </div>
-
-          <h1 className="font-display text-display text-primary tracking-[0.2em] uppercase mb-base">
-            CLUB FUOCO
-          </h1>
-
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-[280px] leading-relaxed mb-xl">
-            Where the night begins before you arrive.
-          </p>
-
-          <div className="w-full max-w-sm space-y-gutter">
-            <Link
-              href="/explore"
-              className="w-full h-14 bg-primary-container text-on-primary-fixed-variant font-h2 text-h2 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(255,76,47,0.3)] active:scale-95 transition-all duration-200"
-            >
-              Explore Barcelona
-            </Link>
-            <Link
-              href="/login"
-              className="w-full h-14 bg-surface-container-high/40 backdrop-blur-md border border-outline-variant/30 text-on-surface font-h2 text-h2 rounded-xl flex items-center justify-center active:scale-95 transition-all duration-200"
-            >
-              Log in
-            </Link>
-          </div>
-        </div>
-
-        {/* Bloom */}
-        <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-[150%] h-40 bg-primary/20 blur-[100px] rounded-full" />
-      </main>
+        {/* Footer legal */}
+        <p
+          style={{
+            marginTop: 24,
+            fontFamily: 'var(--font-geist-mono), ui-monospace, monospace',
+            fontSize: 9.5,
+            color: 'rgba(244,236,221,0.4)',
+            letterSpacing: '1.14px',
+            textTransform: 'uppercase',
+          }}
+        >
+          By continuing you accept the terms &amp; privacy
+        </p>
+      </div>
     </div>
   )
 }

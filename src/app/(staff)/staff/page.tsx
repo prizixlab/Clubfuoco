@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch } from '@/lib/api'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -23,7 +24,7 @@ export default function StaffDashboard() {
   async function loadRumbas() {
     setLoading(true)
     // Staff needs to see all rumbas including inactive — use service client via API
-    const res  = await fetch('/api/staff/rumbas')
+    const res  = await apiFetch('/api/staff/rumbas')
     const data = await res.json()
     setRumbas(data.data ?? [])
     setLoading(false)
@@ -31,7 +32,7 @@ export default function StaffDashboard() {
 
   async function toggleActive(rumba: Rumba) {
     setToggling(rumba.id)
-    const res  = await fetch(`/api/rumbas/${rumba.id}`, {
+    const res  = await apiFetch(`/api/rumbas/${rumba.id}`, {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ is_active: !rumba.is_active }),

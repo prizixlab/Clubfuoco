@@ -62,7 +62,7 @@ export async function getNearbyClubs(lat: number, lng: number, radius: number) {
 
   if (error) throw new Error(error.message)
 
-  return (clubs ?? []).map(club => {
+  return (clubs ?? []).map((club: any) => {
     const tags: string[] = (club.club_tags ?? []).map((t: any) => t.tag)
 
     const photoSeen = new Set<string>()
@@ -157,7 +157,7 @@ export async function removePlaceFavorite(place_id: string) {
 
 // ─── User preferences ─────────────────────────────────────────────────────────
 
-export async function getUserPreferences() {
+export async function getUserPreferences(): Promise<{ preferences: any; onboarding_done: boolean } | null> {
   const user = await currentUser()
   if (!user) return null
   const supabase = createClient()
@@ -168,7 +168,7 @@ export async function getUserPreferences() {
     .eq('id', user.id)
     .single()
 
-  return data
+  return (data as any) ?? null
 }
 
 export async function saveUserPreferences(preferences: Record<string, unknown>) {
@@ -208,10 +208,10 @@ export async function getSurveyPreferences() {
     }
   }
 
-  const avgRating   = surveys.reduce((s, r) => s + r.rating,       0) / surveys.length
-  const avgVibe     = surveys.reduce((s, r) => s + r.vibe_rating,  0) / surveys.length
-  const avgCrowd    = surveys.reduce((s, r) => s + r.crowd_rating, 0) / surveys.length
-  const wouldReturn = surveys.filter(s => s.would_return).length / surveys.length
+  const avgRating   = surveys.reduce((s: number, r: any) => s + r.rating,       0) / surveys.length
+  const avgVibe     = surveys.reduce((s: number, r: any) => s + r.vibe_rating,  0) / surveys.length
+  const avgCrowd    = surveys.reduce((s: number, r: any) => s + r.crowd_rating, 0) / surveys.length
+  const wouldReturn = surveys.filter((s: any) => s.would_return).length / surveys.length
 
   return {
     avgRating, avgVibe, avgCrowd, wouldReturn,
@@ -371,10 +371,10 @@ export async function getPendingSurveys() {
   const { data: done } = await supabase
     .from('booking_surveys')
     .select('booking_id')
-    .in('booking_id', bookings.map(b => b.id))
+    .in('booking_id', bookings.map((b: any) => b.id))
 
   const doneIds = new Set((done ?? []).map((d: any) => d.booking_id))
-  return bookings.filter(b => !doneIds.has(b.id))
+  return bookings.filter((b: any) => !doneIds.has(b.id))
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────

@@ -71,6 +71,7 @@ export async function DELETE(
   }
 
   // Partial refund — we keep the platform_fee (our 10%), refund the rest
+  let refundError: string | null = null
   if (booking.stripe_payment_intent_id) {
     const refundAmountCents = Math.round(
       ((booking.total_amount ?? 0) - (booking.platform_fee ?? 0)) * 100
@@ -82,11 +83,14 @@ export async function DELETE(
           amount: refundAmountCents,
         })
       } catch (stripeErr: any) {
-        return err(`Refund failed: ${stripeErr.message}`, 500)
+        // Log but don't block — still cancel the booking so the user isn't stuck
+        refundError = stripeErr.message
+        console.error('Stripe refund error (booking still cancelled):', stripeErr.message)
       }
     }
   }
 
+  // Always mark as cancelled in DB regardless of Stripe outcome
   const { error: updateError } = await supabase
     .from('bookings')
     .update({ status: 'cancelled' })
@@ -95,5 +99,5 @@ export async function DELETE(
   if (updateError) return err(updateError.message)
 
   const refundAmount = ((booking.total_amount ?? 0) - (booking.platform_fee ?? 0)).toFixed(2)
-  return ok({ cancelled: true, refund_amount: refundAmount })
+  return ok({ cancelled: true, refund_amount: refundAmount, refund_note: refundError ? 'Refund will be processed manually' : null })
 }

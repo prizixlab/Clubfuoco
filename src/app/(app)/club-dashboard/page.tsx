@@ -1,7 +1,9 @@
 'use client'
+import { apiFetch } from '@/lib/api'
 
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import NavSpacer from '@/components/NavSpacer'
 
 interface ClubDashboard {
   clubs: any[]
@@ -51,17 +53,17 @@ function ClubDashboard() {
 
   useEffect(() => {
     if (activeTab === 'openings') {
-      fetch('/api/gig-openings?mine=1').then(r => r.json()).then(d => setOpenings(d.data ?? []))
+      apiFetch('/api/gig-openings?mine=1').then(r => r.json()).then(d => setOpenings(d.data ?? []))
     }
     if (activeTab === 'djs') {
-      fetch('/api/dj').then(r => r.json()).then(d => setDjList(d.data ?? []))
-      fetch('/api/gig-requests?sent=1').then(r => r.json()).then(d => setSentRequests(d.data ?? []))
+      apiFetch('/api/dj').then(r => r.json()).then(d => setDjList(d.data ?? []))
+      apiFetch('/api/gig-requests?sent=1').then(r => r.json()).then(d => setSentRequests(d.data ?? []))
     }
   }, [activeTab])
 
   async function viewApplications(openingId: string) {
     setViewingApps(openingId)
-    const res = await fetch(`/api/gig-openings/${openingId}/apply`)
+    const res = await apiFetch(`/api/gig-openings/${openingId}/apply`)
     const data = await res.json()
     setApplications(data.data ?? [])
   }
@@ -70,7 +72,7 @@ function ClubDashboard() {
     if (!bookingApp || !viewingApps) return
     const fee_cents = bookingPayment.fee_euros ? Math.round(parseFloat(bookingPayment.fee_euros) * 100) : 0
     setPayingId(bookingApp.id)
-    await fetch(`/api/gig-openings/${viewingApps}/applications/${bookingApp.id}`, {
+    await apiFetch(`/api/gig-openings/${viewingApps}/applications/${bookingApp.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'accepted', fee_cents, payment_method: bookingPayment.method }),
@@ -78,7 +80,7 @@ function ClubDashboard() {
     setApplications(prev => prev.map(a => a.id === bookingApp.id ? { ...a, status: 'accepted', fee_cents, payment_method: bookingPayment.method, payment_status: bookingPayment.method === 'off_app' ? 'off_app' : 'unpaid' } : a))
 
     if (bookingPayment.method === 'app' && fee_cents > 0) {
-      const res = await fetch('/api/gig-payments', {
+      const res = await apiFetch('/api/gig-payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ booking_type: 'application', booking_id: bookingApp.id, fee_cents }),
@@ -92,7 +94,7 @@ function ClubDashboard() {
 
   async function payNow(bookingType: string, bookingId: string, feeCents: number) {
     setPayingId(bookingId)
-    const res = await fetch('/api/gig-payments', {
+    const res = await apiFetch('/api/gig-payments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ booking_type: bookingType, booking_id: bookingId, fee_cents: feeCents }),
@@ -105,7 +107,7 @@ function ClubDashboard() {
   async function createOpening(e: React.FormEvent) {
     e.preventDefault()
     const fee_cents = openingForm.fee_cents ? Math.round(parseFloat(openingForm.fee_cents) * 100) : 0
-    const res = await fetch('/api/gig-openings', {
+    const res = await apiFetch('/api/gig-openings', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...openingForm, fee_cents }),
     })
@@ -118,7 +120,7 @@ function ClubDashboard() {
   }
 
   async function closeOpening(id: string) {
-    await fetch(`/api/gig-openings/${id}`, {
+    await apiFetch(`/api/gig-openings/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'closed' }),
     })
     setOpenings(prev => prev.map(o => o.id === id ? { ...o, status: 'closed' } : o))
@@ -128,7 +130,7 @@ function ClubDashboard() {
     e.preventDefault()
     if (!requestForm) return
     const fee_cents = requestForm.fee_euros ? Math.round(parseFloat(requestForm.fee_euros) * 100) : 0
-    const res = await fetch('/api/gig-requests', {
+    const res = await apiFetch('/api/gig-requests', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...requestForm, fee_cents, payment_method: requestForm.payment_method }),
     })
@@ -138,7 +140,7 @@ function ClubDashboard() {
       setSentRequests(prev => [{ ...data.data, dj_profiles: dj }, ...prev])
       // If pay via app, go to Stripe immediately
       if (requestForm.payment_method === 'app' && fee_cents > 0) {
-        const payRes = await fetch('/api/gig-payments', {
+        const payRes = await apiFetch('/api/gig-payments', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ booking_type: 'request', booking_id: data.data.id, fee_cents }),
         })
@@ -150,7 +152,7 @@ function ClubDashboard() {
   }
 
   useEffect(() => {
-    fetch('/api/club-dashboard')
+    apiFetch('/api/club-dashboard')
       .then(r => r.json())
       .then(d => {
         if (d.error) {
@@ -177,7 +179,7 @@ function ClubDashboard() {
   async function updateLiveStatus(e: React.FormEvent) {
     e.preventDefault()
     setLiveSaving(true)
-    await fetch('/api/club-dashboard', {
+    await apiFetch('/api/club-dashboard', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(liveForm),
@@ -190,7 +192,7 @@ function ClubDashboard() {
       ...prev,
       guest_lists: prev.guest_lists.map(g => g.id === id ? { ...g, is_active: !current } : g)
     } : prev)
-    await fetch(`/api/guest-lists/${id}`, {
+    await apiFetch(`/api/guest-lists/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_active: !current }),
@@ -289,7 +291,7 @@ function ClubDashboard() {
                 <div>
                   <p className="font-h2 text-h2 text-on-surface capitalize">{live?.crowd_label ?? '—'}</p>
                   <p className="font-body-md text-on-surface-variant">{live?.crowd_percentage ?? 0}% capacity</p>
-                  {live?.current_dj && <p className="font-body-md text-primary mt-xs">🎧 {live.current_dj}</p>}
+                  {live?.current_dj && <p className="font-body-md text-primary mt-xs">DJ: {live.current_dj}</p>}
                   {live?.queue_wait_minutes > 0 && <p className="font-body-md text-on-surface-variant">{live.queue_wait_minutes} min queue</p>}
                 </div>
                 <svg width="64" height="64" viewBox="0 0 64 64">
@@ -435,7 +437,7 @@ function ClubDashboard() {
                       {' '}· Before {gl.cutoff_time?.slice(0, 5)}
                     </p>
                     {gl.dj_profiles && (
-                      <p className="font-body-md text-primary mt-xs">🎧 {gl.dj_profiles.stage_name}</p>
+                      <p className="font-body-md text-primary mt-xs">DJ: {gl.dj_profiles.stage_name}</p>
                     )}
                   </div>
                   <button onClick={() => toggleGuestList(gl.id, gl.is_active)}
@@ -549,7 +551,7 @@ function ClubDashboard() {
                     {app.message && <p className="font-body-md text-on-surface-variant/80 text-sm mb-sm italic">"{app.message}"</p>}
                     {app.status === 'pending' && (
                       <div className="flex gap-sm">
-                        <button onClick={() => { setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: 'rejected' } : a)); fetch(`/api/gig-openings/${viewingApps}/applications/${app.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'rejected' }) }) }}
+                        <button onClick={() => { setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: 'rejected' } : a)); apiFetch(`/api/gig-openings/${viewingApps}/applications/${app.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'rejected' }) }) }}
                           className="flex-1 h-10 border border-outline-variant/30 text-on-surface-variant font-h2 rounded-xl active:scale-95">Pass</button>
                         <button onClick={() => { setBookingApp(app); setBookingPayment({ method: 'off_app', fee_euros: app.fee_cents ? String(app.fee_cents / 100) : '' }) }}
                           className="flex-1 h-10 bg-primary-container text-on-primary-container font-h2 rounded-xl ignite-glow active:scale-95">Book</button>
@@ -918,6 +920,7 @@ function ClubDashboard() {
           </div>
         )}
       </div>
+      <NavSpacer />
     </div>
   )
 }

@@ -318,11 +318,12 @@ export default function SurveySheet({ booking, onDone, onSkip }: Props) {
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
-      <div className="mt-auto bg-surface-container-low rounded-t-3xl px-lg pt-lg flex flex-col gap-lg"
-        style={{ maxHeight: '92dvh', overflowY: 'auto', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)' }}>
+      {/* Sheet panel — flex column, never itself scrolls */}
+      <div className="mt-auto bg-surface-container-low rounded-t-3xl flex flex-col"
+        style={{ maxHeight: '92dvh' }}>
 
-        {/* Header — progress dots + skip */}
-        <div className="flex items-center justify-between">
+        {/* Header — progress dots + skip (never scrolls) */}
+        <div className="flex items-center justify-between px-lg pt-lg pb-sm flex-shrink-0">
           <div className="flex gap-xs">
             {questions.map((_, i) => (
               <div key={i} className={`h-1 rounded-full transition-all ${i <= step ? 'bg-primary w-6' : 'bg-outline-variant/30 w-3'}`} />
@@ -334,18 +335,20 @@ export default function SurveySheet({ booking, onDone, onSkip }: Props) {
           </button>
         </div>
 
-        {/* Question */}
-        <div className="min-h-[280px] flex items-start justify-center w-full">
+        {/* Question — only this area scrolls when content overflows */}
+        <div className="flex-1 overflow-y-auto px-lg py-sm">
           {questions[step]}
         </div>
 
-        {/* Next / Submit */}
-        <button
-          onClick={isLast ? submit : () => setStep(s => s + 1)}
-          disabled={!canNext || submitting}
-          className="w-full py-md bg-primary-container text-on-primary-container font-h2 rounded-xl ignite-glow active:scale-95 transition-transform disabled:opacity-40">
-          {submitting ? 'Sending…' : isLast ? 'Submit' : 'Next'}
-        </button>
+        {/* Next / Submit — always visible at bottom of sheet */}
+        <div className="px-lg pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-sm flex-shrink-0">
+          <button
+            onClick={isLast ? submit : () => setStep(s => s + 1)}
+            disabled={!canNext || submitting}
+            className="w-full py-md bg-primary-container text-on-primary-container font-h2 rounded-xl ignite-glow active:scale-95 transition-transform disabled:opacity-40">
+            {submitting ? 'Sending…' : isLast ? 'Submit' : 'Next'}
+          </button>
+        </div>
       </div>
     </div>
   )

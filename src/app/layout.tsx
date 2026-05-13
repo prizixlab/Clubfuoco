@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import './globals.css'
+import LoadingScreen from '@/components/LoadingScreen'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 const inter = Inter({ subsets: ['latin'], weight: ['400', '600', '700', '800'] })
 
@@ -38,7 +40,10 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
       </head>
       <body className={`${inter.className} ${GeistSans.variable} ${GeistMono.variable} bg-background text-on-surface antialiased`}>
-        {children}
+        <AuthProvider>
+          <LoadingScreen />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )

@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/yakovvinnik/Clubfuoco && CAP_DEV=1 npx cap sync ios 2>/dev/null || true",
+            "statusMessage": "Syncing to Xcode…"
+          }
+        ]
+      }
+    ]
+  }
+}

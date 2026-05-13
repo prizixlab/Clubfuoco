@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import NavSpacer from '@/components/NavSpacer'
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient } from '@/lib/supabase/client'
 import type { User } from '@/types'
 
 // ─── Tier themes (pixel-perfect from Figma) ──────────────────────────────────
@@ -115,10 +115,7 @@ export default function ProfilePage() {
   const [nights,  setNights]  = useState<number | null>(null)
   const [saved,   setSaved]   = useState<number | null>(null)
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const supabase = createClient()
 
   useEffect(() => {
     getMe()

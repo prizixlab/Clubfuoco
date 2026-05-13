@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient } from '@/lib/supabase/client'
+import NavSpacer from '@/components/NavSpacer'
 import DrinkStep from '@/components/DrinkStep'
 import { MUSIC_OPTIONS, VIBE_OPTIONS, BUDGET_NO_LIMIT } from '@/lib/preferences'
 
@@ -137,10 +138,7 @@ function BudgetSlider({ budget, setBudget }: { budget: number; setBudget: (v: nu
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const router = useRouter()
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const supabase = createClient()
 
   // Profile fields
   const [userId,   setUserId]   = useState('')
@@ -184,7 +182,7 @@ export default function SettingsPage() {
         .from('users')
         .select('full_name, phone, birthday, preferences')
         .eq('id', user.id)
-        .single()
+        .single() as any
 
       if (profile) {
         setFullName(profile.full_name ?? '')
@@ -242,7 +240,7 @@ export default function SettingsPage() {
       },
     }
 
-    await supabase.from('users').update({
+    await (supabase as any).from('users').update({
       full_name:   fullName,
       phone:       phone || null,
       birthday,
@@ -434,6 +432,7 @@ export default function SettingsPage() {
           )}
         </button>
       </div>
+      <NavSpacer />
     </div>
   )
 }

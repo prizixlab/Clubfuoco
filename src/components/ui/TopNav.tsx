@@ -27,13 +27,15 @@ export function TopNav({ showBack = false, showNotification = true, title }: Top
 
   return (
     <header style={{
-      position: 'fixed', top: 0, width: '100%', zIndex: 50,
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
       backgroundColor: 'rgba(248,245,238,0.92)',
       backdropFilter: 'blur(16px)',
       WebkitBackdropFilter: 'blur(16px)',
       borderBottom: '1px solid #E8E2D8',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 20px', height: '56px',
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+      paddingTop: 'env(safe-area-inset-top, 0px)',
+      paddingLeft: 20, paddingRight: 20, paddingBottom: 0,
+      height: 'calc(56px + env(safe-area-inset-top, 0px))',
     }}>
       {/* Left */}
       <div style={{ width: 32 }}>

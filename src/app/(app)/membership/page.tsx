@@ -1,253 +1,444 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import NavSpacer from '@/components/NavSpacer'
 
-const PLANS = [
-  {
-    id: 'free',
-    name: 'FREE',
-    price: '€0',
-    period: 'forever',
-    color: 'border-outline-variant/30',
-    badge: '',
-    icon: null,
-    partnerOnly: false,
-    perks: [
-      'Discover & browse clubs',
-      'Book entry tickets',
-      'Basic crowd info',
-    ],
-    cta: 'Current Plan',
-    ctaStyle: 'bg-surface-container text-on-surface-variant cursor-default',
-  },
-  {
-    id: 'gold',
-    name: 'GOLD',
-    price: '€19',
-    period: '/month',
-    color: 'border-yellow-500/40 ring-1 ring-yellow-500/40',
-    badge: 'POPULAR',
-    icon: 'workspace_premium',
-    iconColor: 'text-yellow-400',
-    partnerOnly: true,
-    perks: [
-      'Priority entry at partner clubs',
-      '15% discount on bookings',
-      'Monthly guest pass (×1)',
-      'Early access to event announcements',
-    ],
-    cta: 'Subscribe — €19/mo',
-    ctaStyle: 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-300',
-  },
-  {
-    id: 'sapphire',
-    name: 'SAPPHIRE',
-    price: '€49',
-    period: '/month',
-    color: 'border-primary/40 ring-1 ring-primary',
-    badge: 'ELITE',
-    icon: 'diamond',
-    iconColor: 'text-primary',
-    partnerOnly: true,
-    perks: [
-      'Priority entry at partner clubs',
-      '25% discount on bookings',
-      'Complimentary guest list access (up to 4×/month)',
-      'Personal concierge via WhatsApp',
-      'Invite-only afterhours events',
-    ],
-    cta: 'Subscribe — €49/mo',
-    ctaStyle: 'bg-primary-container text-on-primary-container ignite-glow',
-  },
-  {
-    id: 'black',
-    name: 'BLACK',
-    price: '€500',
-    period: '/month',
-    color: 'border-white/20 ring-2 ring-white/10',
-    badge: 'ULTIMATE',
-    icon: 'local_fire_department',
-    iconColor: 'text-white',
-    partnerOnly: true,
-    perks: [
-      'Free VIP entry at all partner clubs',
-      '30% discount on all bookings',
-      'Unlimited guest list access',
-      'Dedicated 24/7 concierge',
-      'Invite-only private events & afterhours',
-      'First access to every new partner club',
-    ],
-    cta: 'Subscribe — €500/mo',
-    ctaStyle: 'bg-white text-black font-extrabold',
-    cardStyle: 'bg-gradient-to-br from-surface-container to-black',
-  },
-]
+/* ─── Check icon ─────────────────────────────────────────────────────────── */
+
+function Check({ color }: { color: string }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+      <polyline
+        points="1.5,6.5 5,10 11.5,3"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/* ─── Card definitions ───────────────────────────────────────────────────── */
+
+const FREE = {
+  id: 'free',
+  kicker: '00 · OPEN',
+  currentBadge: true,
+  name: 'Libero',
+  label: 'Free',
+  price: '€0',
+  period: 'always',
+  tagline: 'Browse the city. Pay as you go.',
+  perks: ['Browse & discover clubs', 'Book entry tickets', 'Basic crowd info'],
+  partnerNote: false,
+  cta: 'Current plan',
+  // colours
+  cardBg: '#FFFFFF',
+  cardBorder: '1px solid rgba(34,30,26,0.08)',
+  kickerColor: '#8C2A2A',
+  nameColor: '#221E1A',
+  labelColor: '#8C2A2A',
+  priceColor: '#221E1A',
+  periodColor: '#9F9486',
+  taglineColor: '#6E6356',
+  perkColor: '#221E1A',
+  checkColor: '#221E1A',
+  partnerColor: '',
+  btnBg: 'transparent',
+  btnBorder: '1px solid rgba(34,30,26,0.12)',
+  btnColor: '#6E6356',
+  badgeBg: '',
+  badgeColor: '',
+  badgeBorder: '',
+  ruleColor: 'rgba(34,30,26,0.08)',
+}
+
+const GOLD = {
+  id: 'gold',
+  kicker: '01 · WARM',
+  currentBadge: false,
+  name: 'Oro',
+  label: 'Gold',
+  price: '€19',
+  period: 'per month',
+  tagline: 'Skip the line at the doors you love.',
+  perks: ['Priority entry at partner clubs', '15% off bookings', '1 monthly guest pass', 'Early access to events'],
+  partnerNote: true,
+  cta: 'Upgrade to Gold',
+  // colours
+  cardBg: 'linear-gradient(155deg, rgb(247,233,200) 0%, rgb(239,212,154) 55%, rgb(216,176,106) 100%)',
+  cardBorder: 'none',
+  kickerColor: '#8A7240',
+  nameColor: '#2A1B08',
+  labelColor: '#8A7240',
+  priceColor: '#2A1B08',
+  periodColor: '#5A4520',
+  taglineColor: '#2A1B08',
+  perkColor: '#2A1B08',
+  checkColor: '#2A1B08',
+  partnerColor: '#5A4520',
+  btnBg: '#8C2A2A',
+  btnBorder: 'none',
+  btnColor: '#F8F5EE',
+  badgeBg: '',
+  badgeColor: '',
+  badgeBorder: '',
+  ruleColor: 'rgba(42,27,8,0.15)',
+}
+
+const SAPPHIRE = {
+  id: 'sapphire',
+  kicker: '02 · DEEP',
+  currentBadge: false,
+  name: 'Zaffiro',
+  label: 'Sapphire',
+  price: '€49',
+  period: 'per month',
+  tagline: 'A concierge in your pocket, an afterhours in your DMs.',
+  perks: [
+    'Priority entry at partner clubs',
+    '25% off bookings',
+    'Guest list up to 4× / month',
+    'Personal WhatsApp concierge',
+    'Invite-only afterhours events',
+  ],
+  partnerNote: true,
+  cta: 'Upgrade to Sapphire',
+  badge: 'Most picked',
+  // colours
+  cardBg: 'radial-gradient(120% 100% at 0% 0%, rgb(26,42,94) 0%, rgb(14,26,68) 60%, rgb(5,13,44) 100%)',
+  cardBorder: 'none',
+  kickerColor: 'rgba(243,238,224,0.5)',
+  nameColor: '#F3EEE0',
+  labelColor: 'rgba(243,238,224,0.5)',
+  priceColor: '#F3EEE0',
+  periodColor: 'rgba(243,238,224,0.78)',
+  taglineColor: '#F3EEE0',
+  perkColor: '#F3EEE0',
+  checkColor: '#F3EEE0',
+  partnerColor: 'rgba(243,238,224,0.78)',
+  btnBg: '#F3EEE0',
+  btnBorder: 'none',
+  btnColor: '#0E1A44',
+  badgeBg: '#F3EEE0',
+  badgeColor: '#0E1A44',
+  badgeBorder: '1px solid rgba(14,26,68,0.15)',
+  ruleColor: 'rgba(243,238,224,0.15)',
+}
+
+const BLACK = {
+  id: 'black',
+  kicker: '03 · ABSOLUTE',
+  currentBadge: false,
+  name: 'Nero',
+  label: 'Black',
+  price: '€500',
+  period: 'per month',
+  tagline: 'Every door, open. Every night, yours.',
+  perks: [
+    'Free VIP entry at all partner clubs',
+    '30% off bookings',
+    'Unlimited guest list',
+    'Dedicated 24/7 concierge',
+    'Private invite-only events',
+    'First access to every new partner',
+  ],
+  partnerNote: true,
+  cta: 'Request invitation',
+  // colours
+  cardBg: 'linear-gradient(rgb(10,10,10) 0%, rgb(5,5,5) 100%)',
+  cardBorder: 'none',
+  kickerColor: 'rgba(244,234,215,0.48)',
+  nameColor: '#F4EAD7',
+  labelColor: 'rgba(244,234,215,0.48)',
+  priceColor: '#F4EAD7',
+  periodColor: 'rgba(244,234,215,0.72)',
+  taglineColor: '#F4EAD7',
+  perkColor: '#F4EAD7',
+  checkColor: '#F4EAD7',
+  partnerColor: 'rgba(244,234,215,0.72)',
+  btnBg: '#F4EAD7',
+  btnBorder: 'none',
+  btnColor: '#0A0A0A',
+  badgeBg: '',
+  badgeColor: '',
+  badgeBorder: '',
+  ruleColor: 'rgba(244,234,215,0.12)',
+}
+
+const PLANS = [FREE, GOLD, SAPPHIRE, BLACK]
+
+type Plan = typeof FREE
+
+/* ─── Page ───────────────────────────────────────────────────────────────── */
 
 export default function MembershipPage() {
-  const [loading, setLoading] = useState<string | null>(null)
-  const [error,   setError]   = useState('')
-  const [banner,  setBanner]  = useState('')
+  const router = useRouter()
+  const [banner, setBanner] = useState('')
   const params = useSearchParams()
 
   useEffect(() => {
     if (params.get('success')) {
       const tier = params.get('tier') ?? ''
-      setBanner(`🎉 Welcome to ${tier.charAt(0).toUpperCase() + tier.slice(1)}! Your membership is now active.`)
+      setBanner(`Welcome to ${tier.charAt(0).toUpperCase() + tier.slice(1)}! Your membership is now active.`)
     } else if (params.get('cancelled')) {
       setBanner('Subscription cancelled — you can subscribe any time.')
     }
   }, [params])
 
-  async function subscribe(planId: string) {
-    if (planId === 'free') return
-    setLoading(planId)
-    setError('')
-    try {
-      const res  = await fetch('/api/memberships/subscribe', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ plan: planId }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
-      if (data.data?.checkout_url) window.location.href = data.data.checkout_url
-    } catch (e: any) {
-      setError(e.message)
-      setLoading(null)
-    }
-  }
-
   return (
-    <div className="px-container-padding pt-base pb-lg">
-      {/* Header */}
-      <div className="text-center mb-lg">
-        <span className="material-symbols-outlined text-[48px] text-primary bloom-glow mb-sm block"
-          style={{ fontVariationSettings: "'FILL' 1" }}>
-          workspace_premium
-        </span>
-        <h2 className="font-h1 text-h1 text-on-surface mb-xs">Membership</h2>
-        <p className="font-body-md text-on-surface-variant max-w-[280px] mx-auto">
-          Exclusive perks at Club Fuoco's partner venues — the best clubs in Barcelona.
+    <div style={{ padding: '24px 20px 40px', maxWidth: 480, margin: '0 auto' }}>
+
+      {/* ── Title block ─────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 28 }}>
+        <p style={{
+          fontFamily: 'ui-monospace, monospace',
+          fontSize: 9.5, fontWeight: 400,
+          letterSpacing: '1.71px',
+          textTransform: 'uppercase',
+          color: '#8C2A2A',
+          marginBottom: 10,
+        }}>
+          N° 04 · MEMBERSHIP
+        </p>
+        <h1 style={{
+          fontFamily: '"Instrument Serif", Georgia, serif',
+          fontSize: 56, fontWeight: 400, fontStyle: 'normal',
+          lineHeight: 1.05, letterSpacing: '-1.12px',
+          color: '#221E1A',
+          margin: '0 0 8px',
+        }}>
+          Scegli la tua <em style={{ fontStyle: 'italic' }}>famiglia</em>
+        </h1>
+        <p style={{
+          fontFamily: 'Inter, sans-serif',
+          fontSize: 13, color: '#9F9486',
+          margin: 0,
+        }}>
+          Choose your tier · Cancel anytime
         </p>
       </div>
 
+      {/* ── Banners ─────────────────────────────────────────────────────── */}
       {banner && (
-        <div className={`flex items-center gap-sm rounded-xl px-md py-sm mb-md border ${
-          params.get('success')
-            ? 'bg-primary/10 border-primary/30 text-primary'
-            : 'bg-surface-container border-outline-variant/20 text-on-surface-variant'
-        }`}>
-          <p className="font-body-md">{banner}</p>
+        <div style={{
+          backgroundColor: params.get('success') ? 'rgba(140,42,42,0.07)' : '#F0EDE8',
+          border: `1px solid ${params.get('success') ? 'rgba(140,42,42,0.2)' : '#DDD8D0'}`,
+          borderRadius: 10, padding: '11px 16px',
+          marginBottom: 20,
+          fontFamily: 'Inter, sans-serif',
+          fontSize: 13,
+          color: params.get('success') ? '#8C2A2A' : '#6E6356',
+        }}>
+          {banner}
         </div>
       )}
-      {error && <p className="font-body-md text-error text-center mb-md">{error}</p>}
 
-      {/* Partner club note */}
-      <div className="flex items-center gap-sm bg-surface-container rounded-xl px-md py-sm mb-lg border border-outline-variant/20">
-        <span className="material-symbols-outlined text-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-          verified
+      {/* ── Cards ───────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {PLANS.map(plan => (
+          <Card
+            key={plan.id}
+            plan={plan as Plan & { badge?: string }}
+            onOpen={plan.id !== 'free' ? () => router.push(`/membership/${plan.id}`) : undefined}
+          />
+        ))}
+      </div>
+
+      {/* ── Footer notes ────────────────────────────────────────────────── */}
+      <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {[
+          '— Cancel anytime, no questions asked.',
+          '— Partner club benefits apply at 124 venues across Italy.',
+          '— Black tier admission by invitation, after a short call.',
+        ].map(line => (
+          <p key={line} style={{
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 11, color: '#B0A898',
+            margin: 0, lineHeight: 1.5,
+          }}>
+            {line}
+          </p>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Individual card ────────────────────────────────────────────────────── */
+
+function Card({ plan, onOpen }: {
+  plan: Plan & { badge?: string }
+  onOpen?: () => void
+}) {
+  const isFree = plan.id === 'free'
+  return (
+    <div
+      onClick={onOpen}
+      style={{
+        background: plan.cardBg,
+        border: plan.cardBorder,
+        borderRadius: 14,
+        padding: '22px 22px 20px',
+        cursor: onOpen ? 'pointer' : 'default',
+      }}
+    >
+
+      {/* ── Top row: kicker + badge ───────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={{
+          fontFamily: 'ui-monospace, monospace',
+          fontSize: 9, letterSpacing: '1.8px',
+          textTransform: 'uppercase',
+          color: plan.kickerColor,
+        }}>
+          {plan.kicker}
         </span>
-        <p className="font-body-md text-on-surface-variant text-sm">
-          Gold, Sapphire &amp; Black benefits apply at <span className="text-primary font-semibold">partner clubs only</span>. Look for the ✦ badge.
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {plan.currentBadge && (
+            <span style={{
+              fontFamily: 'ui-monospace, monospace',
+              fontSize: 8, letterSpacing: '1.4px',
+              textTransform: 'uppercase',
+              color: '#9F9486',
+              backgroundColor: 'rgba(34,30,26,0.05)',
+              borderRadius: 999,
+              padding: '2px 8px',
+            }}>
+              Current
+            </span>
+          )}
+          {plan.badge && (
+            <span style={{
+              fontFamily: 'ui-monospace, monospace',
+              fontSize: 8.5, letterSpacing: '1.53px',
+              textTransform: 'uppercase',
+              backgroundColor: plan.badgeBg,
+              color: plan.badgeColor,
+              border: plan.badgeBorder,
+              borderRadius: 999,
+              padding: '3px 10px',
+            }}>
+              {plan.badge}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Plans */}
-      <div className="space-y-gutter pt-sm">
-        {PLANS.map(plan => {
-          const isBlack = plan.id === 'black'
-          return (
-            <div key={plan.id} className="relative">
-              {/* Badge sits outside the card so overflow:hidden can't clip it */}
-              {plan.badge && (
-                <div className="absolute -top-3 inset-x-0 flex justify-center z-10">
-                  <span className={`px-sm py-[2px] rounded-full text-[10px] font-bold uppercase tracking-widest border
-                    ${isBlack
-                      ? 'bg-black border-white/30 text-white'
-                      : plan.id === 'gold'
-                        ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300'
-                        : 'bg-primary/20 border-primary/30 text-primary'}`}>
-                    {plan.badge}
-                  </span>
-                </div>
-              )}
-
-              <div
-                className={`p-md rounded-2xl border relative overflow-hidden glass-card ${plan.color}`}
-                style={isBlack ? { background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)' } : undefined}
-              >
-                {isBlack && (
-                  <div className="absolute inset-0 pointer-events-none"
-                    style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 55%)' }} />
-                )}
-
-                {/* Header row */}
-                <div className="flex justify-between items-start mb-md">
-                  <div>
-                    <h3 className={`font-h2 text-h2 tracking-widest ${isBlack ? 'text-white' : 'text-on-surface'}`}>
-                      {plan.name}
-                    </h3>
-                    <div className="flex items-baseline gap-xs mt-xs">
-                      <span className={`font-display text-[36px] font-extrabold leading-none
-                        ${isBlack ? 'text-white' : plan.id === 'gold' ? 'text-yellow-300' : 'text-primary'}`}>
-                        {plan.price}
-                      </span>
-                      <span className="font-body-md text-on-surface-variant">{plan.period}</span>
-                    </div>
-                  </div>
-                  {plan.icon && (
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0
-                      ${isBlack ? 'bg-white/[0.06]' : plan.id === 'gold' ? 'bg-yellow-500/10' : 'bg-primary-container/30'}`}>
-                      <span className={`material-symbols-outlined text-[26px] ${plan.iconColor ?? 'text-primary'}`}
-                        style={{ fontVariationSettings: "'FILL' 1" }}>
-                        {plan.icon}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Perks */}
-                <ul className="space-y-sm mb-md">
-                  {plan.perks.map(perk => (
-                    <li key={perk} className="flex items-start gap-sm">
-                      <span className={`material-symbols-outlined text-[16px] mt-[2px] flex-shrink-0
-                        ${isBlack ? 'text-white' : plan.id === 'gold' ? 'text-yellow-400' : 'text-primary'}`}
-                        style={{ fontVariationSettings: "'FILL' 1" }}>
-                        check_circle
-                      </span>
-                      <span className={`font-body-md text-sm ${isBlack ? 'text-white/80' : 'text-on-surface-variant'}`}>
-                        {perk}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                {plan.partnerOnly && plan.id !== 'free' && (
-                  <p className={`text-[11px] mb-sm font-semibold uppercase tracking-widest
-                    ${isBlack ? 'text-white/30' : 'text-on-surface-variant/40'}`}>
-                    ✦ Partner clubs only
-                  </p>
-                )}
-
-                <button
-                  onClick={() => subscribe(plan.id)}
-                  disabled={loading === plan.id || plan.id === 'free'}
-                  className={`w-full h-12 rounded-xl font-h2 text-h2 flex items-center justify-center gap-sm active:scale-[0.98] transition-all duration-200 disabled:opacity-60 ${plan.ctaStyle}`}
-                >
-                  {loading === plan.id
-                    ? <><span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span> Redirecting…</>
-                    : plan.cta}
-                </button>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      <p className="text-center font-label-sm text-label-sm text-on-surface-variant/40 uppercase tracking-widest mt-md px-md">
-        Billed monthly · Cancel anytime · Managed via Stripe
+      {/* ── Name (big italic) ─────────────────────────────────────────── */}
+      <p style={{
+        fontFamily: '"Instrument Serif", Georgia, serif',
+        fontSize: 56, fontWeight: 400, fontStyle: 'italic',
+        lineHeight: 1.0, letterSpacing: '-1.12px',
+        color: plan.nameColor,
+        margin: '0 0 6px',
+      }}>
+        {plan.name}
       </p>
+
+      {/* ── Label + Price + Period ────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
+        <span style={{
+          fontFamily: 'ui-monospace, monospace',
+          fontSize: 9.5, letterSpacing: '2.09px',
+          textTransform: 'uppercase',
+          color: plan.labelColor,
+        }}>
+          {plan.label}
+        </span>
+        <span style={{
+          fontFamily: '"Instrument Serif", Georgia, serif',
+          fontSize: 32, fontWeight: 400, letterSpacing: '-0.07px',
+          color: plan.priceColor,
+          lineHeight: 1,
+        }}>
+          {plan.price}
+        </span>
+        <span style={{
+          fontFamily: 'ui-monospace, monospace',
+          fontSize: 8.5, letterSpacing: '1.53px',
+          textTransform: 'uppercase',
+          color: plan.periodColor,
+        }}>
+          {plan.period}
+        </span>
+      </div>
+
+      {/* ── Divider ──────────────────────────────────────────────────── */}
+      <div style={{ borderTop: `1px solid ${plan.ruleColor}`, marginBottom: 14 }} />
+
+      {/* ── Tagline ──────────────────────────────────────────────────── */}
+      <p style={{
+        fontFamily: '"Instrument Serif", Georgia, serif',
+        fontSize: 17, fontStyle: 'italic', letterSpacing: '-0.07px',
+        color: plan.taglineColor,
+        margin: '0 0 14px',
+        lineHeight: 1.4,
+      }}>
+        {plan.tagline}
+      </p>
+
+      {/* ── Perks ────────────────────────────────────────────────────── */}
+      <ul style={{ listStyle: 'none', margin: '0 0 14px', padding: 0, display: 'flex', flexDirection: 'column', gap: 9 }}>
+        {plan.perks.map(perk => (
+          <li key={perk} style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+            <Check color={plan.checkColor} />
+            <span style={{
+              fontFamily: 'Inter, sans-serif',
+              fontSize: 13, letterSpacing: '-0.07px',
+              color: plan.perkColor,
+              lineHeight: 1.4,
+            }}>
+              {perk}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {/* ── Partner note ─────────────────────────────────────────────── */}
+      {plan.partnerNote && (
+        <p style={{
+          fontFamily: 'ui-monospace, monospace',
+          fontSize: 9, letterSpacing: '1.26px',
+          textTransform: 'uppercase',
+          color: plan.partnerColor,
+          margin: '0 0 16px',
+        }}>
+          Benefits apply at partner clubs.
+        </p>
+      )}
+      {!plan.partnerNote && <div style={{ height: 16 }} />}
+
+      {/* ── CTA button ───────────────────────────────────────────────── */}
+      <button
+        onClick={e => { e.stopPropagation(); if (onOpen) onOpen() }}
+        disabled={isFree}
+        style={{
+          width: '100%',
+          height: 44,
+          borderRadius: 10,
+          border: isFree ? '1px solid rgba(34,30,26,0.10)' : 'none',
+          background: isFree ? 'transparent' : plan.btnBg,
+          color: plan.btnColor,
+          fontFamily: 'ui-monospace, monospace',
+          fontSize: 10.5, fontWeight: 400,
+          letterSpacing: '1.89px',
+          textTransform: 'uppercase' as const,
+          cursor: isFree ? 'default' : 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          transition: 'opacity 0.15s',
+        }}
+      >
+        {plan.cta}
+        {!isFree && (
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+            <path d="M2 5.5h7M6 2.5l3 3-3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        )}
+      </button>
+      <NavSpacer />
     </div>
   )
 }

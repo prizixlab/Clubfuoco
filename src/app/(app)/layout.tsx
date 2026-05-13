@@ -1,30 +1,41 @@
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { BottomNav } from '@/components/ui/BottomNav'
-import { TopNav } from '@/components/ui/TopNav'
-import { createClient } from '@/lib/supabase/server'
+import { useAuth } from '@/contexts/AuthContext'
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const { user, accountType, loading } = useAuth()
+  const router = useRouter()
 
-  let accountType: 'user' | 'club' | 'dj' = 'user'
-  if (user) {
-    const { data } = await supabase
-      .from('users')
-      .select('account_type')
-      .eq('id', user.id)
-      .single()
-    if (data?.account_type === 'club' || data?.account_type === 'dj') {
-      accountType = data.account_type
+  // Client-side auth guard — replaces middleware redirect
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/login')
     }
-  }
+  }, [user, loading, router])
+
+  // Show nothing while resolving session (avoids flash of protected content)
+  if (loading || !user) return null
 
   return (
-    <>
-      <TopNav showNotification />
-      <div className="mt-14 pb-28">
+    <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#F8F5EE' }}>
+      {/* Scrollable content */}
+      <div
+        id="app-scroll"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          overflowY: 'auto',
+          background: '#F8F5EE',
+        } as React.CSSProperties}
+      >
         {children}
       </div>
+
+      {/* Bottom nav — floats over content */}
       <BottomNav accountType={accountType} />
-    </>
+    </div>
   )
 }

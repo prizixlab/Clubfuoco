@@ -1,4 +1,5 @@
 'use client'
+import { apiFetch } from '@/lib/api'
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -58,7 +59,7 @@ export default function DJDashboardPage() {
   })
 
   useEffect(() => {
-    fetch('/api/dj-dashboard')
+    apiFetch('/api/dj-dashboard')
       .then(r => r.json())
       .then(d => {
         if (d.error) { setNoProfile(true); setLoading(false); return }
@@ -78,24 +79,24 @@ export default function DJDashboardPage() {
 
   useEffect(() => {
     if (activeTab === 'media') {
-      fetch('/api/dj-dashboard/photos').then(r => r.json()).then(d => setPhotos(d.data ?? []))
-      fetch('/api/dj-dashboard/samplers').then(r => r.json()).then(d => setSamplers(d.data ?? []))
+      apiFetch('/api/dj-dashboard/photos').then(r => r.json()).then(d => setPhotos(d.data ?? []))
+      apiFetch('/api/dj-dashboard/samplers').then(r => r.json()).then(d => setSamplers(d.data ?? []))
     }
     if (activeTab === 'opportunities') {
-      fetch('/api/gig-openings').then(r => r.json()).then(d => setOpenings(d.data ?? []))
+      apiFetch('/api/gig-openings').then(r => r.json()).then(d => setOpenings(d.data ?? []))
     }
     if (activeTab === 'requests') {
-      fetch('/api/gig-requests').then(r => r.json()).then(d => setRequests(d.data ?? []))
+      apiFetch('/api/gig-requests').then(r => r.json()).then(d => setRequests(d.data ?? []))
     }
     if (activeTab === 'overview') {
-      fetch('/api/gig-payments').then(r => r.json()).then(d => setEarnings(d.data ?? []))
+      apiFetch('/api/gig-payments').then(r => r.json()).then(d => setEarnings(d.data ?? []))
     }
   }, [activeTab])
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const res = await fetch('/api/dj-dashboard', {
+    const res = await apiFetch('/api/dj-dashboard', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
     })
     const data = await res.json()
@@ -113,7 +114,7 @@ export default function DJDashboardPage() {
     setPhotoUploading(true)
     const fd = new FormData()
     fd.append('file', file)
-    const res = await fetch('/api/dj-dashboard/photos', { method: 'POST', body: fd })
+    const res = await apiFetch('/api/dj-dashboard/photos', { method: 'POST', body: fd })
     const data = await res.json()
     if (data.data) setPhotos(prev => [data.data, ...prev])
     setPhotoUploading(false)
@@ -122,12 +123,12 @@ export default function DJDashboardPage() {
 
   async function deletePhoto(id: string) {
     setPhotos(prev => prev.filter(p => p.id !== id))
-    await fetch(`/api/dj-dashboard/photos/${id}`, { method: 'DELETE' })
+    await apiFetch(`/api/dj-dashboard/photos/${id}`, { method: 'DELETE' })
   }
 
   async function addSampler(e: React.FormEvent) {
     e.preventDefault()
-    const res = await fetch('/api/dj-dashboard/samplers', {
+    const res = await apiFetch('/api/dj-dashboard/samplers', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(samplerForm),
     })
     const data = await res.json()
@@ -136,18 +137,18 @@ export default function DJDashboardPage() {
 
   async function deleteSampler(id: string) {
     setSamplers(prev => prev.filter(s => s.id !== id))
-    await fetch(`/api/dj-dashboard/samplers/${id}`, { method: 'DELETE' })
+    await apiFetch(`/api/dj-dashboard/samplers/${id}`, { method: 'DELETE' })
   }
 
   async function applyToOpening(openingId: string) {
-    const res = await fetch(`/api/gig-openings/${openingId}/apply`, {
+    const res = await apiFetch(`/api/gig-openings/${openingId}/apply`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: applyMessage }),
     })
     if (res.ok) { setAppliedIds(prev => new Set([...prev, openingId])); setApplyingId(null); setApplyMessage('') }
   }
 
   async function respondToRequest(id: string, status: 'accepted' | 'rejected') {
-    const res = await fetch(`/api/gig-requests/${id}`, {
+    const res = await apiFetch(`/api/gig-requests/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }),
     })
     if (res.ok) setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r))

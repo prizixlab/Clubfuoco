@@ -4,6 +4,7 @@ import { PKPass } from 'passkit-generator'
 import { deflateSync, crc32 } from 'zlib'
 import path from 'path'
 import fs from 'fs'
+import { generateWalletToken } from '@/lib/wallet/token'
 
 // ─── Minimal PNG encoder (no deps — uses built-in zlib) ───────────────────────
 // Produces an RGB PNG with a diagonal gradient, matching the profile card style.
@@ -96,15 +97,15 @@ const TIER: Record<string, {
     ],
   },
   sapphire: {
-    fg:        'rgb(221, 230, 255)',
-    label:     'rgb(160, 190, 255)',
+    fg:        'rgb(200, 218, 255)',
+    label:     'rgb(80, 125, 240)',
     header:    'ZAFFIRO',
     logoText:  'Club Fuoco · Zaffiro',
-    bodyColor: [28, 46, 122],   // ~45% of sapphire gradient → vivid navy
+    bodyColor: [4, 8, 40],      // near-black midnight blue
     gradient: [
-      { pos: 0.00, rgb: [14,  27,  74]  },
-      { pos: 0.45, rgb: [31,  53,  144] },
-      { pos: 1.00, rgb: [74,  107, 196] },
+      { pos: 0.00, rgb: [2,   4,   18]  },
+      { pos: 0.50, rgb: [6,   16,  72]  },
+      { pos: 1.00, rgb: [22,  58,  168] },
     ],
   },
   black: {
@@ -200,22 +201,29 @@ export async function GET(
   //  │  [QR]                                                │
   //  └──────────────────────────────────────────────────────┘
 
+  const serialNumber  = `membership-${userId}`
+  const authToken     = generateWalletToken(userId)
+  const serviceUrl    = process.env.APPLE_WALLET_SERVICE_URL ?? 'https://clubfuoco.vercel.app/api/wallet/v1'
+
   const passJson: Record<string, unknown> = {
-    formatVersion:      1,
-    passTypeIdentifier: process.env.APPLE_PASS_TYPE_ID!,
-    serialNumber:       `membership-${userId}`,
-    teamIdentifier:     process.env.APPLE_TEAM_ID!,
-    organizationName:   'Club Fuoco',
-    description:        `Club Fuoco ${t.header} Membership`,
-    foregroundColor:    t.fg,
-    backgroundColor:    `rgb(${t.bodyColor[0]}, ${t.bodyColor[1]}, ${t.bodyColor[2]})`,
-    labelColor:         t.label,
-    logoText:           t.logoText,
+    formatVersion:       1,
+    passTypeIdentifier:  process.env.APPLE_PASS_TYPE_ID!,
+    serialNumber,
+    teamIdentifier:      process.env.APPLE_TEAM_ID!,
+    organizationName:    'Club Fuoco',
+    description:         `Club Fuoco ${t.header} Membership`,
+    foregroundColor:     t.fg,
+    backgroundColor:     `rgb(${t.bodyColor[0]}, ${t.bodyColor[1]}, ${t.bodyColor[2]})`,
+    labelColor:          t.label,
+    logoText:            t.logoText,
+    // ── Push update support ──────────────────────────────────────────────────
+    // Apple Wallet registers with this URL and pushes the authToken on each
+    // call so we can validate the device owns this pass.
+    webServiceURL:       serviceUrl,
+    authenticationToken: authToken,
 
     storeCard: {
-      headerFields: [
-        { key: 'number', label: 'N°', value: memberNum },
-      ],
+      headerFields: [{ key: 'number', label: 'N°', value: memberNum }],
       primaryFields: [
         { key: 'tier_name', label: 'CLUB FUOCO', value: t.header },
       ],
@@ -254,7 +262,7 @@ export async function GET(
   try {
     const pass = new PKPass(
       {
-        'pass.json':    Buffer.from(JSON.stringify(passJson)),
+        'pass.json':    Buffer.from(JSON.stringify(passJson, null, 0)),
         'icon.png':     fs.readFileSync(path.join(assetsDir, 'icon.png')),
         'icon@2x.png':  fs.readFileSync(path.join(assetsDir, 'icon@2x.png')),
         'icon@3x.png':  fs.readFileSync(path.join(assetsDir, 'icon@3x.png')),

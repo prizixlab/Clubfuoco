@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 // ─── Ember particles ──────────────────────────────────────────────────────────
 const EMBERS = [
@@ -86,8 +87,9 @@ export default function ExploreLoader({ done, onGone }: Props) {
   }, [done])
 
   if (gone) return null
+  if (typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <>
       <style dangerouslySetInnerHTML={{ __html: STYLES }} />
 
@@ -279,6 +281,7 @@ export default function ExploreLoader({ done, onGone }: Props) {
         </div>
 
       </div>
-    </>
+    </>,
+    document.body
   )
 }

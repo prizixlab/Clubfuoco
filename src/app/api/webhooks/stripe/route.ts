@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { sendTicketConfirmation, sendAdminTicketAlert } from '@/lib/email'
+import { pushWalletUpdate } from '@/lib/wallet/push'
 import type Stripe from 'stripe'
 
 // POST /api/webhooks/stripe
@@ -62,6 +63,9 @@ export async function POST(request: NextRequest) {
               .from('users')
               .update({ membership_tier: tier })
               .eq('id', userId)
+
+            // Push pass update to any registered Apple Wallet devices
+            void pushWalletUpdate(userId)
           }
           break
         }
@@ -211,6 +215,9 @@ export async function POST(request: NextRequest) {
               .eq('id', userId)
           }
         }
+
+        // Push updated pass (reflects new status / tier)
+        void pushWalletUpdate(userId)
         break
       }
 
@@ -228,6 +235,9 @@ export async function POST(request: NextRequest) {
           .from('users')
           .update({ membership_tier: 'free' })
           .eq('id', userId)
+
+        // Push to registered devices — they'll get a 410 Gone and remove the pass
+        void pushWalletUpdate(userId)
         break
       }
 

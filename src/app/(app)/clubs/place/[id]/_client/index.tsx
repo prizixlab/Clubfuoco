@@ -1,8 +1,9 @@
 'use client'
 import { apiFetch } from '@/lib/api'
+import { getClubById, getPlaceFavorites, savePlaceFavorite, removePlaceFavorite } from '@/lib/supabase/queries'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { loadStripe, type Stripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { ExternalEvent } from '@/lib/tickets'
@@ -335,7 +336,12 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PlaceDetailPage() {
-  const { id }   = useParams<{ id: string }>()
+  const params       = useParams<{ id: string }>()
+  const searchParams = useSearchParams()
+  // In Capacitor static export we navigate to /clubs/place/placeholder?id=REAL_ID
+  // because only the placeholder RSC payload is pre-built. Fall back to the route
+  // param when accessed directly (e.g. from web).
+  const id = searchParams.get('id') ?? params.id
   const router   = useRouter()
   const [place,         setPlace]         = useState<PlaceDetail | null>(null)
   const [loading,       setLoading]       = useState(true)
@@ -347,13 +353,13 @@ export default function PlaceDetailPage() {
   const [showCheckout,  setShowCheckout]  = useState(false)
 
   useEffect(() => {
-    fetch(`/api/places/details?id=${id}`)
-      .then(r => r.json())
-      .then(d => { setPlace(d.data ?? null); setLoading(false) })
+    getClubById(id as string)
+      .then(d => { setPlace(d as any); setLoading(false) })
+      .catch(() => setLoading(false))
     // Check if already saved
-    apiFetch('/api/place-favorites')
-      .then(r => r.json())
-      .then(d => { if ((d.data ?? []).some((f: any) => f.place_id === id)) setSaved(true) })
+    getPlaceFavorites()
+      .then(favs => { if (favs.some((f: any) => f.place_id === id)) setSaved(true) })
+      .catch(() => {})
   }, [id])
 
   async function toggleSave() {
@@ -361,24 +367,16 @@ export default function PlaceDetailPage() {
     setSavingToggle(true)
     if (saved) {
       setSaved(false)
-      await apiFetch('/api/place-favorites', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ place_id: id }),
-      })
+      await removePlaceFavorite(id as string).catch(() => {})
     } else {
       setSaved(true)
-      await apiFetch('/api/place-favorites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          place_id:    id,
-          name:        place.name,
-          address:     place.address,
-          cover_photo: place.cover_photo,
-          rating:      place.rating,
-        }),
-      })
+      await savePlaceFavorite({
+        place_id:    id as string,
+        name:        place.name,
+        address:     place.address,
+        cover_photo: place.cover_photo,
+        rating:      place.rating,
+      }).catch(() => {})
     }
     setSavingToggle(false)
   }

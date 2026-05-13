@@ -236,6 +236,90 @@ export async function getTasteProfile() {
   return data ?? null
 }
 
+// ─── Club detail ─────────────────────────────────────────────────────────────
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export async function getClubById(id: string) {
+  const supabase = createClient()
+
+  const isUUID = UUID_RE.test(id)
+
+  const baseQuery = (supabase as any)
+    .from('clubs')
+    .select(`
+      id, name, slug, address, neighborhood,
+      lat, lng, cover_image_url, gallery_urls, photos,
+      rating, ratings_total, music_genres, google_place_id,
+      description, instagram_handle, whatsapp_link,
+      general_entry_price, vip_table_min_spend,
+      opening_hours, is_featured, is_partner, is_active,
+      reviews,
+      live_status ( is_open, crowd_percentage, crowd_label, current_dj, queue_wait_minutes ),
+      club_tags ( tag, category )
+    `)
+
+  const { data: club, error } = await (isUUID
+    ? baseQuery.eq('id', id)
+    : baseQuery.eq('google_place_id', id)
+  ).maybeSingle()
+
+  if (error) throw new Error(error.message)
+  if (!club) return null
+
+  const tags: string[] = (club.club_tags ?? []).map((t: any) => t.tag)
+
+  const seen = new Set<string>()
+  const allPhotos: string[] = [
+    ...(club.cover_image_url ? [club.cover_image_url] : []),
+    ...(Array.isArray(club.photos)       ? club.photos       : []),
+    ...(Array.isArray(club.gallery_urls) ? club.gallery_urls : []),
+  ]
+    .filter(Boolean)
+    .map(proxyPhoto)
+    .filter((url): url is string => {
+      if (!url || seen.has(url)) return false
+      seen.add(url)
+      return true
+    })
+
+  const reviews: any[] = Array.isArray(club.reviews) ? club.reviews : []
+
+  return {
+    place_id:       club.id,
+    name:           club.name,
+    slug:           club.slug,
+    address:        club.address ?? '',
+    neighborhood:   club.neighborhood ?? null,
+    lat:            club.lat  ?? null,
+    lng:            club.lng  ?? null,
+    description:    club.description ?? null,
+    instagram_handle: club.instagram_handle ?? null,
+    whatsapp_link:  club.whatsapp_link ?? null,
+    phone:          null,
+    website:        null,
+    rating:         club.rating        ?? null,
+    ratings_total:  club.ratings_total ?? 0,
+    price_level:    null,
+    is_open:        (club.live_status as any)?.is_open ?? null,
+    live_status:    club.live_status ?? null,
+    weekday_hours:  club.opening_hours ? [club.opening_hours] : [],
+    music_genres:   club.music_genres  ?? [],
+    tags,
+    google_place_id: club.google_place_id ?? null,
+    is_partner:     club.is_partner,
+    is_featured:    club.is_featured,
+    general_entry_price: club.general_entry_price ?? null,
+    vip_table_min_spend: club.vip_table_min_spend ?? null,
+    reviews,
+    photos:         allPhotos,
+    cover_photo:    allPhotos[0] ?? null,
+    maps_url: club.google_place_id
+      ? `https://www.google.com/maps/place/?q=place_id:${club.google_place_id}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(club.name + ' Barcelona')}`,
+  }
+}
+
 // ─── Events ───────────────────────────────────────────────────────────────────
 
 export async function getEvents() {
@@ -243,12 +327,13 @@ export async function getEvents() {
 
   const { data, error } = await supabase
     .from('ra_events')
-    .select('*')
+    .select('id, platform, title, venue_name, date, start_time, image, base_price, display_price, currency, platform_url, sold_out, venue_matched')
+    .gte('event_date', new Date().toISOString())   // only future events
     .order('event_date', { ascending: true })
     .limit(200)
 
   if (error) return []
-  return data ?? []
+  return (data ?? []) as import('@/lib/tickets').ExternalEvent[]
 }
 
 // ─── Rumbas ───────────────────────────────────────────────────────────────────

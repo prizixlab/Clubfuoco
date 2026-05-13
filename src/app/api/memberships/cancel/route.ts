@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
 import { requireAuth } from '@/lib/auth'
 import { stripe } from '@/lib/stripe'
+import { pushWalletUpdate } from '@/lib/wallet/push'
 
 // POST /api/memberships/cancel
 export async function POST() {
@@ -35,6 +36,9 @@ export async function POST() {
     .from('users')
     .update({ membership_tier: 'free' })
     .eq('id', user!.id)
+
+  // Notify Apple Wallet — the update endpoint returns 410, which removes the pass
+  void pushWalletUpdate(user!.id)
 
   return ok({ cancelled: true })
 }

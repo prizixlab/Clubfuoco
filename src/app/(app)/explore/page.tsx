@@ -6,7 +6,8 @@ import {
   getEvents, getRumbas,
 } from '@/lib/supabase/queries'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ExploreLoader from '@/components/ExploreLoader'
 import type { ExternalEvent } from '@/lib/tickets'
@@ -518,13 +519,14 @@ const C = {
 // ── Cinema Card Components ───────────────────────────────────────────────────
 
 function HeroCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; onSave: (id: string) => void }) {
+  const router = useRouter()
   const genre = place.music_genres?.length > 0 ? place.music_genres[0] : 'Featured'
   const meta: string[] = []
   if (place.neighborhood) meta.push(place.neighborhood)
   if (place.price_level !== null && place.price_level !== undefined) meta.push(PRICE_LABEL[place.price_level])
 
   return (
-    <Link href={`/clubs/place/${place.place_id}`} style={{ display: 'block' }}>
+    <button onClick={() => router.push(`/clubs/place/placeholder?id=${place.place_id}`)} style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', touchAction: 'manipulation' }}>
       <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', background: C.surface, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 8px 24px rgba(34,30,26,0.06)' }}>
         {/* Image */}
         <div style={{ position: 'relative', height: 220, width: '100%', background: C.bg2 }}>
@@ -585,14 +587,15 @@ function HeroCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; 
           </div>
         </div>
       </div>
-    </Link>
+    </button>
   )
 }
 
 function LandCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; onSave: (id: string) => void }) {
+  const router = useRouter()
   const genre = place.music_genres?.length > 0 ? place.music_genres[0] : null
   return (
-    <Link href={`/clubs/place/${place.place_id}`} style={{ display: 'block', flexShrink: 0 }}>
+    <button onClick={() => router.push(`/clubs/place/placeholder?id=${place.place_id}`)} style={{ display: 'block', flexShrink: 0, background: 'none', border: 'none', padding: 0, cursor: 'pointer', touchAction: 'manipulation' }}>
       <div style={{ width: 220, borderRadius: 12, overflow: 'hidden', background: C.surface, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 16px rgba(34,30,26,0.06)' }}>
         {/* Image */}
         <div style={{ position: 'relative', height: 130, background: C.bg2 }}>
@@ -625,13 +628,14 @@ function LandCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; 
           </div>
         </div>
       </div>
-    </Link>
+    </button>
   )
 }
 
 function PosterCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; onSave: (id: string) => void }) {
+  const router = useRouter()
   return (
-    <Link href={`/clubs/place/${place.place_id}`} style={{ display: 'block', flexShrink: 0 }}>
+    <button onClick={() => router.push(`/clubs/place/placeholder?id=${place.place_id}`)} style={{ display: 'block', flexShrink: 0, background: 'none', border: 'none', padding: 0, cursor: 'pointer', touchAction: 'manipulation' }}>
       <div style={{ width: 150, borderRadius: 12, overflow: 'hidden', background: C.surface, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 14px rgba(34,30,26,0.06)' }}>
         {/* Image */}
         <div style={{ position: 'relative', height: 168, background: C.bg2 }}>
@@ -671,14 +675,15 @@ function PosterCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean
           </p>
         </div>
       </div>
-    </Link>
+    </button>
   )
 }
 
 function EventShelfCard({ place }: { place: Place }) {
+  const router = useRouter()
   const ev = place.upcoming_event
   return (
-    <Link href={`/clubs/place/${place.place_id}`} style={{ display: 'block', flexShrink: 0 }}>
+    <button onClick={() => router.push(`/clubs/place/placeholder?id=${place.place_id}`)} style={{ display: 'block', flexShrink: 0, background: 'none', border: 'none', padding: 0, cursor: 'pointer', touchAction: 'manipulation' }}>
       <div style={{ width: 220, borderRadius: 12, overflow: 'hidden', background: C.surface, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 16px rgba(34,30,26,0.06)' }}>
         <div style={{ position: 'relative', height: 130, background: C.bg2 }}>
           {place.cover_photo
@@ -710,18 +715,19 @@ function EventShelfCard({ place }: { place: Place }) {
           </div>
         </div>
       </div>
-    </Link>
+    </button>
   )
 }
 
 function RumbaShelfCard({ rumba }: { rumba: Rumba }) {
+  const router   = useRouter()
   const spotsLeft = Math.max(0, rumba.capacity - (rumba.signup_count ?? 0))
   const isFull    = spotsLeft === 0
   const d         = new Date(rumba.event_date)
   const dateLabel = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
   const timeLabel = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
   return (
-    <Link href={`/rumbas/${rumba.id}`} style={{ display: 'block', flexShrink: 0 }}>
+    <button onClick={() => router.push(`/rumbas/${rumba.id}`)} style={{ display: 'block', flexShrink: 0, background: 'none', border: 'none', padding: 0, cursor: 'pointer', touchAction: 'manipulation' }}>
       <div style={{ width: 220, borderRadius: 12, overflow: 'hidden', background: C.surface, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 16px rgba(34,30,26,0.06)' }}>
         <div style={{ position: 'relative', height: 130, background: C.bg2 }}>
           {rumba.cover_image
@@ -752,7 +758,7 @@ function RumbaShelfCard({ rumba }: { rumba: Rumba }) {
           </div>
         </div>
       </div>
-    </Link>
+    </button>
   )
 }
 
@@ -876,6 +882,7 @@ let _loaderShownThisSession = false
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ExplorePage() {
+  const router = useRouter()
   const [places,       setPlaces]       = useState<Place[]>([])
   const [loading,      setLoading]      = useState(true)
   // Skip the cinematic loader if it already played this session
@@ -1051,7 +1058,7 @@ export default function ExplorePage() {
   // loading state handled via overlay below (see ExploreLoader)
 
   return (
-    <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 0, overflow: 'hidden' }}>
+    <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 0 }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,700;1,400;1,700&display=swap'); .no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
 
       {/* ── Cinematic loader overlay — self-removes after exit animation ── */}
@@ -1104,7 +1111,7 @@ export default function ExplorePage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search clubs, neighbourhoods…"
-              style={{ width: '100%', background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, paddingLeft: 38, paddingRight: 14, paddingTop: 11, paddingBottom: 11, fontSize: 14, color: C.ink, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', outline: 'none', boxSizing: 'border-box' }}
+              style={{ width: '100%', background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, paddingLeft: 38, paddingRight: 14, paddingTop: 11, paddingBottom: 11, fontSize: 16, color: C.ink, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', outline: 'none', boxSizing: 'border-box' }}
             />
           </div>
         )}
@@ -1124,7 +1131,7 @@ export default function ExplorePage() {
           {searchResults.length === 0
             ? <p style={{ textAlign: 'center', padding: '32px 0', color: C.ink3, fontSize: 13, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>No clubs found for "{search}"</p>
             : searchResults.map(p => (
-                <Link key={p.place_id} href={`/clubs/place/${p.place_id}`} style={{ display: 'block' }}>
+                <button key={p.place_id} onClick={() => router.push(`/clubs/place/placeholder?id=${p.place_id}`)} style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', touchAction: 'manipulation', textAlign: 'left' }}>
                   <div style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 12, padding: 12, marginBottom: 10, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 12px rgba(34,30,26,0.05)' }}>
                     <div style={{ width: 52, height: 52, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: C.bg2 }}>
                       {p.cover_photo
@@ -1140,7 +1147,7 @@ export default function ExplorePage() {
                       <span style={{ fontSize: 8, letterSpacing: '0.12em', fontWeight: 600, textTransform: 'uppercase', color: 'white', background: '#2D7A46', borderRadius: 99, padding: '2px 7px', flexShrink: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Open</span>
                     )}
                   </div>
-                </Link>
+                </button>
               ))
           }
         </div>

@@ -28,6 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           position: 'absolute',
           inset: 0,
           overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           background: '#F8F5EE',
         } as React.CSSProperties}
       >

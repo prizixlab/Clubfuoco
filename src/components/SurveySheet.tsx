@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { apiFetch } from '@/lib/api'
 
 interface PendingBooking {
   id:          string
@@ -145,7 +146,7 @@ export default function SurveySheet({ booking, onDone, onSkip }: Props) {
 
   async function submit() {
     setSubmitting(true)
-    await fetch('/api/surveys', {
+    await apiFetch('/api/surveys', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -320,7 +321,7 @@ export default function SurveySheet({ booking, onDone, onSkip }: Props) {
     <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
       {/* Sheet panel — flex column, never itself scrolls */}
       <div className="mt-auto bg-surface-container-low rounded-t-3xl flex flex-col"
-        style={{ maxHeight: '92dvh' }}>
+        style={{ maxHeight: '92dvh', minHeight: '68dvh' }}>
 
         {/* Header — progress dots + skip (never scrolls) */}
         <div className="flex items-center justify-between px-lg pt-lg pb-sm flex-shrink-0">
@@ -336,12 +337,14 @@ export default function SurveySheet({ booking, onDone, onSkip }: Props) {
         </div>
 
         {/* Question — only this area scrolls when content overflows */}
-        <div className="flex-1 overflow-y-auto px-lg py-sm">
-          {questions[step]}
+        <div className="flex-1 overflow-y-auto px-lg">
+          <div className="flex flex-col justify-center min-h-full py-md">
+            {questions[step]}
+          </div>
         </div>
 
         {/* Next / Submit — always visible at bottom of sheet */}
-        <div className="px-lg pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-sm flex-shrink-0">
+        <div className="px-lg pt-sm flex-shrink-0" style={{ paddingBottom: 40 }}>
           <button
             onClick={isLast ? submit : () => setStep(s => s + 1)}
             disabled={!canNext || submitting}

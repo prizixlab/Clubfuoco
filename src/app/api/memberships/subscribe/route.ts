@@ -47,18 +47,22 @@ export async function POST(request: NextRequest) {
       .eq('id', user!.id)
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-
-  // Create a Stripe Checkout Session (hosted payment page)
-  const session = await stripe.checkout.sessions.create({
-    mode:               'subscription',
-    customer:           customerId,
-    line_items:         [{ price: plan.stripe_price_id, quantity: 1 }],
-    success_url:        `${appUrl}/membership?success=1&tier=${parsed.data.plan}`,
-    cancel_url:         `${appUrl}/membership?cancelled=1`,
-    subscription_data:  { metadata: { user_id: user!.id, tier: parsed.data.plan } },
-    metadata:           { user_id: user!.id, tier: parsed.data.plan },
+  // Create a subscription in incomplete state so we can confirm it natively
+  // (Apple Pay sheet / web fallback both use the PaymentIntent client_secret)
+  const subscription = await stripe.subscriptions.create({
+    customer:         customerId,
+    items:            [{ price: plan.stripe_price_id }],
+    payment_behavior: 'default_incomplete',
+    payment_settings: { save_default_payment_method: 'on_subscription' },
+    expand:           ['latest_invoice.payment_intent'],
+    metadata:         { user_id: user!.id, tier: parsed.data.plan },
   })
 
-  return ok({ checkout_url: session.url })
+  const invoice = subscription.latest_invoice as import('stripe').Stripe.Invoice
+  const pi      = invoice?.payment_intent as import('stripe').Stripe.PaymentIntent | null
+  const secret  = pi?.client_secret ?? null
+
+  if (!secret) return err('Could not initialise payment', 500)
+
+  return ok({ client_secret: secret, subscription_id: subscription.id })
 }

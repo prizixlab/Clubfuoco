@@ -3,6 +3,7 @@ import { apiFetch } from '@/lib/api'
 
 import { useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { Capacitor } from '@capacitor/core'
 
 /* ─── Plan configs ───────────────────────────────────────────────────────── */
 
@@ -165,14 +166,63 @@ export default function MembershipDetailPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await apiFetch('/api/memberships/subscribe', {
-        method: 'POST',
+      const res  = await apiFetch('/api/memberships/subscribe', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: cfg.id }),
+        body:    JSON.stringify({ plan: cfg.id }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed')
-      if (data.data?.checkout_url) window.location.href = data.data.checkout_url
+
+      const secret = data.data?.client_secret as string | undefined
+
+      if (!secret) throw new Error('No payment secret returned')
+
+      // ── Native iOS → Payment Sheet with Apple Pay ──────────────────
+      if (Capacitor.isNativePlatform()) {
+        const { Stripe } = await import('@capacitor-community/stripe')
+
+        await Stripe.initialize({
+          publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
+        })
+
+        await Stripe.createPaymentSheet({
+          paymentIntentClientSecret: secret,
+          merchantDisplayName:       'Club Fuoco',
+          enableApplePay:            true,
+          applePayMerchantId:        process.env.NEXT_PUBLIC_APPLE_PAY_MERCHANT_ID ?? 'merchant.com.clubfuoco.app',
+          countryCode:               'IT',
+          currencyCode:              'eur',
+          style:                     cfg.id === 'black' ? 'alwaysDark' : undefined,
+        })
+
+        const { paymentResult } = await Stripe.presentPaymentSheet()
+
+        if (paymentResult === 'paymentSheetCompleted') {
+          // Webhook confirms the subscription — navigate to success
+          router.replace(`/membership?success=1&tier=${cfg.id}`)
+        } else if (paymentResult === 'paymentSheetCanceled') {
+          // User dismissed the sheet — do nothing
+          setLoading(false)
+        } else {
+          throw new Error('Payment failed. Please try again.')
+        }
+        return
+      }
+
+      // ── Web fallback → Stripe.js confirmCardPayment / redirect ─────
+      const { loadStripe } = await import('@stripe/stripe-js')
+      const stripeJs = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+      if (!stripeJs) throw new Error('Stripe could not be loaded')
+
+      const { error: stripeError } = await stripeJs.confirmPayment({
+        clientSecret: secret,
+        confirmParams: {
+          return_url: `${window.location.origin}/membership?success=1&tier=${cfg.id}`,
+        },
+      })
+
+      if (stripeError) throw new Error(stripeError.message ?? 'Payment failed')
     } catch (e: any) {
       setError(e.message)
       setLoading(false)

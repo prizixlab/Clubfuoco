@@ -59,6 +59,8 @@ export async function middleware(request: NextRequest) {
     if (!user && !isCron && !isManual) {
       return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 })
     }
+    // Cron/manual/logged-in admin — skip the general auth redirect below
+    return NextResponse.next({ request })
   }
 
   // ── Redirect unauthenticated users to /login ────────────────────────────────

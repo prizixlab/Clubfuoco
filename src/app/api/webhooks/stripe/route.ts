@@ -5,6 +5,12 @@ import { sendTicketConfirmation, sendAdminTicketAlert } from '@/lib/email'
 import { pushWalletUpdate } from '@/lib/wallet/push'
 import type Stripe from 'stripe'
 
+// Uses Postgres sequence to give each new paid member a unique sequential number
+async function nextMemberNumber(supabase: Awaited<ReturnType<typeof createServiceClient>>) {
+  const { data } = await supabase.rpc('next_member_number')
+  return (data as number) ?? null
+}
+
 // POST /api/webhooks/stripe
 // Handles all Stripe events — payment confirmations, subscription lifecycle
 // Must be excluded from CSRF protection (raw body required)
@@ -59,9 +65,22 @@ export async function POST(request: NextRequest) {
                 { onConflict: 'user_id' }
               )
 
+            // Assign sequential member number on first paid membership (never overwrite)
+            const { data: existing } = await supabase
+              .from('users')
+              .select('member_number')
+              .eq('id', userId)
+              .single()
+
+            const needsNumber = !existing?.member_number
             await supabase
               .from('users')
-              .update({ membership_tier: tier })
+              .update({
+                membership_tier: tier,
+                ...(needsNumber
+                  ? { member_number: await nextMemberNumber(supabase) }
+                  : {}),
+              })
               .eq('id', userId)
 
             // Push pass update to any registered Apple Wallet devices
@@ -198,22 +217,43 @@ export async function POST(request: NextRequest) {
         const userId = sub.metadata?.user_id
         if (!userId) break
 
-        const isActive = sub.status === 'active'
+        const isActive  = sub.status === 'active'
         const newStatus = isActive ? 'active' : 'past_due'
+        const tier      = sub.metadata?.tier as 'gold' | 'sapphire' | 'black' | undefined
 
+        // Upsert so this also handles the native Payment Sheet path
+        // (subscription goes directly from incomplete → active without a checkout session)
         await supabase
           .from('memberships')
-          .update({ status: newStatus })
-          .eq('stripe_subscription_id', sub.id)
+          .upsert(
+            {
+              user_id:                userId,
+              tier:                   tier ?? 'gold',
+              stripe_subscription_id: sub.id,
+              status:                 newStatus,
+              valid_from:             new Date().toISOString(),
+            },
+            { onConflict: 'user_id' }
+          )
 
-        if (isActive) {
-          const tier = sub.metadata?.tier as 'gold' | 'sapphire' | 'black' | undefined
-          if (tier) {
-            await supabase
-              .from('users')
-              .update({ membership_tier: tier })
-              .eq('id', userId)
-          }
+        if (isActive && tier) {
+          // Assign member number if not yet assigned (idempotent — never overwrites)
+          const { data: existing } = await supabase
+            .from('users')
+            .select('member_number')
+            .eq('id', userId)
+            .single()
+
+          const needsNumber = !existing?.member_number
+          await supabase
+            .from('users')
+            .update({
+              membership_tier: tier,
+              ...(needsNumber
+                ? { member_number: await nextMemberNumber(supabase) }
+                : {}),
+            })
+            .eq('id', userId)
         }
 
         // Push updated pass (reflects new status / tier)

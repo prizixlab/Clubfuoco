@@ -868,12 +868,18 @@ function filterPlaces(places: Place[], activeFilter: string): Place[] {
   }
 }
 
+// ── Loader seen flag — persists for the lifetime of the JS session ────────────
+// Using a module-level variable means it survives tab switches (no remount)
+// AND component remounts (Next.js navigation), but resets on full app restart.
+let _loaderShownThisSession = false
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ExplorePage() {
   const [places,       setPlaces]       = useState<Place[]>([])
   const [loading,      setLoading]      = useState(true)
-  const [loaderGone,   setLoaderGone]   = useState(false)
+  // Skip the cinematic loader if it already played this session
+  const [loaderGone,   setLoaderGone]   = useState(_loaderShownThisSession)
   const [prefs,        setPrefs]        = useState<any>(null)
   const [surveyPrefs,  setSurveyPrefs]  = useState<any>(null)
   const [tasteProfile, setTasteProfile] = useState<any>(null)
@@ -1050,7 +1056,7 @@ export default function ExplorePage() {
 
       {/* ── Cinematic loader overlay — self-removes after exit animation ── */}
       {!loaderGone && (
-        <ExploreLoader done={!loading} onGone={() => setLoaderGone(true)} />
+        <ExploreLoader done={!loading} onGone={() => { _loaderShownThisSession = true; setLoaderGone(true) }} />
       )}
 
       {/* ── Header */}
@@ -1191,7 +1197,39 @@ export default function ExplorePage() {
       })()}
 
       {/* ── Shelves + filter chips ─────────────────────────────────────────── */}
-      {!showSaved && (!showSearch || !search) && (
+      {/* ── Skeleton — loader already played but data still loading ────────── */}
+      {loading && loaderGone && !showSaved && (!showSearch || !search) && (
+        <div style={{ padding: '0 20px' }}>
+          {/* Hero card skeleton */}
+          <div style={{ borderRadius: 16, overflow: 'hidden', marginBottom: 28 }}>
+            <div style={{ height: 220, background: C.surface, borderRadius: 16, animation: 'pulse 1.4s ease-in-out infinite' }} />
+            <div style={{ padding: '14px 0 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ height: 14, width: '55%', borderRadius: 6, background: C.surface, animation: 'pulse 1.4s ease-in-out infinite' }} />
+              <div style={{ height: 11, width: '35%', borderRadius: 6, background: C.surface, animation: 'pulse 1.4s 0.1s ease-in-out infinite' }} />
+            </div>
+          </div>
+          {/* Shelf rows skeletons */}
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{ marginBottom: 32 }}>
+              <div style={{ height: 13, width: '40%', borderRadius: 6, background: C.surface, marginBottom: 14, animation: `pulse 1.4s ${i * 0.1}s ease-in-out infinite` }} />
+              <div style={{ display: 'flex', gap: 12, overflowX: 'hidden' }}>
+                {[0, 1, 2].map(j => (
+                  <div key={j} style={{ flexShrink: 0, width: 160, borderRadius: 14, overflow: 'hidden', background: C.surface, animation: `pulse 1.4s ${(i + j) * 0.07}s ease-in-out infinite` }}>
+                    <div style={{ height: 140, background: C.bg2 }} />
+                    <div style={{ padding: '8px 10px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ height: 11, width: '80%', borderRadius: 4, background: C.bg }} />
+                      <div style={{ height: 9, width: '55%', borderRadius: 4, background: C.bg }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }`}</style>
+        </div>
+      )}
+
+      {!showSaved && (!showSearch || !search) && !loading && (
         <>
           {/* Featured hero shelf */}
           {shelves.length > 0 && shelves[0].featured && (

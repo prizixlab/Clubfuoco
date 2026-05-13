@@ -8,12 +8,19 @@
 
 import { createClient } from '@/lib/supabase/client'
 
+// ─── Auth helper ──────────────────────────────────────────────────────────────
+
+/** Returns the current user from the local session — no network call. */
+async function currentUser() {
+  const supabase = createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  return session?.user ?? null
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function proxyPhoto(url: string | null | undefined): string | null {
   if (!url) return null
-  // Google photo URLs can't be fetched client-side — swap to our Vercel proxy.
-  // In Capacitor, apiFetch routes /api/* to Vercel automatically.
   if (url.includes('maps.googleapis.com/maps/api/place/photo')) {
     try {
       const ref = new URL(url).searchParams.get('photo_reference')
@@ -107,9 +114,9 @@ export async function getNearbyClubs(lat: number, lng: number, radius: number) {
 // ─── Favorites ────────────────────────────────────────────────────────────────
 
 export async function getPlaceFavorites() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await currentUser()
   if (!user) return []
+  const supabase = createClient()
 
   const { data, error } = await supabase
     .from('place_favorites')
@@ -121,24 +128,24 @@ export async function getPlaceFavorites() {
   return data ?? []
 }
 
-export async function savePlaceFavorite(place: { place_id: string; name: string; address: string; cover_photo?: string | null; rating?: number | null }) {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export async function savePlaceFavorite(place: {
+  place_id: string; name: string; address: string
+  cover_photo?: string | null; rating?: number | null
+}) {
+  const user = await currentUser()
   if (!user) throw new Error('Not authenticated')
+  const supabase = createClient()
 
   const { error } = await supabase
     .from('place_favorites')
-    .upsert(
-      { user_id: user.id, ...place },
-      { onConflict: 'user_id,place_id' }
-    )
+    .upsert({ user_id: user.id, ...place }, { onConflict: 'user_id,place_id' })
   if (error) throw new Error(error.message)
 }
 
 export async function removePlaceFavorite(place_id: string) {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await currentUser()
   if (!user) throw new Error('Not authenticated')
+  const supabase = createClient()
 
   const { error } = await supabase
     .from('place_favorites')
@@ -151,9 +158,9 @@ export async function removePlaceFavorite(place_id: string) {
 // ─── User preferences ─────────────────────────────────────────────────────────
 
 export async function getUserPreferences() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await currentUser()
   if (!user) return null
+  const supabase = createClient()
 
   const { data } = await supabase
     .from('users')
@@ -165,9 +172,9 @@ export async function getUserPreferences() {
 }
 
 export async function saveUserPreferences(preferences: Record<string, unknown>) {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await currentUser()
   if (!user) throw new Error('Not authenticated')
+  const supabase = createClient()
 
   const { error } = await supabase
     .from('users')
@@ -179,9 +186,9 @@ export async function saveUserPreferences(preferences: Record<string, unknown>) 
 // ─── Survey preferences ───────────────────────────────────────────────────────
 
 export async function getSurveyPreferences() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await currentUser()
   if (!user) return null
+  const supabase = createClient()
 
   const { data: surveys, error } = await supabase
     .from('booking_surveys')
@@ -201,27 +208,24 @@ export async function getSurveyPreferences() {
     }
   }
 
-  const avgRating = surveys.reduce((s, r) => s + r.rating,       0) / surveys.length
-  const avgVibe   = surveys.reduce((s, r) => s + r.vibe_rating,  0) / surveys.length
-  const avgCrowd  = surveys.reduce((s, r) => s + r.crowd_rating, 0) / surveys.length
+  const avgRating   = surveys.reduce((s, r) => s + r.rating,       0) / surveys.length
+  const avgVibe     = surveys.reduce((s, r) => s + r.vibe_rating,  0) / surveys.length
+  const avgCrowd    = surveys.reduce((s, r) => s + r.crowd_rating, 0) / surveys.length
   const wouldReturn = surveys.filter(s => s.would_return).length / surveys.length
 
   return {
-    avgRating,
-    avgVibe,
-    avgCrowd,
-    wouldReturn,
-    topDrinks:    Object.entries(drinkCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([d]) => d),
-    surveyCount:  surveys.length,
+    avgRating, avgVibe, avgCrowd, wouldReturn,
+    topDrinks:   Object.entries(drinkCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([d]) => d),
+    surveyCount: surveys.length,
   }
 }
 
 // ─── Taste profile ────────────────────────────────────────────────────────────
 
 export async function getTasteProfile() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await currentUser()
   if (!user) return null
+  const supabase = createClient()
 
   const { data } = await supabase
     .from('user_taste_profiles')
@@ -283,9 +287,9 @@ export async function getRumbas() {
 // ─── User profile ─────────────────────────────────────────────────────────────
 
 export async function getMe() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await currentUser()
   if (!user) return null
+  const supabase = createClient()
 
   const { data } = await supabase
     .from('users')
@@ -299,9 +303,9 @@ export async function getMe() {
 // ─── Bookings ─────────────────────────────────────────────────────────────────
 
 export async function getMyBookings() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await currentUser()
   if (!user) return { bookings: [], signups: [], tickets: [] }
+  const supabase = createClient()
 
   const [bookingsRes, signupsRes, ticketsRes] = await Promise.all([
     supabase
@@ -343,25 +347,23 @@ export async function getMyBookings() {
   }
 }
 
-// ─── Pending surveys (bookings from last 7 days without a survey) ─────────────
+// ─── Pending surveys ──────────────────────────────────────────────────────────
 
 export async function getPendingSurveys() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await currentUser()
   if (!user) return []
+  const supabase = createClient()
 
   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1)
   const weekAgo   = new Date(); weekAgo.setDate(weekAgo.getDate() - 7)
-  const yStr = yesterday.toISOString().slice(0, 10)
-  const wStr = weekAgo.toISOString().slice(0, 10)
 
   const { data: bookings } = await supabase
     .from('bookings')
     .select('id, booking_date, booking_type, clubs(id, name, cover_image_url)')
     .eq('user_id', user.id)
     .in('status', ['confirmed', 'used'])
-    .lte('booking_date', yStr)
-    .gte('booking_date', wStr)
+    .lte('booking_date', yesterday.toISOString().slice(0, 10))
+    .gte('booking_date', weekAgo.toISOString().slice(0, 10))
     .order('booking_date', { ascending: false })
 
   if (!bookings?.length) return []
@@ -378,9 +380,9 @@ export async function getPendingSurveys() {
 // ─── Notifications ────────────────────────────────────────────────────────────
 
 export async function getNotifications() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await currentUser()
   if (!user) return []
+  const supabase = createClient()
 
   const { data } = await supabase
     .from('notifications')
@@ -393,9 +395,9 @@ export async function getNotifications() {
 }
 
 export async function markNotificationsRead() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await currentUser()
   if (!user) return
+  const supabase = createClient()
 
   await supabase
     .from('notifications')

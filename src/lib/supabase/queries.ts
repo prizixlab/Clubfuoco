@@ -8,6 +8,20 @@
 
 import { createClient } from '@/lib/supabase/client'
 
+/** Normalise whatever is stored in opening_hours → string[7] */
+function toHoursArray(v: unknown): string[] {
+  if (!v) return []
+  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string')
+  if (typeof v === 'string') {
+    try {
+      const p = JSON.parse(v)
+      if (Array.isArray(p)) return p.filter((x): x is string => typeof x === 'string')
+    } catch {}
+    return v.split(/(?=Monday:|Tuesday:|Wednesday:|Thursday:|Friday:|Saturday:|Sunday:)/i).map(s => s.trim()).filter(Boolean)
+  }
+  return []
+}
+
 // ─── Auth helper ──────────────────────────────────────────────────────────────
 
 /** Returns the current user from the local session — no network call. */
@@ -303,7 +317,7 @@ export async function getClubById(id: string) {
     price_level:    null,
     is_open:        (club.live_status as any)?.is_open ?? null,
     live_status:    club.live_status ?? null,
-    weekday_hours:  club.opening_hours ? [club.opening_hours] : [],
+    weekday_hours:  toHoursArray(club.opening_hours),
     music_genres:   club.music_genres  ?? [],
     tags,
     google_place_id: club.google_place_id ?? null,

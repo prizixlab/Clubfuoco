@@ -4,6 +4,21 @@ import { filterHotelPhotos, isHotel } from '@/lib/photo-filter'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+/** Normalise whatever is stored in opening_hours → string[7] */
+function toHoursArray(v: unknown): string[] {
+  if (!v) return []
+  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string')
+  if (typeof v === 'string') {
+    try {
+      const p = JSON.parse(v)
+      if (Array.isArray(p)) return p.filter((x): x is string => typeof x === 'string')
+    } catch {}
+    // Fallback: split on day-name boundaries
+    return v.split(/(?=Monday:|Tuesday:|Wednesday:|Thursday:|Friday:|Saturday:|Sunday:)/i).map(s => s.trim()).filter(Boolean)
+  }
+  return []
+}
+
 function proxyPhoto(url: string | null | undefined): string | null {
   if (!url) return null
   if (url.includes('maps.googleapis.com/maps/api/place/photo')) {
@@ -201,7 +216,7 @@ export async function GET(request: NextRequest) {
       price_level:    null,
       is_open:        (club.live_status as any)?.is_open ?? null,
       live_status:    club.live_status ?? null,
-      weekday_hours:  club.opening_hours ? [club.opening_hours] : [],
+      weekday_hours:  toHoursArray(club.opening_hours),
       music_genres:   club.music_genres  ?? [],
       tags,
       google_place_id: club.google_place_id ?? null,

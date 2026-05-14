@@ -844,30 +844,141 @@ export default function BookingsPage() {
             </div>
           ) : (
             <div>
-              {pendingSurveys.map(s => (
-                <div key={s.id} style={{
-                  background: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 12,
-                  boxShadow: '0 2px 12px rgba(34,30,26,0.08)',
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  border: '1px solid rgba(140,42,42,0.15)',
-                }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 28, flexShrink: 0, color: '#8C2A2A' }}>star</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: '#221E1A' }}>
-                      How was {s.clubs?.name ?? 'last night'}?
-                    </div>
-                    <div style={{ fontSize: 12, color: '#9F9486' }}>Quick 5-question survey · +10 Fiamme</div>
-                  </div>
-                  <button
-                    onClick={() => setActiveSurvey(s)}
-                    style={{
-                      flexShrink: 0, padding: '8px 14px', borderRadius: 8, border: 'none',
-                      background: '#221E1A', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              {pendingSurveys.map((s, idx) => {
+                const n = String(idx + 1).padStart(2, '0')
+                return (
+                  <div key={s.id} style={{
+                    position: 'relative',
+                    background: '#F4EFE3',
+                    borderRadius: 18,
+                    padding: '20px 22px 18px',
+                    marginBottom: 14,
+                    overflow: 'hidden',
+                  }}>
+                    {/* Halftone dot field over the whole card (very faint) */}
+                    <div style={{
+                      position: 'absolute', inset: 0, opacity: 0.35, pointerEvents: 'none',
+                      backgroundImage: 'radial-gradient(rgba(34,30,26,0.10) 1px, transparent 1.4px)',
+                      backgroundSize: '8px 8px',
+                    }} />
+
+                    {/* Top row: kicker + time */}
+                    <div style={{
+                      position: 'relative',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      marginBottom: 14,
+                      fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase',
+                      color: '#9F9486', fontWeight: 600,
                     }}>
-                    Rate it
-                  </button>
-                </div>
-              ))}
+                      <span>N° {n} · Questions</span>
+                      <span>2 min</span>
+                    </div>
+
+                    {/* Body */}
+                    <div style={{ position: 'relative', display: 'flex', gap: 18, alignItems: 'flex-start' }}>
+                      {/* Medallion */}
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <div style={{
+                          width: 92, height: 92, borderRadius: '50%',
+                          background: 'radial-gradient(circle at 30% 30%, #6E1F1F 0%, #2A0E0E 100%)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          position: 'relative', overflow: 'hidden',
+                        }}>
+                          {/* Halftone dots on medallion */}
+                          <div style={{
+                            position: 'absolute', inset: 0, opacity: 0.18,
+                            backgroundImage: 'radial-gradient(rgba(255,255,255,1) 1px, transparent 1.4px)',
+                            backgroundSize: '5px 5px',
+                          }} />
+                          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#E8C77A" strokeWidth="1.4" style={{ position: 'relative' }}>
+                            <polygon points="12,2 14.9,8.6 22,9.3 16.5,14.2 18.2,21 12,17.3 5.8,21 7.5,14.2 2,9.3 9.1,8.6" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                        {/* "N° 05" pill on the medallion */}
+                        <div style={{
+                          position: 'absolute', bottom: -2, right: -4,
+                          background: '#FFFFFF', borderRadius: 999,
+                          padding: '2px 8px',
+                          fontSize: 9, letterSpacing: '0.12em',
+                          color: '#B8902C', fontWeight: 700,
+                          boxShadow: '0 1px 4px rgba(34,30,26,0.08)',
+                        }}>N° {n}</div>
+                      </div>
+
+                      {/* Text block */}
+                      <div style={{ flex: 1, paddingTop: 2 }}>
+                        <div style={{
+                          fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase',
+                          color: '#9F9486', fontWeight: 600, marginBottom: 4,
+                        }}>Recensione · Last Night</div>
+
+                        <h2 style={{
+                          fontFamily: '"Instrument Serif", Georgia, serif',
+                          fontStyle: 'italic', fontWeight: 400,
+                          fontSize: 28, lineHeight: 1.05,
+                          color: '#221E1A', margin: '0 0 10px',
+                          letterSpacing: '-0.01em',
+                        }}>Com&apos;è andata?</h2>
+
+                        <div style={{
+                          fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase',
+                          color: '#9F9486', fontWeight: 600,
+                        }}>How was</div>
+                        <div style={{ fontSize: 17, fontWeight: 600, color: '#221E1A', marginBottom: 12 }}>
+                          {s.clubs?.name ?? 'last night'}
+                        </div>
+
+                        {/* Stats row */}
+                        <div style={{ display: 'flex', gap: 18, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                          {[
+                            { num: '5',   label: 'Questions' },
+                            { num: "2'",  label: 'Minutes'   },
+                            { num: '+10', label: 'Fiamme'    },
+                          ].map(({ num, label }) => (
+                            <div key={label} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                              <span style={{
+                                fontFamily: '"Instrument Serif", Georgia, serif',
+                                fontStyle: 'italic', fontSize: 20, fontWeight: 600, color: '#221E1A',
+                              }}>{num}</span>
+                              <span style={{
+                                fontSize: 9.5, letterSpacing: '0.16em', textTransform: 'uppercase',
+                                color: '#9F9486', fontWeight: 600,
+                              }}>{label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer actions */}
+                    <div style={{
+                      position: 'relative', marginTop: 20, paddingTop: 14,
+                      borderTop: '1px solid rgba(34,30,26,0.08)',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    }}>
+                      <button
+                        onClick={() => setActiveSurvey(s)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                          fontSize: 17, fontWeight: 600, color: '#221E1A',
+                        }}>
+                        Rate it
+                        <span style={{ fontSize: 18, lineHeight: 1 }}>→</span>
+                      </button>
+                      <button
+                        onClick={() => setPendingSurveys(prev => prev.filter(p => p.id !== s.id))}
+                        style={{
+                          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                          fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase',
+                          color: '#9F9486', fontWeight: 600,
+                        }}>
+                        Later
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )
         )}

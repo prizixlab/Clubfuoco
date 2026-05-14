@@ -1,6 +1,10 @@
 'use client'
 import { apiFetch } from '@/lib/api'
 import { getMyBookings, getPendingSurveys } from '@/lib/supabase/queries'
+import { createClient } from '@/lib/supabase/client'
+
+// Emails that see the "+ Test booking" dev shortcut in production.
+const TEST_BOOKING_ALLOWLIST = ['yakov213409@gmail.com']
 
 import { useEffect, useRef, useState } from 'react'
 import type { Booking } from '@/types'
@@ -239,6 +243,18 @@ export default function BookingsPage() {
   const [pendingSurveys, setPendingSurveys] = useState<PendingBooking[]>([])
   const [activeSurvey,   setActiveSurvey]   = useState<PendingBooking | null>(null)
   const [activeTab,      setActiveTab]      = useState<'tickets' | 'reviews'>('tickets')
+  const [userEmail,      setUserEmail]      = useState<string | null>(null)
+
+  // Pull the current user's email so we can gate the test-booking button
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email?.toLowerCase() ?? null)
+    })
+  }, [])
+
+  const canSeedTestBooking =
+    process.env.NODE_ENV === 'development' ||
+    (userEmail !== null && TEST_BOOKING_ALLOWLIST.includes(userEmail))
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
 
   // Keep screen on while QR is fullscreen
@@ -828,7 +844,7 @@ export default function BookingsPage() {
         </div>
 
         {/* Dev seed button */}
-        {process.env.NODE_ENV === 'development' && (
+        {canSeedTestBooking && (
           <button
             onClick={seedTestBooking}
             disabled={seeding}

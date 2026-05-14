@@ -3,14 +3,21 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { generateQRToken } from '@/lib/utils'
 
-// Only available in development
-export async function POST() {
-  if (process.env.NODE_ENV !== 'development') {
-    return NextResponse.json({ error: 'Not available in production' }, { status: 403 })
-  }
+// Allowlisted owner emails that can seed test bookings in production.
+// Same list as the client-side gate in bookings/page.tsx — keep in sync.
+const TEST_BOOKING_ALLOWLIST = ['yakov213409@gmail.com']
 
+export async function POST() {
   const { user, response } = await requireAuth()
   if (response) return response
+
+  const isDev      = process.env.NODE_ENV === 'development'
+  const userEmail  = user?.email?.toLowerCase() ?? ''
+  const isAllowed  = TEST_BOOKING_ALLOWLIST.includes(userEmail)
+
+  if (!isDev && !isAllowed) {
+    return NextResponse.json({ error: 'Not available' }, { status: 403 })
+  }
 
   const supabase = await createClient()
 

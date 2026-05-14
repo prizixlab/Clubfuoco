@@ -29,6 +29,7 @@ export default function ClubVerifyPage() {
     city: '',
     google_maps_url: '',
     website_url: '',
+    eventbrite_organizer_id: '',
   })
 
   useEffect(() => {
@@ -342,6 +343,18 @@ export default function ClubVerifyPage() {
               </div>
             </>
           )}
+
+          {/* Eventbrite Organizer ID — optional, shown for both flows */}
+          <div className="space-y-xs">
+            <label className="font-label-sm text-label-sm text-on-surface-variant/60 uppercase tracking-widest">
+              Eventbrite Organizer ID <span className="normal-case text-on-surface-variant/40">(optional)</span>
+            </label>
+            <input value={form.eventbrite_organizer_id} onChange={e => setForm(f => ({ ...f, eventbrite_organizer_id: e.target.value.trim() }))}
+              className="vibe-input w-full" placeholder="e.g. 12345678900" />
+            <p className="font-label-sm text-label-sm text-on-surface-variant/50">
+              Find it on eventbrite.com → your organizer page → the numbers at the end of the URL. We use this to auto-pull your events into Club Fuoco.
+            </p>
+          </div>
 
           {/* Instagram — only ask for new clubs, or existing clubs with no handle on file */}
           {(type === 'new' || (type === 'claim' && form.club_id && !form.instagram_handle)) && (

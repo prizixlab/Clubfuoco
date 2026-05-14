@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { type, club_id, club_name, instagram_handle, address, city, google_maps_url, website_url } = body
+  const { type, club_id, club_name, instagram_handle, address, city, google_maps_url, website_url, eventbrite_organizer_id } = body
 
   if (!instagram_handle) return err('Instagram handle is required')
   if (type === 'new' && !club_name) return err('Club name is required')
@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
     user_id: user!.id,
     instagram_handle: handle,
     verification_code: generateVerificationPhrase(),
+    eventbrite_organizer_id: eventbrite_organizer_id?.trim() || null,
   }
 
   if (type === 'claim') {

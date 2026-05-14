@@ -904,7 +904,12 @@ export default function BookingsPage() {
                 return (
                   <SwipeCard
                     key={s.id}
-                    onDismiss={() => setPendingSurveys(prev => prev.filter(p => p.id !== s.id))}
+                    onDismiss={() => {
+                      setPendingSurveys(prev => prev.filter(p => p.id !== s.id))
+                      // Permanently mark dismissed on the server — fire-and-forget
+                      apiFetch(`/api/surveys?booking_id=${encodeURIComponent(s.id)}`, { method: 'DELETE' })
+                        .catch(() => { /* swallow — local removal already happened */ })
+                    }}
                   >
                   <div style={{
                     position: 'relative',

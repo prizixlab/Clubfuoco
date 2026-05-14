@@ -20,12 +20,13 @@ export async function GET() {
   const yStr = yesterday.toISOString().slice(0, 10)
   const wStr = weekAgo.toISOString().slice(0, 10)
 
-  // Get confirmed/used bookings in that window
+  // Get confirmed/used bookings in that window (exclude ones the user dismissed)
   const { data: bookings, error } = await supabase
     .from('bookings')
     .select(`id, booking_date, booking_type, clubs(id, name, cover_image_url)`)
     .eq('user_id', user!.id)
     .in('status', ['confirmed', 'used'])
+    .is('survey_dismissed_at', null)
     .lte('booking_date', yStr)
     .gte('booking_date', wStr)
     .order('booking_date', { ascending: false })
@@ -47,12 +48,20 @@ export async function GET() {
 }
 
 const surveySchema = z.object({
-  booking_id:   z.string().uuid(),
-  rating:       z.number().int().min(1).max(5),
-  drinks:       z.array(z.string()).min(1),
-  vibe_rating:  z.number().int().min(1).max(5),
-  crowd_rating: z.number().int().min(1).max(5),
-  would_return: z.enum(['yes', 'maybe', 'no']),
+  booking_id:    z.string().uuid(),
+  rating:        z.number().int().min(1).max(5),
+  // drink categories selected (e.g. ['beer', 'cocktails'])
+  drinks:        z.array(z.string()),
+  // specific drinks per category: { beer: ['Estrella Damm'] }
+  drink_kinds:   z.record(z.array(z.string())).optional().default({}),
+  // per-drink star ratings: { 'Negroni': 4, 'Estrella Damm': 5 }
+  drink_ratings: z.record(z.number().int().min(1).max(5)).optional().default({}),
+  // free-text per category: { cocktails: 'their house signature' }
+  drink_custom:  z.record(z.string()).optional().default({}),
+  vibe_rating:   z.number().int().min(1).max(5),
+  music_genres:  z.array(z.string()).optional().default([]),
+  crowd_rating:  z.number().int().min(1).max(5),
+  would_return:  z.enum(['yes', 'maybe', 'no']),
 })
 
 // POST /api/surveys — submit a survey
@@ -94,4 +103,26 @@ export async function POST(req: NextRequest) {
   }).catch(() => {})
 
   return NextResponse.json({ data }, { status: 201 })
+}
+
+// DELETE /api/surveys?booking_id=… — permanently dismiss the survey prompt
+// (swipe-to-dismiss on the bookings page). Sets survey_dismissed_at on the
+// booking row. No data is lost; the user just won't be re-prompted.
+export async function DELETE(req: NextRequest) {
+  const { user, response } = await requireAuth()
+  if (response) return response
+
+  const bookingId = req.nextUrl.searchParams.get('booking_id')
+  if (!bookingId) return err('booking_id required', 400)
+
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('bookings')
+    .update({ survey_dismissed_at: new Date().toISOString() })
+    .eq('id', bookingId)
+    .eq('user_id', user!.id)        // RLS belt-and-braces — only own bookings
+
+  if (error) return err(error.message)
+  return ok({ dismissed: bookingId })
 }

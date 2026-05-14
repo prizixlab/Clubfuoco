@@ -461,6 +461,7 @@ export async function getPendingSurveys() {
     .select('id, booking_date, booking_type, clubs(id, name, cover_image_url)')
     .eq('user_id', user.id)
     .in('status', ['confirmed', 'used'])
+    .is('survey_dismissed_at', null)
     .lte('booking_date', yesterday.toISOString().slice(0, 10))
     .gte('booking_date', weekAgo.toISOString().slice(0, 10))
     .order('booking_date', { ascending: false })

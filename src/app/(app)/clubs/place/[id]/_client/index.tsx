@@ -12,9 +12,19 @@ import type { ExternalEvent } from '@/lib/tickets'
 let stripePromise: Promise<Stripe | null> | null = null
 function getStripe() {
   if (typeof window === 'undefined') return null
-  if (window.location.protocol !== 'https:') return null
+  // Stripe.js works over https: (Vercel) and capacitor: (iOS shell). The WKWebView
+  // inside Capacitor is a secure context — only the local dev http: case is rejected.
+  const proto = window.location.protocol
+  if (proto !== 'https:' && proto !== 'capacitor:') return null
   if (!stripePromise) stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
   return stripePromise
+}
+
+// "2026-05-15T20:00:00.000" → "20:00"
+function fmtStart(s: string | null | undefined) {
+  if (!s) return ''
+  const m = s.match(/T(\d{2}:\d{2})/)
+  return m ? m[1] : s
 }
 
 interface PlaceDetail {
@@ -307,7 +317,7 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
           {event.start_time && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.ink3 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>schedule</span>
-              <span style={{ fontSize: 13, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{event.start_time}</span>
+              <span style={{ fontSize: 13, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{fmtStart(event.start_time)}</span>
             </div>
           )}
         </div>

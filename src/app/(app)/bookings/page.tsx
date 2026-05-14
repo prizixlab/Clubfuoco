@@ -156,12 +156,15 @@ function Perforation() {
  */
 function SwipeCard({ children, onDismiss }: { children: React.ReactNode; onDismiss: () => void }) {
   const [dx, setDx]   = useState(0)
-  const [gone, setGone] = useState(false)
+  const [phase, setPhase] = useState<'idle' | 'flying' | 'collapsing'>('idle')
+  const [height, setHeight] = useState<number | null>(null)
   const startX        = useRef<number | null>(null)
   const dragging      = useRef(false)
+  const innerRef      = useRef<HTMLDivElement>(null)
   const THRESHOLD     = 110   // px
 
   function onDown(e: React.PointerEvent) {
+    if (phase !== 'idle') return
     startX.current = e.clientX
     dragging.current = true
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
@@ -173,33 +176,53 @@ function SwipeCard({ children, onDismiss }: { children: React.ReactNode; onDismi
   function onUp() {
     dragging.current = false
     if (Math.abs(dx) > THRESHOLD) {
-      const fly = dx > 0 ? 500 : -500
-      setDx(fly)
-      setGone(true)
-      setTimeout(onDismiss, 240)
+      // Snapshot current height so we can collapse it after the fly-off
+      setHeight(innerRef.current?.offsetHeight ?? 0)
+      setDx(dx > 0 ? 600 : -600)
+      setPhase('flying')
+      // After fly-off, collapse height so cards below slide up
+      setTimeout(() => setPhase('collapsing'), 200)
+      // Then unmount
+      setTimeout(onDismiss, 480)
     } else {
       setDx(0)
     }
   }
 
-  const opacity = gone ? 0 : Math.max(0.2, 1 - Math.abs(dx) / 260)
+  const opacity = phase === 'idle'
+    ? Math.max(0.2, 1 - Math.abs(dx) / 260)
+    : phase === 'flying' ? 0 : 0
   const rotate  = dx / 35
 
+  const wrapperStyle: React.CSSProperties =
+    phase === 'collapsing'
+      ? {
+          maxHeight: 0, marginBottom: 0, opacity: 0,
+          transition: 'max-height 0.32s cubic-bezier(0.4,0,0.2,1), margin-bottom 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.2s',
+          overflow: 'hidden',
+        }
+      : phase === 'flying' && height !== null
+        ? { maxHeight: height, marginBottom: 14, overflow: 'hidden' }
+        : { marginBottom: 14, overflow: 'visible' }
+
   return (
-    <div
-      onPointerDown={onDown}
-      onPointerMove={onMove}
-      onPointerUp={onUp}
-      onPointerCancel={onUp}
-      style={{
-        touchAction: 'pan-y',
-        transform: `translateX(${dx}px) rotate(${rotate}deg)`,
-        opacity,
-        transition: dragging.current ? 'none' : 'transform 0.25s cubic-bezier(0.4,0,0.2,1), opacity 0.25s',
-        willChange: 'transform, opacity',
-      }}
-    >
-      {children}
+    <div style={wrapperStyle}>
+      <div
+        ref={innerRef}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        style={{
+          touchAction: 'pan-y',
+          transform: `translateX(${dx}px) rotate(${rotate}deg)`,
+          opacity,
+          transition: dragging.current ? 'none' : 'transform 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s',
+          willChange: 'transform, opacity',
+        }}
+      >
+        {children}
+      </div>
     </div>
   )
 }
@@ -916,7 +939,6 @@ export default function BookingsPage() {
                     background: '#F4EFE3',
                     borderRadius: 18,
                     padding: '20px 22px 18px',
-                    marginBottom: 14,
                     overflow: 'hidden',
                   }}>
                     {/* Halftone dot field over the whole card (very faint) */}

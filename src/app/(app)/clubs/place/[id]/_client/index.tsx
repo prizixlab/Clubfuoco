@@ -187,6 +187,23 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
   async function startCheckout() {
     setBuying(true)
 
+    // Fire-and-forget click telemetry (for partner-program traffic numbers).
+    // Never await — must not slow down checkout, must not fail it.
+    apiFetch('/api/ticket-clicks', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        event_id:       event.id,
+        platform:       event.platform,
+        event_title:    event.title,
+        venue_name:     event.venue_name,
+        venue_place_id: placeId,
+        event_date:     event.date,
+        display_price:  event.display_price,
+        currency:       event.currency,
+      }),
+    }).catch(() => {})
+
     // Free events — just record an RSVP, no payment needed
     if (event.base_price === 0) {
       await apiFetch('/api/tickets', {

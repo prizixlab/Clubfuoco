@@ -54,7 +54,7 @@ interface SyncedEvent {
 async function fetchRAForArea(areaId: number): Promise<SyncedEvent[]> {
   const today    = new Date()
   const horizon  = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
-  const query    = `query GetEvents($area:Int!,$gte:String!,$lte:String!){
+  const query    = `query GetEvents($area:Int!,$gte:DateTime!,$lte:DateTime!){
     eventListings(filters:{areas:{eq:$area},listingDate:{gte:$gte,lte:$lte}},pageSize:100,page:1){
       data{event{id title date startTime contentUrl flyerFront images{filename} venue{name}}}
     }

@@ -384,13 +384,14 @@ export default function PlaceDetailPage() {
   useEffect(() => {
     if (!place) return
     setEventsLoading(true)
-    fetch(`/api/events?venue=${encodeURIComponent(place.name)}&lat=${place.lat}&lng=${place.lng}`)
+    apiFetch(`/api/events?venue=${encodeURIComponent(place.name)}&lat=${place.lat}&lng=${place.lng}`)
       .then(r => r.json())
       .then(d => {
         const matched = (d.data ?? []).filter((e: { venue_matched: boolean }) => e.venue_matched)
         setEvents(matched)
-        setEventsLoading(false)
       })
+      .catch(() => setEvents([]))
+      .finally(() => setEventsLoading(false))
   }, [place])
 
   if (loading) return (

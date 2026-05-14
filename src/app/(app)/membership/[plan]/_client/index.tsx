@@ -178,30 +178,30 @@ export default function MembershipDetailPage() {
 
       if (!secret) throw new Error('No payment secret returned')
 
-      // ── Native iOS → Payment Sheet with Apple Pay ──────────────────
+      // ── Native iOS → Apple Pay (direct, no Stripe payment sheet) ───
       if (Capacitor.isNativePlatform()) {
-        const { Stripe } = await import('@capacitor-community/stripe')
+        const { Stripe, ApplePayEventsEnum } = await import('@capacitor-community/stripe')
 
         await Stripe.initialize({
           publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
         })
 
-        await Stripe.createPaymentSheet({
+        await Stripe.createApplePay({
           paymentIntentClientSecret: secret,
-          merchantDisplayName:       'Club Fuoco',
-          enableApplePay:            true,
-          applePayMerchantId:        process.env.NEXT_PUBLIC_APPLE_PAY_MERCHANT_ID ?? 'merchant.com.clubfuoco.app',
-          countryCode:               'IT',
-          currencyCode:              'eur',
-          style:                     cfg.id === 'black' ? 'alwaysDark' : undefined,
+          paymentSummaryItems: [
+            { label: `Club Fuoco · ${cfg.label}`, amount: cfg.pricePlain },
+          ],
+          merchantIdentifier: process.env.NEXT_PUBLIC_APPLE_PAY_MERCHANT_ID ?? 'merchant.com.clubfuoco.app',
+          countryCode:        'IT',
+          currency:           'eur',
         })
 
-        const { paymentResult } = await Stripe.presentPaymentSheet()
+        const { paymentResult } = await Stripe.presentApplePay()
 
-        if (paymentResult === 'paymentSheetCompleted') {
+        if (paymentResult === ApplePayEventsEnum.Completed) {
           // Webhook confirms the subscription — navigate to success
           router.replace(`/membership?success=1&tier=${cfg.id}`)
-        } else if (paymentResult === 'paymentSheetCanceled') {
+        } else if (paymentResult === ApplePayEventsEnum.Canceled) {
           // User dismissed the sheet — do nothing
           setLoading(false)
         } else {
@@ -373,10 +373,7 @@ export default function MembershipDetailPage() {
               color: '#B0A898',
               margin: 0, lineHeight: 1.6,
             }}>
-              Benefits apply at partner clubs.{' '}
-              <span style={{ color: '#8C2A2A' }}>
-                See the full list of 124 venues in Italy →
-              </span>
+              Benefits apply at partner clubs.
             </p>
           </section>
 
@@ -384,7 +381,7 @@ export default function MembershipDetailPage() {
           <div style={{ margin: '0 20px', borderTop: '1px solid rgba(34,30,26,0.07)' }} />
 
           {/* How it compares */}
-          <section style={{ padding: '24px 20px 32px' }}>
+          <section style={{ padding: '24px 20px 0' }}>
             <p style={{
               fontFamily: 'ui-monospace, monospace',
               fontSize: 9, letterSpacing: '1.62px',
@@ -439,74 +436,46 @@ export default function MembershipDetailPage() {
               })}
             </div>
           </section>
+
+          {/* ── CTA button ─────────────────────────────────────────────── */}
+          <section style={{ padding: '20px 20px 32px' }}>
+            {error && (
+              <p style={{ fontFamily: 'Inter', fontSize: 12, color: '#8C2A2A', margin: '0 0 10px', textAlign: 'center' }}>{error}</p>
+            )}
+            <button
+              onClick={subscribe}
+              disabled={loading}
+              style={{
+                width: '100%',
+                height: 52,
+                borderRadius: 12,
+                border: 'none',
+                background: cfg.btnBg,
+                color: cfg.btnColor,
+                fontFamily: 'ui-monospace, monospace',
+                fontSize: 11, fontWeight: 400,
+                letterSpacing: '1.89px',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                opacity: loading ? 0.6 : 1,
+              }}
+            >
+              {loading ? (
+                <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: "'FILL' 0, 'wght' 300", animation: 'spin 1s linear infinite' }}>
+                  progress_activity
+                </span>
+              ) : (
+                <>
+                  {cfg.cta}
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                    <path d="M2 5.5h7M6 2.5l3 3-3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </>
+              )}
+            </button>
+          </section>
         </div>
-      </div>
-
-      {/* ── Sticky bottom bar ───────────────────────────────────────── */}
-      <div style={{
-        flexShrink: 0,
-        background: cfg.barBg,
-        padding: '10px 20px',
-        paddingBottom: 'calc(76px + env(safe-area-inset-bottom, 0px))',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
-        borderTop: `1px solid ${cfg.ruleColor}`,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-          <span style={{
-            fontFamily: '"Instrument Serif", Georgia, serif',
-            fontSize: 24, letterSpacing: '-0.07px',
-            color: cfg.barPriceColor,
-          }}>
-            {cfg.price}
-          </span>
-          <span style={{
-            fontFamily: 'ui-monospace, monospace',
-            fontSize: 9, letterSpacing: '1.32px',
-            textTransform: 'uppercase',
-            color: cfg.barPeriodColor,
-          }}>
-            per month
-          </span>
-        </div>
-
-        {error && (
-          <p style={{ fontFamily: 'Inter', fontSize: 11, color: '#8C2A2A', flex: 1, textAlign: 'center' }}>{error}</p>
-        )}
-
-        <button
-          onClick={subscribe}
-          disabled={loading}
-          style={{
-            height: 44,
-            padding: '0 20px',
-            borderRadius: 10,
-            border: 'none',
-            background: cfg.btnBg,
-            color: cfg.btnColor,
-            fontFamily: 'ui-monospace, monospace',
-            fontSize: 10.5, fontWeight: 400,
-            letterSpacing: '1.89px',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 8,
-            opacity: loading ? 0.6 : 1,
-            flexShrink: 0,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {loading ? (
-            <span className="material-symbols-outlined" style={{ fontSize: 15, fontVariationSettings: "'FILL' 0, 'wght' 300", animation: 'spin 1s linear infinite' }}>
-              progress_activity
-            </span>
-          ) : (
-            <>
-              {cfg.cta}
-              <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-                <path d="M2 5.5h7M6 2.5l3 3-3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </>
-          )}
-        </button>
       </div>
     </div>
   )

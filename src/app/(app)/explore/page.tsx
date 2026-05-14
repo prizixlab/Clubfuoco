@@ -1094,6 +1094,13 @@ export default function ExplorePage() {
               <span className="material-symbols-outlined" style={{ fontSize: 18, color: showSearch ? C.pillInkActive : C.ink2 }}>{showSearch ? 'close' : 'search'}</span>
             </button>
             <button
+              onClick={() => router.push('/fiamme')}
+              style={{ width: 36, height: 36, borderRadius: '50%', background: C.pillBg, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              aria-label="Fiamme points"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18, color: C.ink2, fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
+            </button>
+            <button
               onClick={() => { setShowSaved(s => !s); setShowSearch(false); setSearch('') }}
               style={{ width: 36, height: 36, borderRadius: '50%', background: showSaved ? C.ink : C.pillBg, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
             >

@@ -160,6 +160,7 @@ export default function BookingsPage() {
   const [qrFullscreen,   setQrFullscreen]   = useState<{ bookingId: string; clubName: string; dateStr: string; coverImage?: string | null; total?: number; partySize?: number; bookingType?: string } | null>(null)
   const [pendingSurveys, setPendingSurveys] = useState<PendingBooking[]>([])
   const [activeSurvey,   setActiveSurvey]   = useState<PendingBooking | null>(null)
+  const [activeTab,      setActiveTab]      = useState<'tickets' | 'reviews'>('tickets')
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
 
   // Keep screen on while QR is fullscreen
@@ -763,6 +764,56 @@ export default function BookingsPage() {
         )}
       </div>
 
+      {/* Segmented tabs — Tickets / Reviews */}
+      <div style={{ padding: '4px 16px 16px' }}>
+        <div style={{
+          position: 'relative',
+          display: 'grid', gridTemplateColumns: '1fr 1fr',
+          background: '#EFE9DC', borderRadius: 999, padding: 4,
+        }}>
+          {/* Sliding pill indicator */}
+          <div style={{
+            position: 'absolute', top: 4, bottom: 4,
+            left: activeTab === 'tickets' ? 4 : '50%',
+            width: 'calc(50% - 4px)',
+            background: '#FFFFFF', borderRadius: 999,
+            boxShadow: '0 1px 4px rgba(34,30,26,0.08)',
+            transition: 'left 0.25s cubic-bezier(0.4,0,0.2,1)',
+          }} />
+          {(['tickets', 'reviews'] as const).map(t => {
+            const isActive = activeTab === t
+            const label    = t === 'tickets' ? 'Tickets'  : 'Reviews'
+            const count    = t === 'tickets' ? totalCount : pendingSurveys.length
+            return (
+              <button
+                key={t}
+                onClick={() => setActiveTab(t)}
+                style={{
+                  position: 'relative', zIndex: 1,
+                  padding: '10px 0', background: 'none', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  fontSize: 13, fontWeight: 600,
+                  color: isActive ? '#221E1A' : '#9F9486',
+                  fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+                  transition: 'color 0.2s',
+                }}
+              >
+                {label}
+                {count > 0 && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, lineHeight: 1,
+                    padding: '3px 7px', borderRadius: 99, minWidth: 18, textAlign: 'center',
+                    background: isActive ? '#8C2A2A' : '#D8CFB8',
+                    color: isActive ? '#FFFFFF' : '#9F9486',
+                    transition: 'background 0.2s, color 0.2s',
+                  }}>{count}</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Main content */}
       <div style={{ padding: '0 16px' }}>
 
@@ -778,8 +829,55 @@ export default function BookingsPage() {
           </div>
         )}
 
+        {/* ─── REVIEWS TAB ─── */}
+        {!loading && activeTab === 'reviews' && (
+          pendingSurveys.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 0', color: '#9F9486' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 40, marginBottom: 12, color: '#9F9486' }}>star</span>
+              <div style={{
+                fontFamily: '"Instrument Serif", Georgia, serif',
+                fontStyle: 'italic', fontSize: 24, color: '#221E1A', marginBottom: 8,
+              }}>Nothing to review</div>
+              <div style={{ fontSize: 14, color: '#9F9486', textAlign: 'center', maxWidth: 240 }}>
+                After a night out we&apos;ll ask how it went
+              </div>
+            </div>
+          ) : (
+            <div>
+              {pendingSurveys.map(s => (
+                <div key={s.id} style={{
+                  background: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 12,
+                  boxShadow: '0 2px 12px rgba(34,30,26,0.08)',
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  border: '1px solid rgba(140,42,42,0.15)',
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 28, flexShrink: 0, color: '#8C2A2A' }}>star</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: '#221E1A' }}>
+                      How was {s.clubs?.name ?? 'last night'}?
+                    </div>
+                    <div style={{ fontSize: 12, color: '#9F9486' }}>Quick 5-question survey · +10 Fiamme</div>
+                  </div>
+                  <button
+                    onClick={() => setActiveSurvey(s)}
+                    style={{
+                      flexShrink: 0, padding: '8px 14px', borderRadius: 8, border: 'none',
+                      background: '#221E1A', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    }}>
+                    Rate it
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+
+        {/* ─── TICKETS TAB ─── */}
+        {!loading && activeTab === 'tickets' && (
+          <>
+
         {/* Empty state */}
-        {!loading && isEmpty && (
+        {isEmpty && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 0', color: '#9F9486' }}>
             <span className="material-symbols-outlined" style={{ fontSize: 40, marginBottom: 12, color: '#9F9486' }}>confirmation_number</span>
             <div style={{
@@ -795,38 +893,8 @@ export default function BookingsPage() {
           </div>
         )}
 
-        {/* Post-visit survey prompts */}
-        {!loading && pendingSurveys.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            {pendingSurveys.map(s => (
-              <div key={s.id} style={{
-                background: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 12,
-                boxShadow: '0 2px 12px rgba(34,30,26,0.08)',
-                display: 'flex', alignItems: 'center', gap: 12,
-                border: '1px solid rgba(140,42,42,0.15)',
-              }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 28, flexShrink: 0, color: '#8C2A2A' }}>star</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#221E1A' }}>
-                    How was {s.clubs?.name ?? 'last night'}?
-                  </div>
-                  <div style={{ fontSize: 12, color: '#9F9486' }}>Quick 5-question survey</div>
-                </div>
-                <button
-                  onClick={() => setActiveSurvey(s)}
-                  style={{
-                    flexShrink: 0, padding: '8px 14px', borderRadius: 8, border: 'none',
-                    background: '#221E1A', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                  }}>
-                  Rate it
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Tonight section */}
-        {!loading && hasTonightItems && (
+        {hasTonightItems && (
           <div style={{ marginBottom: 8 }}>
             <SectionLabel
               index="01"
@@ -840,7 +908,7 @@ export default function BookingsPage() {
         )}
 
         {/* Upcoming section */}
-        {!loading && hasUpcoming && (
+        {hasUpcoming && (
           <div style={{ marginBottom: 8 }}>
             <SectionLabel
               index={hasTonightItems ? '02' : '01'}
@@ -854,7 +922,7 @@ export default function BookingsPage() {
         )}
 
         {/* Show past & cancelled toggle */}
-        {!loading && hasPast && (
+        {hasPast && (
           <div style={{ marginBottom: 16 }}>
             <button
               onClick={() => setShowPast(p => !p)}
@@ -882,6 +950,8 @@ export default function BookingsPage() {
               </div>
             )}
           </div>
+        )}
+          </>
         )}
       </div>
 

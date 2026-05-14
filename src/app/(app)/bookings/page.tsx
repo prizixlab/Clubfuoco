@@ -247,8 +247,8 @@ export default function BookingsPage() {
 
   // Pull the current user's email so we can gate the test-booking button
   useEffect(() => {
-    createClient().auth.getUser().then(({ data }) => {
-      setUserEmail(data.user?.email?.toLowerCase() ?? null)
+    createClient().auth.getUser().then((res: any) => {
+      setUserEmail(res?.data?.user?.email?.toLowerCase() ?? null)
     })
   }, [])
 

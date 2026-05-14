@@ -641,10 +641,26 @@ export default function PlaceDetailPage() {
               <span className="material-symbols-outlined" style={{ fontSize: 20, color: C.ink3 }}>{hoursOpen ? 'expand_less' : 'expand_more'}</span>
             </button>
             {hoursOpen && (
-              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {place.weekday_hours.map((h, i) => (
-                  <p key={i} style={{ fontSize: 13, color: C.ink2, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{h}</p>
-                ))}
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 0, borderRadius: 12, overflow: 'hidden', background: C.bg }}>
+                {place.weekday_hours.map((h, i) => {
+                  const colon  = h.indexOf(':')
+                  const day    = colon > -1 ? h.slice(0, colon).trim() : h
+                  const hours  = colon > -1 ? h.slice(colon + 1).trim() : ''
+                  const todayIdx = (new Date().getDay() + 6) % 7   // Mon=0 … Sun=6
+                  const isToday  = i === todayIdx
+                  const closed   = hours.toLowerCase() === 'closed'
+                  return (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '10px 14px',
+                      background: isToday ? `${C.accent}18` : 'transparent',
+                      borderBottom: i < place.weekday_hours.length - 1 ? `1px solid ${C.line}` : 'none',
+                    }}>
+                      <p style={{ fontSize: 13, color: isToday ? C.accent : C.ink2, fontWeight: isToday ? 600 : 400, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{day}</p>
+                      <p style={{ fontSize: 13, color: closed ? C.ink3 : isToday ? C.ink : C.ink2, fontWeight: isToday ? 500 : 400, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', textAlign: 'right', maxWidth: '60%' }}>{hours || h}</p>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

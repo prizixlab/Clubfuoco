@@ -605,9 +605,15 @@ export default function PlaceDetailPage() {
           {/* STATUS / open-closed */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 4px', background: C.bg, borderRadius: 12 }}>
             <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 4px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Status</p>
-            <p style={{ fontSize: 13, fontWeight: 700, color: place.is_open === true ? '#2D7A46' : place.is_open === false ? C.accent : C.ink3, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
-              {place.is_open === true ? 'Open' : place.is_open === false ? 'Closed' : '—'}
-            </p>
+            {(() => {
+              const live = place.is_open
+              const status = live === true || live === false ? live : computeOpenNow(place.weekday_hours)
+              return (
+                <p style={{ fontSize: 13, fontWeight: 700, color: status === true ? '#2D7A46' : status === false ? C.accent : C.ink3, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+                  {status === true ? 'Open' : status === false ? 'Closed' : '—'}
+                </p>
+              )
+            })()}
           </div>
 
           {/* RATING */}

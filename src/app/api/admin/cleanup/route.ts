@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { classifyVenue } from '@/lib/gemini'
 
-// How many venues to review per run (free tier: 15 RPM max, so keep this small)
-const BATCH_SIZE  = 10
+// Vercel function timeout — needed because each run can take up to ~3 min
+export const maxDuration = 300
+
+// How many venues to review per run.
+// Free Gemini tier = 15 RPM + 1,500 RPD. We do 14 per run × 3 runs/day = 42/day,
+// well under the daily quota and within RPM with a 4.5 s spacer.
+const BATCH_SIZE  = 14
 // Delay between Gemini calls to stay under 15 RPM (4.5 s = ~13 RPM)
 const DELAY_MS    = 4_500
 // Confidence threshold below which we deactivate the venue
-const NOT_NIGHTLIFE_THRESHOLD = 0.35
+const NOT_NIGHTLIFE_THRESHOLD = 0.55
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 

@@ -14,6 +14,14 @@
       "schedule": "0 11 * * *"
     },
     {
+      "path": "/api/admin/cleanup",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/admin/cleanup",
+      "schedule": "0 23 * * *"
+    },
+    {
       "path": "/api/admin/sync-events",
       "schedule": "0 6 * * *"
     }

@@ -711,6 +711,44 @@ export default function PlaceDetailPage() {
             </div>
             <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>chevron_right</span>
           </a>
+
+          {/* Ride with Free Now — only renders when affiliate env vars are set */}
+          {process.env.NEXT_PUBLIC_FREENOW_AWIN_MID && process.env.NEXT_PUBLIC_FREENOW_AWIN_AFFID && (() => {
+            // Awin deep-link wrap: tracks the click then forwards to Free Now's
+            // pickup deep link. clickref lets us attribute back to a venue in the
+            // Awin dashboard.
+            const target = `https://www.free-now.com/?pickup=my_location&dropoff_lat=${place.lat}&dropoff_lng=${place.lng}&dropoff_name=${encodeURIComponent(place.name)}`
+            const awin   = `https://www.awin1.com/cread.php?awinmid=${process.env.NEXT_PUBLIC_FREENOW_AWIN_MID}&awinaffid=${process.env.NEXT_PUBLIC_FREENOW_AWIN_AFFID}&clickref=${encodeURIComponent(`venue_${place.place_id}`)}&ued=${encodeURIComponent(target)}`
+            return (
+              <a
+                href={awin}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  apiFetch('/api/ticket-clicks', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({
+                      event_id:       `ride_${place.place_id}`,
+                      platform:       'freenow',
+                      venue_name:     place.name,
+                      venue_place_id: place.place_id,
+                    }),
+                  }).catch(() => {})
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: '#00D38C', borderRadius: 16, textDecoration: 'none' }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 22, color: 'white', fontVariationSettings: "'FILL' 1" }}>local_taxi</span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontWeight: 600, color: 'white', fontSize: 14, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Ride with Free Now</p>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', margin: '2px 0 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Taxi or rideshare in Europe</p>
+                </div>
+                <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'rgba(255,255,255,0.55)', flexShrink: 0 }}>chevron_right</span>
+              </a>
+            )
+          })()}
         </div>
 
         {/* ── Instagram / WhatsApp links ── */}

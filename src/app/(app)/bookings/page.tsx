@@ -149,6 +149,61 @@ function Perforation() {
   )
 }
 
+/**
+ * Swipe-to-dismiss wrapper. Drag horizontally past the threshold to fling
+ * the card off-screen; on release inside the threshold it springs back.
+ * Pointer events cover both touch and mouse.
+ */
+function SwipeCard({ children, onDismiss }: { children: React.ReactNode; onDismiss: () => void }) {
+  const [dx, setDx]   = useState(0)
+  const [gone, setGone] = useState(false)
+  const startX        = useRef<number | null>(null)
+  const dragging      = useRef(false)
+  const THRESHOLD     = 110   // px
+
+  function onDown(e: React.PointerEvent) {
+    startX.current = e.clientX
+    dragging.current = true
+    ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+  function onMove(e: React.PointerEvent) {
+    if (!dragging.current || startX.current === null) return
+    setDx(e.clientX - startX.current)
+  }
+  function onUp() {
+    dragging.current = false
+    if (Math.abs(dx) > THRESHOLD) {
+      const fly = dx > 0 ? 500 : -500
+      setDx(fly)
+      setGone(true)
+      setTimeout(onDismiss, 240)
+    } else {
+      setDx(0)
+    }
+  }
+
+  const opacity = gone ? 0 : Math.max(0.2, 1 - Math.abs(dx) / 260)
+  const rotate  = dx / 35
+
+  return (
+    <div
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+      style={{
+        touchAction: 'pan-y',
+        transform: `translateX(${dx}px) rotate(${rotate}deg)`,
+        opacity,
+        transition: dragging.current ? 'none' : 'transform 0.25s cubic-bezier(0.4,0,0.2,1), opacity 0.25s',
+        willChange: 'transform, opacity',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
 export default function BookingsPage() {
   const [bookings,      setBookings]      = useState<Booking[]>([])
   const [guestSignups,  setGuestSignups]  = useState<GuestSignup[]>([])
@@ -847,7 +902,11 @@ export default function BookingsPage() {
               {pendingSurveys.map((s, idx) => {
                 const n = String(idx + 1).padStart(2, '0')
                 return (
-                  <div key={s.id} style={{
+                  <SwipeCard
+                    key={s.id}
+                    onDismiss={() => setPendingSurveys(prev => prev.filter(p => p.id !== s.id))}
+                  >
+                  <div style={{
                     position: 'relative',
                     background: '#F4EFE3',
                     borderRadius: 18,
@@ -950,7 +1009,7 @@ export default function BookingsPage() {
                       </div>
                     </div>
 
-                    {/* Footer actions */}
+                    {/* Footer action */}
                     <div style={{
                       position: 'relative', marginTop: 20, paddingTop: 14,
                       borderTop: '1px solid rgba(34,30,26,0.08)',
@@ -966,17 +1025,13 @@ export default function BookingsPage() {
                         Rate it
                         <span style={{ fontSize: 18, lineHeight: 1 }}>→</span>
                       </button>
-                      <button
-                        onClick={() => setPendingSurveys(prev => prev.filter(p => p.id !== s.id))}
-                        style={{
-                          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                          fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase',
-                          color: '#9F9486', fontWeight: 600,
-                        }}>
-                        Later
-                      </button>
+                      <span style={{
+                        fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase',
+                        color: '#B8B0A2', fontWeight: 600,
+                      }}>← Swipe to dismiss →</span>
                     </div>
                   </div>
+                  </SwipeCard>
                 )
               })}
             </div>

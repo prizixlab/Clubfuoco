@@ -27,6 +27,66 @@ function fmtStart(s: string | null | undefined) {
   return m ? m[1] : s
 }
 
+// Parses "5:00 PM" / "3:00 AM" → minutes from midnight (0..1439). Returns -1 on miss.
+function parseClock(s: string): number {
+  const m = s.trim().match(/^(\d{1,2}):?(\d{2})?\s*(AM|PM)$/i)
+  if (!m) return -1
+  let h = parseInt(m[1], 10)
+  const min = m[2] ? parseInt(m[2], 10) : 0
+  const ap = m[3].toUpperCase()
+  if (ap === 'PM' && h !== 12) h += 12
+  if (ap === 'AM' && h === 12) h = 0
+  return h * 60 + min
+}
+
+/**
+ * Computes whether the club is open right now from its weekday_hours array.
+ * Handles cross-midnight ranges (e.g. 5:00 PM – 3:00 AM closes next day).
+ * Returns true/false, or null if it can't be determined.
+ */
+function computeOpenNow(rows: string[]): boolean | null {
+  if (!rows || rows.length < 7) return null
+  const now = new Date()
+  const nowMin   = now.getHours() * 60 + now.getMinutes()
+  const todayIdx = (now.getDay() + 6) % 7   // Mon=0 … Sun=6
+  const yIdx     = (todayIdx + 6) % 7
+
+  const parseRow = (row: string | undefined): [number, number] | null => {
+    if (!row) return null
+    const colon = row.indexOf(':')
+    const hrs = colon > -1 ? row.slice(colon + 1).trim() : row
+    if (/closed/i.test(hrs)) return null
+    // Split on en-dash, em-dash, hyphen, or " to "
+    const parts = hrs.split(/\s*[–—\-]\s*|\s+to\s+/i)
+    if (parts.length !== 2) return null
+    const o = parseClock(parts[0])
+    const c = parseClock(parts[1])
+    if (o < 0 || c < 0) return null
+    return [o, c]
+  }
+
+  // Today's range
+  const today = parseRow(rows[todayIdx])
+  if (today) {
+    const [open, close] = today
+    if (close >= open) {
+      if (nowMin >= open && nowMin < close) return true
+    } else {
+      // Cross-midnight: open until close on the NEXT day. If nowMin >= open we're inside.
+      if (nowMin >= open) return true
+    }
+  }
+
+  // Yesterday's range that wraps past midnight into today
+  const y = parseRow(rows[yIdx])
+  if (y) {
+    const [yOpen, yClose] = y
+    if (yClose < yOpen && nowMin < yClose) return true
+  }
+
+  return false
+}
+
 interface PlaceDetail {
   place_id:            string
   name:                string
@@ -633,8 +693,16 @@ export default function PlaceDetailPage() {
                 <span className="material-symbols-outlined" style={{ fontSize: 18, color: C.accent }}>schedule</span>
                 <div style={{ textAlign: 'left' }}>
                   <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 2px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Opening Hours</p>
-                  <p style={{ fontSize: 13, color: C.ink, margin: 0, fontWeight: 500, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
-                    {place.is_open === true ? 'Open now' : place.is_open === false ? 'Closed now' : 'See hours'}
+                  <p style={{ fontSize: 13, color: place.is_open === true || computeOpenNow(place.weekday_hours) === true ? '#1F8F4A' : (place.is_open === false || computeOpenNow(place.weekday_hours) === false) ? C.ink2 : C.ink, margin: 0, fontWeight: 500, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+                    {(() => {
+                      const live = place.is_open
+                      if (live === true)  return 'Open now'
+                      if (live === false) return 'Closed now'
+                      const computed = computeOpenNow(place.weekday_hours)
+                      if (computed === true)  return 'Open now'
+                      if (computed === false) return 'Closed now'
+                      return 'See hours'
+                    })()}
                   </p>
                 </div>
               </div>

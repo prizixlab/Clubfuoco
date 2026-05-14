@@ -87,6 +87,58 @@ function computeOpenNow(rows: string[]): boolean | null {
   return false
 }
 
+/**
+ * If the club is currently open, returns minutes remaining until close.
+ * Returns null when the club is closed, or hours can't be parsed.
+ */
+function minutesUntilClose(rows: string[]): number | null {
+  if (!rows || rows.length < 7) return null
+  const now = new Date()
+  const nowMin   = now.getHours() * 60 + now.getMinutes()
+  const todayIdx = (now.getDay() + 6) % 7
+  const yIdx     = (todayIdx + 6) % 7
+
+  const parseRow = (row: string | undefined): [number, number] | null => {
+    if (!row) return null
+    const colon = row.indexOf(':')
+    const hrs = colon > -1 ? row.slice(colon + 1).trim() : row
+    if (/closed/i.test(hrs)) return null
+    const parts = hrs.split(/\s*[–—\-]\s*|\s+to\s+/i)
+    if (parts.length !== 2) return null
+    const o = parseClock(parts[0])
+    const c = parseClock(parts[1])
+    if (o < 0 || c < 0) return null
+    return [o, c]
+  }
+
+  const today = parseRow(rows[todayIdx])
+  if (today) {
+    const [open, close] = today
+    if (close >= open) {
+      if (nowMin >= open && nowMin < close) return close - nowMin
+    } else {
+      // Cross-midnight: close is tomorrow → (1440 - nowMin) + close
+      if (nowMin >= open) return (1440 - nowMin) + close
+    }
+  }
+
+  const y = parseRow(rows[yIdx])
+  if (y) {
+    const [yOpen, yClose] = y
+    if (yClose < yOpen && nowMin < yClose) return yClose - nowMin
+  }
+
+  return null
+}
+
+function formatCloseCountdown(mins: number): string {
+  if (mins < 60) return `Closing in ${mins} min`
+  const hours = Math.floor(mins / 60)
+  const rem   = mins % 60
+  if (rem === 0) return `Closing in ${hours} hr`
+  return `Closing in ${hours} hr ${rem} min`
+}
+
 interface PlaceDetail {
   place_id:            string
   name:                string
@@ -699,17 +751,26 @@ export default function PlaceDetailPage() {
                 <span className="material-symbols-outlined" style={{ fontSize: 18, color: C.accent }}>schedule</span>
                 <div style={{ textAlign: 'left' }}>
                   <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 2px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Opening Hours</p>
-                  <p style={{ fontSize: 13, color: place.is_open === true || computeOpenNow(place.weekday_hours) === true ? '#1F8F4A' : (place.is_open === false || computeOpenNow(place.weekday_hours) === false) ? C.ink2 : C.ink, margin: 0, fontWeight: 500, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
-                    {(() => {
-                      const live = place.is_open
-                      if (live === true)  return 'Open now'
-                      if (live === false) return 'Closed now'
-                      const computed = computeOpenNow(place.weekday_hours)
-                      if (computed === true)  return 'Open now'
-                      if (computed === false) return 'Closed now'
-                      return 'See hours'
-                    })()}
-                  </p>
+                  {(() => {
+                    const live     = place.is_open
+                    const computed = computeOpenNow(place.weekday_hours)
+                    const isOpen   = live === true  ? true  : live === false ? false : computed
+                    const mins     = isOpen === true ? minutesUntilClose(place.weekday_hours) : null
+                    const label    = isOpen === true ? 'Open now' : isOpen === false ? 'Closed now' : 'See hours'
+                    const color    = isOpen === true ? '#1F8F4A' : isOpen === false ? C.ink2 : C.ink
+                    return (
+                      <>
+                        <p style={{ fontSize: 13, color, margin: 0, fontWeight: 500, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+                          {label}
+                        </p>
+                        {mins !== null && mins <= 120 && (
+                          <p style={{ fontSize: 11, color: mins <= 30 ? C.accent : C.ink3, margin: '2px 0 0', fontWeight: 500, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+                            {formatCloseCountdown(mins)}
+                          </p>
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
               </div>
               <span className="material-symbols-outlined" style={{ fontSize: 20, color: C.ink3 }}>{hoursOpen ? 'expand_less' : 'expand_more'}</span>

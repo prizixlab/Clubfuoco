@@ -139,6 +139,54 @@ function formatCloseCountdown(mins: number): string {
   return `Closing in ${hours} hr ${rem} min`
 }
 
+/**
+ * When the club is currently closed, returns minutes until its next opening.
+ * Scans today + next 6 days. Returns null if no opening can be parsed.
+ */
+function minutesUntilOpen(rows: string[]): number | null {
+  if (!rows || rows.length < 7) return null
+  const now = new Date()
+  const nowMin   = now.getHours() * 60 + now.getMinutes()
+  const todayIdx = (now.getDay() + 6) % 7
+
+  const parseRow = (row: string | undefined): [number, number] | null => {
+    if (!row) return null
+    const colon = row.indexOf(':')
+    const hrs = colon > -1 ? row.slice(colon + 1).trim() : row
+    if (/closed/i.test(hrs)) return null
+    const parts = hrs.split(/\s*[–—\-]\s*|\s+to\s+/i)
+    if (parts.length !== 2) return null
+    const o = parseClock(parts[0])
+    const c = parseClock(parts[1])
+    if (o < 0 || c < 0) return null
+    return [o, c]
+  }
+
+  for (let i = 0; i < 7; i++) {
+    const r = parseRow(rows[(todayIdx + i) % 7])
+    if (!r) continue
+    const [open] = r
+    if (i === 0) {
+      if (open > nowMin) return open - nowMin
+    } else {
+      return (1440 - nowMin) + (i - 1) * 1440 + open
+    }
+  }
+  return null
+}
+
+function formatOpenCountdown(mins: number): string {
+  if (mins < 60) return `Opens in ${mins} min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) {
+    const rem = mins % 60
+    if (rem === 0) return `Opens in ${hours} hr`
+    return `Opens in ${hours} hr ${rem} min`
+  }
+  const days = Math.round(hours / 24)
+  return `Opens in ${days} day${days === 1 ? '' : 's'}`
+}
+
 interface PlaceDetail {
   place_id:            string
   name:                string
@@ -752,20 +800,26 @@ export default function PlaceDetailPage() {
                 <div style={{ textAlign: 'left' }}>
                   <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 2px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Opening Hours</p>
                   {(() => {
-                    const live     = place.is_open
-                    const computed = computeOpenNow(place.weekday_hours)
-                    const isOpen   = live === true  ? true  : live === false ? false : computed
-                    const mins     = isOpen === true ? minutesUntilClose(place.weekday_hours) : null
-                    const label    = isOpen === true ? 'Open now' : isOpen === false ? 'Closed now' : 'See hours'
-                    const color    = isOpen === true ? '#1F8F4A' : isOpen === false ? C.ink2 : C.ink
+                    const live      = place.is_open
+                    const computed  = computeOpenNow(place.weekday_hours)
+                    const isOpen    = live === true  ? true  : live === false ? false : computed
+                    const closeMins = isOpen === true  ? minutesUntilClose(place.weekday_hours) : null
+                    const openMins  = isOpen === false ? minutesUntilOpen(place.weekday_hours)  : null
+                    const label     = isOpen === true ? 'Open now' : isOpen === false ? 'Closed now' : 'See hours'
+                    const color     = isOpen === true ? '#1F8F4A' : isOpen === false ? C.ink2 : C.ink
                     return (
                       <>
                         <p style={{ fontSize: 13, color, margin: 0, fontWeight: 500, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
                           {label}
                         </p>
-                        {mins !== null && mins <= 120 && (
-                          <p style={{ fontSize: 11, color: mins <= 30 ? C.accent : C.ink3, margin: '2px 0 0', fontWeight: 500, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
-                            {formatCloseCountdown(mins)}
+                        {closeMins !== null && closeMins <= 120 && (
+                          <p style={{ fontSize: 11, color: closeMins <= 30 ? C.accent : C.ink3, margin: '2px 0 0', fontWeight: 500, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+                            {formatCloseCountdown(closeMins)}
+                          </p>
+                        )}
+                        {openMins !== null && openMins <= 24 * 60 && (
+                          <p style={{ fontSize: 11, color: openMins <= 60 ? '#1F8F4A' : C.ink3, margin: '2px 0 0', fontWeight: 500, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+                            {formatOpenCountdown(openMins)}
                           </p>
                         )}
                       </>

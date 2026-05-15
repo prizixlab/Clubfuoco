@@ -2,7 +2,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
-import QRCode from 'qrcode'
+// Lazy-loaded only when user actually redeems — keeps qrcode out of initial bundle
+async function generateQR(text: string): Promise<string> {
+  const QRCode = (await import('qrcode')).default
+  return QRCode.toDataURL(text, { width: 220, margin: 2, color: { dark: '#221E1A', light: '#FFFFFF' } })
+}
 
 /* ─── Design tokens ─────────────────────────────────────────────────────── */
 const C = {
@@ -127,10 +131,7 @@ export default function FiammePage() {
       })
       if (res.ok) {
         const { data: rd } = await res.json()
-        const src = await QRCode.toDataURL(rd.code, {
-          width: 220, margin: 2,
-          color: { dark: '#221E1A', light: '#FFFFFF' },
-        })
+        const src = await generateQR(rd.code)
         setQrSrc(src)
         setData(prev => prev
           ? { ...prev, balance: prev.balance - sheet.reward.cost }

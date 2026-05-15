@@ -31,10 +31,10 @@ if [ -d "$API_DIR" ]; then
   mv "$API_DIR" "$API_BACKUP"
 fi
 
-# 2. Build the static export
+# 2. Build the static export (BROWSERSLIST_ENV=ios targets WebKit-only polyfills)
 echo "→ Running Next.js static export build …"
 cd "$ROOT"
-BUILD_TARGET=ios npx next build
+BUILD_TARGET=ios BROWSERSLIST_ENV=ios npx next build
 
 # 3. Sync the /out directory to the iOS Capacitor project
 echo "→ Syncing to Capacitor iOS …"

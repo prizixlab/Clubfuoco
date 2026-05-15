@@ -1,0 +1,12 @@
+# Vercel/web deploy — broad modern support
+[production]
+> 0.5%
+last 2 versions
+not dead
+not IE 11
+
+# iOS Capacitor build — only the WebKit version shipped with iOS 15+
+# Eliminates most of the polyfill chunk (~60KB saved)
+[ios]
+ios_saf >= 15
+safari >= 15

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createAuthedClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { ok, err } from '@/lib/utils'
 import { z } from 'zod'
@@ -96,67 +96,10 @@ export async function POST(req: NextRequest) {
     return err(error.message)
   }
 
-  // ── Award Fiamme points ───────────────────────────────────────────────────
-  // Awaited inline — a fire-and-forget block would be killed when the
-  // serverless function freezes after the response is sent. Best-effort:
-  // wrapped in try/catch so a points failure never fails the survey.
-  // createAuthedClient forwards the Bearer token so RLS on fiamme_ledger
-  // sees the real user — the plain anon client has no session natively.
-  try {
-    const svc = await createAuthedClient()
-    const ledgerRows: { user_id: string; amount: number; type: string; description: string; booking_id: string }[] = []
-
-    // +10 verified review (always)
-    ledgerRows.push({
-      user_id:     user!.id,
-      amount:      10,
-      type:        'review',
-      description: 'Verified review',
-      booking_id:  parsed.data.booking_id,
-    })
-
-    // +50 if this is the first review of this club by anyone
-    const { data: bk } = await svc
-      .from('bookings')
-      .select('club_id')
-      .eq('id', parsed.data.booking_id)
-      .single()
-
-    if (bk?.club_id) {
-      const { data: clubBookings } = await svc
-        .from('bookings')
-        .select('id')
-        .eq('club_id', bk.club_id)
-
-      const clubBookingIds = (clubBookings ?? [])
-        .map(b => b.id)
-        .filter(id => id !== parsed.data.booking_id)
-
-      let isFirst = clubBookingIds.length === 0
-      if (clubBookingIds.length > 0) {
-        const { count: priorCount } = await svc
-          .from('booking_surveys')
-          .select('id', { count: 'exact', head: true })
-          .in('booking_id', clubBookingIds)
-        isFirst = (priorCount ?? 0) === 0
-      }
-
-      if (isFirst) {
-        ledgerRows.push({
-          user_id:     user!.id,
-          amount:      50,
-          type:        'first_review',
-          description: 'First review at this venue',
-          booking_id:  parsed.data.booking_id,
-        })
-      }
-    }
-
-    const { error: ledgerError } = await svc.from('fiamme_ledger').insert(ledgerRows)
-    if (ledgerError) console.error('Fiamme points award failed:', ledgerError.message)
-  } catch (e) {
-    console.error('Fiamme points award threw:', e)
-  }
+  // Fiamme points are awarded by a database trigger on booking_surveys
+  // (trg_award_fiamme_for_review) — see supabase/migrations/fiamme_points.sql.
+  // Doing it in the DB removes all the RLS / serverless-timing fragility of
+  // awarding points from this route.
 
   // Async taste profile recompute — don't block the response
   fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/me/taste-profile`, {

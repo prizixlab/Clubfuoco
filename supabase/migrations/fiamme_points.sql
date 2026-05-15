@@ -55,3 +55,47 @@ create policy "Users can insert own redemptions"
 
 create index if not exists idx_fiamme_redemptions_user
   on public.fiamme_redemptions (user_id, created_at desc);
+
+-- ── Auto-award trigger ──────────────────────────────────────────────────────
+-- Awards Fiamme automatically whenever a booking_surveys row is inserted.
+-- Runs inside the database (security definer) so it bypasses RLS and is
+-- immune to API-route / serverless / client-auth fragility.
+--   +10  every verified review
+--   +50  if it's the first review of that club by anyone
+create or replace function public.award_fiamme_for_review()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_club_id     uuid;
+  v_prior_count int;
+begin
+  -- +10 base
+  insert into public.fiamme_ledger (user_id, amount, type, description, booking_id)
+  values (new.user_id, 10, 'review', 'Verified review', new.booking_id);
+
+  -- +50 first review of this club by anyone
+  select club_id into v_club_id from public.bookings where id = new.booking_id;
+  if v_club_id is not null then
+    select count(*) into v_prior_count
+    from public.booking_surveys bs
+    join public.bookings b on b.id = bs.booking_id
+    where b.club_id = v_club_id and bs.id <> new.id;
+
+    if v_prior_count = 0 then
+      insert into public.fiamme_ledger (user_id, amount, type, description, booking_id)
+      values (new.user_id, 50, 'first_review', 'First review at this venue', new.booking_id);
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_award_fiamme_for_review on public.booking_surveys;
+create trigger trg_award_fiamme_for_review
+  after insert on public.booking_surveys
+  for each row
+  execute function public.award_fiamme_for_review();

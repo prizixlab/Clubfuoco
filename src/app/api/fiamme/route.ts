@@ -1,18 +1,16 @@
 import { NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAuthedClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 
 // GET /api/fiamme — user's balance, tier, and recent activity
 //
-// Uses the service client (bypasses RLS) because Capacitor requests
-// authenticate via Bearer token, not cookies — the anon client would
-// have no session and RLS would return zero rows. The user is already
-// verified by requireAuth() and every query is scoped to user.id.
+// createAuthedClient() forwards the Capacitor Bearer token so RLS sees the
+// real user — the plain anon client has no session for native requests.
 export async function GET() {
   const { user, response } = await requireAuth()
   if (response) return response
 
-  const supabase = await createServiceClient()
+  const supabase = await createAuthedClient()
 
   // Ledger rows for this user
   const { data: ledger, error } = await supabase

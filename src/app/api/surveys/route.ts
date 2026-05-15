@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createClient, createAuthedClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { ok, err } from '@/lib/utils'
 import { z } from 'zod'
@@ -100,10 +100,10 @@ export async function POST(req: NextRequest) {
   // Awaited inline — a fire-and-forget block would be killed when the
   // serverless function freezes after the response is sent. Best-effort:
   // wrapped in try/catch so a points failure never fails the survey.
-  // Service client: fiamme_ledger has strict RLS the anon client can't
-  // satisfy for Capacitor (Bearer-token) requests.
+  // createAuthedClient forwards the Bearer token so RLS on fiamme_ledger
+  // sees the real user — the plain anon client has no session natively.
   try {
-    const svc = await createServiceClient()
+    const svc = await createAuthedClient()
     const ledgerRows: { user_id: string; amount: number; type: string; description: string; booking_id: string }[] = []
 
     // +10 verified review (always)

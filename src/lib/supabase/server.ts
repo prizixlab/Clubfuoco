@@ -1,5 +1,5 @@
 import { createServerClient, type CookieMethodsServer } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 
 function cookieMethods(cookieStore: Awaited<ReturnType<typeof cookies>>): CookieMethodsServer {
   return {
@@ -23,6 +23,31 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: cookieMethods(cookieStore) }
+  )
+}
+
+// Like createClient(), but also forwards a Capacitor Bearer token (when present)
+// as the PostgREST Authorization header. This makes the client act AS the user
+// for RLS purposes — auth.uid() resolves correctly even though Capacitor
+// requests carry no cookies. Web requests fall back to the cookie session.
+// Use this for RLS-protected tables accessed from the native app.
+export async function createAuthedClient() {
+  const cookieStore = await cookies()
+  let token: string | null = null
+  try {
+    const h = await headers()
+    const auth = h.get('authorization')
+    token = auth?.match(/^Bearer\s+(.+)$/i)?.[1] ?? null
+  } catch {
+    // headers() unavailable — fall through to cookie session
+  }
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: cookieMethods(cookieStore),
+      ...(token && { global: { headers: { Authorization: `Bearer ${token}` } } }),
+    }
   )
 }
 

@@ -97,68 +97,63 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Award Fiamme points ───────────────────────────────────────────────────
-  // Run async — never block the survey response on points logic
-  ;(async () => {
-    try {
-      const ledgerRows: { user_id: string; amount: number; type: string; description: string; booking_id: string }[] = []
+  // Awaited inline — a fire-and-forget block would be killed when the
+  // serverless function freezes after the response is sent. Best-effort:
+  // wrapped in try/catch so a points failure never fails the survey.
+  try {
+    const ledgerRows: { user_id: string; amount: number; type: string; description: string; booking_id: string }[] = []
 
-      // +10 verified review (always)
-      ledgerRows.push({
-        user_id:     user!.id,
-        amount:      10,
-        type:        'review',
-        description: 'Verified review',
-        booking_id:  parsed.data.booking_id,
-      })
+    // +10 verified review (always)
+    ledgerRows.push({
+      user_id:     user!.id,
+      amount:      10,
+      type:        'review',
+      description: 'Verified review',
+      booking_id:  parsed.data.booking_id,
+    })
 
-      // +50 if this is the first review of this club by anyone
-      const { data: bk } = await supabase
+    // +50 if this is the first review of this club by anyone
+    const { data: bk } = await supabase
+      .from('bookings')
+      .select('club_id')
+      .eq('id', parsed.data.booking_id)
+      .single()
+
+    if (bk?.club_id) {
+      const { data: clubBookings } = await supabase
         .from('bookings')
-        .select('club_id')
-        .eq('id', parsed.data.booking_id)
-        .single()
+        .select('id')
+        .eq('club_id', bk.club_id)
 
-      if (bk?.club_id) {
-        // All booking IDs at this club
-        const { data: clubBookings } = await supabase
-          .from('bookings')
-          .select('id')
-          .eq('club_id', bk.club_id)
+      const clubBookingIds = (clubBookings ?? [])
+        .map(b => b.id)
+        .filter(id => id !== parsed.data.booking_id)
 
-        const clubBookingIds = (clubBookings ?? []).map(b => b.id).filter(id => id !== data.booking_id)
-
-        if (clubBookingIds.length > 0) {
-          const { count: priorCount } = await supabase
-            .from('booking_surveys')
-            .select('id', { count: 'exact', head: true })
-            .in('booking_id', clubBookingIds)
-
-          if ((priorCount ?? 0) === 0) {
-            ledgerRows.push({
-              user_id:     user!.id,
-              amount:      50,
-              type:        'first_review',
-              description: 'First review at this venue',
-              booking_id:  parsed.data.booking_id,
-            })
-          }
-        } else {
-          // No other bookings at this club at all — definitely first
-          ledgerRows.push({
-            user_id:     user!.id,
-            amount:      50,
-            type:        'first_review',
-            description: 'First review at this venue',
-            booking_id:  parsed.data.booking_id,
-          })
-        }
+      let isFirst = clubBookingIds.length === 0
+      if (clubBookingIds.length > 0) {
+        const { count: priorCount } = await supabase
+          .from('booking_surveys')
+          .select('id', { count: 'exact', head: true })
+          .in('booking_id', clubBookingIds)
+        isFirst = (priorCount ?? 0) === 0
       }
 
-      await supabase.from('fiamme_ledger').insert(ledgerRows)
-    } catch (_) {
-      // Points are best-effort — never surface errors to the user
+      if (isFirst) {
+        ledgerRows.push({
+          user_id:     user!.id,
+          amount:      50,
+          type:        'first_review',
+          description: 'First review at this venue',
+          booking_id:  parsed.data.booking_id,
+        })
+      }
     }
-  })()
+
+    const { error: ledgerError } = await supabase.from('fiamme_ledger').insert(ledgerRows)
+    if (ledgerError) console.error('Fiamme points award failed:', ledgerError.message)
+  } catch (e) {
+    console.error('Fiamme points award threw:', e)
+  }
 
   // Async taste profile recompute — don't block the response
   fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/me/taste-profile`, {

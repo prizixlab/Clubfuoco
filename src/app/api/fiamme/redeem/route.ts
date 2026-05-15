@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { z } from 'zod'
 
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   }
 
   const reward = REWARDS[parsed.data.reward_key]
-  const supabase = await createClient()
+  const supabase = await createServiceClient()
 
   // Check current balance
   const { data: ledger } = await supabase

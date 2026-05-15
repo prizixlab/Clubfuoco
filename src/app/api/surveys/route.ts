@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { ok, err } from '@/lib/utils'
 import { z } from 'zod'
@@ -100,7 +100,10 @@ export async function POST(req: NextRequest) {
   // Awaited inline — a fire-and-forget block would be killed when the
   // serverless function freezes after the response is sent. Best-effort:
   // wrapped in try/catch so a points failure never fails the survey.
+  // Service client: fiamme_ledger has strict RLS the anon client can't
+  // satisfy for Capacitor (Bearer-token) requests.
   try {
+    const svc = await createServiceClient()
     const ledgerRows: { user_id: string; amount: number; type: string; description: string; booking_id: string }[] = []
 
     // +10 verified review (always)
@@ -113,14 +116,14 @@ export async function POST(req: NextRequest) {
     })
 
     // +50 if this is the first review of this club by anyone
-    const { data: bk } = await supabase
+    const { data: bk } = await svc
       .from('bookings')
       .select('club_id')
       .eq('id', parsed.data.booking_id)
       .single()
 
     if (bk?.club_id) {
-      const { data: clubBookings } = await supabase
+      const { data: clubBookings } = await svc
         .from('bookings')
         .select('id')
         .eq('club_id', bk.club_id)
@@ -131,7 +134,7 @@ export async function POST(req: NextRequest) {
 
       let isFirst = clubBookingIds.length === 0
       if (clubBookingIds.length > 0) {
-        const { count: priorCount } = await supabase
+        const { count: priorCount } = await svc
           .from('booking_surveys')
           .select('id', { count: 'exact', head: true })
           .in('booking_id', clubBookingIds)
@@ -149,7 +152,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { error: ledgerError } = await supabase.from('fiamme_ledger').insert(ledgerRows)
+    const { error: ledgerError } = await svc.from('fiamme_ledger').insert(ledgerRows)
     if (ledgerError) console.error('Fiamme points award failed:', ledgerError.message)
   } catch (e) {
     console.error('Fiamme points award threw:', e)

@@ -96,6 +96,70 @@ export async function POST(req: NextRequest) {
     return err(error.message)
   }
 
+  // ── Award Fiamme points ───────────────────────────────────────────────────
+  // Run async — never block the survey response on points logic
+  ;(async () => {
+    try {
+      const ledgerRows: { user_id: string; amount: number; type: string; description: string; booking_id: string }[] = []
+
+      // +10 verified review (always)
+      ledgerRows.push({
+        user_id:     user!.id,
+        amount:      10,
+        type:        'review',
+        description: 'Verified review',
+        booking_id:  parsed.data.booking_id,
+      })
+
+      // +50 if this is the first review of this club by anyone
+      const { data: bk } = await supabase
+        .from('bookings')
+        .select('club_id')
+        .eq('id', parsed.data.booking_id)
+        .single()
+
+      if (bk?.club_id) {
+        // All booking IDs at this club
+        const { data: clubBookings } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('club_id', bk.club_id)
+
+        const clubBookingIds = (clubBookings ?? []).map(b => b.id).filter(id => id !== data.booking_id)
+
+        if (clubBookingIds.length > 0) {
+          const { count: priorCount } = await supabase
+            .from('booking_surveys')
+            .select('id', { count: 'exact', head: true })
+            .in('booking_id', clubBookingIds)
+
+          if ((priorCount ?? 0) === 0) {
+            ledgerRows.push({
+              user_id:     user!.id,
+              amount:      50,
+              type:        'first_review',
+              description: 'First review at this venue',
+              booking_id:  parsed.data.booking_id,
+            })
+          }
+        } else {
+          // No other bookings at this club at all — definitely first
+          ledgerRows.push({
+            user_id:     user!.id,
+            amount:      50,
+            type:        'first_review',
+            description: 'First review at this venue',
+            booking_id:  parsed.data.booking_id,
+          })
+        }
+      }
+
+      await supabase.from('fiamme_ledger').insert(ledgerRows)
+    } catch (_) {
+      // Points are best-effort — never surface errors to the user
+    }
+  })()
+
   // Async taste profile recompute — don't block the response
   fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/me/taste-profile`, {
     method: 'POST',

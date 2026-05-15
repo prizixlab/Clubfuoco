@@ -19,6 +19,18 @@ const nextConfig: NextConfig = {
         { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       ],
     },
+    // @capacitor-community/stripe is a native-only Capacitor plugin. Its only
+    // usage (membership Apple Pay flow) is guarded by Capacitor.isNativePlatform(),
+    // so the web build never executes it. Alias it to an empty module so the
+    // Vercel build never has to resolve the native package.
+    webpack: (config: { resolve?: { alias?: Record<string, string | false> } }) => {
+      config.resolve = config.resolve ?? {}
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        '@capacitor-community/stripe': false,
+      }
+      return config
+    },
   }),
 }
 

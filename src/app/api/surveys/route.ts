@@ -71,7 +71,11 @@ export async function POST(req: NextRequest) {
 
   const body   = await req.json()
   const parsed = surveySchema.safeParse(body)
-  if (!parsed.success) return err(parsed.error.message, 400)
+  if (!parsed.success) {
+    console.error('[surveys] validation failed:', JSON.stringify(parsed.error.flatten()))
+    console.error('[surveys] received body:', JSON.stringify(body))
+    return err(parsed.error.message, 400)
+  }
 
   // Service client bypasses RLS. The user is already verified by
   // requireAuth() above, and the insert below is explicitly scoped to

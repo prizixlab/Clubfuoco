@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { generateQRToken } from '@/lib/utils'
 
@@ -19,7 +19,9 @@ export async function POST() {
     return NextResponse.json({ error: 'Not available' }, { status: 403 })
   }
 
-  const supabase = await createClient()
+  // Service client — bypasses RLS so the booking insert can't be blocked
+  // on a native (cookie-less) request. User is verified by requireAuth().
+  const supabase = await createServiceClient()
 
   // Try to grab any existing club so the join works; fall back to null
   const { data: club } = await supabase

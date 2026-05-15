@@ -1,4 +1,5 @@
 import { createServerClient, type CookieMethodsServer } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies, headers } from 'next/headers'
 
 function cookieMethods(cookieStore: Awaited<ReturnType<typeof cookies>>): CookieMethodsServer {
@@ -26,13 +27,16 @@ export async function createClient() {
   )
 }
 
-// Like createClient(), but also forwards a Capacitor Bearer token (when present)
-// as the PostgREST Authorization header. This makes the client act AS the user
-// for RLS purposes — auth.uid() resolves correctly even though Capacitor
-// requests carry no cookies. Web requests fall back to the cookie session.
-// Use this for RLS-protected tables accessed from the native app.
+// Returns a Supabase client that acts AS the requesting user for RLS.
+//
+// Native (Capacitor) requests carry no cookies — only `Authorization: Bearer
+// <jwt>`. For those we use the plain supabase-js client with the JWT in the
+// global headers: PostgREST then resolves auth.uid() to the real user, so RLS
+// policies like `auth.uid() = user_id` pass. (The @supabase/ssr client can't
+// do this — it derives auth from cookies and ignores a passed-in header.)
+//
+// Web requests have a cookie session, so we fall back to the cookie client.
 export async function createAuthedClient() {
-  const cookieStore = await cookies()
   let token: string | null = null
   try {
     const h = await headers()
@@ -41,14 +45,20 @@ export async function createAuthedClient() {
   } catch {
     // headers() unavailable — fall through to cookie session
   }
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: cookieMethods(cookieStore),
-      ...(token && { global: { headers: { Authorization: `Bearer ${token}` } } }),
-    }
-  )
+
+  if (token) {
+    return createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+        auth:   { persistSession: false, autoRefreshToken: false },
+      }
+    )
+  }
+
+  // No Bearer token — web request, use the cookie-based session
+  return createClient()
 }
 
 // Use for webhook handlers and admin ops that must bypass RLS

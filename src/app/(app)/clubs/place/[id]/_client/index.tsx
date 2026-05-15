@@ -846,7 +846,7 @@ export default function PlaceDetailPage() {
                       borderBottom: i < place.weekday_hours.length - 1 ? `1px solid ${C.line}` : 'none',
                     }}>
                       <p style={{ fontSize: 13, color: isToday ? C.accent : C.ink2, fontWeight: isToday ? 600 : 400, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{day}</p>
-                      <p style={{ fontSize: 13, color: closed ? C.ink3 : isToday ? C.ink : C.ink2, fontWeight: isToday ? 500 : 400, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', textAlign: 'right', maxWidth: '60%' }}>{hours || h}</p>
+                      <p style={{ fontSize: 13, color: closed ? C.ink3 : isToday ? C.ink : C.ink2, fontWeight: isToday ? 500 : 400, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', textAlign: 'right', whiteSpace: 'nowrap' }}>{hours || h}</p>
                     </div>
                   )
                 })}

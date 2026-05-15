@@ -250,7 +250,7 @@ function priceDisplay(place: PlaceDetail): string {
   if (place.general_entry_price === 0) return 'Free entry'
   if (place.general_entry_price && place.general_entry_price > 0) return `€${place.general_entry_price} entry`
   if (place.price_level !== null && place.price_level !== undefined) return PRICE_LABEL[place.price_level]
-  return '—'
+  return '? entry'
 }
 
 // ── Stripe checkout form ──────────────────────────────────────────────────────
@@ -689,7 +689,7 @@ export default function PlaceDetailPage() {
               {place.general_entry_price === 0 ? 'Free'
                 : place.general_entry_price ? `€${place.general_entry_price}`
                 : place.price_level !== null && place.price_level !== undefined ? PRICE_LABEL[place.price_level]
-                : '—'}
+                : '?'}
             </p>
           </div>
 

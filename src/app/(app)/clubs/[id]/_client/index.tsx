@@ -229,7 +229,9 @@ export default function ClubDetailPage() {
             <div className="glass-card p-sm rounded-xl">
               <span className="material-symbols-outlined text-primary text-[20px]">euro</span>
               <p className="font-label-sm text-label-sm text-on-surface-variant/60 uppercase tracking-widest mt-xs">Entry</p>
-              <p className="font-h2 text-h2 text-on-surface">€{(club.general_entry_price ?? 0).toFixed(0)}+</p>
+              <p className="font-h2 text-h2 text-on-surface">
+                {club.general_entry_price == null ? '?' : club.general_entry_price === 0 ? 'Free' : `€${club.general_entry_price.toFixed(0)}+`}
+              </p>
             </div>
             <div className="glass-card p-sm rounded-xl">
               <span className="material-symbols-outlined text-primary text-[20px]">schedule</span>

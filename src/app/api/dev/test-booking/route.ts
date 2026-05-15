@@ -28,10 +28,12 @@ export async function POST() {
     .limit(1)
     .maybeSingle()
 
-  // Tomorrow's date as booking date
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const bookingDate = tomorrow.toISOString().slice(0, 10)
+  // Booking dated 2 days ago — inside the survey window (yesterday–7 days
+  // ago) so the test booking is immediately reviewable. A future date would
+  // never surface in the "How was last night?" review prompt.
+  const past = new Date()
+  past.setDate(past.getDate() - 2)
+  const bookingDate = past.toISOString().slice(0, 10)
 
   const { data, error } = await supabase
     .from('bookings')

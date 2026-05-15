@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createAuthedClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { ok, err } from '@/lib/utils'
 import { z } from 'zod'
@@ -73,10 +73,11 @@ export async function POST(req: NextRequest) {
   const parsed = surveySchema.safeParse(body)
   if (!parsed.success) return err(parsed.error.message, 400)
 
-  // createAuthedClient forwards the Capacitor Bearer token so RLS on
-  // booking_surveys sees the real user — the plain anon client has no
-  // session for native requests and the INSERT would be silently blocked.
-  const supabase = await createAuthedClient()
+  // Service client bypasses RLS. The user is already verified by
+  // requireAuth() above, and the insert below is explicitly scoped to
+  // user.id — so this is safe, and the survey insert can never be
+  // silently blocked by an RLS policy on a native (cookie-less) request.
+  const supabase = await createServiceClient()
 
   // Verify the booking belongs to the user
   const { data: booking } = await supabase

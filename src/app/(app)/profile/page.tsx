@@ -205,7 +205,7 @@ export default function ProfilePage() {
             N°&nbsp;{memberNum.slice(0, 2)}
           </span>
           <span style={{ position: 'absolute', top: 12, right: 14, fontSize: 8.5, letterSpacing: '1.87px', color: t.accentFaded, textTransform: 'uppercase' }}>
-            MILANO
+            BARCELONA
           </span>
           <span style={{ position: 'absolute', bottom: 16, left: 14, fontSize: 8.5, letterSpacing: '1.87px', color: t.accentFaded, textTransform: 'uppercase' }}>
             EST.&nbsp;{memberYear ?? '—'}
@@ -429,8 +429,8 @@ export default function ProfilePage() {
 
         {[
           { n: '04', icon: 'tune',                 label: 'Settings',              sub: 'Notifications · privacy · language', href: '/settings' },
-          { n: '05', icon: 'help_outline',          label: 'Help & Support',        sub: 'FAQ · contact concierge',            href: '#'         },
-          { n: '06', icon: 'gavel',                 label: 'House Rules & Privacy', sub: 'Terms · privacy · GDPR',             href: '#'         },
+          { n: '05', icon: 'help_outline',          label: 'Help & Support',        sub: 'FAQ · contact concierge',            href: '/legal/help' },
+          { n: '06', icon: 'gavel',                 label: 'House Rules & Privacy', sub: 'Terms · privacy · GDPR',             href: '/legal/terms' },
         ].map(({ n, icon, label, sub, href }, i) => (
           <Link
             key={label}

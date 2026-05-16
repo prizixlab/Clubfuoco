@@ -1,145 +1,156 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { apiFetch } from '@/lib/api'
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 interface PendingBooking {
-  id:          string
+  id:           string
   booking_date: string
-  clubs:       { id: string; name: string; cover_image_url: string | null } | null
+  clubs:        { id: string; name: string; cover_image_url: string | null } | null
 }
 
 interface Props {
-  booking:  PendingBooking
-  onDone:   (bookingId: string) => void
-  onSkip:   (bookingId: string) => void
+  booking: PendingBooking
+  onDone:  (bookingId: string) => void
+  onSkip:  (bookingId: string) => void
 }
 
-// ─── Drink categories ─────────────────────────────────────────────────────────
+// ─── Design tokens ────────────────────────────────────────────────────────────
 
-const DRINK_OPTIONS = [
-  { id: 'beer',       label: 'Beer',              icon: '🍺' },
-  { id: 'wine',       label: 'Wine',              icon: '🍷' },
-  { id: 'cocktails',  label: 'Cocktails',         icon: '🍸' },
-  { id: 'spirits',    label: 'Spirits',           icon: '🥃' },
-  { id: 'shots',      label: 'Shots',             icon: '🥂' },
-  { id: 'champagne',  label: 'Champagne / Prosecco', icon: '🍾' },
-  { id: 'soft',       label: 'Soft Drinks',       icon: '🥤' },
-  { id: 'water',      label: 'Water',             icon: '💧' },
-  { id: 'other',      label: 'Other',             icon: '✏️' },
+const BG   = 'rgb(248, 245, 238)'
+const RED  = 'rgb(140, 42, 42)'
+const INK  = 'rgb(34, 30, 26)'
+const INK2 = 'rgb(100, 90, 80)'
+const BORDER = 'rgba(34,30,26,0.14)'
+
+// ─── Drink data ───────────────────────────────────────────────────────────────
+
+const DRINK_ROWS = [
+  { id: 'beer',      label: 'Birra',     sub: 'BEER'       },
+  { id: 'wine',      label: 'Vino',      sub: 'WINE'       },
+  { id: 'cocktails', label: 'Cocktail',  sub: 'COCKTAILS'  },
+  { id: 'spirits',   label: 'Spirits',   sub: 'SPIRITS'    },
+  { id: 'champagne', label: 'Champagne', sub: 'CHAMPAGNE'  },
+  { id: 'soft',      label: 'Soft',      sub: 'SOFT DRINK' },
 ]
 
 const DRINK_KINDS: Record<string, string[]> = {
-  beer: [
-    'Lager', 'Pilsner', 'IPA', 'Pale Ale', 'Craft', 'Stout',
-    'Wheat Beer', 'Corona', 'Heineken', 'Peroni', 'Moretti',
-  ],
-  wine: [
-    'Red', 'White', 'Rosé', 'Sparkling', 'Pinot Noir', 'Cabernet',
-    'Merlot', 'Prosecco', 'Chardonnay', 'Sauvignon Blanc',
-  ],
-  cocktails: [
-    'Negroni', 'Aperol Spritz', 'Gin & Tonic', 'Mojito', 'Margarita',
-    'Vodka Soda', 'Cosmopolitan', 'Old Fashioned', 'Espresso Martini',
-    'Moscow Mule', 'Daiquiri', 'Whiskey Sour', 'Long Island Iced Tea',
-    'Americano', 'Bellini', 'Hugo', 'Frozen', 'Signature',
-  ],
-  spirits: [
-    'Gin', 'Vodka', 'Rum', 'Whiskey', 'Tequila', 'Mezcal',
-    'Brandy', 'Cognac', 'Amaretto', 'Baileys', 'Limoncello',
-  ],
-  shots: [
-    'Tequila', 'Vodka', 'Sambuca', 'Jägermeister', 'Whiskey',
-    'Rum', 'Limoncello', 'Baby Guinness', 'Fireball', 'Grappa',
-  ],
-  champagne: [
-    'Champagne', 'Prosecco', 'Cava', 'Franciacorta', 'Rosé Champagne',
-  ],
-  soft: [
-    'Coke', 'Diet Coke', 'Sprite', 'Juice', 'Energy Drink',
-    'Tonic Water', 'Soda Water', 'Lemonade', 'Iced Tea', 'Ginger Beer',
-  ],
-  water: ['Still', 'Sparkling'],
-  other: [], // free-text input
+  beer:      ['Estrella Damm', 'Estrella Galicia', 'Lager', 'Pilsner', 'IPA', 'Pale Ale', 'Stout', 'Craft', 'Heineken', 'Corona', 'Peroni', 'Moretti'],
+  wine:      ['Red', 'White', 'Rosé', 'Sparkling', 'Prosecco', 'Chardonnay', 'Sauvignon Blanc', 'Pinot Noir'],
+  cocktails: ['Negroni', 'Spritz', 'Mojito', 'Gin & Tonic', 'Margarita', 'Cosmopolitan', 'Old Fashioned', 'Espresso Martini', 'Daiquiri', 'Frozen', 'Signature'],
+  spirits:   ['Gin', 'Vodka', 'Rum', 'Whiskey', 'Tequila', 'Mezcal', 'Brandy', 'Cognac'],
+  champagne: ['Champagne', 'Prosecco', 'Cava', 'Franciacorta', 'Rosé Champagne'],
+  soft:      ['Coke', 'Diet Coke', 'Sprite', 'Juice', 'Energy Drink', 'Soda', 'Lemonade'],
 }
 
-// ─── Return options ───────────────────────────────────────────────────────────
+// ─── Music genres ─────────────────────────────────────────────────────────────
 
-const RETURN_OPTIONS = [
-  { id: 'yes',   label: '100%'        },
-  { id: 'maybe', label: 'Maybe'       },
-  { id: 'no',    label: 'Never again' },
+const GENRES = [
+  'House', 'Techno', 'Italo Disco', 'Hip-Hop',
+  'R&B', 'Reggaeton', 'Live Band', 'Jazz',
+  'Afro', 'Pop', 'Indie', 'Other',
 ]
 
-// ─── Stars ────────────────────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
-function Stars({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function StepIcon({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-sm">
-      {[1, 2, 3, 4, 5].map(n => (
-        <button key={n} onClick={() => onChange(n)}
-          className="active:scale-90 transition-transform leading-none">
-          <span className="material-symbols-outlined" style={{
-            fontSize: 32,
-            color: n <= value ? '#8C2A2A' : '#C8BFB2',
-            fontVariationSettings: n <= value ? "'FILL' 1" : "'FILL' 0",
-          }}>star</span>
-        </button>
-      ))}
+    <div style={{
+      width: 52, height: 52, borderRadius: '50%',
+      border: `1.5px solid ${RED}`,
+      background: 'rgba(140,42,42,0.07)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexShrink: 0,
+    }}>
+      {children}
     </div>
   )
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+function Stars({
+  value, onChange, labels,
+}: {
+  value: number; onChange: (v: number) => void; labels: [string, string]
+}) {
+  return (
+    <div style={{ width: '100%' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        {[1, 2, 3, 4, 5].map(n => (
+          <button
+            key={n}
+            onClick={() => onChange(n)}
+            style={{ flex: 1, background: 'none', border: 'none', padding: '8px 0', cursor: 'pointer', touchAction: 'manipulation', display: 'flex', justifyContent: 'center' }}
+          >
+            <svg width="34" height="34" viewBox="0 0 24 24"
+              fill={n <= value ? RED : 'none'}
+              stroke={n <= value ? RED : 'rgb(200,191,178)'}
+              strokeWidth="1.4"
+            >
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', paddingInline: 4 }}>
+        <span style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: INK2 }}>{labels[0]}</span>
+        <span style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: INK2 }}>{labels[1]}</span>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function SurveySheet({ booking, onDone, onSkip }: Props) {
   const [step,         setStep]        = useState(0)
   const [rating,       setRating]      = useState(0)
-  const [drinks,       setDrinks]      = useState<string[]>([])
-  const [drinkKinds,   setDrinkKinds]  = useState<Record<string, string[]>>({})
-  const [focusedDrink, setFocusedDrink] = useState<string | null>(null)
-  const [otherText,    setOtherText]   = useState('')
-  const [vibeRating,   setVibeRating]  = useState(0)
+  // drinks: expanded category id | null; picks: category → Set of chosen items; customs: category → free text
+  const [drinkOpen,    setDrinkOpen]   = useState<string | null>(null)
+  const [drinkPicks,   setDrinkPicks]  = useState<Record<string, Set<string>>>({})
+  const [drinkCustom,  setDrinkCustom] = useState<Record<string, string>>({})
+  const [drinkRatings, setDrinkRatings] = useState<Record<string, number>>({})
+  const [musicRating,  setMusicRating] = useState(0)
+  const [musicGenres,  setMusicGenres] = useState<string[]>([])
   const [crowdRating,  setCrowdRating] = useState(0)
   const [wouldReturn,  setWouldReturn] = useState<'yes' | 'maybe' | 'no' | null>(null)
   const [submitting,   setSubmitting]  = useState(false)
-  const otherInputRef = useRef<HTMLInputElement>(null)
 
-  const clubName = booking.clubs?.name ?? 'the venue'
-
-  function toggleDrink(id: string) {
-    setDrinks(prev => {
-      if (prev.includes(id)) {
-        setDrinkKinds(k => { const n = { ...k }; delete n[id]; return n })
-        if (id === 'other') setOtherText('')
-        setFocusedDrink(f => f === id ? null : f)
-        return prev.filter(d => d !== id)
-      }
-      // Expanding: focus this drink's sub-kinds (or Other input)
-      if (id === 'other') {
-        setFocusedDrink('other')
-        setTimeout(() => otherInputRef.current?.focus(), 80)
-      } else if (DRINK_KINDS[id]?.length) {
-        setFocusedDrink(id)
-      }
-      return [...prev, id]
+  function toggleDrinkPick(catId: string, item: string) {
+    setDrinkPicks(prev => {
+      const next = { ...prev }
+      const s = new Set(next[catId] ?? [])
+      s.has(item) ? s.delete(item) : s.add(item)
+      next[catId] = s
+      return next
     })
   }
 
-  function toggleKind(drinkId: string, kind: string) {
-    setDrinkKinds(prev => {
-      const cur = prev[drinkId] ?? []
-      return {
-        ...prev,
-        [drinkId]: cur.includes(kind) ? cur.filter(k => k !== kind) : [...cur, kind],
-      }
-    })
-  }
+  const anyDrinkSelected = Object.values(drinkPicks).some(s => s.size > 0) ||
+    Object.values(drinkCustom).some(v => v.trim().length > 0)
+
+  // Lock body scroll while survey is open — prevents iOS rubber-band on short pages
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
+  const TOTAL = 6
+
+  // Collect all individual drinks selected (chips + custom text)
+  const allDrinkItems: string[] = [
+    ...Object.entries(drinkPicks).flatMap(([, s]) => [...s]),
+    ...Object.values(drinkCustom).map(v => v.trim()).filter(Boolean),
+  ]
+  const allDrinkRated = allDrinkItems.length > 0 && allDrinkItems.every(d => (drinkRatings[d] ?? 0) > 0)
 
   const canNext = [
     rating > 0,
-    drinks.length > 0,
-    vibeRating > 0,
+    anyDrinkSelected,
+    allDrinkRated,
+    musicRating > 0 && musicGenres.length > 0,
     crowdRating > 0,
     wouldReturn !== null,
   ][step]
@@ -152,206 +163,437 @@ export default function SurveySheet({ booking, onDone, onSkip }: Props) {
       body: JSON.stringify({
         booking_id:   booking.id,
         rating,
-        drinks,
-        drink_kinds:  drinkKinds,
-        other_drinks: otherText.trim(),
-        vibe_rating:  vibeRating,
+        drinks:       Object.keys(drinkPicks).filter(k => (drinkPicks[k]?.size ?? 0) > 0),
+        drink_kinds:  Object.fromEntries(Object.entries(drinkPicks).filter(([,s]) => s.size > 0).map(([k,s]) => [k, [...s]])),
+        drink_custom: drinkCustom,
+        drink_ratings: drinkRatings,
+        vibe_rating:  musicRating,
         crowd_rating: crowdRating,
         would_return: wouldReturn,
+        music_genres: musicGenres,
       }),
     })
     setSubmitting(false)
     onDone(booking.id)
   }
 
-  const questions = [
-    // ── Q1: Overall rating ────────────────────────────────────────────────────
-    <div key="q1" className="flex flex-col items-center text-center gap-lg">
-      <span className="material-symbols-outlined" style={{ fontSize: 56, color: '#8C2A2A', fontVariationSettings: "'FILL' 1" }}>star</span>
-      <div>
-        <p className="font-h2 text-h2 text-on-surface mb-xs">How was {clubName}?</p>
-        <p className="font-body-md text-on-surface-variant text-sm">Overall rating</p>
-      </div>
-      <Stars value={rating} onChange={setRating} />
-      <div className="flex justify-between w-full px-xs text-[11px] text-on-surface-variant/50 uppercase tracking-widest">
-        <span>Terrible</span><span>Amazing</span>
-      </div>
-    </div>,
+  function next() { setStep(s => s + 1) }
+  const isLast = step === TOTAL - 1
 
-    // ── Q2: Drinks ────────────────────────────────────────────────────────────
-    <div key="q2" className="flex flex-col items-start gap-md w-full">
-      <div className="w-full text-center">
-        <span className="material-symbols-outlined" style={{ fontSize: 48, color: '#8C2A2A' }}>local_bar</span>
-        <p className="font-h2 text-h2 text-on-surface mt-xs mb-[2px]">What were you drinking?</p>
-        <p className="font-body-md text-on-surface-variant text-sm">Pick all that apply</p>
-      </div>
+  // ── Step content ────────────────────────────────────────────────────────────
 
-      {/* Category grid */}
-      <div className="grid grid-cols-3 gap-xs w-full">
-        {DRINK_OPTIONS.map(d => {
-          const selected = drinks.includes(d.id)
-          const isFocused = focusedDrink === d.id
-          return (
-            <button key={d.id}
-              onClick={() => toggleDrink(d.id)}
-              className={`flex flex-col items-center justify-center gap-[3px] py-sm px-xs rounded-xl text-[11px] font-semibold border transition-all active:scale-95
-                ${selected
-                  ? 'bg-primary-container border-primary-container text-on-primary-container'
-                  : 'bg-surface-container border-outline-variant/30 text-on-surface-variant'
-                }
-                ${isFocused ? 'ring-1 ring-primary/50' : ''}
-              `}
-              style={{ minHeight: 56 }}
-            >
-              <span style={{ fontSize: 18, lineHeight: 1 }}>{d.icon}</span>
-              <span style={{ fontSize: 10, letterSpacing: '0.3px', textAlign: 'center', lineHeight: 1.2 }}>{d.label}</span>
-            </button>
-          )
-        })}
-      </div>
+  const STEPS = [
+    // Step 1 — Overall
+    {
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={RED} strokeWidth="1.5">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      ),
+      stepLabel: 'N° 01 · La Serata',
+      content: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div>
+            <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 40, fontWeight: 400, lineHeight: 1.05, color: INK, margin: '0 0 10px' }}>
+              How was <em>the night?</em>
+            </h2>
+            <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 14, color: INK2, margin: 0 }}>
+              Your honest rating helps the next person find the right room.
+            </p>
+          </div>
+          <Stars value={rating} onChange={setRating} labels={['Terrible', 'Amazing']} />
+        </div>
+      ),
+    },
 
-      {/* Sub-kind picker — shown when a category with options is focused */}
-      {focusedDrink && focusedDrink !== 'other' && DRINK_KINDS[focusedDrink]?.length > 0 && drinks.includes(focusedDrink) && (
-        <div className="w-full">
-          <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-[6px]">
-            What kind of {DRINK_OPTIONS.find(d => d.id === focusedDrink)?.label.toLowerCase()}?
-          </p>
-          <div className="flex flex-wrap gap-xs">
-            {DRINK_KINDS[focusedDrink].map(kind => {
-              const selected = (drinkKinds[focusedDrink] ?? []).includes(kind)
+    // Step 2 — Drinks
+    {
+      icon: (
+        <svg width="20" height="22" viewBox="0 0 24 24" fill="none" stroke={RED} strokeWidth="1.5">
+          <path d="M8 22h8M12 11v11M5 2h14l-2 9a5 5 0 01-10 0L5 2z" />
+        </svg>
+      ),
+      stepLabel: 'N° 02 · Il Bere',
+      content: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 40, fontWeight: 400, lineHeight: 1.05, color: INK, margin: '0 0 10px' }}>
+              What did you <em>drink?</em>
+            </h2>
+            <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 14, color: INK2, margin: 0 }}>
+              Tap a category to expand it — pick as many as you like.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {DRINK_ROWS.map(row => {
+              const isOpen  = drinkOpen === row.id
+              const picks   = drinkPicks[row.id] ?? new Set<string>()
+              const hasPick = picks.size > 0 || (drinkCustom[row.id] ?? '').trim().length > 0
               return (
-                <button key={kind}
-                  onClick={() => toggleKind(focusedDrink, kind)}
-                  className={`px-sm py-[5px] rounded-full text-[11px] border transition-all active:scale-95
-                    ${selected
-                      ? 'bg-primary-container border-primary-container text-on-primary-container font-semibold'
-                      : 'bg-surface-container border-outline-variant/30 text-on-surface-variant'
-                    }`}>
-                  {kind}
+                <div
+                  key={row.id}
+                  style={{
+                    border: `1.5px solid ${hasPick ? RED : isOpen ? 'rgba(140,42,42,0.4)' : BORDER}`,
+                    borderRadius: 14,
+                    overflow: 'hidden',
+                    background: hasPick ? 'rgba(140,42,42,0.04)' : 'transparent',
+                  }}
+                >
+                  {/* Header row — tap to expand/collapse */}
+                  <button
+                    onClick={() => setDrinkOpen(isOpen ? null : row.id)}
+                    style={{
+                      width: '100%', background: 'none', border: 'none',
+                      padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
+                      cursor: 'pointer', touchAction: 'manipulation',
+                    }}
+                  >
+                    {/* Checkbox circle */}
+                    <div style={{
+                      width: 20, height: 20, borderRadius: 5, flexShrink: 0,
+                      border: `2px solid ${hasPick ? RED : BORDER}`,
+                      background: hasPick ? RED : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {hasPick && (
+                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                          <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'left' }}>
+                      <span style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontStyle: 'italic', fontSize: 20, color: INK }}>{row.label}</span>
+                      <span style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: INK2, marginLeft: 8 }}>{row.sub}</span>
+                      {hasPick && (
+                        <span style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 10, color: RED, marginLeft: 8 }}>
+                          {[...picks].join(', ')}{picks.size > 0 && drinkCustom[row.id]?.trim() ? ', ' : ''}{drinkCustom[row.id]?.trim()}
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 16, color: INK2, transition: 'transform 0.2s', display: 'inline-block', transform: isOpen ? 'rotate(180deg)' : 'none' }}>⌄</span>
+                  </button>
+
+                  {/* Expanded picker */}
+                  {isOpen && (
+                    <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {/* Chip grid */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {DRINK_KINDS[row.id]?.map(item => {
+                          const sel = picks.has(item)
+                          return (
+                            <button
+                              key={item}
+                              onClick={() => toggleDrinkPick(row.id, item)}
+                              style={{
+                                padding: '6px 14px',
+                                borderRadius: 20,
+                                border: `1.5px solid ${sel ? RED : BORDER}`,
+                                background: sel ? RED : 'transparent',
+                                color: sel ? BG : INK,
+                                fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+                                fontSize: 12, fontWeight: sel ? 600 : 400,
+                                cursor: 'pointer', touchAction: 'manipulation',
+                                transition: 'all 0.15s',
+                              }}
+                            >
+                              {item}
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {/* Custom text field */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        <span style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 11, color: INK2, flexShrink: 0 }}>Other:</span>
+                        <input
+                          type="text"
+                          placeholder="Type your drink…"
+                          value={drinkCustom[row.id] ?? ''}
+                          onChange={e => setDrinkCustom(prev => ({ ...prev, [row.id]: e.target.value }))}
+                          style={{
+                            flex: 1, padding: '7px 12px',
+                            border: `1.5px solid ${(drinkCustom[row.id] ?? '').trim() ? RED : BORDER}`,
+                            borderRadius: 10,
+                            background: 'transparent',
+                            fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+                            fontSize: 16, color: INK,
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ),
+    },
+
+    // Step 3 — Rate each drink
+    {
+      icon: (
+        <svg width="20" height="22" viewBox="0 0 24 24" fill="none" stroke={RED} strokeWidth="1.5">
+          <path d="M8 22h8M12 11v11M5 2h14l-2 9a5 5 0 01-10 0L5 2z" />
+        </svg>
+      ),
+      stepLabel: 'N° 03 · Il Voto',
+      content: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div>
+            <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 40, fontWeight: 400, lineHeight: 1.05, color: INK, margin: '0 0 10px' }}>
+              Rate each <em>drink.</em>
+            </h2>
+            <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 14, color: INK2, margin: 0 }}>
+              One star rating per drink you had tonight.
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+            {allDrinkItems.map(drink => (
+              <div key={drink} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <p style={{
+                  fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+                  fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase',
+                  color: INK2, margin: 0,
+                }}>
+                  {drink}
+                </p>
+                <Stars
+                  value={drinkRatings[drink] ?? 0}
+                  onChange={v => setDrinkRatings(prev => ({ ...prev, [drink]: v }))}
+                  labels={['Terrible', 'Amazing']}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      ),
+    },
+
+    // Step 4 — Music
+    {
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={RED} strokeWidth="1.5">
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="12" cy="12" r="3" />
+          <circle cx="12" cy="12" r="6" strokeDasharray="2 2" />
+        </svg>
+      ),
+      stepLabel: 'N° 04 · La Musica',
+      content: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div>
+            <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 40, fontWeight: 400, lineHeight: 1.05, color: INK, margin: '0 0 10px' }}>
+              The <em>music?</em>
+            </h2>
+            <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 14, color: INK2, margin: 0 }}>
+              Rate the room, then tell us what was on.
+            </p>
+          </div>
+          <Stars value={musicRating} onChange={setMusicRating} labels={['Dead', 'Electric']} />
+
+          <div>
+            <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: INK2, margin: '0 0 10px' }}>
+              ↓ What was playing
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {GENRES.map(g => {
+                const on = musicGenres.includes(g)
+                return (
+                  <button
+                    key={g}
+                    onClick={() => setMusicGenres(prev => on ? prev.filter(x => x !== g) : [...prev, g])}
+                    style={{
+                      fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+                      fontSize: 13,
+                      padding: '7px 14px',
+                      borderRadius: 99,
+                      border: `1.5px solid ${on ? RED : BORDER}`,
+                      background: on ? RED : 'transparent',
+                      color: on ? BG : INK,
+                      cursor: 'pointer',
+                      touchAction: 'manipulation',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {g}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+
+    // Step 4 — Crowd
+    {
+      icon: (
+        <svg width="24" height="20" viewBox="0 0 24 24" fill="none" stroke={RED} strokeWidth="1.5">
+          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+        </svg>
+      ),
+      stepLabel: 'N° 05 · La Sala',
+      content: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div>
+            <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 40, fontWeight: 400, lineHeight: 1.05, color: INK, margin: '0 0 10px' }}>
+              And the <em>crowd?</em>
+            </h2>
+            <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 14, color: INK2, margin: 0 }}>
+              A great room is half people, half music.
+            </p>
+          </div>
+          <Stars value={crowdRating} onChange={setCrowdRating} labels={['Empty / bad', 'Packed & great']} />
+        </div>
+      ),
+    },
+
+    // Step 5 — Would you go back?
+    {
+      icon: (
+        <svg width="22" height="20" viewBox="0 0 24 24" fill="none" stroke={RED} strokeWidth="1.5">
+          <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+        </svg>
+      ),
+      stepLabel: 'N° 06 · Tornerai?',
+      content: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div>
+            <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 40, fontWeight: 400, lineHeight: 1.05, color: INK, margin: '0 0 10px' }}>
+              Would you <em>go back?</em>
+            </h2>
+            <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 14, color: INK2, margin: 0 }}>
+              One tap and we're done.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {([
+              { id: 'yes',   label: 'Subito',   sub: '100%',        note: 'First in line next time.' },
+              { id: 'maybe', label: 'Forse',    sub: 'MAYBE',       note: 'If the night calls for it.' },
+              { id: 'no',    label: 'Mai più',  sub: 'NEVER AGAIN', note: 'Once was enough.' },
+            ] as const).map(opt => {
+              const sel = wouldReturn === opt.id
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => setWouldReturn(opt.id)}
+                  style={{
+                    border: `1.5px solid ${sel ? RED : BORDER}`,
+                    borderRadius: 14,
+                    padding: '14px 18px',
+                    background: sel ? 'rgba(140,42,42,0.04)' : 'transparent',
+                    display: 'flex', alignItems: 'center', gap: 14,
+                    cursor: 'pointer', touchAction: 'manipulation',
+                    textAlign: 'left', width: '100%',
+                  }}
+                >
+                  {/* Radio */}
+                  <div style={{
+                    width: 20, height: 20, borderRadius: '50%',
+                    border: `2px solid ${sel ? RED : BORDER}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    {sel && <div style={{ width: 10, height: 10, borderRadius: '50%', background: RED }} />}
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
+                      <span style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontStyle: 'italic', fontSize: 20, color: INK }}>{opt.label}</span>
+                      <span style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: INK2 }}>{opt.sub}</span>
+                    </div>
+                    <span style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 12, color: INK2, fontStyle: 'italic' }}>{opt.note}</span>
+                  </div>
                 </button>
               )
             })}
           </div>
         </div>
-      )}
-
-      {/* Other — free-text input */}
-      {drinks.includes('other') && (
-        <div className="w-full">
-          <p className="text-[10px] text-on-surface-variant/50 uppercase tracking-widest mb-[6px]">
-            What did you have?
-          </p>
-          <input
-            ref={otherInputRef}
-            type="text"
-            value={otherText}
-            onChange={e => setOtherText(e.target.value)}
-            placeholder="e.g. Aperol Spritz, house wine…"
-            className="w-full bg-surface-container border border-outline-variant/30 rounded-xl px-md py-sm text-sm text-on-surface placeholder:text-on-surface-variant/40 outline-none focus:border-primary/50"
-          />
-        </div>
-      )}
-
-      {/* Tap another to see its kinds */}
-      {drinks.length > 0 && focusedDrink && focusedDrink !== 'other' && (
-        <div className="flex flex-wrap gap-xs w-full">
-          {drinks.filter(d => d !== 'other' && DRINK_KINDS[d]?.length > 0 && d !== focusedDrink).map(d => (
-            <button key={d}
-              onClick={() => setFocusedDrink(d)}
-              className="px-sm py-[5px] rounded-full text-[11px] border border-outline-variant/30 bg-surface-container text-on-surface-variant active:scale-95">
-              {DRINK_OPTIONS.find(o => o.id === d)?.label} →
-            </button>
-          ))}
-        </div>
-      )}
-    </div>,
-
-    // ── Q3: Music / vibe ──────────────────────────────────────────────────────
-    <div key="q3" className="flex flex-col items-center text-center gap-lg">
-      <span className="material-symbols-outlined" style={{ fontSize: 56, color: '#8C2A2A' }}>music_note</span>
-      <div>
-        <p className="font-h2 text-h2 text-on-surface mb-xs">How was the music?</p>
-        <p className="font-body-md text-on-surface-variant text-sm">Vibe &amp; energy</p>
-      </div>
-      <Stars value={vibeRating} onChange={setVibeRating} />
-      <div className="flex justify-between w-full px-xs text-[11px] text-on-surface-variant/50 uppercase tracking-widest">
-        <span>Dead</span><span>Electric</span>
-      </div>
-    </div>,
-
-    // ── Q4: Crowd ─────────────────────────────────────────────────────────────
-    <div key="q4" className="flex flex-col items-center text-center gap-lg">
-      <span className="material-symbols-outlined" style={{ fontSize: 56, color: '#8C2A2A' }}>group</span>
-      <div>
-        <p className="font-h2 text-h2 text-on-surface mb-xs">How was the crowd?</p>
-        <p className="font-body-md text-on-surface-variant text-sm">People &amp; atmosphere</p>
-      </div>
-      <Stars value={crowdRating} onChange={setCrowdRating} />
-      <div className="flex justify-between w-full px-xs text-[11px] text-on-surface-variant/50 uppercase tracking-widest">
-        <span>Empty / bad</span><span>Packed &amp; great</span>
-      </div>
-    </div>,
-
-    // ── Q5: Would return ──────────────────────────────────────────────────────
-    <div key="q5" className="flex flex-col items-center text-center gap-lg">
-      <span className="material-symbols-outlined" style={{ fontSize: 56, color: '#8C2A2A' }}>replay</span>
-      <div>
-        <p className="font-h2 text-h2 text-on-surface mb-xs">Would you go back?</p>
-        <p className="font-body-md text-on-surface-variant text-sm">Be honest</p>
-      </div>
-      <div className="flex flex-col gap-sm w-full">
-        {RETURN_OPTIONS.map(opt => (
-          <button key={opt.id}
-            onClick={() => setWouldReturn(opt.id as 'yes' | 'maybe' | 'no')}
-            className={`py-md rounded-xl font-semibold text-base border transition-all active:scale-95
-              ${wouldReturn === opt.id
-                ? 'bg-primary-container border-primary-container text-on-primary-container'
-                : 'bg-surface-container border-outline-variant/30 text-on-surface-variant'
-              }`}>
-            {opt.label}
-          </button>
-        ))}
-      </div>
-    </div>,
+      ),
+    },
   ]
 
-  const isLast = step === questions.length - 1
+  const current = STEPS[step]
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
-      {/* Sheet panel — flex column, never itself scrolls */}
-      <div className="mt-auto bg-surface-container-low rounded-t-3xl flex flex-col"
-        style={{ maxHeight: '92dvh', minHeight: '68dvh' }}>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 60,
+      background: BG,
+      display: 'flex', flexDirection: 'column',
+      overflowY: 'auto', overflowX: 'hidden',
+      overscrollBehavior: 'none',
+      width: '100%', maxWidth: '100vw',
+      WebkitOverflowScrolling: 'touch' as any,
+    }}>
 
-        {/* Header — progress dots + skip (never scrolls) */}
-        <div className="flex items-center justify-between px-lg pt-lg pb-sm flex-shrink-0">
-          <div className="flex gap-xs">
-            {questions.map((_, i) => (
-              <div key={i} className={`h-1 rounded-full transition-all ${i <= step ? 'bg-primary w-6' : 'bg-outline-variant/30 w-3'}`} />
-            ))}
-          </div>
-          <button onClick={() => onSkip(booking.id)}
-            className="text-on-surface-variant/50 font-body-md text-sm active:opacity-70">
+      {/* ── Progress bar + step counter ───────────────────────────────────── */}
+      <div style={{ padding: '16px 24px 0', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+          {STEPS.map((_, i) => (
+            <div
+              key={i}
+              style={{
+                flex: 1, height: 3, borderRadius: 2,
+                background: i <= step ? RED : 'rgba(34,30,26,0.15)',
+                transition: 'background 0.3s',
+              }}
+            />
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+          <span style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: INK2 }}>
+            Step {String(step + 1).padStart(2, '0')} / {String(TOTAL).padStart(2, '0')}
+          </span>
+          <span style={{ margin: '0 12px', color: BORDER }}>·</span>
+          <button
+            onClick={() => onSkip(booking.id)}
+            style={{ background: 'none', border: 'none', padding: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase', color: INK2, cursor: 'pointer' }}
+          >
             Skip
           </button>
         </div>
+      </div>
 
-        {/* Question — only this area scrolls when content overflows */}
-        <div className="flex-1 overflow-y-auto px-lg">
-          <div className="flex flex-col justify-center min-h-full py-md">
-            {questions[step]}
-          </div>
-        </div>
+      {/* ── Main content ─────────────────────────────────────────────────── */}
+      <div style={{ flex: 1, padding: '28px 24px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <StepIcon>{current.icon}</StepIcon>
 
-        {/* Next / Submit — always visible at bottom of sheet */}
-        <div className="px-lg pt-sm flex-shrink-0" style={{ paddingBottom: 40 }}>
-          <button
-            onClick={isLast ? submit : () => setStep(s => s + 1)}
-            disabled={!canNext || submitting}
-            className="w-full py-md bg-primary-container text-on-primary-container font-h2 rounded-xl ignite-glow active:scale-95 transition-transform disabled:opacity-40">
-            {submitting ? 'Sending…' : isLast ? 'Submit' : 'Next'}
-          </button>
-        </div>
+        <p style={{
+          fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+          fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase',
+          color: RED, margin: 0, fontWeight: 500,
+        }}>
+          {current.stepLabel}
+        </p>
+
+        {current.content}
+      </div>
+
+      {/* ── Bottom CTA ───────────────────────────────────────────────────── */}
+      <div style={{ padding: '0 24px 100px', flexShrink: 0 }}>
+        <button
+          onClick={isLast ? submit : next}
+          disabled={!canNext || submitting}
+          style={{
+            width: '100%', padding: '17px 0',
+            background: canNext && !submitting ? RED : 'rgba(140,42,42,0.35)',
+            color: BG,
+            border: 'none', borderRadius: 14,
+            fontFamily: "'Instrument Serif', Georgia, serif",
+            fontSize: 18, fontStyle: 'italic',
+            cursor: canNext && !submitting ? 'pointer' : 'default',
+            touchAction: 'manipulation',
+            transition: 'background 0.2s',
+          }}
+        >
+          {submitting ? 'Sending…' : isLast ? 'Submit' : 'Continue'}
+        </button>
       </div>
     </div>
   )

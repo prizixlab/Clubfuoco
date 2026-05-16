@@ -87,48 +87,68 @@ function Section({ children, dark }: { children: React.ReactNode; dark?: boolean
 function PassCard({ tier, user, memberNum, validUntil, userId }: {
   tier: string; user: User; memberNum: string; validUntil: string | null; userId: string
 }) {
-  const isNero = tier === 'black'
-  const bgCard = isNero
-    ? 'linear-gradient(155deg, rgb(10,10,10) 0%, rgb(26,22,18) 60%, rgb(42,31,18) 100%)'
-    : 'linear-gradient(155deg, rgb(14,12,10) 0%, rgb(34,28,20) 100%)'
+  // Per-tier card theming — Gold, Sapphire and Black each get their own palette.
+  const PASS_THEMES: Record<string, {
+    bg: string; accent: string; textRGB: string; line: string
+    deco: string; decoSoft: string; walletBg: string; walletBorder: string
+  }> = {
+    gold: {
+      bg: 'linear-gradient(155deg, rgb(42,24,16) 0%, rgb(74,44,14) 38%, rgb(140,90,30) 74%, rgb(194,139,61) 118%)',
+      accent: 'rgb(255,238,202)', textRGB: '255,232,181',
+      line: 'rgba(255,232,181,0.20)', deco: 'rgba(255,232,181,0.10)', decoSoft: 'rgba(255,232,181,0.05)',
+      walletBg: 'rgba(255,232,181,0.14)', walletBorder: 'rgba(255,232,181,0.30)',
+    },
+    sapphire: {
+      bg: 'linear-gradient(155deg, rgb(14,27,74) 0%, rgb(31,53,144) 55%, rgb(74,107,196) 118%)',
+      accent: 'rgb(234,240,255)', textRGB: '221,230,255',
+      line: 'rgba(221,230,255,0.20)', deco: 'rgba(221,230,255,0.10)', decoSoft: 'rgba(221,230,255,0.05)',
+      walletBg: 'rgba(221,230,255,0.14)', walletBorder: 'rgba(221,230,255,0.30)',
+    },
+    black: {
+      bg: 'linear-gradient(155deg, rgb(10,10,10) 0%, rgb(26,22,18) 60%, rgb(42,31,18) 100%)',
+      accent: NERO_GOLD, textRGB: '232,182,91',
+      line: 'rgba(232,182,91,0.14)', deco: 'rgba(232,182,91,0.08)', decoSoft: 'rgba(232,182,91,0.04)',
+      walletBg: 'rgba(232,182,91,0.12)', walletBorder: 'rgba(232,182,91,0.25)',
+    },
+  }
+  const t = PASS_THEMES[tier] ?? PASS_THEMES.gold
 
   const tierLabel  = { gold: 'N° I · Oro · Gold', sapphire: 'N° II · Zaffiro · Sapphire', black: 'N° III · Nero · Black' }[tier] ?? ''
-  const accentColor = isNero ? NERO_GOLD : CREAM
 
   return (
     <div style={{
-      background: bgCard,
+      background: t.bg,
       borderRadius: 16, padding: '24px 22px 20px',
-      border: `1px solid ${isNero ? 'rgba(232,182,91,0.25)' : 'rgba(255,255,255,0.08)'}`,
+      border: `1px solid ${t.walletBorder}`,
       position: 'relative', overflow: 'hidden',
     }}>
       {/* halftone dot bg decoration */}
-      <div style={{ position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%', border: `1px solid ${isNero ? 'rgba(232,182,91,0.08)' : 'rgba(255,255,255,0.05)'}` }} />
-      <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', border: `1px solid ${isNero ? 'rgba(232,182,91,0.04)' : 'rgba(255,255,255,0.03)'}` }} />
+      <div style={{ position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%', border: `1px solid ${t.deco}` }} />
+      <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', border: `1px solid ${t.decoSoft}` }} />
 
       {/* brand */}
-      <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase', color: `rgba(${isNero ? '232,182,91' : '248,245,238'},0.45)`, margin: '0 0 16px' }}>
+      <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase', color: `rgba(${t.textRGB},0.55)`, margin: '0 0 16px' }}>
         CLUB FUOCO
       </p>
 
       {/* tier label */}
-      <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: `rgba(${isNero ? '232,182,91' : '248,245,238'},0.55)`, margin: '0 0 4px' }}>
+      <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: `rgba(${t.textRGB},0.65)`, margin: '0 0 4px' }}>
         {tierLabel} · Membership
       </p>
 
       {/* name */}
-      <p style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 22, fontWeight: 400, color: accentColor, margin: '0 0 16px', letterSpacing: '0.02em' }}>
+      <p style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 22, fontWeight: 400, color: t.accent, margin: '0 0 16px', letterSpacing: '0.02em' }}>
         {user.full_name ?? 'Membro'}
       </p>
 
-      <div style={{ borderTop: `1px solid ${isNero ? 'rgba(232,182,91,0.12)' : 'rgba(255,255,255,0.08)'}`, margin: '0 0 16px' }} />
+      <div style={{ borderTop: `1px solid ${t.line}`, margin: '0 0 16px' }} />
 
       {/* number + year */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 18 }}>
-        <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 10, letterSpacing: '0.14em', color: `rgba(${isNero ? '232,182,91' : '248,245,238'},0.5)`, margin: 0 }}>
+        <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 10, letterSpacing: '0.14em', color: `rgba(${t.textRGB},0.6)`, margin: 0 }}>
           N° {memberNum} / FUOCO · MMXXVI
         </p>
-        <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 9, letterSpacing: '0.10em', color: `rgba(${isNero ? '232,182,91' : '248,245,238'},0.35)`, margin: 0, textTransform: 'uppercase' }}>
+        <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 9, letterSpacing: '0.10em', color: `rgba(${t.textRGB},0.45)`, margin: 0, textTransform: 'uppercase' }}>
           {tier === 'black' ? 'LIFETIME' : validUntil ? `Rinnova · ${fmtDateShort(validUntil)}` : 'ACTIVE'}
         </p>
       </div>
@@ -136,51 +156,31 @@ function PassCard({ tier, user, memberNum, validUntil, userId }: {
       {/* Apple Wallet button */}
       <button
         onClick={async () => {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://clubfuoco.vercel.app'
-          const passUrl = `${appUrl}/api/membership/wallet/${userId}`
           try {
             const { Capacitor } = await import('@capacitor/core')
             if (Capacitor.isNativePlatform()) {
-              // 1. Fetch the .pkpass binary
-              const res = await fetch(passUrl)
-              if (!res.ok) throw new Error('pass fetch failed')
-              const blob = await res.blob()
-
-              // 2. Convert blob → base64
-              const base64 = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader()
-                reader.onloadend = () => resolve((reader.result as string).split(',')[1])
-                reader.onerror = reject
-                reader.readAsDataURL(blob)
-              })
-
-              // 3. Write to cache dir as a .pkpass file
-              const { Filesystem, Directory } = await import('@capacitor/filesystem')
-              const { uri } = await Filesystem.writeFile({
-                path: 'clubfuoco-membership.pkpass',
-                data: base64,
-                directory: Directory.Cache,
-              })
-
-              // 4. Share the file — iOS shows "Add to Wallet" in the share sheet
-              const { Share } = await import('@capacitor/share')
-              await Share.share({
-                title: 'Club Fuoco Membership',
-                files: [uri],
+              // Open the .pkpass URL in SFSafariViewController. When iOS sees
+              // content-type: application/vnd.apple.pkpass, Safari renders the
+              // native Wallet preview with a built-in "Add to Apple Wallet" button.
+              const { Browser } = await import('@capacitor/browser')
+              await Browser.open({
+                url: `https://clubfuoco.vercel.app/api/membership/wallet/${userId}`,
+                presentationStyle: 'popover',
               })
             } else {
-              window.location.href = passUrl
+              window.location.href = `/api/membership/wallet/${userId}`
             }
           } catch (e) {
-            console.error('[wallet]', e)
+            const err = e as Error & { message?: string; code?: string }
+            console.error('[wallet] FAILED:', err?.message ?? String(e), 'code=', err?.code, 'stack=', err?.stack)
           }
         }}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           padding: '10px 0', borderRadius: 10, width: '100%', cursor: 'pointer',
-          background: isNero ? 'rgba(232,182,91,0.12)' : 'rgba(248,245,238,0.08)',
-          border: `1px solid ${isNero ? 'rgba(232,182,91,0.25)' : 'rgba(248,245,238,0.12)'}`,
-          color: isNero ? NERO_GOLD : CREAM,
+          background: t.walletBg,
+          border: `1px solid ${t.walletBorder}`,
+          color: t.accent,
           fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
           fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase',
         }}
@@ -706,7 +706,7 @@ export default function MemberDashboard({ user }: { user: User }) {
 
   useEffect(() => {
     // Fetch member number, renewal date, and assigned host in one call
-    fetch('/api/me/membership')
+    import('@/lib/api').then(({ apiFetch }) => apiFetch('/api/me/membership'))
       .then(r => r.json())
       .then(d => {
         if (d.memberNumber) setMemberNum(fmtMemberNum(d.memberNumber))

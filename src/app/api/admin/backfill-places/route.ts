@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { filterHotelPhotos, isHotel } from '@/lib/photo-filter'
+import { venueShouldBeVisible, isFreeEntryVenue } from '@/lib/venue-classify'
 
 const KEY  = process.env.GOOGLE_PLACES_API_KEY!
 const BASE = 'https://maps.googleapis.com/maps/api/place'
@@ -80,6 +81,8 @@ export async function GET(req: NextRequest) {
       const coverUrl  = allUrls[0] ?? null
       const extraUrls = allUrls.slice(1)
 
+      const placeTypes: string[] = dtData.result?.types ?? []
+
       await supabase.from('clubs').update({
         google_place_id: placeId,
         cover_image_url: coverUrl,
@@ -89,6 +92,9 @@ export async function GET(req: NextRequest) {
         ratings_total:   dtData.result?.user_ratings_total   ?? 0,
         opening_hours:   dtData.result?.opening_hours?.weekday_text ?? null,
         last_synced_at:  new Date().toISOString(),
+        // Auto-classify the newly-identified venue.
+        is_active:       venueShouldBeVisible(placeTypes),
+        ...(isFreeEntryVenue(placeTypes) ? { general_entry_price: 0 } : {}),
       }).eq('id', club.id)
 
       results.found++

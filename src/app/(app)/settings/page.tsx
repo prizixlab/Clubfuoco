@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { apiFetch } from '@/lib/api'
 import { MUSIC_OPTIONS, VIBE_OPTIONS, DRINK_CATEGORIES, BUDGET_NO_LIMIT } from '@/lib/preferences'
+import { useAuth } from '@/contexts/AuthContext'
+import { Iap, isIapAvailable } from '@/lib/iap'
 
 /* ─── Design tokens ─────────────────────────────────────────────────────── */
 const C = {
@@ -88,6 +90,92 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
   )
 }
 
+/* Custom touch slider — native <input range> doesn't drag on iOS WebView */
+const SLIDER_MIN = 10
+const SLIDER_MAX = 200
+const SLIDER_STEP = 5
+function BudgetSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  // keep onChange fresh inside the long-lived native listeners
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+  // value here is already clamped to 10–200 (200 = ∞)
+  const pct = ((value - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100
+
+  // Native, NON-PASSIVE touch listeners. React's synthetic onTouch* handlers
+  // are registered passive, so preventDefault() there is a no-op and the
+  // -webkit-overflow-scrolling momentum scroller steals the drag. Attaching
+  // directly with { passive: false } lets preventDefault() actually work.
+  useEffect(() => {
+    const el = trackRef.current
+    if (!el) return
+
+    const posToValue = (clientX: number) => {
+      const rect = el.getBoundingClientRect()
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+      const raw = SLIDER_MIN + ratio * (SLIDER_MAX - SLIDER_MIN)
+      return Math.round(raw / SLIDER_STEP) * SLIDER_STEP
+    }
+    const onTouch = (e: TouchEvent) => {
+      e.preventDefault()        // genuinely blocks the scroll now
+      const t = e.touches[0] ?? e.changedTouches[0]
+      if (t) onChangeRef.current(posToValue(t.clientX))
+    }
+
+    el.addEventListener('touchstart', onTouch, { passive: false })
+    el.addEventListener('touchmove',  onTouch, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', onTouch)
+      el.removeEventListener('touchmove',  onTouch)
+    }
+  }, [])
+
+  // Desktop / mouse fallback
+  const posToValueMouse = (clientX: number) => {
+    const rect = trackRef.current?.getBoundingClientRect()
+    if (!rect) return value
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    const raw = SLIDER_MIN + ratio * (SLIDER_MAX - SLIDER_MIN)
+    return Math.round(raw / SLIDER_STEP) * SLIDER_STEP
+  }
+  const onMouse = useCallback((e: React.MouseEvent) => {
+    if (e.type === 'mousemove' && e.buttons !== 1) return
+    onChange(posToValueMouse(e.clientX))
+  }, [onChange]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div
+      ref={trackRef}
+      onMouseDown={onMouse}
+      onMouseMove={onMouse}
+      style={{
+        position: 'relative', height: 40, display: 'flex', alignItems: 'center',
+        cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none',
+        touchAction: 'none',  // critical — prevents scroll stealing
+      }}
+    >
+      {/* track background */}
+      <div style={{
+        position: 'absolute', left: 0, right: 0, height: 3,
+        background: 'rgba(42,36,32,0.13)', borderRadius: 2,
+      }} />
+      {/* filled portion */}
+      <div style={{
+        position: 'absolute', left: 0, width: `${pct}%`, height: 3,
+        background: C.accent, borderRadius: 2,
+      }} />
+      {/* thumb */}
+      <div style={{
+        position: 'absolute', left: `calc(${pct}% - 12px)`,
+        width: 24, height: 24, borderRadius: '50%',
+        background: C.accent,
+        boxShadow: '0 2px 8px rgba(140,42,42,0.4)',
+        pointerEvents: 'none',
+      }} />
+    </div>
+  )
+}
+
 function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
     <button type="button" onClick={() => onChange(!value)} style={{
@@ -107,6 +195,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
 export default function SettingsPage() {
   const router   = useRouter()
   const supabase = createClient()
+  const { user: authUser } = useAuth()
 
   const [userId,   setUserId]   = useState('')
   const [fullName, setFullName] = useState('')
@@ -130,6 +219,7 @@ export default function SettingsPage() {
   const [confirmDel, setConfirmDel] = useState(false)
   const [deleting,   setDeleting]   = useState(false)
   const [snapshot,   setSnapshot]   = useState('')
+  const [tier,       setTier]       = useState('free')
   const savedPrefs = useRef<any>({})
 
   function snapOf() {
@@ -142,18 +232,19 @@ export default function SettingsPage() {
 
   /* ── Load ─────────────────────────────────────────────────────────────── */
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/login'); return }
+    if (!authUser) return   // layout already guards; wait if not ready yet
+    ;(async () => {
+      const user = authUser
       setUserId(user.id)
       setEmail(user.email ?? ''); setNewEmail(user.email ?? '')
 
       const { data: profile } = await supabase
-        .from('users').select('full_name, phone, birthday, preferences')
+        .from('users').select('full_name, phone, birthday, preferences, membership_tier')
         .eq('id', user.id).single() as any
 
       if (profile) {
         setFullName(profile.full_name ?? '')
+        setTier(profile.membership_tier ?? 'free')
         setPhone(profile.phone ?? '')
         if (profile.birthday) {
           const [y, m, d] = (profile.birthday as string).split('-')
@@ -174,7 +265,7 @@ export default function SettingsPage() {
       }
       setLoading(false)
     })()
-  }, [])
+  }, [authUser])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!loading && !snapshot) setSnapshot(snapOf())
@@ -214,6 +305,21 @@ export default function SettingsPage() {
   async function signOut() {
     await supabase.auth.signOut()
     router.replace('/login')
+  }
+
+  // Cancelling an Apple subscription must go through Apple's own system sheet —
+  // the app cannot cancel it server-side. This opens Apple's "Manage
+  // Subscriptions" UI, where the user can cancel Club Fuoco.
+  async function cancelSubscription() {
+    if (isIapAvailable()) {
+      try {
+        await Iap.manageSubscriptions()
+      } catch {
+        window.open('https://apps.apple.com/account/subscriptions', '_blank')
+      }
+    } else {
+      window.open('https://apps.apple.com/account/subscriptions', '_blank')
+    }
   }
 
   async function deleteAccount() {
@@ -277,6 +383,12 @@ export default function SettingsPage() {
       <div style={{ minHeight: '100dvh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <span className="material-symbols-outlined" style={{ fontSize: 34, color: C.ink3, animation: 'spin 1s linear infinite' }}>settings</span>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <style>{`
+          .budget-slider{-webkit-appearance:none;appearance:none;height:3px;background:rgba(42,36,32,0.13);border-radius:2px;outline:none;}
+          .budget-slider::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:#8C2A2A;cursor:pointer;box-shadow:0 2px 8px rgba(140,42,42,0.35);}
+          .budget-slider::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:#8C2A2A;cursor:pointer;border:none;box-shadow:0 2px 8px rgba(140,42,42,0.35);}
+          .budget-slider::-webkit-slider-runnable-track{height:3px;border-radius:2px;}
+        `}</style>
       </div>
     )
   }
@@ -286,6 +398,12 @@ export default function SettingsPage() {
   /* ── Render ───────────────────────────────────────────────────────────── */
   return (
     <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: SANS }}>
+      <style>{`
+        .budget-slider{-webkit-appearance:none;appearance:none;height:3px;background:rgba(42,36,32,0.13);border-radius:2px;outline:none;width:100%;}
+        .budget-slider::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:#8C2A2A;cursor:pointer;box-shadow:0 2px 8px rgba(140,42,42,0.35);}
+        .budget-slider::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:#8C2A2A;cursor:pointer;border:none;box-shadow:0 2px 8px rgba(140,42,42,0.35);}
+        .budget-slider::-webkit-slider-runnable-track{height:3px;border-radius:2px;}
+      `}</style>
 
       {/* Header */}
       <header style={{
@@ -301,7 +419,18 @@ export default function SettingsPage() {
         <p style={{ margin: 0, fontFamily: MONO, fontSize: 9.5, letterSpacing: '2px', textTransform: 'uppercase', color: C.accent }}>
           N° 07 · Impostazioni
         </p>
-        <div style={{ width: 36 }} />
+        {dirty ? (
+          <button type="button" onClick={saveAll} disabled={saving} style={{
+            height: 34, padding: '0 16px', borderRadius: 99, border: 'none',
+            background: C.accent, color: '#FFF',
+            fontFamily: MONO, fontSize: 9.5, letterSpacing: '1.5px', textTransform: 'uppercase',
+            cursor: 'pointer', opacity: saving ? 0.7 : 1,
+          }}>
+            {saving ? '…' : 'Save'}
+          </button>
+        ) : (
+          <div style={{ width: 36 }} />
+        )}
       </header>
 
       <div style={{ padding: '26px 20px 150px' }}>
@@ -384,12 +513,29 @@ export default function SettingsPage() {
         <SectionHead n="03" name="Nightlife Preferences" />
         <Card>
           <PrefRow k="budget" label="Typical budget"
-            value={budgetTier(budget).label} sub={budgetTier(budget).range}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {BUDGET_TIERS.map(t => (
-                <Chip key={t.value} label={`${t.label} · ${t.range}`}
-                  active={budgetTier(budget).value === t.value} onClick={() => setBudget(t.value)} />
-              ))}
+            value={budget >= BUDGET_NO_LIMIT ? '∞' : `€${budget}`}
+            sub={budget >= BUDGET_NO_LIMIT ? 'No limit' : 'per night'}>
+            <div style={{ paddingTop: 4 }}>
+              {/* value display */}
+              <div style={{ textAlign: 'center', marginBottom: 18 }}>
+                <p style={{ margin: 0, fontFamily: SERIF, fontStyle: 'italic', fontSize: 54, color: C.ink, lineHeight: 1 }}>
+                  {budget >= BUDGET_NO_LIMIT ? '∞' : `€${budget}`}
+                </p>
+                <p style={{ margin: '5px 0 0', fontFamily: MONO, fontSize: 8.5, letterSpacing: '2px', textTransform: 'uppercase', color: C.ink3 }}>
+                  {budget >= BUDGET_NO_LIMIT ? 'No limit — vip mode' : 'per night'}
+                </p>
+              </div>
+              {/* slider */}
+              <BudgetSlider
+                value={budget >= BUDGET_NO_LIMIT ? 200 : budget}
+                onChange={v => setBudget(v >= 200 ? BUDGET_NO_LIMIT : v)}
+              />
+              {/* tick labels */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                {['€10', '€50', '€100', '€150', '∞'].map(l => (
+                  <span key={l} style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '1px', color: C.ink3 }}>{l}</span>
+                ))}
+              </div>
             </div>
           </PrefRow>
           <PrefRow k="drinks" label="Drinks I like"
@@ -443,6 +589,26 @@ export default function SettingsPage() {
 
         {/* ── N° 05 Account Actions ──────────────────────────────────────── */}
         <SectionHead n="05" name="Account Actions" />
+
+        {tier !== 'free' && (
+          <>
+            <button type="button" onClick={cancelSubscription} style={{
+              width: '100%', padding: '15px 0', borderRadius: 14,
+              background: C.card, border: `1px solid ${C.line}`,
+              color: C.ink, fontFamily: MONO, fontSize: 10.5, letterSpacing: '2px', textTransform: 'uppercase',
+              cursor: 'pointer', marginBottom: 6,
+            }}>
+              Cancel Subscription
+            </button>
+            <p style={{
+              margin: '0 0 14px', fontSize: 11, lineHeight: 1.5, color: C.ink2,
+              fontFamily: 'Inter, sans-serif', textAlign: 'center',
+            }}>
+              Opens Apple’s subscription settings. Your membership stays active until the end of the current billing period.
+            </p>
+          </>
+        )}
+
         <button type="button" onClick={signOut} style={{
           width: '100%', padding: '15px 0', borderRadius: 14,
           background: C.card, border: `1px solid ${C.line}`,
@@ -497,31 +663,25 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* ── Unsaved-changes bar ──────────────────────────────────────────── */}
+      {/* ── Unsaved indicator (dot only — save is in header) ────────────── */}
       {dirty && (
         <div style={{
           position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30,
           background: C.bg, borderTop: `1px solid ${C.line}`,
           boxShadow: '0 -8px 24px rgba(42,36,32,0.06)',
-          paddingTop: 13, paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 13px)',
+          paddingTop: 11, paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 11px)',
           paddingLeft: 18, paddingRight: 18,
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.accent, flexShrink: 0 }} />
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.accent, flexShrink: 0 }} />
           <span style={{ flex: 1, fontFamily: MONO, fontSize: 9.5, letterSpacing: '1.5px', textTransform: 'uppercase', color: C.accent }}>
             Unsaved changes
           </span>
           <button type="button" onClick={() => window.location.reload()} style={{
-            padding: '10px 16px', borderRadius: 10, background: 'transparent', border: `1px solid ${C.line}`,
-            color: C.ink2, fontFamily: MONO, fontSize: 9.5, letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer',
+            padding: '9px 14px', borderRadius: 10, background: 'transparent', border: `1px solid ${C.line}`,
+            color: C.ink2, fontFamily: MONO, fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer',
           }}>
             Discard
-          </button>
-          <button type="button" onClick={saveAll} disabled={saving} style={{
-            padding: '11px 20px', borderRadius: 10, background: C.accent, border: 'none',
-            color: '#FFFFFF', fontFamily: SANS, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1,
-          }}>
-            {saving ? 'Saving…' : 'Save changes'}
           </button>
         </div>
       )}

@@ -693,13 +693,13 @@ export default function PlaceDetailPage() {
             </p>
           </div>
 
-          {/* TONIGHT going (rating reviews as proxy) */}
+          {/* REVIEWS — total Google review count (real data, honestly labelled) */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 4px', background: C.bg, borderRadius: 12 }}>
-            <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 4px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Tonight</p>
+            <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 4px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Reviews</p>
             <p style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
-              {place.ratings_total > 999 ? `${(place.ratings_total / 1000).toFixed(1)}k` : place.ratings_total}
+              {place.ratings_total > 999 ? `${(place.ratings_total / 1000).toFixed(1)}k` : (place.ratings_total || '—')}
             </p>
-            <p style={{ fontSize: 9, color: C.ink3, margin: '2px 0 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>going</p>
+            <p style={{ fontSize: 9, color: C.ink3, margin: '2px 0 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>on Google</p>
           </div>
 
           {/* STATUS / open-closed */}

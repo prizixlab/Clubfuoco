@@ -291,7 +291,7 @@ export default function LoadingScreen() {
             textAlign:     'center',
             margin:         0,
           }}>
-            A Nightlife Company · Milano · Roma · Napoli
+            A Nightlife Company · Barcelona
           </p>
         </div>
 

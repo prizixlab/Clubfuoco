@@ -10,6 +10,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ExploreLoader from '@/components/ExploreLoader'
+import { computeOpenNow } from '@/lib/hours'
 import type { ExternalEvent } from '@/lib/tickets'
 import type { Rumba } from '@/types'
 
@@ -25,6 +26,7 @@ interface Place {
   ratings_total:number
   price_level:  number | null
   is_open:      boolean | null
+  weekday_hours: string[]
   website:      string | null
   maps_url:     string
   cover_photo:  string | null
@@ -93,6 +95,12 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 
 function fmtDistance(km: number) {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`
+}
+
+// A venue counts as open if staff marked it open via live status, OR its
+// weekly opening hours say it's open right now.
+function placeIsOpen(p: Place): boolean {
+  return p.is_open === true || computeOpenNow(p.weekday_hours) === true
 }
 
 function budgetToPriceLevel(euros: number): number {
@@ -305,7 +313,7 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   }
 
   // ── 3. OPEN RIGHT NOW ─────────────────────────────────────────────────────
-  const openNow = places.filter(p => p.is_open === true)
+  const openNow = places.filter(placeIsOpen)
   if (openNow.length)
     shelves.push({ id: 'open_now', title: 'Open Right Now', subtitle: 'Doors are open — get in', places: top(openNow.sort(byRating)) })
 
@@ -408,7 +416,7 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   candidate('most_popular','Most Popular Right Now',  'Everyone\'s talking about these',  [...places].sort(byPopular))
   candidate('local_fav',  'Local Favourites',         'Where Barcelonians actually go',   shuffle([...places].filter(p => (p.rating ?? 0) >= 4.0)).slice(0, 12))
   candidate('wild_card',  'Surprise Me',              'We picked for you — trust us',     shuffle([...places]).slice(0, 12))
-  candidate('late_night', 'Still Going Strong',       'Open & rated highly right now',    [...places].filter(p => p.is_open === true && (p.rating ?? 0) >= 3.8).sort(byRating))
+  candidate('late_night', 'Still Going Strong',       'Open & rated highly right now',    [...places].filter(p => placeIsOpen(p) && (p.rating ?? 0) >= 3.8).sort(byRating))
 
   // ── VENUE TYPE ────────────────────────────────────────────────────────────
   candidate('clubs',      'Clubs & Discos',           'Proper dancefloors all night',     [...places].filter(p => anyHas(p, ['club','disco','discoteca','sala','nightclub'])).sort(byRating))
@@ -547,12 +555,14 @@ function HeroCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; 
           </div>
 
           {/* Save button */}
-          <button
+          <span
+            role="button"
+            tabIndex={0}
             onClick={e => { e.preventDefault(); e.stopPropagation(); onSave(place.place_id) }}
-            style={{ position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            style={{ position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 17, color: isSaved ? '#E05252' : 'white', fontVariationSettings: isSaved ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
-          </button>
+          </span>
 
           {/* Rating badge */}
           {place.rating && (
@@ -613,12 +623,14 @@ function LandCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; 
             </div>
           )}
 
-          <button
+          <span
+            role="button"
+            tabIndex={0}
             onClick={e => { e.preventDefault(); e.stopPropagation(); onSave(place.place_id) }}
-            style={{ position: 'absolute', top: 6, right: 6, width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            style={{ position: 'absolute', top: 6, right: 6, width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 15, color: isSaved ? '#E05252' : 'white', fontVariationSettings: isSaved ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
-          </button>
+          </span>
 
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 10px 8px' }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: 'white', margin: 0, lineHeight: 1.3, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{place.name}</p>
@@ -659,12 +671,14 @@ function PosterCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean
             </div>
           )}
 
-          <button
+          <span
+            role="button"
+            tabIndex={0}
             onClick={e => { e.preventDefault(); e.stopPropagation(); onSave(place.place_id) }}
-            style={{ position: 'absolute', top: 6, right: 6, width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            style={{ position: 'absolute', top: 6, right: 6, width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 14, color: isSaved ? '#E05252' : 'white', fontVariationSettings: isSaved ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
-          </button>
+          </span>
         </div>
 
         {/* Info */}
@@ -861,7 +875,7 @@ function filterPlaces(places: Place[], activeFilter: string): Place[] {
     kws.some(kw => (p.music_genres ?? []).some(g => g.toLowerCase().includes(kw)))
 
   switch (activeFilter) {
-    case 'open':      return places.filter(p => p.is_open === true)
+    case 'open':      return places.filter(placeIsOpen)
     case 'free':      return places.filter(p => p.price_level === 0 || p.general_entry_price === 0)
     case 'cocktails': return places.filter(p => nameTagIncludes(p, ['cocktail']))
     case 'live':      return places.filter(p => nameTagIncludes(p, ['live','jazz','music','concert']))
@@ -888,6 +902,7 @@ export default function ExplorePage() {
   // Skip the cinematic loader if it already played this session
   const [loaderGone,   setLoaderGone]   = useState(_loaderShownThisSession)
   const [prefs,        setPrefs]        = useState<any>(null)
+  const [onboardingDone, setOnboardingDone] = useState(true)
   const [surveyPrefs,  setSurveyPrefs]  = useState<any>(null)
   const [tasteProfile, setTasteProfile] = useState<any>(null)
   const [userPos,      setUserPos]      = useState<{ lat: number; lng: number } | null>(null)
@@ -964,7 +979,7 @@ export default function ExplorePage() {
 
   useEffect(() => {
     getUserPreferences()
-      .then(d => setPrefs(d?.preferences ?? null))
+      .then(d => { setPrefs(d?.preferences ?? null); setOnboardingDone(d?.onboarding_done ?? false) })
       .catch(() => {})
     // Survey-derived preference profile for personalised recommendations
     getSurveyPreferences()
@@ -1095,10 +1110,10 @@ export default function ExplorePage() {
             </button>
             <button
               onClick={() => router.push('/fiamme')}
-              style={{ width: 36, height: 36, borderRadius: '50%', background: C.pillBg, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              style={{ height: 36, padding: '0 13px', borderRadius: 99, background: C.pillBg, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', whiteSpace: 'nowrap' }}
               aria-label="Fiamme points"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 18, color: C.ink2, fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', color: C.ink2, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', textTransform: 'uppercase' }}>Points</span>
             </button>
             <button
               onClick={() => { setShowSaved(s => !s); setShowSearch(false); setSearch('') }}
@@ -1123,6 +1138,28 @@ export default function ExplorePage() {
           </div>
         )}
       </header>
+
+      {/* ── "Get to know you" prompt — persists until the survey is completed ── */}
+      {!loading && !onboardingDone && (
+        <button
+          onClick={() => router.push('/onboarding')}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+            width: 'calc(100% - 40px)', margin: '0 20px 16px', padding: '14px 16px',
+            background: C.ink, border: 'none', borderRadius: 14, cursor: 'pointer', textAlign: 'left',
+          }}
+        >
+          <div>
+            <p style={{ margin: '0 0 2px', fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 17, fontStyle: 'italic', color: C.pillInkActive }}>
+              Let us get to know you better
+            </p>
+            <p style={{ margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 11.5, color: 'rgba(255,255,255,0.6)' }}>
+              A few quick taps — we’ll tune your nights to your taste.
+            </p>
+          </div>
+          <span className="material-symbols-outlined" style={{ fontSize: 20, color: C.pillInkActive, flexShrink: 0 }}>arrow_forward</span>
+        </button>
+      )}
 
       {/* ── Error ──────────────────────────────────────────────────────────── */}
       {error && (
@@ -1165,7 +1202,7 @@ export default function ExplorePage() {
         const savedPlaces = places.filter(p => saved.has(p.place_id))
         return (
           <div style={{ paddingBottom: 0 }}>
-            {/* Italian title */}
+            {/* Section title */}
             <div style={{ padding: '4px 20px 20px' }}>
               <h2 style={{
                 fontFamily: '"Instrument Serif", Georgia, serif',
@@ -1191,18 +1228,44 @@ export default function ExplorePage() {
               </div>
             )}
 
-            {/* Hero card — first saved place */}
+            {/* Saved clubs — full-width magazine cards */}
             {savedPlaces.length > 0 && (
-              <div style={{ padding: '0 20px', marginBottom: 14 }}>
-                <HeroCard place={savedPlaces[0]} isSaved={true} onSave={handleSave} />
-              </div>
-            )}
-
-            {/* Remaining saved places as poster cards */}
-            {savedPlaces.length > 1 && (
-              <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingLeft: 20, paddingRight: 12, paddingBottom: 4, scrollbarWidth: 'none' }}>
-                {savedPlaces.slice(1).map(p => (
-                  <PosterCard key={p.place_id} place={p} isSaved={true} onSave={handleSave} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '0 20px 24px' }}>
+                {savedPlaces.map(p => (
+                  <div key={p.place_id} style={{
+                    borderRadius: 18, overflow: 'hidden', background: C.surface,
+                    boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 10px 28px rgba(34,30,26,0.08)',
+                  }}>
+                    <div style={{ position: 'relative', height: 200, background: C.bg2 }}>
+                      {p.cover_photo
+                        ? <img src={p.cover_photo} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 48, color: C.ink3, opacity: 0.3, fontVariationSettings: "'FILL' 1" }}>nightlife</span>
+                          </div>}
+                      <span
+                        role="button" tabIndex={0}
+                        onClick={e => { e.preventDefault(); e.stopPropagation(); handleSave(p.place_id) }}
+                        style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 17, color: '#E05252', fontVariationSettings: "'FILL' 1" }}>favorite</span>
+                      </span>
+                    </div>
+                    <div style={{ padding: '18px 20px 20px' }}>
+                      <h3 style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 30, fontWeight: 400, lineHeight: 1.1, letterSpacing: '-0.5px', color: C.ink, margin: '0 0 6px' }}>
+                        {p.name}
+                      </h3>
+                      <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 13, color: C.ink3, margin: '0 0 16px', lineHeight: 1.4 }}>
+                        {p.address}
+                      </p>
+                      <button
+                        onClick={() => router.push(`/clubs/place/placeholder?id=${p.place_id}`)}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', height: 46, borderRadius: 12, border: 'none', cursor: 'pointer', background: C.ink, color: C.pillInkActive, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 13, fontWeight: 600 }}
+                      >
+                        View Club
+                        <span className="material-symbols-outlined" style={{ fontSize: 17 }}>arrow_forward</span>
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

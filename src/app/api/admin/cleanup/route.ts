@@ -2,31 +2,35 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { classifyVenue } from '@/lib/gemini'
 
-// Vercel function timeout — needed because each run can take up to ~3 min
+// Vercel function timeout — this run keeps reviewing until it runs low on time.
 export const maxDuration = 300
 
-// How many venues to review per run.
-// Free Gemini tier = 15 RPM + 1,500 RPD. We do 14 per run × 3 runs/day = 42/day,
-// well under the daily quota and within RPM with a 4.5 s spacer.
-const BATCH_SIZE  = 14
-// Delay between Gemini calls to stay under 15 RPM (4.5 s = ~13 RPM)
-const DELAY_MS    = 4_500
-// Confidence threshold below which we deactivate the venue
-const NOT_NIGHTLIFE_THRESHOLD = 0.55
+// Pace: ~4.5 s/call keeps us under the Gemini free-tier rate limit (15 RPM).
+const DELAY_MS        = 4_500
+// Stop starting new reviews ~35 s before the hard limit so we exit cleanly.
+const TIME_BUDGET_MS  = 265_000
+// Confidence at/above which a "doesn't belong" verdict actually hides the venue.
+const HIDE_THRESHOLD  = 0.6
+// Upper bound on rows pulled per run (a run gets through ~55 at this pace).
+const MAX_BATCH       = 80
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 /**
- * GET /api/admin/cleanup
+ * GET /api/admin/cleanup  — perpetual Gemini venue curation.
  *
- * Post-import Gemini review:
- * – Finds clubs imported by /api/admin/discover (last_synced_at IS NULL)
- * – Asks Gemini whether each one is actually a nightlife venue
- * – If clearly NOT nightlife (confidence < threshold), sets is_active = false
- * – Always sets last_synced_at = now() so we don't re-review the same venues
- * – Adds suggested_tags to club_tags table for good venues
+ * Reviews visible venues against the Club Fuoco vibe (premium nightlife only),
+ * ordered by `gemini_reviewed_at ASC NULLS FIRST`:
+ *   • never-reviewed venues (incl. every new addition) are reviewed first
+ *   • once reviewed, a venue is stamped and drops to the back of the queue
+ *   • when every venue has been reviewed, the oldest review comes up next — so
+ *     it loops forever, continuously re-checking the catalogue
  *
- * Protected by CRON_SECRET bearer token or ?manual=1 query param.
+ * Each cron run works through as many as it can in its time budget, then stops.
+ * If Gemini's daily quota is hit, it stops cleanly — the next run resumes from
+ * the same queue position (no venue is re-reviewed or skipped).
+ *
+ * Protected by CRON_SECRET bearer token or ?manual=1.
  */
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -36,99 +40,93 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = await createServiceClient()
+  const supabase  = await createServiceClient()
+  const startedAt = Date.now()
 
-  // Fetch clubs that haven't been reviewed by Gemini yet (last_synced_at IS NULL)
+  // Front of the queue: visible venues, never-reviewed first, then oldest review.
+  // Partner / owner-claimed venues are skipped — those are never auto-hidden.
   const { data: venues, error } = await supabase
     .from('clubs')
-    .select('id, name, address, google_place_id, cover_image_url, rating, ratings_total')
-    .is('last_synced_at', null)
+    .select('id, name, address, cover_image_url, rating, ratings_total')
+    .eq('is_active', true)
+    .eq('is_partner', false)
+    .is('owner_user_id', null)
     .not('google_place_id', 'is', null)
-    .order('created_at', { ascending: true })
-    .limit(BATCH_SIZE)
+    .order('gemini_reviewed_at', { ascending: true, nullsFirst: true })
+    .limit(MAX_BATCH)
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!venues || venues.length === 0) {
-    return NextResponse.json({ ok: true, message: 'No venues pending Gemini review', reviewed: 0 })
+    return NextResponse.json({ ok: true, message: 'No venues to review', reviewed: 0 })
   }
 
-  const results = { reviewed: 0, kept: 0, removed: 0, errors: 0 }
+  const results = { reviewed: 0, kept: 0, hidden: 0, errors: 0, quotaHit: false }
 
-  for (const venue of venues) {
+  for (const v of venues) {
+    if (Date.now() - startedAt > TIME_BUDGET_MS) break   // out of function time
+
     try {
-      const classification = await classifyVenue({
-        name:        venue.name,
-        address:     venue.address ?? '',
-        types:       [],  // types not stored on the club row — rely on name/address/photo
-        rating:      venue.rating,
-        ratings_total: venue.ratings_total ?? 0,
-        photo_url:   venue.cover_image_url,
+      const c = await classifyVenue({
+        name:          v.name,
+        address:       v.address ?? '',
+        types:         [],   // not stored on the row — Gemini judges name/address/photo
+        rating:        v.rating,
+        ratings_total: v.ratings_total ?? 0,
+        photo_url:     v.cover_image_url,
       })
 
-      const isGood = classification.is_nightlife && classification.confidence >= NOT_NIGHTLIFE_THRESHOLD
-      const now    = new Date().toISOString()
+      const hide = !c.is_nightlife && c.confidence >= HIDE_THRESHOLD
 
-      // Update the club: mark reviewed, deactivate if clearly not nightlife
       await supabase
         .from('clubs')
         .update({
-          is_active:     isGood,
-          last_synced_at: now,
+          ...(hide ? { is_active: false } : {}),
+          gemini_reviewed_at: new Date().toISOString(),
         })
-        .eq('id', venue.id)
+        .eq('id', v.id)
 
-      // Insert suggested tags for venues that pass the check
-      if (isGood && classification.suggested_tags.length > 0) {
-        const tagRows = classification.suggested_tags.map(tag => ({
-          club_id:  venue.id,
-          tag,
-          category: inferTagCategory(tag),
-        }))
-
-        // upsert so re-runs don't duplicate
-        await supabase
-          .from('club_tags')
-          .upsert(tagRows, { onConflict: 'club_id,tag', ignoreDuplicates: true })
+      // For venues that stay, record Gemini's suggested tags.
+      if (!hide && c.suggested_tags.length > 0) {
+        await supabase.from('club_tags').upsert(
+          c.suggested_tags.map(tag => ({ club_id: v.id, tag, category: inferTagCategory(tag) })),
+          { onConflict: 'club_id,tag', ignoreDuplicates: true },
+        )
       }
 
-      if (isGood) {
-        results.kept++
-        console.log(`[cleanup] ✓ KEPT  "${venue.name}" — ${classification.reasoning}`)
+      if (hide) {
+        results.hidden++
+        console.log(`[cleanup] ✗ HIDE "${v.name}" (${c.confidence.toFixed(2)}) — ${c.reasoning}`)
       } else {
-        results.removed++
-        console.log(`[cleanup] ✗ REMOVED "${venue.name}" (confidence ${classification.confidence.toFixed(2)}) — ${classification.reasoning}`)
+        results.kept++
       }
-
       results.reviewed++
     } catch (e: any) {
-      results.errors++
       const msg = e?.message ?? String(e)
-      console.error(`[cleanup] Error reviewing "${venue.name}": ${msg}`)
 
-      // Only mark as reviewed if it's NOT a rate-limit error — so we can retry next run
-      const isRateLimit = msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED')
-      if (!isRateLimit) {
-        await supabase
-          .from('clubs')
-          .update({ last_synced_at: new Date().toISOString() })
-          .eq('id', venue.id)
+      // Gemini daily quota / rate limit — stop cleanly, resume next run.
+      if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED')) {
+        results.quotaHit = true
+        console.log('[cleanup] Gemini quota hit — stopping; will resume next run.')
+        break
       }
+
+      // Other error — stamp it so a permanently-bad venue doesn't block the queue.
+      results.errors++
+      console.error(`[cleanup] error on "${v.name}": ${msg}`)
+      await supabase
+        .from('clubs')
+        .update({ gemini_reviewed_at: new Date().toISOString() })
+        .eq('id', v.id)
     }
 
-    // Rate-limit: pause between calls (free tier ~15 RPM)
-    if (results.reviewed < venues.length) {
-      await sleep(DELAY_MS)
-    }
+    if (Date.now() - startedAt <= TIME_BUDGET_MS) await sleep(DELAY_MS)
   }
 
-  console.log(`[cleanup] Done. Reviewed ${results.reviewed}, kept ${results.kept}, removed ${results.removed}, errors ${results.errors}`)
+  console.log(`[cleanup] reviewed ${results.reviewed} — kept ${results.kept}, hidden ${results.hidden}, errors ${results.errors}`)
   return NextResponse.json({ ok: true, ...results })
 }
 
-/** Map tag name to a broad category for club_tags.category */
+/** Map a suggested tag to a broad category for club_tags.category */
 function inferTagCategory(tag: string): string {
   const music = ['techno', 'house', 'latin', 'hip_hop', 'indie', 'electronic', 'jazz', 'live_music']
   const vibe  = ['upscale', 'budget', 'mid_range', 'beach_club', 'terrace', 'speakeasy', 'rooftop', 'lounge']

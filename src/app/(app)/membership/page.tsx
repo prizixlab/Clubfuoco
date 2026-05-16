@@ -265,7 +265,7 @@ export default function MembershipPage() {
       <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {[
           '— Cancel anytime, no questions asked.',
-          '— Partner club benefits apply at 124 venues across Italy.',
+          '— Partner club benefits apply at partner venues across Barcelona.',
           '— Black tier admission by invitation, after a short call.',
         ].map(line => (
           <p key={line} style={{

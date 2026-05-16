@@ -2,8 +2,10 @@
 import { apiFetch } from '@/lib/api'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
-import { Capacitor } from '@capacitor/core'
+import { Iap, isIapAvailable } from '@/lib/iap'
+import { MEMBERSHIP_TIERS, type PaidTier } from '@/lib/membership'
 
 /* ─── Plan configs ───────────────────────────────────────────────────────── */
 
@@ -162,69 +164,79 @@ export default function MembershipDetailPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // ── Purchase via Apple In-App Purchase (StoreKit 2) ──────────────────
+  // Memberships are digital subscriptions, so App Store guideline 3.1.1
+  // requires IAP. The signed transaction is verified server-side before
+  // the tier is granted — the device's claim is never trusted.
   async function subscribe() {
     setLoading(true)
     setError('')
     try {
-      const res  = await apiFetch('/api/memberships/subscribe', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ plan: cfg.id }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
-
-      const secret = data.data?.client_secret as string | undefined
-
-      if (!secret) throw new Error('No payment secret returned')
-
-      // ── Native iOS → Apple Pay (direct, no Stripe payment sheet) ───
-      if (Capacitor.isNativePlatform()) {
-        const { Stripe, ApplePayEventsEnum } = await import('@capacitor-community/stripe')
-
-        await Stripe.initialize({
-          publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-        })
-
-        await Stripe.createApplePay({
-          paymentIntentClientSecret: secret,
-          paymentSummaryItems: [
-            { label: `Club Fuoco · ${cfg.label}`, amount: cfg.pricePlain },
-          ],
-          merchantIdentifier: process.env.NEXT_PUBLIC_APPLE_PAY_MERCHANT_ID ?? 'merchant.com.clubfuoco.app',
-          countryCode:        'IT',
-          currency:           'eur',
-        })
-
-        const { paymentResult } = await Stripe.presentApplePay()
-
-        if (paymentResult === ApplePayEventsEnum.Completed) {
-          // Webhook confirms the subscription — navigate to success
-          router.replace(`/membership?success=1&tier=${cfg.id}`)
-        } else if (paymentResult === ApplePayEventsEnum.Canceled) {
-          // User dismissed the sheet — do nothing
-          setLoading(false)
-        } else {
-          throw new Error('Payment failed. Please try again.')
-        }
+      if (!isIapAvailable()) {
+        setError('Memberships can only be purchased in the Club Fuoco iOS app.')
+        setLoading(false)
         return
       }
 
-      // ── Web fallback → Stripe.js confirmCardPayment / redirect ─────
-      const { loadStripe } = await import('@stripe/stripe-js')
-      const stripeJs = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
-      if (!stripeJs) throw new Error('Stripe could not be loaded')
+      const productId = MEMBERSHIP_TIERS[cfg.id as PaidTier].productId
+      const result = await Iap.purchase({ productId })
 
-      const { error: stripeError } = await stripeJs.confirmPayment({
-        clientSecret: secret,
-        confirmParams: {
-          return_url: `${window.location.origin}/membership?success=1&tier=${cfg.id}`,
-        },
+      if (result.status === 'cancelled') {
+        setLoading(false)
+        return
+      }
+      if (result.status === 'pending') {
+        setError('Your purchase is pending approval (Ask to Buy). Your membership will activate once it is approved.')
+        setLoading(false)
+        return
+      }
+      if (result.status !== 'purchased' || !result.jws) {
+        throw new Error('Purchase did not complete. Please try again.')
+      }
+
+      // Server verifies the JWS against Apple's certificates, then grants the tier.
+      const res  = await apiFetch('/api/memberships/iap/verify', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ jws: result.jws }),
       })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Could not verify your purchase')
 
-      if (stripeError) throw new Error(stripeError.message ?? 'Payment failed')
+      router.replace(`/membership?success=1&tier=${cfg.id}`)
     } catch (e: any) {
-      setError(e.message)
+      setError(e?.message ?? 'Something went wrong')
+      setLoading(false)
+    }
+  }
+
+  // ── Restore Purchases — required by App Store guideline 3.1.1 ────────
+  async function restore() {
+    setLoading(true)
+    setError('')
+    try {
+      if (!isIapAvailable()) {
+        setError('Memberships can only be restored in the Club Fuoco iOS app.')
+        setLoading(false)
+        return
+      }
+      const { entitlements } = await Iap.restorePurchases()
+      if (!entitlements.length) {
+        setError('No previous Club Fuoco membership was found on this Apple ID.')
+        setLoading(false)
+        return
+      }
+      const res  = await apiFetch('/api/memberships/iap/verify', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ entitlements }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Could not restore your membership')
+
+      router.replace(`/membership?restored=1&tier=${data.data?.tier ?? ''}`)
+    } catch (e: any) {
+      setError(e?.message ?? 'Something went wrong')
       setLoading(false)
     }
   }
@@ -474,6 +486,43 @@ export default function MembershipDetailPage() {
                 </>
               )}
             </button>
+
+            {/* Restore purchases — required by App Store guideline 3.1.1 */}
+            <button
+              onClick={restore}
+              disabled={loading}
+              style={{
+                width: '100%',
+                marginTop: 12,
+                background: 'transparent',
+                border: 'none',
+                color: '#6E6356',
+                fontFamily: 'ui-monospace, monospace',
+                fontSize: 10,
+                letterSpacing: '1.4px',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              Restore purchases
+            </button>
+
+            {/* Auto-renew disclosure — required by App Store guideline 3.1.2 */}
+            <p style={{
+              marginTop: 14,
+              fontFamily: 'Inter, sans-serif',
+              fontSize: 10.5,
+              lineHeight: 1.5,
+              color: '#9F9486',
+              textAlign: 'center',
+            }}>
+              {cfg.label} membership is a monthly auto-renewable subscription billed at {cfg.price}/month
+              through your Apple ID. It renews automatically unless cancelled at least 24 hours before the
+              end of the current period. Manage or cancel anytime in your Apple ID settings.{' '}
+              <Link href="/legal/terms"   style={{ color: '#6E6356' }}>Terms of Use</Link>
+              {' · '}
+              <Link href="/legal/privacy" style={{ color: '#6E6356' }}>Privacy Policy</Link>
+            </p>
           </section>
         </div>
       </div>

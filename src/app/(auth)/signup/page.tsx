@@ -1,5 +1,4 @@
 'use client'
-import { apiFetch } from '@/lib/api'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
@@ -268,13 +267,15 @@ function PrimaryBtn({
 export default function SignupPage() {
   const router = useRouter()
 
-  const [step,         setStep]        = useState<1 | 2 | 3 | 4>(1)
+  const [step,         setStep]        = useState<1 | 2 | 3 | 4>(2)
   const [accountType,  setAccountType] = useState<AccountType>('user')
+  const [showRoleChooser, setShowRoleChooser] = useState(false)
   const [firstName,    setFirstName]   = useState('')
   const [lastName,     setLastName]    = useState('')
   const [email,        setEmail]       = useState('')
   const [password,     setPassword]    = useState('')
   const [showPwd,      setShowPwd]     = useState(false)
+  const [tosAccepted,  setTosAccepted] = useState(false)
   const [bDay,         setBDay]        = useState(String(DAYS[16]))       // 17
   const [bMonth,       setBMonth]      = useState(String(5))              // May
   const [bYear,        setBYear]       = useState(String(currentYear - 25))
@@ -300,8 +301,14 @@ export default function SignupPage() {
   // ── Step 2: Create account
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true)
     setError('')
+
+    if (!tosAccepted) {
+      setError('Please accept the Terms of Use and Privacy Policy to continue.')
+      return
+    }
+
+    setLoading(true)
 
     const { data, error: signUpError } = await supabase.auth.signUp({
       email, password,
@@ -345,30 +352,19 @@ export default function SignupPage() {
   }
 
   // ── Step 4: Membership
-  async function handleMembership(plan: string) {
+  // Paid tiers are purchased via Apple In-App Purchase on the tier's detail
+  // screen (App Store guideline 3.1.1). Selecting a paid plan here just takes
+  // the user to that screen; free continues straight to onboarding.
+  function handleMembership(plan: string) {
     if (plan === 'free') {
-      router.push('/onboarding')
-      return
-    }
-    setLoading(true)
-    try {
-      const res  = await apiFetch('/api/memberships/subscribe', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan }),
-      })
-      const data = await res.json()
-      if (data.data?.checkout_url) {
-        window.location.href = data.data.checkout_url
-      } else {
-        router.push('/onboarding')
-      }
-    } catch {
-      router.push('/onboarding')
+      router.push('/explore')
+    } else {
+      router.push(`/membership/${plan}`)
     }
   }
 
   function goBack() {
-    if (step === 1) router.push('/')
+    if (step <= 2) router.push('/')
     else setStep(s => (s - 1) as 1 | 2 | 3 | 4)
   }
 
@@ -403,7 +399,7 @@ export default function SignupPage() {
             fontSize: 8.5, color: C.sand, letterSpacing: '1.87px',
             textTransform: 'uppercase', margin: 0,
           }}>
-            Step {step === 2 ? '02' : step === 3 ? '03' : '04'} / 04
+            Step {step === 2 ? '01' : step === 3 ? '02' : '03'} / 03
           </p>
         )}
       </div>
@@ -411,7 +407,7 @@ export default function SignupPage() {
       {/* Progress bar (steps 2+) */}
       {step > 1 && (
         <div style={{ padding: '12px 20px 0' }}>
-          <ProgressBar step={step - 1} total={4} />
+          <ProgressBar step={step - 1} total={3} />
         </div>
       )}
 
@@ -652,50 +648,103 @@ export default function SignupPage() {
         {/* ══ Step 2: Details ═══════════════════════════════════════════════ */}
         {step === 2 && (
           <div>
-            {/* Account pill */}
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              background: 'rgba(248,245,238,0.9)',
-              border: '1px solid rgba(42,31,18,0.18)',
-              borderRadius: 999, padding: '6px 14px 6px 10px',
-              marginBottom: 24,
-            }}>
-              <span style={{
-                width: 8, height: 8, borderRadius: '50%',
-                background: C.red, flexShrink: 0,
-              }} />
-              <span style={{
-                fontFamily: 'var(--font-geist-mono), monospace',
-                fontSize: 9.5, color: C.stone, letterSpacing: '1.2px',
-                textTransform: 'uppercase',
-              }}>
-                Account ·{' '}
-              </span>
-              <span style={{
-                fontFamily: '"Instrument Serif", Georgia, serif',
-                fontSize: 14, fontStyle: 'italic', color: C.ink,
-              }}>
-                {kindLabel[accountType]}
-              </span>
-              <span style={{
-                fontFamily: 'var(--font-geist-mono), monospace',
-                fontSize: 9.5, color: C.stone, letterSpacing: '1.2px',
-                textTransform: 'uppercase',
-              }}>
-                ({kindSubLabel[accountType]})
-              </span>
+            {/* Role — everyone is a partygoer by default; clubs & artists opt out here */}
+            {accountType === 'user' && !showRoleChooser && (
               <button
-                onClick={() => setStep(1)}
+                type="button"
+                onClick={() => setShowRoleChooser(true)}
                 style={{
-                  fontFamily: 'var(--font-geist-mono), monospace',
-                  fontSize: 9.5, color: C.red, letterSpacing: '1.71px',
-                  textTransform: 'uppercase', background: 'none', border: 'none',
-                  cursor: 'pointer', padding: 0, marginLeft: 4,
+                  display: 'block', width: '100%', textAlign: 'left',
+                  background: 'rgba(248,245,238,0.9)',
+                  border: '1px solid rgba(42,31,18,0.18)',
+                  borderRadius: 12, padding: '13px 15px', marginBottom: 24,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+                  fontSize: 12.5, color: C.stone, lineHeight: 1.45,
                 }}
               >
-                Change
+                <strong style={{ color: C.ink }}>Are you an artist, or do you represent a club?</strong>{' '}
+                <span style={{ color: C.red, textDecoration: 'underline' }}>Tap here</span>
               </button>
-            </div>
+            )}
+
+            {showRoleChooser && (
+              <div style={{ marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p style={{
+                  fontFamily: 'var(--font-geist-mono), monospace',
+                  fontSize: 9.5, color: C.red, letterSpacing: '1.6px',
+                  textTransform: 'uppercase', margin: '0 0 2px',
+                }}>
+                  Which are you?
+                </p>
+                {([
+                  { type: 'club', name: 'Locale',  sub: 'Club / Venue' },
+                  { type: 'dj',   name: 'Artista', sub: 'DJ / Artist'  },
+                ] as { type: AccountType; name: string; sub: string }[]).map(opt => (
+                  <button
+                    key={opt.type}
+                    type="button"
+                    onClick={() => { setAccountType(opt.type); setShowRoleChooser(false) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      width: '100%', padding: '14px 16px', cursor: 'pointer',
+                      background: C.white, border: '1px solid rgba(42,31,18,0.18)', borderRadius: 12,
+                    }}
+                  >
+                    <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 20, fontStyle: 'italic', color: C.ink }}>
+                      {opt.name}
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 9.5, color: C.stone, letterSpacing: '1.2px', textTransform: 'uppercase' }}>
+                      {opt.sub}
+                    </span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => { setAccountType('user'); setShowRoleChooser(false) }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: '6px 0', alignSelf: 'flex-start',
+                    fontFamily: 'var(--font-geist-mono), monospace',
+                    fontSize: 9.5, color: C.stone, letterSpacing: '1.4px', textTransform: 'uppercase',
+                  }}
+                >
+                  ← I&apos;m just here for nights out
+                </button>
+              </div>
+            )}
+
+            {accountType !== 'user' && !showRoleChooser && (
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                background: 'rgba(248,245,238,0.9)',
+                border: '1px solid rgba(42,31,18,0.18)',
+                borderRadius: 999, padding: '6px 14px 6px 10px',
+                marginBottom: 24,
+              }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.red, flexShrink: 0 }} />
+                <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 9.5, color: C.stone, letterSpacing: '1.2px', textTransform: 'uppercase' }}>
+                  Account ·{' '}
+                </span>
+                <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 14, fontStyle: 'italic', color: C.ink }}>
+                  {kindLabel[accountType]}
+                </span>
+                <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 9.5, color: C.stone, letterSpacing: '1.2px', textTransform: 'uppercase' }}>
+                  ({kindSubLabel[accountType]})
+                </span>
+                <button
+                  onClick={() => setShowRoleChooser(true)}
+                  style={{
+                    fontFamily: 'var(--font-geist-mono), monospace',
+                    fontSize: 9.5, color: C.red, letterSpacing: '1.71px',
+                    textTransform: 'uppercase', background: 'none', border: 'none',
+                    cursor: 'pointer', padding: 0, marginLeft: 4,
+                  }}
+                >
+                  Change
+                </button>
+              </div>
+            )}
 
             {/* Kicker */}
             <p style={{
@@ -792,6 +841,38 @@ export default function SignupPage() {
                 </p>
               )}
 
+              {/* Terms of Use acceptance — required to create an account */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, paddingTop: 4 }}>
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={tosAccepted}
+                  onClick={() => setTosAccepted(v => !v)}
+                  style={{
+                    width: 20, height: 20, flexShrink: 0, marginTop: 1, padding: 0,
+                    borderRadius: 6, cursor: 'pointer',
+                    border: `1.5px solid ${tosAccepted ? C.red : C.sand}`,
+                    background: tosAccepted ? C.red : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {tosAccepted && (
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6.4L4.7 9.2L10 3.4" stroke="#FFFFFF" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+                <span style={{
+                  fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+                  fontSize: 12, color: C.sand, lineHeight: 1.45,
+                }}>
+                  I have read and accept the{' '}
+                  <Link href="/legal/terms" style={{ color: C.red, textDecoration: 'underline' }}>Terms of Use</Link>
+                  {' '}and{' '}
+                  <Link href="/legal/privacy" style={{ color: C.red, textDecoration: 'underline' }}>Privacy Policy</Link>.
+                </span>
+              </div>
+
               <div style={{ paddingTop: 8 }}>
                 <PrimaryBtn type="submit" loading={loading}>Create account</PrimaryBtn>
               </div>
@@ -802,11 +883,11 @@ export default function SignupPage() {
                 fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
                 fontSize: 11.5, color: C.sand, margin: '4px 0 0',
               }}>
-                <button style={{ background: 'none', border: 'none', fontSize: 11.5, color: C.sand, cursor: 'pointer' }}>Terms</button>
+                <Link href="/legal/terms" style={{ fontSize: 11.5, color: C.sand }}>Terms</Link>
                 {' · '}
-                <button style={{ background: 'none', border: 'none', fontSize: 11.5, color: C.sand, cursor: 'pointer' }}>Privacy</button>
+                <Link href="/legal/privacy" style={{ fontSize: 11.5, color: C.sand }}>Privacy</Link>
                 {' · '}
-                <button style={{ background: 'none', border: 'none', fontSize: 11.5, color: C.sand, cursor: 'pointer' }}>House Rules</button>
+                <Link href="/legal/help" style={{ fontSize: 11.5, color: C.sand }}>Help</Link>
               </p>
             </form>
           </div>

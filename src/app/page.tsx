@@ -58,7 +58,7 @@ export default function SplashPage() {
           textTransform: 'uppercase',
         }}
       >
-        EST · MMXXVI · BROOKLYN — MILANO
+        EST · MMXXVI · BARCELONA
       </div>
 
       {/* Main content */}
@@ -88,7 +88,7 @@ export default function SplashPage() {
             marginBottom: 20,
           }}
         >
-          N° 01 · BARCELLONA
+          N° 01 · BARCELONA
         </p>
 
         {/* Logo title */}

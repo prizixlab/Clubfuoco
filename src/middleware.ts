@@ -56,8 +56,10 @@ export async function middleware(request: NextRequest) {
     pathname === '/' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
+    pathname.startsWith('/legal') || // Terms of Use & Privacy Policy — must be publicly reachable
     pathname.startsWith('/auth') ||
     pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/webhooks') || // Stripe & Apple server-to-server callbacks
     pathname.startsWith('/api/places/photo') || // photo proxy used by cards
     /^\/api\/(bookings|tickets|guest-lists)\/[^/]+\/wallet$/.test(pathname) || // booking/ticket wallet passes
     /^\/api\/membership\/wallet\/[^/]+$/.test(pathname)                        // membership wallet pass

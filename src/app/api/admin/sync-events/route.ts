@@ -4,20 +4,10 @@ import { TICKET_MARKUP } from '@/lib/tickets'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-// Italian RA area IDs (verified via ra.co GraphQL). Each city has 2 IDs because
-// RA migrated to new IDs but kept the old ones live for backwards compatibility.
-const RA_ITALIAN_AREAS: { id: number; city: string }[] = [
-  { id: 171, city: 'Milan'    },
-  { id: 347, city: 'Milan'    },
-  { id: 351, city: 'Rome'     },
-  { id:  52, city: 'Florence' },
-  { id: 352, city: 'Florence' },
-  { id: 348, city: 'Turin'    },
-  { id: 349, city: 'Venice'   },
-  { id: 350, city: 'Bologna'  },
-  { id: 172, city: 'Naples'   },
-  { id: 406, city: 'Naples'   },
-  { id: 302, city: 'Sicily'   },
+// Resident Advisor area IDs for Barcelona — the app's launch city.
+// Area 20 is RA's long-standing Barcelona area.
+const RA_AREAS: { id: number; city: string }[] = [
+  { id: 20, city: 'Barcelona' },
 ]
 
 const RA_GRAPHQL = 'https://ra.co/graphql'
@@ -165,8 +155,8 @@ export async function GET(req: import('next/server').NextRequest) {
 
   const supabase = await createServiceClient()
 
-  // ── 1. RA: pull all Italian-area events ─────────────────────────────────────
-  const raResults = await Promise.allSettled(RA_ITALIAN_AREAS.map(a => fetchRAForArea(a.id)))
+  // ── 1. RA: pull all Barcelona-area events ───────────────────────────────────
+  const raResults = await Promise.allSettled(RA_AREAS.map(a => fetchRAForArea(a.id)))
   const raEvents  = raResults.flatMap(r => r.status === 'fulfilled' ? r.value : [])
 
   // ── 2. Eventbrite: per-club, only for clubs with an organizer id set ────────

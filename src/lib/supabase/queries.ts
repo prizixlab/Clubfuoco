@@ -59,7 +59,7 @@ export async function getNearbyClubs(lat: number, lng: number, radius: number) {
       id, name, slug, address, neighborhood,
       lat, lng, cover_image_url, gallery_urls, photos,
       rating, ratings_total, music_genres, google_place_id,
-      general_entry_price, vip_table_min_spend,
+      general_entry_price, vip_table_min_spend, opening_hours,
       is_featured, is_partner,
       live_status ( is_open, crowd_percentage, crowd_label, current_dj, queue_wait_minutes ),
       club_tags ( tag, category )
@@ -106,6 +106,7 @@ export async function getNearbyClubs(lat: number, lng: number, radius: number) {
       ratings_total:       club.ratings_total ?? 0,
       price_level:         null,
       is_open:             (club.live_status as any)?.is_open ?? null,
+      weekday_hours:       Array.isArray(club.opening_hours) ? club.opening_hours : [],
       live_status:         club.live_status   ?? null,
       music_genres:        club.music_genres  ?? [],
       tags,

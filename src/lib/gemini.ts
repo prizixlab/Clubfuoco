@@ -31,13 +31,29 @@ export async function classifyVenue(params: {
 }): Promise<VenueClassification> {
   const { name, address, types, rating, ratings_total, price_level, photo_url } = params
 
-  const textPrompt = `You are a Barcelona nightlife expert. Analyze this venue and determine if it belongs in a nightlife app (bars, clubs, lounges, discos, cocktail bars, beach clubs, terraces, live music venues).
+  const textPrompt = `You are the venue curator for Club Fuoco — a premium, curated nightlife app for Barcelona. Club Fuoco is NOT a directory of every place that serves a drink. It features only genuine nightlife destinations: places you get dressed up for and go to at night.
 
-Venue details:
+BELONGS in Club Fuoco (is_nightlife = true):
+- Nightclubs, discotecas, DJ-driven venues
+- Cocktail bars and craft-cocktail lounges
+- Rooftop bars and terrace bars with a real scene
+- Beach clubs
+- Lounges, late-night live-music venues, speakeasies
+- Any bar that is a genuine, atmospheric night-out destination
+
+Does NOT belong (is_nightlife = false):
+- Restaurants, cafés, bakeries, fast food, food courts
+- Plain daytime bars, sleepy neighbourhood bars, basic vermut or tapas bars
+- Ordinary sports bars and Irish pubs with no nightlife scene
+- Hotel lobby bars with no scene
+- Anything primarily a daytime or food venue, or simply mundane
+
+Look hard at the PHOTO: does it look like a night-out destination — atmospheric lighting, energy, a dressed-up crowd, design — or like an ordinary café / bar / restaurant?
+
+Venue:
 - Name: ${name}
 - Address: ${address}
-- Google category types: ${types.join(', ')}
-- Rating: ${rating ?? 'unknown'} (${ratings_total ?? 0} reviews)
+${types.length ? `- Google category types: ${types.join(', ')}\n` : ''}- Rating: ${rating ?? 'unknown'} (${ratings_total ?? 0} reviews)
 - Price level: ${price_level !== null && price_level !== undefined ? `${price_level}/4` : 'unknown'}
 
 Respond ONLY with valid JSON in this exact format (no markdown, no extra text):
@@ -49,7 +65,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no extra text):
 }
 
 Only use tags from this approved list: ${APPROVED_TAGS.join(', ')}
-Confidence > 0.7 = clearly a nightlife venue. 0.4–0.7 = probably. < 0.4 = probably not.`
+"is_nightlife" means "belongs in Club Fuoco". "confidence" is how sure you are of that verdict (0=unsure, 1=certain).`
 
   // Build the request — add photo if available (vision)
   const parts: any[] = [{ text: textPrompt }]

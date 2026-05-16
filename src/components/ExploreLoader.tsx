@@ -276,7 +276,7 @@ export default function ExploreLoader({ done, onGone }: Props) {
             textTransform: 'uppercase', color: 'rgba(244,236,221,0.16)',
             textAlign: 'center', margin: 0,
           }}>
-            A Nightlife Company · Milano · Roma · Napoli
+            A Nightlife Company · Barcelona
           </p>
         </div>
 

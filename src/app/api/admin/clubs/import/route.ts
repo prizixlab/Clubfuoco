@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { ok, err } from '@/lib/utils'
+import { venueShouldBeVisible, isFreeEntryVenue } from '@/lib/venue-classify'
 
 const KEY  = process.env.GOOGLE_PLACES_API_KEY!
 const BASE = 'https://maps.googleapis.com/maps/api/place'
@@ -98,9 +99,13 @@ export async function POST(req: NextRequest) {
       opening_hours:    d.opening_hours?.weekday_text ?? null,
       google_place_id:  place_id,
       last_synced_at:   new Date().toISOString(),
-      is_active:        true,
+      // Auto-classify: nightlife/unknown venues are shown; confirmed
+      // non-nightlife (restaurants, cafes, …) are imported but hidden.
+      is_active:        venueShouldBeVisible(d.types ?? []),
       is_featured:      false,
       is_partner:       false,
+      // Plain bars have free entry; night clubs charge a door (left null).
+      general_entry_price: isFreeEntryVenue(d.types ?? []) ? 0 : null,
       photos:           photos,
     })
     .select()

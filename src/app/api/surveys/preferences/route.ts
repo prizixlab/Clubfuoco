@@ -17,7 +17,8 @@ export async function GET() {
   const { data: surveys, error } = await supabase
     .from('booking_surveys')
     .select(`
-      rating, drinks, vibe_rating, crowd_rating, would_return,
+      rating, drinks, drink_ratings, drink_kinds, music_genres,
+      vibe_rating, crowd_rating, would_return,
       bookings ( booking_date, clubs ( id, name, price_level ) )
     `)
     .eq('user_id', user!.id)
@@ -26,13 +27,46 @@ export async function GET() {
   if (error) return err(error.message)
   if (!surveys?.length) return ok(null)
 
-  // ── Aggregate drink signals ──────────────────────────────────────────────
+  // ── Per-drink rating aggregation ─────────────────────────────────────────
+  // drinkScores: drink name → { total, count } for avg rating
+  const drinkScores: Record<string, { total: number; count: number }> = {}
+  for (const s of surveys) {
+    const ratings = (s as any).drink_ratings as Record<string, number> ?? {}
+    for (const [drink, score] of Object.entries(ratings)) {
+      if (!drinkScores[drink]) drinkScores[drink] = { total: 0, count: 0 }
+      drinkScores[drink].total += score
+      drinkScores[drink].count += 1
+    }
+  }
+  // avgDrinkRatings: { 'Negroni': 4.2, 'Estrella Damm': 3.7 }
+  const avgDrinkRatings: Record<string, number> = {}
+  for (const [drink, { total, count }] of Object.entries(drinkScores)) {
+    avgDrinkRatings[drink] = Math.round((total / count) * 10) / 10
+  }
+  // favouriteDrinks: drinks rated ≥ 4 on average, sorted by score
+  const favouriteDrinks = Object.entries(avgDrinkRatings)
+    .filter(([, avg]) => avg >= 4)
+    .sort((a, b) => b[1] - a[1])
+    .map(([drink]) => drink)
+
+  // ── Category-level drink counts (for broad signals) ───────────────────────
   const drinkCounts: Record<string, number> = {}
   for (const s of surveys) {
-    for (const d of s.drinks ?? []) {
+    for (const d of (s as any).drinks ?? []) {
       drinkCounts[d] = (drinkCounts[d] ?? 0) + 1
     }
   }
+
+  // ── Music genre aggregation ───────────────────────────────────────────────
+  const genreCounts: Record<string, number> = {}
+  for (const s of surveys) {
+    for (const g of (s as any).music_genres ?? []) {
+      genreCounts[g] = (genreCounts[g] ?? 0) + 1
+    }
+  }
+  const favouriteGenres = Object.entries(genreCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([g]) => g)
 
   // ── Averages ─────────────────────────────────────────────────────────────
   const avgRating = surveys.reduce((s, r) => s + r.rating,      0) / surveys.length
@@ -96,17 +130,23 @@ export async function GET() {
     avgVibeRating:      avgVibe,
     avgCrowdRating:     avgCrowd,
     preferredPriceLevel,
-    // Drink signals
+    // Per-drink signals (specific drinks with ratings)
+    avgDrinkRatings,    // { 'Negroni': 4.2, 'Estrella Damm': 3.7 }
+    favouriteDrinks,    // drinks rated ≥ 4 on average, ordered by score
+    // Category-level drink signals
     likesCocktails,
     likesBeer,
     likesWine,
     likesShots,
     likesSoft,
     drinkCounts,
+    // Music genre signals
+    favouriteGenres,    // genres ordered by how often user picked them
+    genreCounts,
     // Vibe signals — positive only, never infer opposites
-    goodVibeAtClub,   // liked the music/energy at a club → boost similar clubs
-    goodVibeAtBar,    // liked the atmosphere at a bar → boost similar bars
-    likesBusyVenues,  // enjoyed a packed venue → boost popular spots
+    goodVibeAtClub,
+    goodVibeAtBar,
+    likesBusyVenues,
     // Venue signals
     likedVenueNames:    [...new Set(likedVenueNames)],
     dislikedVenueNames: [...new Set(dislikedVenueNames)],

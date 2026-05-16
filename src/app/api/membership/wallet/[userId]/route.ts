@@ -143,7 +143,7 @@ export async function GET(
 
   const { data: user, error: uErr } = await supabase
     .from('users')
-    .select('id, full_name, membership_tier, created_at')
+    .select('id, full_name, membership_tier, member_number, created_at')
     .eq('id', userId)
     .single()
 
@@ -172,9 +172,9 @@ export async function GET(
     ? String(new Date(user.created_at).getFullYear())
     : '—'
 
-  const memberNum = String(
-    (userId.charCodeAt(0) * 7 + userId.charCodeAt(userId.length - 1) * 3) % 999 + 1
-  ).padStart(3, '0')
+  const memberNum = user.member_number
+    ? String(user.member_number).padStart(4, '0')
+    : '—'
 
   const expirationDate = membership?.valid_until
 

@@ -3,6 +3,7 @@ import { apiFetch } from '@/lib/api'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import DrinkStep from '@/components/DrinkStep'
 
 // ── Onboarding questionnaire — cinema design style
 // Matches the auth flow visual language exactly.
@@ -452,8 +453,8 @@ export default function OnboardingPage() {
           )}
         </p>
 
-        {/* ── Music, Vibes, Drinks, Nights, Crowd — chip grid */}
-        {current.key !== 'budget' && current.key !== 'squad' && (
+        {/* ── Music, Vibes, Nights, Crowd — chip grid */}
+        {current.key !== 'budget' && current.key !== 'squad' && current.key !== 'drinks' && (
           <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 10, marginBottom: 32 }}>
             {OPTS[current.key].map(opt => (
               <Chip
@@ -469,6 +470,16 @@ export default function OnboardingPage() {
                 }}
               />
             ))}
+          </div>
+        )}
+
+        {/* ── Drinks — categories expand to specific drink choices */}
+        {current.key === 'drinks' && (
+          <div style={{ marginBottom: 32 }}>
+            <DrinkStep
+              drinks={prefs.drinks}
+              setDrinks={fn => setPrefs(p => ({ ...p, drinks: fn(p.drinks) }))}
+            />
           </div>
         )}
 

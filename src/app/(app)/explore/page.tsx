@@ -248,7 +248,6 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   const top  = (arr: Place[], n = 12) => arr.slice(0, n)
   const byRating   = (a: Place, b: Place) => (b.rating ?? 0) - (a.rating ?? 0)
   const byPopular  = (a: Place, b: Place) => b.ratings_total - a.ratings_total
-  const byDistance = (a: Place, b: Place) => (a.distance ?? 99) - (b.distance ?? 99)
   const shuffle    = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5)
 
   // ── 1. FOR YOU — hero (always first) ─────────────────────────────────────
@@ -403,7 +402,6 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   }
 
   // ── QUALITY ───────────────────────────────────────────────────────────────
-  candidate('closest',    'Closest to You',          "Walk, don't drive",                [...places].sort(byDistance))
   candidate('top_rated',  'Highest Rated',            'The crowd has spoken',             [...places].filter(p => p.rating !== null && p.ratings_total > 30).sort(byRating))
   candidate('icons',      'Barcelona Icons',          'Legendary — everyone knows them',  [...places].filter(p => p.ratings_total > 300).sort(byPopular), 3)
   candidate('gems',       'Hidden Gems',              'Under the radar, totally worth it',[...places].filter(p => (p.rating ?? 0) >= 4.0 && p.ratings_total < 300).sort(byRating))

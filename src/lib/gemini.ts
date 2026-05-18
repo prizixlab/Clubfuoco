@@ -7,6 +7,7 @@ export interface VenueClassification {
   is_nightlife:  boolean
   confidence:    number        // 0.0 – 1.0
   reasoning:     string        // short explanation
+  pitch:         string        // one-line editorial pitch for the venue
   suggested_tags: string[]     // from the approved tag list
 }
 
@@ -61,11 +62,13 @@ Respond ONLY with valid JSON in this exact format (no markdown, no extra text):
   "is_nightlife": true or false,
   "confidence": 0.0 to 1.0,
   "reasoning": "one sentence max 20 words explaining your decision",
+  "pitch": "one evocative line that captures this venue, max 14 words",
   "suggested_tags": ["tag1", "tag2"]
 }
 
 Only use tags from this approved list: ${APPROVED_TAGS.join(', ')}
-"is_nightlife" means "belongs in Club Fuoco". "confidence" is how sure you are of that verdict (0=unsure, 1=certain).`
+"is_nightlife" means "belongs in Club Fuoco". "confidence" is how sure you are of that verdict (0=unsure, 1=certain).
+"pitch" is editorial copy in Club Fuoco's voice — atmospheric, specific, a little cinematic; never generic marketing ("great vibes", "best night ever"). It's the line a tastemaker would use to describe the place. Leave it "" if the venue does not belong.`
 
   // Build the request — add photo if available (vision)
   const parts: any[] = [{ text: textPrompt }]
@@ -114,10 +117,11 @@ Only use tags from this approved list: ${APPROVED_TAGS.join(', ')}
       is_nightlife:  Boolean(parsed.is_nightlife),
       confidence:    Math.min(1, Math.max(0, Number(parsed.confidence) || 0)),
       reasoning:     String(parsed.reasoning ?? '').slice(0, 150),
+      pitch:         String(parsed.pitch ?? '').slice(0, 200),
       suggested_tags: (parsed.suggested_tags ?? []).filter((t: string) => APPROVED_TAGS.includes(t)),
     }
   } catch {
     // If JSON parse fails, fall back to a safe default
-    return { is_nightlife: false, confidence: 0, reasoning: 'Parse error', suggested_tags: [] }
+    return { is_nightlife: false, confidence: 0, reasoning: 'Parse error', pitch: '', suggested_tags: [] }
   }
 }

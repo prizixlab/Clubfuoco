@@ -250,7 +250,7 @@ export default function MembershipDetailPage() {
     }}>
 
       {/* ── Scrollable body ─────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 80 }}>
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(120px + env(safe-area-inset-bottom))' }}>
 
         {/* Hero section */}
         <div style={{
@@ -450,7 +450,7 @@ export default function MembershipDetailPage() {
           </section>
 
           {/* ── CTA button ─────────────────────────────────────────────── */}
-          <section style={{ padding: '20px 20px 32px' }}>
+          <section style={{ padding: '20px 20px 8px' }}>
             {error && (
               <p style={{ fontFamily: 'Inter', fontSize: 12, color: '#8C2A2A', margin: '0 0 10px', textAlign: 'center' }}>{error}</p>
             )}

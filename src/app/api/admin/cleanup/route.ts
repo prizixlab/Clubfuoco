@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   // Partner / owner-claimed venues are skipped — those are never auto-hidden.
   const { data: venues, error } = await supabase
     .from('clubs')
-    .select('id, name, address, cover_image_url, rating, ratings_total')
+    .select('id, name, address, cover_image_url, rating, ratings_total, description')
     .eq('is_active', true)
     .eq('is_partner', false)
     .is('owner_user_id', null)
@@ -81,6 +81,8 @@ export async function GET(req: NextRequest) {
         .from('clubs')
         .update({
           ...(hide ? { is_active: false } : {}),
+          // Fill an empty pitch only — never overwrite one (clubs edit their own).
+          ...(!hide && c.pitch && !v.description ? { description: c.pitch } : {}),
           gemini_reviewed_at: new Date().toISOString(),
         })
         .eq('id', v.id)

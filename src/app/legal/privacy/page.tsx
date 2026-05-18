@@ -1,18 +1,17 @@
 import LegalDoc, { type LegalSection } from '../_doc'
 
 /*
- * NOTE FOR THE TEAM — replace every [BRACKETED] placeholder with your real
- * details before submitting. This policy must also be hosted at a public URL
- * and entered in App Store Connect → App Privacy. Have a lawyer / DPO review
- * it for GDPR compliance before launch.
+ * Controller is Club Fuoco (Wyoming corporation). This policy must also be
+ * hosted at a public URL and entered in App Store Connect → App Privacy.
+ * Have a lawyer / DPO review for GDPR — a US entity processing EU-user data.
  */
 
 const SECTIONS: LegalSection[] = [
   {
     heading: 'Who we are',
     body: [
-      'Club Fuoco is a nightlife discovery and membership app. The data controller is [LEGAL ENTITY NAME], registered in [Spain] at [REGISTERED ADDRESS].',
-      'For any privacy question, or to exercise your rights, contact us at [privacy@clubfuoco.app].',
+      'Club Fuoco is a nightlife discovery and membership app. The data controller is Club Fuoco, a corporation organized under the laws of the State of Wyoming, United States, with registered office at 30 N Gould St Ste R, Sheridan, WY 82801, USA.',
+      'For any privacy question, or to exercise your rights, contact us at privacy@clubfuoco.com.',
     ],
   },
   {
@@ -65,7 +64,7 @@ const SECTIONS: LegalSection[] = [
     heading: 'Your rights',
     body: [
       'Subject to applicable law, you have the right to access, correct, delete, or export your personal data; to object to or restrict certain processing; and to withdraw consent at any time.',
-      'You can delete your account directly from the Settings screen. To exercise any other right, contact [privacy@clubfuoco.app]. You also have the right to lodge a complaint with your local data protection authority — in Spain, the Agencia Española de Protección de Datos (AEPD).',
+      'You can delete your account directly from the Settings screen. To exercise any other right, contact privacy@clubfuoco.com. You also have the right to lodge a complaint with your local data protection authority — in Spain, the Agencia Española de Protección de Datos (AEPD).',
     ],
   },
   {
@@ -90,7 +89,7 @@ const SECTIONS: LegalSection[] = [
     heading: 'Changes and contact',
     body: [
       'We may update this Privacy Policy from time to time. We will post the updated version in the App and update the "Last updated" date above.',
-      'For any privacy question, or to exercise your rights, contact [privacy@clubfuoco.app].',
+      'For any privacy question, or to exercise your rights, contact privacy@clubfuoco.com.',
     ],
   },
 ]
@@ -100,7 +99,7 @@ export default function PrivacyPage() {
     <LegalDoc
       kicker="Club Fuoco · Legal"
       title="Privacy Policy"
-      updated="16 May 2026"
+      updated="17 May 2026"
       intro="This policy explains what personal data Club Fuoco collects, why, how it is used and shared, and the rights you have over it."
       sections={SECTIONS}
     />

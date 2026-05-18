@@ -1,16 +1,16 @@
 import LegalDoc, { type LegalSection } from '../_doc'
 
 /*
- * NOTE FOR THE TEAM — replace every [BRACKETED] placeholder with your real
- * legal details before submitting to the App Store, and have a lawyer review.
- * Apple requires a functional Terms of Use (EULA) link on the purchase screen.
+ * Entity details below are Club Fuoco (Wyoming corporation, filed 18 May 2026).
+ * Have a lawyer review before launch — note the cross-border angle: a US entity
+ * operating an app for EU (Barcelona) users.
  */
 
 const SECTIONS: LegalSection[] = [
   {
     heading: 'Acceptance of these Terms',
     body: [
-      'These Terms of Use ("Terms") govern your use of the Club Fuoco mobile application and related services (the "App"), operated by [LEGAL ENTITY NAME], a company registered in [Spain], with registered office at [REGISTERED ADDRESS] ("Club Fuoco", "we", "us").',
+      'These Terms of Use ("Terms") govern your use of the Club Fuoco mobile application and related services (the "App"), operated by Club Fuoco, a corporation organized under the laws of the State of Wyoming, United States, with registered office at 30 N Gould St Ste R, Sheridan, WY 82801, USA ("Club Fuoco", "we", "us").',
       'By creating an account or using the App you confirm that you accept these Terms. If you do not agree, do not use the App.',
     ],
   },
@@ -94,8 +94,8 @@ const SECTIONS: LegalSection[] = [
   {
     heading: 'Governing law and contact',
     body: [
-      'These Terms are governed by the laws of Spain, and the courts of [Barcelona, Spain] have jurisdiction, without affecting any mandatory consumer-protection rights in your country of residence.',
-      'Questions about these Terms: [legal@clubfuoco.app]. Our Privacy Policy explains how we handle your personal data and forms part of your agreement with us.',
+      'These Terms are governed by the laws of the State of Wyoming, United States, without affecting any mandatory consumer-protection rights you have under the law of your country of residence.',
+      'Questions about these Terms: legal@clubfuoco.com. Our Privacy Policy explains how we handle your personal data and forms part of your agreement with us.',
     ],
   },
 ]
@@ -105,7 +105,7 @@ export default function TermsPage() {
     <LegalDoc
       kicker="Club Fuoco · Legal"
       title="Terms of Use"
-      updated="16 May 2026"
+      updated="17 May 2026"
       intro="Please read these Terms carefully. They set out the rules for using the Club Fuoco app, including memberships, bookings, and ticket purchases."
       sections={SECTIONS}
     />

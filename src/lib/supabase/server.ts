@@ -61,12 +61,18 @@ export async function createAuthedClient() {
   return createClient()
 }
 
-// Use for webhook handlers and admin ops that must bypass RLS
+// Use for webhook handlers and admin ops that must bypass RLS.
+//
+// This MUST be a plain supabase-js client with NO cookie store. If the request
+// carries a logged-in user's cookie, @supabase/ssr's createServerClient sends
+// that user's JWT as the Authorization header, which overrides the service-role
+// key — PostgREST then treats the request as the normal user and RLS applies
+// (e.g. "new row violates row-level security policy"). A cookie-less client
+// authenticates purely as service_role and correctly bypasses RLS.
 export async function createServiceClient() {
-  const cookieStore = await cookies()
-  return createServerClient(
+  return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { cookies: cookieMethods(cookieStore) }
+    { auth: { persistSession: false, autoRefreshToken: false } }
   )
 }

@@ -607,6 +607,15 @@ export default function PlaceDetailPage() {
       : `https://www.google.com/maps/dir/?api=1&destination=${dest}&destination_place_id=${place.google_place_id ?? ''}`
   })()
 
+  // Log a venue-presence intent signal (the user is heading here).
+  function logVenueSignal(kind: 'maps_click' | 'uber_click') {
+    apiFetch('/api/signals', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ club_id: id, kind }),
+    }).catch(() => {})
+  }
+
   const genre = (place.music_genres ?? [])[0] ?? null
   const allTags = [...(place.music_genres ?? []), ...(place.tags ?? []).slice(0, 4)]
 
@@ -888,6 +897,7 @@ export default function PlaceDetailPage() {
           {/* Get Directions */}
           <a
             href={directionsUrl}
+            onClick={() => logVenueSignal('maps_click')}
             style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: C.bg, borderRadius: 16, textDecoration: 'none' }}
           >
             <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -905,6 +915,7 @@ export default function PlaceDetailPage() {
             href={`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[latitude]=${place.lat}&dropoff[longitude]=${place.lng}&dropoff[nickname]=${encodeURIComponent(place.name)}&dropoff[formatted_address]=${encodeURIComponent(place.address)}${process.env.NEXT_PUBLIC_UBER_CLIENT_ID ? `&client_id=${process.env.NEXT_PUBLIC_UBER_CLIENT_ID}` : ''}`}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => logVenueSignal('uber_click')}
             style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: '#0A0A0A', borderRadius: 16, textDecoration: 'none' }}
           >
             <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1022,6 +1033,7 @@ export default function PlaceDetailPage() {
           ) : (
             <a
               href={directionsUrl}
+              onClick={() => logVenueSignal('maps_click')}
               style={{ flex: 1, height: 50, background: C.bg2, color: C.ink, border: `1px solid ${C.line}`, borderRadius: 14, fontSize: 15, fontWeight: 600, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none' }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 18, color: C.accent }}>near_me</span>

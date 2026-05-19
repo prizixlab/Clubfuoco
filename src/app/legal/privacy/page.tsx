@@ -19,7 +19,8 @@ const SECTIONS: LegalSection[] = [
     body: [
       '• Account data: name, email address, date of birth, and any profile photo you add.',
       '• Usage data: clubs you view, save, or book; events you open; membership tier; and the survey and "taste profile" preferences you provide so we can personalise recommendations.',
-      '• Location data: your approximate or precise device location, used to show nearby venues and distances. You can disable this in your device settings; the App still works without it.',
+      '• Location data: your approximate or precise device location, used to show nearby venues and distances, and — when the App is open — to detect whether you are at a partner or listed venue so we can ask you to confirm a visit and leave a verified review. You can disable location in your device settings; the App still works without it.',
+      '• Visit data: which venues you tap directions to, request a ride to, or confirm visiting. We use this to invite genuine, verified reviews and to personalise recommendations.',
       '• Transaction data: records of bookings, tickets, and memberships. Card details are entered directly with our payment providers and are not stored by Club Fuoco.',
       '• Device and technical data: device type, operating system, app version, and diagnostic information.',
     ],

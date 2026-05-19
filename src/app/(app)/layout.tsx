@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { BottomNav } from '@/components/ui/BottomNav'
+import PresenceTracker from '@/components/PresenceTracker'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -37,6 +38,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Bottom nav — floats over content */}
       <BottomNav accountType={accountType} />
+
+      {/* Passive venue-presence tracking + "Were you at X?" prompts */}
+      <PresenceTracker />
     </div>
   )
 }

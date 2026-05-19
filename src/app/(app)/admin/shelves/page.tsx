@@ -86,7 +86,11 @@ export default function AdminShelvesPage() {
           body:    JSON.stringify(draft),
         },
       )
-      if (!res.ok) { flash('Save failed'); return }
+      if (!res.ok) {
+        const detail = await res.json().catch(() => null)
+        flash(`Save failed (${res.status}): ${detail?.error ?? 'unknown error'}`)
+        return
+      }
       setDraft(null)
       setPickQuery('')
       load()

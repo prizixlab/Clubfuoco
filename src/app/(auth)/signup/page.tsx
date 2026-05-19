@@ -341,12 +341,40 @@ export default function SignupPage() {
     }
   }
 
-  // ── Step 3: Birthday
+  // ── Step 3: Birthday — Club Fuoco is strictly 18+. ──────────────────────────
   async function handleBirthday(skip = false) {
     if (!skip && userId && bDay && bMonth && bYear) {
       const month = String(bMonth).padStart(2, '0')
       const day   = String(bDay).padStart(2, '0')
-      await (supabase as any).from('users').update({ birthday: `${bYear}-${month}-${day}` }).eq('id', userId)
+
+      // Age check. The DB also enforces this with a trigger, so a bypassed
+      // client can't store an under-18 birthday — the update simply fails.
+      const today = new Date()
+      let age = today.getFullYear() - Number(bYear)
+      const m = today.getMonth() + 1
+      if (m < Number(bMonth) || (m === Number(bMonth) && today.getDate() < Number(bDay))) age--
+
+      if (age < 18) {
+        setError('You must be 18 or older to use Club Fuoco.')
+        try { await supabase.auth.signOut() } catch { /* ignore */ }
+        setUserId(null)
+        setStep(2)
+        return
+      }
+
+      const { error: upErr } = await (supabase as any)
+        .from('users')
+        .update({ birthday: `${bYear}-${month}-${day}` })
+        .eq('id', userId)
+
+      if (upErr) {
+        // Server-side 18+ trigger rejected it.
+        setError('You must be 18 or older to use Club Fuoco.')
+        try { await supabase.auth.signOut() } catch { /* ignore */ }
+        setUserId(null)
+        setStep(2)
+        return
+      }
     }
     setStep(4)
   }
@@ -987,6 +1015,15 @@ export default function SignupPage() {
                 {bDay} {MONTHS_IT[parseInt(bMonth) - 1]} {bYear}
               </p>
             </div>
+
+            {error && (
+              <p style={{
+                fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+                fontSize: 12, color: C.red, margin: '0 0 12px', lineHeight: 1.4,
+              }}>
+                {error}
+              </p>
+            )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <PrimaryBtn onClick={() => handleBirthday(false)}>Continue</PrimaryBtn>

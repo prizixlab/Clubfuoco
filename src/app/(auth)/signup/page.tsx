@@ -681,24 +681,34 @@ export default function SignupPage() {
                   { type: 'club', name: 'Locale',  sub: 'Club / Venue' },
                   { type: 'dj',   name: 'Artista', sub: 'DJ / Artist'  },
                 ] as { type: AccountType; name: string; sub: string }[]).map(opt => (
-                  <button
+                  <div
                     key={opt.type}
-                    type="button"
-                    onClick={() => { setAccountType(opt.type); setShowRoleChooser(false) }}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      width: '100%', padding: '14px 16px', cursor: 'pointer',
+                      width: '100%', padding: '14px 16px',
                       background: C.white, border: '1px solid rgba(42,31,18,0.18)', borderRadius: 12,
+                      opacity: 0.55,
                     }}
                   >
                     <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 20, fontStyle: 'italic', color: C.ink }}>
                       {opt.name}
                     </span>
-                    <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 9.5, color: C.stone, letterSpacing: '1.2px', textTransform: 'uppercase' }}>
-                      {opt.sub}
+                    <span style={{
+                      fontFamily: 'var(--font-geist-mono), monospace', fontSize: 8.5,
+                      color: C.stone, letterSpacing: '1.2px', textTransform: 'uppercase',
+                      background: 'rgba(42,31,18,0.07)', borderRadius: 999, padding: '3px 9px',
+                    }}>
+                      Coming soon
                     </span>
-                  </button>
+                  </div>
                 ))}
+                <p style={{
+                  fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+                  fontSize: 12, color: C.stone, lineHeight: 1.45, margin: '4px 0 0',
+                }}>
+                  Club and artist accounts aren&apos;t open yet — these features are coming soon.
+                  For now, continue as a guest and explore the city.
+                </p>
                 <button
                   type="button"
                   onClick={() => { setAccountType('user'); setShowRoleChooser(false) }}

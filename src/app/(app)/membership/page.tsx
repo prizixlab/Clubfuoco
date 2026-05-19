@@ -250,15 +250,46 @@ export default function MembershipPage() {
         </div>
       )}
 
-      {/* ── Cards ───────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {PLANS.map(plan => (
-          <Card
-            key={plan.id}
-            plan={plan as Plan & { badge?: string }}
-            onOpen={plan.id !== 'free' ? () => router.push(`/membership/${plan.id}`) : undefined}
-          />
-        ))}
+      {/* ── Cards (locked behind a Coming Soon overlay) ──────────────────── */}
+      <div style={{ position: 'relative' }}>
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 12,
+          filter: 'blur(4px)', opacity: 0.55, pointerEvents: 'none',
+          userSelect: 'none',
+        }}>
+          {PLANS.map(plan => (
+            <Card
+              key={plan.id}
+              plan={plan as Plan & { badge?: string }}
+            />
+          ))}
+        </div>
+
+        {/* Overlay — fixed so it stays centered in the viewport */}
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 30,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          gap: 10, textAlign: 'center', padding: '0 24px',
+          pointerEvents: 'none',
+        }}>
+          <span style={{
+            fontFamily: 'ui-monospace, monospace',
+            fontSize: 10, letterSpacing: '2.4px',
+            textTransform: 'uppercase',
+            color: '#F8F5EE', backgroundColor: '#221E1A',
+            borderRadius: 999, padding: '8px 18px',
+          }}>
+            Coming soon
+          </span>
+          <p style={{
+            fontFamily: '"Instrument Serif", Georgia, serif',
+            fontSize: 20, fontStyle: 'italic',
+            color: '#221E1A', margin: 0, lineHeight: 1.3,
+          }}>
+            Memberships open<br />once our first clubs join.
+          </p>
+        </div>
       </div>
 
       {/* ── Footer notes ────────────────────────────────────────────────── */}

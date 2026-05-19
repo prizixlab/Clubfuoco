@@ -32,19 +32,29 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-    } else {
-      const { data: profile } = await (supabase as any)
-        .from('users')
-        .select('account_type')
-        .eq('id', data.user.id)
-        .single()
-      const type = (profile as any)?.account_type ?? 'user'
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        setError(error.message)
+        setLoading(false)
+        return
+      }
+      let type = 'user'
+      try {
+        const { data: profile } = await (supabase as any)
+          .from('users')
+          .select('account_type')
+          .eq('id', data.user.id)
+          .single()
+        type = (profile as any)?.account_type ?? 'user'
+      } catch {
+        // Profile lookup failed — fall back to the standard home screen.
+      }
       const home: Record<string, string> = { user: '/explore', club: '/club-dashboard', dj: '/dj-dashboard' }
       router.push(home[type] ?? '/explore')
+    } catch (e: any) {
+      setError(e?.message ?? 'Could not sign in. Please try again.')
+      setLoading(false)
     }
   }
 

@@ -6,6 +6,7 @@ import {
   getEvents, getRumbas,
 } from '@/lib/supabase/queries'
 
+import { apiFetch } from '@/lib/api'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -57,6 +58,19 @@ interface Shelf {
   places:   Place[]
   featured?: boolean  // first shelf gets hero treatment
   _rumbas?: Rumba[]   // rumba-shelf override
+}
+
+// Admin-managed custom shelf (from /api/explore/shelves).
+interface CustomShelfRecord {
+  id:          string
+  title:       string
+  subtitle:    string
+  mode:        'auto' | 'manual'
+  auto_filter: string
+  auto_genre:  string | null
+  auto_sort:   string
+  place_ids:   string[]
+  position:    number
 }
 
 // ── Client-side venue matching (mirrors server logic) ─────────────────────────
@@ -893,6 +907,52 @@ let _loaderShownThisSession = false
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+// ── Merge admin-managed custom shelves into the default algorithmic feed ──────
+// Default rows are never removed; custom shelves are spliced in at their
+// `position` (1 = near the top, after the hero). Auto shelves resolve from a
+// rule; manual shelves use an explicit, ordered venue list.
+function mergeCustomShelves(base: Shelf[], records: CustomShelfRecord[], places: Place[]): Shelf[] {
+  if (!records.length) return base
+  const result   = [...base]
+  const byRating  = (a: Place, b: Place) => (b.rating ?? 0) - (a.rating ?? 0)
+  const byPopular = (a: Place, b: Place) => (b.ratings_total ?? 0) - (a.ratings_total ?? 0)
+  const index    = new Map(places.map(p => [p.place_id, p]))
+
+  // Insert in position order so earlier shelves don't shift later targets.
+  for (const rec of [...records].sort((a, b) => a.position - b.position)) {
+    let picks: Place[] = []
+
+    if (rec.mode === 'manual') {
+      picks = rec.place_ids.map(id => index.get(id)).filter(Boolean) as Place[]
+    } else {
+      let pool = [...places]
+      if (rec.auto_filter === 'open')     pool = pool.filter(placeIsOpen)
+      if (rec.auto_filter === 'partner')  pool = pool.filter(p => p.is_partner)
+      if (rec.auto_filter === 'featured') pool = pool.filter(p => p.is_featured)
+      if (rec.auto_filter === 'genre') {
+        const g = (rec.auto_genre ?? '').toLowerCase().trim()
+        pool = pool.filter(p =>
+          (p.music_genres ?? []).some(m => m.toLowerCase().includes(g)) ||
+          (p.tags ?? []).some(t => t.toLowerCase().includes(g)) ||
+          p.name.toLowerCase().includes(g)
+        )
+      }
+      if (rec.auto_sort === 'rating')       pool.sort(byRating)
+      else if (rec.auto_sort === 'popular') pool.sort(byPopular)
+      else pool = pool.sort(() => Math.random() - 0.5)
+      picks = pool.slice(0, 12)
+    }
+
+    // Skip a shelf that has nothing (or too little) to show.
+    if (picks.length < (rec.mode === 'manual' ? 1 : 2)) continue
+
+    const shelf: Shelf = { id: `custom_${rec.id}`, title: rec.title, subtitle: rec.subtitle, places: picks }
+    const at = Math.min(Math.max(rec.position, 1), result.length)
+    result.splice(at, 0, shelf)
+  }
+  return result
+}
+
 export default function ExplorePage() {
   const router = useRouter()
   const [places,       setPlaces]       = useState<Place[]>([])
@@ -910,6 +970,7 @@ export default function ExplorePage() {
   const [raEvents,     setRaEvents]     = useState<ExternalEvent[]>([])
   const [rumbas,       setRumbas]       = useState<Rumba[]>([])
   const [activeFilter, setActiveFilter] = useState('all')
+  const [customShelves, setCustomShelves] = useState<CustomShelfRecord[]>([])
   const [saved,        setSaved]        = useState<Set<string>>(new Set())
   const [showSaved,    setShowSaved]    = useState(false)
 
@@ -1001,6 +1062,12 @@ export default function ExplorePage() {
       .then(d => setRumbas(d))
       .catch(() => {})
 
+    // Admin-managed custom shelves
+    apiFetch('/api/explore/shelves')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (Array.isArray(d?.data)) setCustomShelves(d.data) })
+      .catch(() => {})
+
     return () => clearInterval(eventsTimer)
   }, [])
 
@@ -1059,7 +1126,11 @@ export default function ExplorePage() {
   }
 
   const filteredPlaces = filterPlaces(places, activeFilter)
-  const shelves = buildShelves(filteredPlaces, prefs, raEvents, rumbas, surveyPrefs, tasteProfile)
+  const shelves = mergeCustomShelves(
+    buildShelves(filteredPlaces, prefs, raEvents, rumbas, surveyPrefs, tasteProfile),
+    customShelves,
+    filteredPlaces,
+  )
 
   const searchResults = search
     ? places.filter(p =>

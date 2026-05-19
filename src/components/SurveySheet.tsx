@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { apiFetch } from '@/lib/api'
+import { DRINK_CATEGORIES } from '@/lib/preferences'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,23 +28,28 @@ const BORDER = 'rgba(34,30,26,0.14)'
 
 // ─── Drink data ───────────────────────────────────────────────────────────────
 
-const DRINK_ROWS = [
-  { id: 'beer',      label: 'Birra',     sub: 'BEER'       },
-  { id: 'wine',      label: 'Vino',      sub: 'WINE'       },
-  { id: 'cocktails', label: 'Cocktail',  sub: 'COCKTAILS'  },
-  { id: 'spirits',   label: 'Spirits',   sub: 'SPIRITS'    },
-  { id: 'champagne', label: 'Champagne', sub: 'CHAMPAGNE'  },
-  { id: 'soft',      label: 'Soft',      sub: 'SOFT DRINK' },
-]
-
-const DRINK_KINDS: Record<string, string[]> = {
-  beer:      ['Estrella Damm', 'Estrella Galicia', 'Lager', 'Pilsner', 'IPA', 'Pale Ale', 'Stout', 'Craft', 'Heineken', 'Corona', 'Peroni', 'Moretti'],
-  wine:      ['Red', 'White', 'Rosé', 'Sparkling', 'Prosecco', 'Chardonnay', 'Sauvignon Blanc', 'Pinot Noir'],
-  cocktails: ['Negroni', 'Spritz', 'Mojito', 'Gin & Tonic', 'Margarita', 'Cosmopolitan', 'Old Fashioned', 'Espresso Martini', 'Daiquiri', 'Frozen', 'Signature'],
-  spirits:   ['Gin', 'Vodka', 'Rum', 'Whiskey', 'Tequila', 'Mezcal', 'Brandy', 'Cognac'],
-  champagne: ['Champagne', 'Prosecco', 'Cava', 'Franciacorta', 'Rosé Champagne'],
-  soft:      ['Coke', 'Diet Coke', 'Sprite', 'Juice', 'Energy Drink', 'Soda', 'Lemonade'],
+// Italian display labels for each shared category (keyed to preferences.ts).
+const DRINK_LABELS: Record<string, { label: string; sub: string }> = {
+  beer:          { label: 'Birra',      sub: 'BEER'          },
+  wine:          { label: 'Vino',       sub: 'WINE'          },
+  cocktails:     { label: 'Cocktail',   sub: 'COCKTAILS'     },
+  shots:         { label: 'Spirits',    sub: 'SHOTS & SPIRITS' },
+  champagne:     { label: 'Champagne',  sub: 'CHAMPAGNE'     },
+  non_alcoholic: { label: 'Analcolico', sub: 'NON-ALCOHOLIC' },
+  other:         { label: 'Altro',      sub: 'OTHER'         },
 }
+
+// Built from the single shared source of truth so the survey shelves always
+// match the drink options in Settings.
+const DRINK_ROWS = DRINK_CATEGORIES.map(c => ({
+  id:    c.key,
+  label: DRINK_LABELS[c.key]?.label ?? c.label,
+  sub:   DRINK_LABELS[c.key]?.sub   ?? c.label.toUpperCase(),
+}))
+
+const DRINK_KINDS: Record<string, string[]> = Object.fromEntries(
+  DRINK_CATEGORIES.map(c => [c.key, c.items]),
+)
 
 // ─── Music genres ─────────────────────────────────────────────────────────────
 

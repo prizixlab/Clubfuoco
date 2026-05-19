@@ -41,9 +41,8 @@ const REWARDS = [
 
 const EARN_WAYS = [
   { n: '01', pts: '+10', label: 'Verified review',    desc: 'After your booking, write a short note.'    },
-  { n: '02', pts: '+15', label: 'Add a photo',        desc: 'One image attached to your review.'         },
-  { n: '03', pts: '+50', label: 'First at the venue', desc: 'Be the first to review a partner club.'     },
-  { n: '04', pts: '+30', label: 'Weekly streak',      desc: 'Review every week, four weeks running.'     },
+  { n: '02', pts: '+50', label: 'First at the venue', desc: 'Be the first to review a partner club.'     },
+  { n: '03', pts: '+30', label: 'Weekly streak',      desc: 'Review every week, four weeks running.'     },
 ]
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
@@ -383,38 +382,53 @@ export default function FiammePage() {
               Spend your Fiamme
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {REWARDS.map(r => {
-                const canAfford = balance >= r.cost
-                return (
-                  <button
+            <div style={{ position: 'relative' }}>
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10,
+                filter: 'blur(5px)', opacity: 0.55,
+                pointerEvents: 'none', userSelect: 'none',
+              }}>
+                {REWARDS.map(r => (
+                  <div
                     key={r.key}
-                    onClick={() => canAfford && setSheet({ mode: 'confirm', reward: r })}
                     style={{
                       background: C.surface,
-                      border: `1px solid ${canAfford ? C.line : 'rgba(34,30,26,0.05)'}`,
+                      border: `1px solid rgba(34,30,26,0.05)`,
                       borderRadius: 14, padding: '16px 14px',
-                      textAlign: 'left', cursor: canAfford ? 'pointer' : 'default',
-                      opacity: canAfford ? 1 : 0.45,
+                      textAlign: 'left',
                       display: 'flex', flexDirection: 'column', gap: 6,
-                      transition: 'opacity 0.2s',
                     }}
                   >
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: C.ink, lineHeight: 1.3, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
                       {r.label}
                     </p>
-                    <p style={{ margin: 0, fontSize: 11, color: C.ink3, lineHeight: 1.4 }}>
+                    <p style={{ margin: '6px 0 0', fontSize: 11, color: C.ink3, lineHeight: 1.4 }}>
                       {r.desc}
                     </p>
-                    <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 12, color: C.gold, fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: canAfford ? C.gold : C.ink3, fontFamily: 'ui-monospace, monospace' }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: C.ink3, fontFamily: 'ui-monospace, monospace' }}>
                         {r.cost.toLocaleString()}
                       </span>
                     </div>
-                  </button>
-                )
-              })}
+                  </div>
+                ))}
+              </div>
+
+              {/* Coming soon overlay */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <span style={{
+                  fontFamily: 'ui-monospace, monospace', fontSize: 10,
+                  letterSpacing: '2.2px', textTransform: 'uppercase',
+                  color: C.bg, background: C.ink,
+                  borderRadius: 999, padding: '8px 18px',
+                }}>
+                  Coming soon
+                </span>
+              </div>
             </div>
           </section>
 

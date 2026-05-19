@@ -1,10 +1,6 @@
 'use client'
 import { apiFetch } from '@/lib/api'
 import { getMyBookings, getPendingSurveys } from '@/lib/supabase/queries'
-import { createClient } from '@/lib/supabase/client'
-
-// Emails that see the "+ Test booking" dev shortcut in production.
-const TEST_BOOKING_ALLOWLIST = ['yakov213409@gmail.com']
 
 import { useEffect, useRef, useState } from 'react'
 import type { Booking } from '@/types'
@@ -238,23 +234,11 @@ export default function BookingsPage() {
   const [loading,       setLoading]       = useState(true)
   const [showPast,     setShowPast]     = useState(false)
   const [cancelling,   setCancelling]   = useState<string | null>(null)
-  const [seeding,      setSeeding]      = useState(false)
   const [qrFullscreen,   setQrFullscreen]   = useState<{ bookingId: string; clubName: string; dateStr: string; coverImage?: string | null; total?: number; partySize?: number; bookingType?: string } | null>(null)
   const [pendingSurveys, setPendingSurveys] = useState<PendingBooking[]>([])
   const [activeSurvey,   setActiveSurvey]   = useState<PendingBooking | null>(null)
   const [activeTab,      setActiveTab]      = useState<'tickets' | 'reviews'>('tickets')
-  const [userEmail,      setUserEmail]      = useState<string | null>(null)
 
-  // Pull the current user's email so we can gate the test-booking button
-  useEffect(() => {
-    createClient().auth.getUser().then((res: any) => {
-      setUserEmail(res?.data?.user?.email?.toLowerCase() ?? null)
-    })
-  }, [])
-
-  const canSeedTestBooking =
-    process.env.NODE_ENV === 'development' ||
-    (userEmail !== null && TEST_BOOKING_ALLOWLIST.includes(userEmail))
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
 
   // Keep screen on while QR is fullscreen
@@ -790,23 +774,6 @@ export default function BookingsPage() {
     )
   }
 
-  async function seedTestBooking() {
-    setSeeding(true)
-    try {
-      const res  = await apiFetch('/api/dev/test-booking', { method: 'POST' })
-      const data = await res.json()
-      if (res.ok && data.data) {
-        setBookings(prev => [data.data, ...prev])
-        showToast('Test booking added', true)
-      } else {
-        showToast(data.error ?? 'Failed', false)
-      }
-    } catch {
-      showToast('Something went wrong', false)
-    } finally {
-      setSeeding(false)
-    }
-  }
 
   const nightsWaiting = upcomingBookings.length + upcomingSignups.length + upcomingTickets.length +
     tonightBookings.length + tonightSignups.length + tonightTickets.length
@@ -843,19 +810,6 @@ export default function BookingsPage() {
             : 'Book a night out to get started'}
         </div>
 
-        {/* Dev seed button */}
-        {canSeedTestBooking && (
-          <button
-            onClick={seedTestBooking}
-            disabled={seeding}
-            style={{
-              marginTop: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid #E8E2D8',
-              background: '#F0EDE8', fontSize: 12, fontWeight: 600, color: '#221E1A', cursor: 'pointer',
-              opacity: seeding ? 0.5 : 1,
-            }}>
-            {seeding ? 'Adding…' : '+ Test booking'}
-          </button>
-        )}
       </div>
 
       {/* Segmented tabs — Tickets / Reviews */}

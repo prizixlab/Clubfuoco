@@ -339,7 +339,11 @@ export default function ProfilePage() {
       {/* ── Upgrade Banner ────────────────────────────────────────────── */}
       {t.upgradeTagline && (
         <div style={{ padding: '0 20px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <div style={{ position: 'relative' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+            filter: 'blur(5px)', opacity: 0.55, pointerEvents: 'none', userSelect: 'none',
+          }}>
             <div style={{ flex: 1 }}>
               <p style={{ margin: '0 0 2px', fontSize: 8.5, letterSpacing: '2.04px', color: 'rgb(140,42,42)', textTransform: 'uppercase', fontWeight: 400 }}>
                 PROSSIMO LIVELLO
@@ -368,6 +372,21 @@ export default function ProfilePage() {
                 <path d="M3 7H11M11 7L7.5 3.5M11 7L7.5 10.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </Link>
+          </div>
+
+          {/* Coming soon overlay */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{
+              fontSize: 10, letterSpacing: '2.2px', textTransform: 'uppercase',
+              fontWeight: 600, color: 'rgb(255,255,255)', background: 'rgb(34,30,26)',
+              borderRadius: 999, padding: '8px 18px',
+            }}>
+              Coming soon
+            </span>
+          </div>
           </div>
         </div>
       )}

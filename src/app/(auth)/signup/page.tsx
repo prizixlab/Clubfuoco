@@ -1054,6 +1054,9 @@ export default function SignupPage() {
                 <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 19, color: 'rgb(107,31,31)' }}>€0</span>
               </TierCard>
 
+              {/* ── Paid tiers — gated behind "Coming soon" ── */}
+              <div style={{ position: 'relative' }}>
+              <div style={{ filter: 'blur(4px)', opacity: 0.55, pointerEvents: 'none', userSelect: 'none' }}>
               {/* ── Oro (Gold) */}
               <TierCard
                 selected={selectedPlan === 'gold'}
@@ -1224,6 +1227,23 @@ export default function SignupPage() {
                   </div>
                 </div>
               )}
+              </div>
+
+              {/* Coming soon overlay */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <span style={{
+                  fontFamily: 'var(--font-geist-mono), monospace', fontSize: 10,
+                  letterSpacing: '2.2px', textTransform: 'uppercase' as const,
+                  color: 'rgb(248,245,238)', background: 'rgb(34,30,26)',
+                  borderRadius: 999, padding: '8px 18px',
+                }}>
+                  Coming soon
+                </span>
+              </div>
+              </div>
             </div>
 
             {/* Subscribe CTA */}

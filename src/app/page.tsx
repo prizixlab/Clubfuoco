@@ -1,19 +1,35 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 
 // ── Splash screen — dark cinema theme
 export default function SplashPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const [continuing, setContinuing] = useState(false)
 
   // Replaces the middleware redirect: logged-in users skip straight to the app
   useEffect(() => {
     if (!loading && user) router.replace('/explore')
   }, [user, loading, router])
+
+  // "Continue with no account" — silently creates a Supabase anonymous user so
+  // every guest has a stable user.id we can count toward MAU and tie favourites,
+  // signals, and presence to. The user never sees a form; this is transparent.
+  // No personal info is collected. They can upgrade to a full account later.
+  async function continueAsGuest() {
+    if (continuing) return
+    setContinuing(true)
+    try {
+      const supabase = createClient()
+      await supabase.auth.signInAnonymously()
+    } catch { /* still route them in — Explore is public */ }
+    router.push('/explore')
+  }
   return (
     <div
       style={{
@@ -167,8 +183,24 @@ export default function SplashPage() {
           </Link>
 
           {/* Guest browsing — guideline 5.1.1(v) compliance. */}
-          <Link
-            href="/explore"
+          <p
+            style={{
+              marginTop: 10,
+              marginBottom: 4,
+              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+              fontSize: 12,
+              lineHeight: 1.4,
+              color: 'rgba(244,236,221,0.55)',
+              textAlign: 'center',
+              fontStyle: 'italic',
+            }}
+          >
+            Creating an account tells us what you like and what you don&apos;t.
+          </p>
+          <button
+            type="button"
+            onClick={continueAsGuest}
+            disabled={continuing}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -176,16 +208,18 @@ export default function SplashPage() {
               width: '100%',
               padding: '14px 0',
               background: 'none',
-              color: 'rgba(244,236,221,0.7)',
+              border: 'none',
+              color: 'rgba(244,236,221,0.85)',
               fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
               fontSize: 13,
               fontWeight: 400,
-              textDecoration: 'none',
+              cursor: 'pointer',
               letterSpacing: '0.02em',
+              opacity: continuing ? 0.6 : 1,
             }}
           >
-            Browse without an account →
-          </Link>
+            {continuing ? 'Opening…' : 'Continue with no account →'}
+          </button>
         </div>
 
         {/* Footer legal */}

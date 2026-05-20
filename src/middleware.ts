@@ -52,17 +52,26 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // ── Public routes — always accessible ──────────────────────────────────────
+  // Guideline 5.1.1(v): non-account content (browsing venues, events, pricing)
+  // must be reachable without an account. Login is only required for
+  // account-based actions, which the affected pages gate themselves.
   const isPublic =
     pathname === '/' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
-    pathname.startsWith('/legal') || // Terms of Use & Privacy Policy — must be publicly reachable
+    pathname.startsWith('/legal') ||
     pathname.startsWith('/auth') ||
+    pathname.startsWith('/explore') ||      // Guest browsing — venue feed
+    pathname.startsWith('/clubs') ||        // Guest browsing — venue detail pages
+    pathname.startsWith('/rumbas') ||       // Guest browsing — events
+    pathname.startsWith('/api/places') ||   // Venue/details/photo APIs
+    pathname.startsWith('/api/events') ||   // Event listings
+    pathname.startsWith('/api/clubs') ||    // Public clubs read APIs
+    pathname.startsWith('/api/rumbas') ||
     pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/api/webhooks') || // Stripe & Apple server-to-server callbacks
-    pathname.startsWith('/api/places/photo') || // photo proxy used by cards
-    /^\/api\/(bookings|tickets|guest-lists)\/[^/]+\/wallet$/.test(pathname) || // booking/ticket wallet passes
-    /^\/api\/membership\/wallet\/[^/]+$/.test(pathname)                        // membership wallet pass
+    pathname.startsWith('/api/webhooks') ||
+    /^\/api\/(bookings|tickets|guest-lists)\/[^/]+\/wallet$/.test(pathname) ||
+    /^\/api\/membership\/wallet\/[^/]+$/.test(pathname)
 
   // ── Admin API — allow cron / manual triggers to bypass session ──────────────
   if (pathname.startsWith('/api/admin')) {

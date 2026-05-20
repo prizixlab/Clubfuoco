@@ -1,6 +1,7 @@
 'use client'
 import { apiFetch } from '@/lib/api'
 import { getClubById, getPlaceFavorites, savePlaceFavorite, removePlaceFavorite } from '@/lib/supabase/queries'
+import { useAuth } from '@/contexts/AuthContext'
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
@@ -530,6 +531,7 @@ export default function PlaceDetailPage() {
   // param when accessed directly (e.g. from web).
   const id = searchParams.get('id') ?? params.id
   const router   = useRouter()
+  const { user } = useAuth()
   const [place,         setPlace]         = useState<PlaceDetail | null>(null)
   const [loading,       setLoading]       = useState(true)
   const [hoursOpen,     setHoursOpen]     = useState(false)
@@ -551,6 +553,8 @@ export default function PlaceDetailPage() {
 
   async function toggleSave() {
     if (!place || savingToggle) return
+    // Guideline 5.1.1(v): saving a venue is an account action.
+    if (!user) { router.push(`/login?next=${encodeURIComponent('/clubs/place/' + id)}`); return }
     setSavingToggle(true)
     if (saved) {
       setSaved(false)

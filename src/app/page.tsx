@@ -165,6 +165,27 @@ export default function SplashPage() {
           >
             Sign in
           </Link>
+
+          {/* Guest browsing — guideline 5.1.1(v) compliance. */}
+          <Link
+            href="/explore"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              padding: '14px 0',
+              background: 'none',
+              color: 'rgba(244,236,221,0.7)',
+              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+              fontSize: 13,
+              fontWeight: 400,
+              textDecoration: 'none',
+              letterSpacing: '0.02em',
+            }}
+          >
+            Browse without an account →
+          </Link>
         </div>
 
         {/* Footer legal */}

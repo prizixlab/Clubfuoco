@@ -7,6 +7,7 @@ import {
 } from '@/lib/supabase/queries'
 
 import { apiFetch } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -955,6 +956,7 @@ function mergeCustomShelves(base: Shelf[], records: CustomShelfRecord[], places:
 
 export default function ExplorePage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [places,       setPlaces]       = useState<Place[]>([])
   const [loading,      setLoading]      = useState(true)
   // Skip the cinematic loader if it already played this session
@@ -1001,6 +1003,9 @@ export default function ExplorePage() {
   }, [])
 
   async function handleSave(placeId: string) {
+    // Guideline 5.1.1(v): browsing is open, but saving is an account action.
+    if (!user) { router.push('/login?next=/explore'); return }
+
     const isCurrentlySaved = saved.has(placeId)
 
     // Optimistic update

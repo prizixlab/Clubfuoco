@@ -75,10 +75,6 @@ export const RUMBALIST_OFFERS: Record<string, RumbalistOffer[]> = {
     FREE('Free till 1:00 AM', 'Top Hits · Reggaeton', 'Casual elegant — no sportswear'),
     VIP(400, 'Deep House · Tech House · Hip Hop · R&B · Pop'),
   ],
-  // Noxe (Eclipse Bar @ W Barcelona rooftop)
-  '5b3ee294-67fb-4c57-9fad-32e3ca1a4b75': [
-    FREE('Free entry till 01:30 AM', 'Top Hits · Techno · Commercial House · Electronic', 'Smart casual — no sneakers or sportswear'),
-  ],
   // Bling Bling
   '07ce6a58-ceee-48e4-89ce-3c3e6b6ff2b2': [
     VIP(250, 'Reggaeton · Commercial House · R&B · Top Hits'),

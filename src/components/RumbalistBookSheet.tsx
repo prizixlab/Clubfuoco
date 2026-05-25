@@ -142,6 +142,14 @@ export default function RumbalistBookSheet({
 
   return createPortal(
     <>
+      {/* Rumbalist wordmark gloss-sweep keyframes — moves the white band from
+          far right through the mask and off the left, then pauses before
+          repeating so the wordmark stays mostly pink with periodic shine. */}
+      <style>{`@keyframes rumbaGloss {
+        0%   { background-position: 100% 0; }
+        55%  { background-position: -60% 0; }
+        100% { background-position: -60% 0; }
+      }`}</style>
       {/* Scrim */}
       <div onClick={step === 'pass' ? close : undefined}
         onTouchMove={e => e.preventDefault()}
@@ -392,71 +400,29 @@ function Row({ label, value, bold, small }: { label: string; value: React.ReactN
 // The "Rumbalist" wordmark: chunky Bowlby One in Miami pink with a sweeping
 // white-gloss highlight — like a glossy badge / Mercedes-AMG style co-brand.
 // `color` lets callers override the base pink if it needs to read on a dark sheet.
-// The Rumbalist wordmark — drawn as SVG from geometric primitives because the
-// real brand mark isn't a font. Each letter is a hand-built path: R is a bar +
-// half-circle + diagonal leg, M is two filled triangles, A is one solid
-// triangle, etc. Filled with a linearGradient that animates a white gloss band
-// sweeping across the pink fill (SMIL animate on x1/x2).
+// The Rumbalist wordmark — uses their actual logo PNG as a CSS mask so the
+// shapes are exact, then fills it with a moving pink → white → pink gradient.
+// The white band sweeps across every ~3.4s, giving the wet-gloss highlight on
+// the Miami-pink mark. The PNG ships from /public, served from the iOS bundle.
 function RumbalistMark({ size = 18 }: { size?: number }) {
-  const pink = '#FF2D92'
+  const mask = "url(/rumbalist-logo.png) no-repeat left center / contain"
   return (
-    <svg
-      height={size}
-      viewBox="0 0 680 100"
-      style={{ display: 'inline-block', verticalAlign: '-0.18em', overflow: 'visible' }}
+    <span
       aria-label="Rumbalist"
-    >
-      <defs>
-        <linearGradient id="rumba-gloss" gradientUnits="userSpaceOnUse"
-                        x1="-280" y1="0" x2="-80" y2="0">
-          <stop offset="0"   stopColor={pink}/>
-          <stop offset="0.5" stopColor="#FFFFFF"/>
-          <stop offset="1"   stopColor={pink}/>
-          <animate attributeName="x1" values="-280;760;760" keyTimes="0;0.6;1" dur="3.6s" repeatCount="indefinite"/>
-          <animate attributeName="x2" values="-80;960;960"  keyTimes="0;0.6;1" dur="3.6s" repeatCount="indefinite"/>
-        </linearGradient>
-      </defs>
-      <g fill="url(#rumba-gloss)" fillRule="evenodd">
-        {/* R: left bar + half-disk bowl + diagonal leg, with a triangular eye-cutout */}
-        <path d="M 0,0 H 36 A 30 30 0 0 1 36,60 H 24 L 64,100 H 40 L 20,72 V 100 H 0 Z M 18,16 H 30 A 14 14 0 0 1 30,44 H 18 Z"/>
-        {/* U: arch — two verticals joined by a half-pipe */}
-        <g transform="translate(74,0)">
-          <path d="M 0,0 H 18 V 65 A 17 17 0 0 0 52,65 V 0 H 70 V 65 A 35 35 0 0 1 0,65 Z"/>
-        </g>
-        {/* M: two solid triangles, peaks up */}
-        <g transform="translate(154,0)">
-          <path d="M 0,100 L 22,0 L 44,100 Z M 46,100 L 68,0 L 90,100 Z"/>
-        </g>
-        {/* B: bar + two stacked half-disks */}
-        <g transform="translate(254,0)">
-          <path d="M 0,0 H 32 A 26 26 0 0 1 32,52 H 0 Z M 18,14 H 26 A 12 12 0 0 1 26,38 H 18 Z"/>
-          <path d="M 0,48 H 32 A 26 26 0 0 1 32,100 H 0 Z M 18,62 H 26 A 12 12 0 0 1 26,86 H 18 Z"/>
-        </g>
-        {/* A: one solid equilateral triangle */}
-        <g transform="translate(322,0)">
-          <path d="M 40,0 L 80,100 L 0,100 Z"/>
-        </g>
-        {/* L: bar + foot */}
-        <g transform="translate(412,0)">
-          <path d="M 0,0 H 18 V 82 H 58 V 100 H 0 Z"/>
-        </g>
-        {/* I: thin bar */}
-        <g transform="translate(480,0)">
-          <path d="M 0,0 H 18 V 100 H 0 Z"/>
-        </g>
-        {/* S: two opposing half-circles */}
-        <g transform="translate(510,0)">
-          <path d="M 0,30 A 30 30 0 0 1 60,30 H 42 A 12 12 0 0 0 18,30 Z"/>
-          <path d="M 0,30 A 30 30 0 0 0 30,60 A 30 30 0 0 1 30,100 A 30 30 0 0 1 0,70 H 18 A 12 12 0 0 0 30,82 A 12 12 0 0 0 30,78 A 30 30 0 0 1 0,30 Z"/>
-          <path d="M 30,60 A 30 30 0 0 0 60,30 H 42 A 12 12 0 0 1 30,42 Z"/>
-          <path d="M 60,70 A 30 30 0 0 1 30,100 V 82 A 12 12 0 0 0 42,70 Z"/>
-        </g>
-        {/* T: top bar + center stem */}
-        <g transform="translate(584,0)">
-          <path d="M 0,0 H 76 V 18 H 47 V 100 H 29 V 18 H 0 Z"/>
-        </g>
-      </g>
-    </svg>
+      style={{
+        display: 'inline-block',
+        height: size,
+        aspectRatio: '1600 / 325',
+        verticalAlign: '-0.15em',
+        backgroundImage:
+          'linear-gradient(105deg, #FF2D92 0%, #FF2D92 38%, #FFFFFF 50%, #FF2D92 62%, #FF2D92 100%)',
+        backgroundSize: '260% 100%',
+        backgroundPosition: '100% 0',
+        WebkitMask: mask,
+        mask,
+        animation: 'rumbaGloss 3.4s ease-in-out infinite',
+      }}
+    />
   )
 }
 const Hr = () => <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />

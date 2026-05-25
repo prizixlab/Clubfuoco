@@ -628,6 +628,11 @@ export default function PlaceDetailPage() {
   const allTags = [...(place.music_genres ?? []), ...(place.tags ?? []).slice(0, 4)]
   const rumbalistOffers = getRumbalistOffers(id as string)
   const { value: ratingValue, boosted: ratingBoosted } = rumbaScore(id as string, place.rating)
+  // Rumbalist partner venues only show 4★+ reviews — protects the listing's
+  // perceived quality the same way the Rumba Score does for the headline rating.
+  const visibleReviews = rumbalistOffers.length > 0
+    ? place.reviews.filter(r => r.rating >= 4)
+    : place.reviews
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg }}>
@@ -774,11 +779,11 @@ export default function PlaceDetailPage() {
         )}
 
         {/* ── Reviews horizontal scroll ── */}
-        {place.reviews.length > 0 && (
+        {visibleReviews.length > 0 && (
           <div style={{ paddingTop: 28 }}>
             <p style={{ fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 12px', padding: '0 20px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Reviews</p>
             <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingLeft: 20, paddingRight: 12, paddingBottom: 4, scrollbarWidth: 'none' }}>
-              {place.reviews.map((r, i) => (
+              {visibleReviews.map((r, i) => (
                 <div key={i} style={{ flexShrink: 0, width: 260, background: C.bg, borderRadius: 14, padding: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                     <p style={{ fontWeight: 600, color: C.ink, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{r.author}</p>

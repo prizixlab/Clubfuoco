@@ -33,6 +33,8 @@ export default function RumbalistBookSheet({
   const [step,    setStep]    = useState<Step>('review')
   const [error,   setError]   = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [dragY,   setDragY]   = useState(0)
+  const [dragging, setDragging] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -51,6 +53,31 @@ export default function RumbalistBookSheet({
   }, [])
 
   function close() { setVisible(false); setTimeout(onClose, 280) }
+
+  // Drag-to-dismiss: touching the handle bar at the top and dragging down
+  // moves the sheet with the finger; releasing past 100px closes it.
+  function onHandleTouchStart(e: React.TouchEvent) {
+    const y0 = e.touches[0].clientY
+    setDragging(true)
+    let last = 0
+    function move(ev: TouchEvent) {
+      const dy = ev.touches[0].clientY - y0
+      if (dy < 0) { last = 0; setDragY(0); return }
+      last = dy
+      setDragY(dy)
+    }
+    function end() {
+      window.removeEventListener('touchmove', move)
+      window.removeEventListener('touchend', end)
+      window.removeEventListener('touchcancel', end)
+      setDragging(false)
+      if (last > 100) { close() }
+      else setDragY(0)
+    }
+    window.addEventListener('touchmove', move, { passive: true })
+    window.addEventListener('touchend', end, { passive: true })
+    window.addEventListener('touchcancel', end, { passive: true })
+  }
 
   // Paid VIP — Apple Pay mock + Face ID authentication.
   async function pay() {
@@ -132,13 +159,18 @@ export default function RumbalistBookSheet({
         background: '#0A0A0A',
         borderRadius: '24px 24px 0 0',
         padding: '14px 0 calc(env(safe-area-inset-bottom, 16px) + 22px)',
-        transform: visible ? 'translateY(0)' : 'translateY(100%)',
-        transition: 'transform 0.32s cubic-bezier(0.32, 0.72, 0, 1)',
+        transform: visible
+          ? `translateY(${dragY}px)`
+          : 'translateY(100%)',
+        transition: dragging ? 'none' : 'transform 0.32s cubic-bezier(0.32, 0.72, 0, 1)',
         boxShadow: '0 -20px 60px rgba(0,0,0,0.4)',
         maxHeight: '92vh', overflowY: 'auto',
       }}>
-        {/* Handle */}
-        <div style={{ width: 40, height: 5, background: 'rgba(255,255,255,0.18)', borderRadius: 3, margin: '4px auto 26px' }} />
+        {/* Handle — generous touch target for drag-to-dismiss */}
+        <div onTouchStart={onHandleTouchStart}
+          style={{ padding: '4px 0 18px', cursor: 'grab', touchAction: 'none' }}>
+          <div style={{ width: 40, height: 5, background: 'rgba(255,255,255,0.28)', borderRadius: 3, margin: '0 auto' }} />
+        </div>
 
         {step === 'review' && (
           <ReviewStep

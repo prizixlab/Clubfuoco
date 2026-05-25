@@ -99,7 +99,7 @@ export default function RumbalistBookSheet({
         position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 90,
         background: '#0A0A0A',
         borderRadius: '24px 24px 0 0',
-        padding: '12px 0 calc(env(safe-area-inset-bottom, 16px) + 18px)',
+        padding: '12px 0 calc(env(safe-area-inset-bottom, 34px) + 88px)',
         transform: visible ? 'translateY(0)' : 'translateY(100%)',
         transition: 'transform 0.32s cubic-bezier(0.32, 0.72, 0, 1)',
         boxShadow: '0 -20px 60px rgba(0,0,0,0.4)',

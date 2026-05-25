@@ -2,6 +2,7 @@
 
 import { BottomNav } from '@/components/ui/BottomNav'
 import PresenceTracker from '@/components/PresenceTracker'
+import SwipeBack from '@/components/SwipeBack'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -32,6 +33,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Passive venue-presence tracking only runs for signed-in users */}
       {user && <PresenceTracker />}
+
+      {/* iOS-style edge-swipe-back gesture */}
+      <SwipeBack />
     </div>
   )
 }

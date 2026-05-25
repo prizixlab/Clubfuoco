@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAuthedClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
 import { requireAuth } from '@/lib/auth'
 import { stripe } from '@/lib/stripe'
@@ -12,7 +12,7 @@ export async function GET(
   const { user, response } = await requireAuth()
   if (response) return response
 
-  const supabase = await createClient()
+  const supabase = await createAuthedClient()
 
   const { data, error } = await supabase
     .from('bookings')
@@ -34,7 +34,7 @@ export async function DELETE(
   const { user, response } = await requireAuth()
   if (response) return response
 
-  const supabase = await createClient()
+  const supabase = await createAuthedClient()
 
   const { data: booking, error: fetchError } = await supabase
     .from('bookings')

@@ -436,63 +436,60 @@ function ListGlyph() {
 }
 
 /* ─── Wallet Pass ──────────────────────────────────────────────────────── */
+// Receipt-style confirmation. Deliberately NOT shaped like a Wallet pass —
+// no gradient pass card, no barcode/QR block, no rounded-card trade dress.
+// Plain on-sheet copy + a typographic confirmation code, so Apple Review
+// can't flag it under Guideline 4.5.4 (Apple Pay/Wallet visual imitation).
 function PassStep({ offer, venueName, venueAddress, date, code, onClose }: {
   offer: RumbalistOffer; venueName: string; venueAddress: string; date: string; code: string; onClose: () => void
 }) {
   return (
-    <div style={{ padding: '4px 16px 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', color: '#F5F5F7' }}>
-      <p style={{ margin: '0 0 14px', textAlign: 'center', fontSize: 13, color: 'rgba(245,245,247,0.65)' }}>
-        ✓ Booking confirmed
-      </p>
+    <div style={{ padding: '12px 22px 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', color: '#F5F5F7' }}>
 
-      {/* The pass */}
-      <div style={{
-        background: offer.kind === 'vip_table'
-          ? 'linear-gradient(155deg, #1f1b16 0%, #3a2e1e 60%, #6a4a22 100%)'
-          : 'linear-gradient(155deg, #0E1A44 0%, #1A2A5E 60%, #2C4180 100%)',
-        borderRadius: 18, padding: '18px 18px 16px', color: 'white',
-        boxShadow: '0 14px 40px rgba(0,0,0,0.5)',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        <div style={{ position:'absolute', inset:0, backgroundImage: 'radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '12px 12px', pointerEvents: 'none' }} />
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
-          <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 18 }}>fuoco.</span>
-          <span style={{ fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.85, display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
-            via <RumbalistMark size={11} />
-          </span>
-        </div>
-
-        <p style={{ margin: '20px 0 4px', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.7, position: 'relative' }}>
-          {offer.title}
+      {/* Success */}
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{
+          width: 54, height: 54, borderRadius: 27, margin: '0 auto 14px',
+          background: 'rgba(80,200,120,0.14)',
+          border: '1px solid rgba(80,200,120,0.45)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 26, color: '#7BD698', fontWeight: 600,
+        }}>✓</div>
+        <p style={{ margin: 0, fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 28, lineHeight: 1.2 }}>
+          You&rsquo;re booked at
         </p>
-        <p style={{ margin: 0, fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 28, lineHeight: 1.1, letterSpacing: '-0.4px', position: 'relative' }}>
+        <p style={{ margin: '4px 0 0', fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 28, lineHeight: 1.2, color: '#F0CC85' }}>
           {venueName}
-        </p>
-        <p style={{ margin: '4px 0 0', fontSize: 12, opacity: 0.75, position: 'relative' }}>
-          {venueAddress}
-        </p>
-
-        <div style={{ display: 'flex', gap: 16, marginTop: 18, position: 'relative' }}>
-          <Field label="Date"       value={date} />
-          <Field label="Door"       value={offer.subtitle.split(' · ')[0]} />
-          <Field label="Dress"      value={offer.dress_code.split(' — ')[0]} />
-        </div>
-
-        {/* QR-ish */}
-        <div style={{ marginTop: 18, background: '#fff', borderRadius: 12, padding: 12, display: 'flex', justifyContent: 'center', position: 'relative' }}>
-          <div style={{ width: 116, height: 116, background: `
-              repeating-linear-gradient(0deg, #000 0 4px, transparent 4px 8px),
-              repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 8px)` }} />
-        </div>
-        <p style={{ margin: '10px 0 0', textAlign: 'center', fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: '0.2em', opacity: 0.85, position: 'relative' }}>
-          {code}
         </p>
       </div>
 
+      <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0 -22px' }} />
+
+      {/* Plain receipt rows — no card shape */}
+      <div style={{ padding: '4px 0' }}>
+        <Row label={offer.title} value={<span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>with <RumbalistMark size={11} /></span>} />
+        <Row label="Date"        value={date} />
+        <Row label="Door"        value={offer.subtitle.split(' · ')[0]} small />
+        <Row label="Dress"       value={offer.dress_code.split(' — ')[0]} small />
+        <Row label="Address"     value={venueAddress} small />
+      </div>
+
+      <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '6px -22px 16px' }} />
+
+      {/* Confirmation reference — typographic, no barcode/QR */}
+      <p style={{ margin: 0, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(245,245,247,0.5)', textAlign: 'center' }}>
+        Reference
+      </p>
+      <p style={{ margin: '6px 0 0', fontFamily: 'ui-monospace, monospace', fontSize: 16, letterSpacing: '0.18em', textAlign: 'center', color: '#F5F5F7' }}>
+        {code}
+      </p>
+      <p style={{ margin: '14px 0 0', fontSize: 11, color: 'rgba(245,245,247,0.5)', textAlign: 'center', lineHeight: 1.5 }}>
+        Show this on the door, or open it any time from your Tickets.
+      </p>
+
       <button onClick={onClose}
         style={{
-          marginTop: 18, width: '100%', height: 50,
+          marginTop: 22, width: '100%', height: 50,
           background: 'rgba(255,255,255,0.08)', color: '#F5F5F7',
           border: 'none', borderRadius: 12,
           fontSize: 15, fontWeight: 500, cursor: 'pointer',

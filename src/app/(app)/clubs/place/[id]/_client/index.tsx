@@ -2,6 +2,8 @@
 import { apiFetch } from '@/lib/api'
 import { getClubById, getPlaceFavorites, savePlaceFavorite, removePlaceFavorite } from '@/lib/supabase/queries'
 import { useAuth } from '@/contexts/AuthContext'
+import { getRumbalistOffers, type RumbalistOffer } from '@/lib/rumbalist-offers'
+import RumbalistBookSheet from '@/components/RumbalistBookSheet'
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
@@ -532,6 +534,7 @@ export default function PlaceDetailPage() {
   const id = searchParams.get('id') ?? params.id
   const router   = useRouter()
   const { user } = useAuth()
+  const [activeOffer,   setActiveOffer]   = useState<RumbalistOffer | null>(null)
   const [place,         setPlace]         = useState<PlaceDetail | null>(null)
   const [loading,       setLoading]       = useState(true)
   const [hoursOpen,     setHoursOpen]     = useState(false)
@@ -622,6 +625,7 @@ export default function PlaceDetailPage() {
 
   const genre = (place.music_genres ?? [])[0] ?? null
   const allTags = [...(place.music_genres ?? []), ...(place.tags ?? []).slice(0, 4)]
+  const rumbalistOffers = getRumbalistOffers(id as string)
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg }}>
@@ -896,6 +900,70 @@ export default function PlaceDetailPage() {
           </div>
         )}
 
+        {/* ── Rumbalist offers (demo) ───────────────────────────────── */}
+        {rumbalistOffers.length > 0 && (
+          <div style={{ padding: '24px 20px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div>
+                <p style={{ margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+                            fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
+                            color: C.ink3 }}>Book this venue · Powered by Rumbalist</p>
+                <h3 style={{ margin: '4px 0 0', fontFamily: "'Instrument Serif', Georgia, serif",
+                             fontStyle: 'italic', fontSize: 22, color: C.ink, letterSpacing: '-0.3px' }}>
+                  Tonight&apos;s options
+                </h3>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {rumbalistOffers.map((o, i) => {
+                const isVip = o.kind === 'vip_table'
+                return (
+                  <button key={i} onClick={() => setActiveOffer(o)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
+                      background: isVip
+                        ? 'linear-gradient(135deg, rgb(247,233,200) 0%, rgb(235,208,146) 40%, rgb(216,176,106) 100%)'
+                        : 'rgb(248,245,238)',
+                      borderRadius: 16, textAlign: 'left', cursor: 'pointer', border: 'none', width: '100%',
+                    }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                      background: isVip ? 'rgba(42,27,8,0.18)' : 'rgba(34,30,26,0.06)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <span className="material-symbols-outlined" style={{
+                        fontSize: 22, color: isVip ? 'rgb(42,27,8)' : C.ink,
+                        fontVariationSettings: "'FILL' 1",
+                      }}>{isVip ? 'champagne' : 'list_alt'}</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+                                  fontSize: 14, fontWeight: 600,
+                                  color: isVip ? 'rgb(42,27,8)' : C.ink }}>
+                        {o.title}
+                      </p>
+                      <p style={{ margin: '2px 0 0', fontSize: 12,
+                                  color: isVip ? 'rgba(42,27,8,0.7)' : C.ink3 }}>
+                        {o.subtitle}
+                      </p>
+                    </div>
+                    <span style={{
+                      flexShrink: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+                      fontSize: 11, fontWeight: 600,
+                      color: isVip ? 'rgb(42,27,8)' : C.ink, opacity: 0.9,
+                    }}>
+                      Book →
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            <p style={{ margin: '10px 4px 0', fontSize: 10, color: C.ink3, letterSpacing: '0.02em' }}>
+              Book with Apple Pay — confirmation added straight to your Apple Wallet.
+            </p>
+          </div>
+        )}
+
         {/* ── Directions + Uber ── */}
         <div style={{ padding: '24px 20px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {/* Get Directions */}
@@ -1067,6 +1135,16 @@ export default function PlaceDetailPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Rumbalist booking sheet — Apple Pay flow → Wallet pass */}
+      {activeOffer && (
+        <RumbalistBookSheet
+          offer={activeOffer}
+          venueName={place.name}
+          venueAddress={place.address}
+          onClose={() => setActiveOffer(null)}
+        />
       )}
     </div>
   )

@@ -27,8 +27,8 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
-        {/* Audiowide — 80s retro-futurist face used for the "Rumbalist" wordmark only, à la Mercedes-AMG */}
-        <link href="https://fonts.googleapis.com/css2?family=Audiowide&display=swap" rel="stylesheet" />
+        {/* Bowlby One — chunky geometric face we use for the "Rumbalist" co-brand wordmark */}
+        <link href="https://fonts.googleapis.com/css2?family=Bowlby+One&display=swap" rel="stylesheet" />
         <meta name="theme-color" content="#000000" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         {/* PWA / iOS home screen */}

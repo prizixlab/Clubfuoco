@@ -142,6 +142,13 @@ export default function RumbalistBookSheet({
 
   return createPortal(
     <>
+      {/* Wordmark gloss-sweep keyframes — moves the white band from far right
+          through the letters and off to the left, then pauses before repeating. */}
+      <style>{`@keyframes rumbalistGloss {
+        0%   { background-position: 100% 0; }
+        55%  { background-position: -60% 0; }
+        100% { background-position: -60% 0; }
+      }`}</style>
       {/* Scrim */}
       <div onClick={step === 'pass' ? close : undefined}
         onTouchMove={e => e.preventDefault()}
@@ -265,7 +272,11 @@ function ReviewStep({ offer, venueName, venueAddress, error, onConfirm, onClose 
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           cursor: 'pointer',
         }}>
-        {isFree ? 'Join Guestlist' : <><ApplePayGlyph /> &nbsp;Pay</>}
+        {isFree
+          ? <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
+              Free Guestlist with <RumbalistMark size={18} />
+            </span>
+          : <><ApplePayGlyph /> &nbsp;Pay</>}
       </button>
       <p style={{ marginTop: 12, fontSize: 11, color: 'rgba(245,245,247,0.45)', textAlign: 'center' }}>
         {isFree
@@ -385,16 +396,30 @@ function Row({ label, value, bold, small }: { label: string; value: React.ReactN
   )
 }
 
-// The "Rumbalist" wordmark: Audiowide (80s retro-futurist) so the brand reads
-// as its own thing alongside Club Fuoco — Mercedes-AMG style co-branding.
-function RumbalistMark({ size, color }: { size?: number; color?: string }) {
+// The "Rumbalist" wordmark: chunky Bowlby One in Miami pink with a sweeping
+// white-gloss highlight — like a glossy badge / Mercedes-AMG style co-brand.
+// `color` lets callers override the base pink if it needs to read on a dark sheet.
+function RumbalistMark({ size = 14, color = '#FF2D92' }: { size?: number; color?: string }) {
   return (
     <span style={{
-      fontFamily: '"Audiowide", "Impact", system-ui, sans-serif',
-      letterSpacing: '0.06em',
+      fontFamily: '"Bowlby One", "Impact", system-ui, sans-serif',
+      letterSpacing: '0.02em',
       fontSize: size,
-      color,
+      lineHeight: 1,
+      textTransform: 'uppercase',
       whiteSpace: 'nowrap',
+      // Miami-pink fill with a white "wet" gloss sweeping across the letters.
+      // background-clip:text reveals the gradient only inside letterforms; the
+      // gradient runs pink → white → pink so the wordmark is always readable
+      // while the white band moves over it.
+      backgroundImage: `linear-gradient(105deg, ${color} 0%, ${color} 38%, #FFFFFF 50%, ${color} 62%, ${color} 100%)`,
+      backgroundSize: '260% 100%',
+      backgroundPosition: '100% 0',
+      WebkitBackgroundClip: 'text',
+      backgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      color: 'transparent',
+      animation: 'rumbalistGloss 3.4s ease-in-out infinite',
     }}>Rumbalist</span>
   )
 }

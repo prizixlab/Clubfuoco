@@ -9,6 +9,7 @@ import {
 import { apiFetch } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { RUMBALIST_OFFERS } from '@/lib/rumbalist-offers'
+import { rumbaScore } from '@/lib/rumba-score'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -583,13 +584,17 @@ function HeroCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; 
             <span className="material-symbols-outlined" style={{ fontSize: 17, color: isSaved ? '#E05252' : 'white', fontVariationSettings: isSaved ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
           </span>
 
-          {/* Rating badge */}
-          {place.rating && (
-            <div style={{ position: 'absolute', bottom: 12, right: 12, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(0,0,0,0.55)', borderRadius: 99, padding: '3px 8px' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 12, color: '#F0C040', fontVariationSettings: "'FILL' 1" }}>star</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'white', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{place.rating.toFixed(1)}</span>
-            </div>
-          )}
+          {/* Rating badge — boosted to "Rumba Score" for weak-rated Rumbalist partner venues */}
+          {(() => {
+            const r = rumbaScore(place.place_id, place.rating)
+            if (!r.value) return null
+            return (
+              <div style={{ position: 'absolute', bottom: 12, right: 12, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(0,0,0,0.55)', borderRadius: 99, padding: '3px 8px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 12, color: '#F0C040', fontVariationSettings: "'FILL' 1" }}>star</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'white', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{r.value.toFixed(1)}</span>
+              </div>
+            )
+          })()}
         </div>
 
         {/* Text below image */}

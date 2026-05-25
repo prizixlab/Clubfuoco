@@ -3,6 +3,7 @@ import { apiFetch } from '@/lib/api'
 import { getClubById, getPlaceFavorites, savePlaceFavorite, removePlaceFavorite } from '@/lib/supabase/queries'
 import { useAuth } from '@/contexts/AuthContext'
 import { getRumbalistOffers, type RumbalistOffer } from '@/lib/rumbalist-offers'
+import { rumbaScore } from '@/lib/rumba-score'
 import RumbalistBookSheet from '@/components/RumbalistBookSheet'
 
 import { useEffect, useState } from 'react'
@@ -626,6 +627,7 @@ export default function PlaceDetailPage() {
   const genre = (place.music_genres ?? [])[0] ?? null
   const allTags = [...(place.music_genres ?? []), ...(place.tags ?? []).slice(0, 4)]
   const rumbalistOffers = getRumbalistOffers(id as string)
+  const { value: ratingValue, label: ratingLabel } = rumbaScore(id as string, place.rating)
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg }}>
@@ -735,10 +737,10 @@ export default function PlaceDetailPage() {
 
           {/* RATING */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 4px', background: C.bg, borderRadius: 12 }}>
-            <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 4px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Rating</p>
+            <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 4px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{ratingLabel}</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#D4A017', fontVariationSettings: "'FILL' 1" }}>star</span>
-              <p style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{place.rating ? place.rating.toFixed(1) : '—'}</p>
+              <p style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{ratingValue ? ratingValue.toFixed(1) : '—'}</p>
             </div>
           </div>
         </div>

@@ -1068,7 +1068,10 @@ export default function PlaceDetailPage() {
         )}
       </div>
 
-      {/* ── Sticky CTA bar ─────────────────────────────────────────────────── */}
+      {/* ── Sticky CTA bar ───────────────────────────────────────────────────
+          Hidden on Rumbalist partner venues — the Rumbalist offer cards above
+          replace this bar with cleaner, dedicated Book buttons. */}
+      {rumbalistOffers.length === 0 && (
       <div
         style={{
           position: 'fixed',
@@ -1114,6 +1117,7 @@ export default function PlaceDetailPage() {
           )}
         </div>
       </div>
+      )}
 
       {/* ── Inline checkout modal ─────────────────────────────────────────── */}
       {showCheckout && activeEvent && (

@@ -1411,10 +1411,11 @@ export default function ExplorePage() {
                   </span>
                 </div>
 
-                {/* Featured rumba — big hero card */}
+                {/* Featured rumba — big hero card.
+                    Routes to the venue (which carries the Rumbalist offers + Apple Pay flow). */}
                 <button
-                  onClick={() => router.push(`/rumbas/${featured.id}`)}
-                  style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
+                  onClick={() => featured.venue_place_id && router.push(`/clubs/place/placeholder?id=${featured.venue_place_id}`)}
+                  style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', touchAction: 'manipulation' }}
                 >
                   <div style={{
                     position: 'relative', width: '100%', aspectRatio: '4 / 5',
@@ -1466,8 +1467,8 @@ export default function ExplorePage() {
                     scrollSnapType: 'x mandatory',
                   }}>
                     {rest.map(r => (
-                      <button key={r.id} onClick={() => router.push(`/rumbas/${r.id}`)}
-                        style={{ flexShrink: 0, width: 200, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', scrollSnapAlign: 'start' }}>
+                      <button key={r.id} onClick={() => r.venue_place_id && router.push(`/clubs/place/placeholder?id=${r.venue_place_id}`)}
+                        style={{ flexShrink: 0, width: 200, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', scrollSnapAlign: 'start', touchAction: 'manipulation' }}>
                         <div style={{ position: 'relative', width: 200, height: 250, borderRadius: 14, overflow: 'hidden', background: C.bg2 }}>
                           {r.cover_image && <img src={r.cover_image} alt={r.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
                           <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '26px 12px 12px',

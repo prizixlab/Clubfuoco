@@ -1170,7 +1170,7 @@ export default function ExplorePage() {
               <span style={{ fontFamily: "'Instrument Serif', 'Bodoni Moda', Georgia, serif", fontSize: 28, fontStyle: 'italic', fontWeight: 400, color: C.ink, letterSpacing: '-0.01em', lineHeight: 1 }}>fuoco.</span>
             </div>
             <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 10, color: C.ink3, letterSpacing: '0.08em', margin: 0 }}>
-              Barcelona · {timeGreeting()}
+              Barcelona · Curated by Rumbalist
             </p>
           </div>
 
@@ -1382,6 +1382,118 @@ export default function ExplorePage() {
 
       {!showSaved && (!showSearch || !search) && !loading && (
         <>
+          {/* ── Rumbalist Hero ─────────────────────────────────────────────
+              Demo-only: feature the partner's curated events first.        */}
+          {rumbas.length > 0 && (() => {
+            const featured = rumbas[0]
+            const rest     = rumbas.slice(1)
+            const fmt = (iso: string) => {
+              const d = new Date(iso)
+              return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })
+            }
+            return (
+              <section style={{ padding: '0 20px 28px' }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  marginBottom: 14,
+                }}>
+                  <div>
+                    <p style={{ margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+                                fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
+                                color: C.ink3 }}>Tonight · Powered by Rumbalist</p>
+                    <h2 style={{ margin: '4px 0 0', fontFamily: "'Instrument Serif', 'Bodoni Moda', Georgia, serif",
+                                 fontSize: 28, fontStyle: 'italic', color: C.ink, letterSpacing: '-0.3px' }}>
+                      Curated Tonight.
+                    </h2>
+                  </div>
+                  <span style={{ fontSize: 11, color: C.accent, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+                    {rumbas.length} events →
+                  </span>
+                </div>
+
+                {/* Featured rumba — big hero card */}
+                <button
+                  onClick={() => router.push(`/rumbas/${featured.id}`)}
+                  style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
+                >
+                  <div style={{
+                    position: 'relative', width: '100%', aspectRatio: '4 / 5',
+                    borderRadius: 18, overflow: 'hidden', background: C.bg2,
+                    boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 12px 32px rgba(34,30,26,0.10)',
+                  }}>
+                    {featured.cover_image && (
+                      <img src={featured.cover_image} alt={featured.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    )}
+                    {/* Top-left badge */}
+                    <span style={{
+                      position: 'absolute', top: 14, left: 14,
+                      background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)',
+                      color: 'rgba(255,255,255,0.92)',
+                      fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+                      fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
+                      borderRadius: 999, padding: '5px 10px',
+                    }}>Rumbalist · Featured</span>
+                    {/* Bottom gradient + text */}
+                    <div style={{
+                      position: 'absolute', left: 0, right: 0, bottom: 0,
+                      padding: '46px 18px 18px',
+                      background: 'linear-gradient(transparent, rgba(0,0,0,0.78))',
+                      color: 'white',
+                    }}>
+                      <p style={{ margin: 0, fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase',
+                                  opacity: 0.78, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+                        {fmt(featured.event_date)} · {featured.venue_name}
+                      </p>
+                      <h3 style={{ margin: '6px 0 0', fontFamily: "'Instrument Serif', 'Bodoni Moda', Georgia, serif",
+                                   fontStyle: 'italic', fontSize: 30, lineHeight: 1.05, letterSpacing: '-0.5px' }}>
+                        {featured.title}
+                      </h3>
+                      {featured.description && (
+                        <p style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.4, opacity: 0.85,
+                                    fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+                          {featured.description.length > 130 ? featured.description.slice(0, 130) + '…' : featured.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </button>
+
+                {/* Rest — horizontal carousel */}
+                {rest.length > 0 && (
+                  <div className="no-scrollbar" style={{
+                    display: 'flex', gap: 12, overflowX: 'auto', padding: '14px 0 0',
+                    scrollSnapType: 'x mandatory',
+                  }}>
+                    {rest.map(r => (
+                      <button key={r.id} onClick={() => router.push(`/rumbas/${r.id}`)}
+                        style={{ flexShrink: 0, width: 200, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', scrollSnapAlign: 'start' }}>
+                        <div style={{ position: 'relative', width: 200, height: 250, borderRadius: 14, overflow: 'hidden', background: C.bg2 }}>
+                          {r.cover_image && <img src={r.cover_image} alt={r.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+                          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '26px 12px 12px',
+                                        background: 'linear-gradient(transparent, rgba(0,0,0,0.82))', color: 'white' }}>
+                            <p style={{ margin: 0, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', opacity: 0.75,
+                                        fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+                              {fmt(r.event_date)}
+                            </p>
+                            <p style={{ margin: '4px 0 0', fontFamily: "'Instrument Serif', 'Bodoni Moda', Georgia, serif",
+                                        fontStyle: 'italic', fontSize: 17, lineHeight: 1.1 }}>
+                              {r.title}
+                            </p>
+                            <p style={{ margin: '4px 0 0', fontSize: 11, opacity: 0.75,
+                                        fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+                              {r.venue_name}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )
+          })()}
+
           {/* Featured hero shelf */}
           {shelves.length > 0 && shelves[0].featured && (
             <ShelfRow key={shelves[0].id} shelf={shelves[0]} saved={saved} onSave={handleSave} index={0} />

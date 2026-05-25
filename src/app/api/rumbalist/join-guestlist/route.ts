@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     .insert({
       user_id:        user!.id,
       club_id:        String(body.club_id),
-      booking_type:   'free_guestlist',
+      booking_type:   'general',  // 'free_guestlist' violates the bookings CHECK constraint
       party_size:     1,
       booking_date:   tomorrow,
       status:         'confirmed',

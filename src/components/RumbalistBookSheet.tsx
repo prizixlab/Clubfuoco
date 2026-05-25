@@ -3,17 +3,47 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
+import { apiFetch } from '@/lib/api'
 import { RumbalistOffer } from '@/lib/rumbalist-offers'
 
 /**
- * Apple Pay-styled booking sheet for a Rumbalist offer.
- * Mocks the Apple Pay flow visually for the demo, then shows the Wallet pass.
+ * Apple Pay booking sheet for a Rumbalist offer.
  *
- * Production roadmap (not in this demo):
- *  - replace `pay()` with a real Stripe PaymentIntent + PKPaymentRequest
- *  - replace the in-app pass card with a signed .pkpass added to Apple Wallet
+ * Free offers do a direct Supabase insert (no payment).
+ *
+ * Paid offers (VIP tables) use real Apple Pay via @capacitor-community/stripe:
+ *  1. POST /api/rumbalist/create-vip-intent → server creates an unconfirmed
+ *     Stripe PaymentIntent and returns the client_secret.
+ *  2. Stripe.createApplePay({ paymentIntentClientSecret, ... }) primes the
+ *     native PKPaymentRequest with the merchant ID, currency, and line item.
+ *  3. Stripe.presentApplePay() shows the system Apple Pay sheet; the device
+ *     handles Face ID + authorisation and confirms the intent with Stripe.
+ *  4. POST /api/rumbalist/confirm-vip → server re-checks the intent status
+ *     directly with Stripe and writes the booking row. (Never trust the client
+ *     to claim success.)
+ *
+ * Merchant identifier `merchant.com.clubfuoco.app` is declared in
+ * ios/App/App/App.entitlements (com.apple.developer.in-app-payments) and must
+ * be verified in the Stripe Dashboard's Apple Pay settings.
  */
+
+const MERCHANT_ID = 'merchant.com.clubfuoco.app'
+
+// Initialise the native Stripe plugin exactly once per app session.
+let stripeInitPromise: Promise<void> | null = null
+async function initStripeNative() {
+  if (!Capacitor.isNativePlatform()) return
+  if (stripeInitPromise) return stripeInitPromise
+  stripeInitPromise = (async () => {
+    const { Stripe } = await import('@capacitor-community/stripe')
+    await Stripe.initialize({
+      publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
+    })
+  })()
+  return stripeInitPromise
+}
 
 type Step = 'review' | 'authenticating' | 'pass'
 
@@ -79,11 +109,84 @@ export default function RumbalistBookSheet({
     window.addEventListener('touchcancel', end, { passive: true })
   }
 
-  // Paid VIP — Apple Pay mock + Face ID authentication.
+  // Paid VIP — real Apple Pay via @capacitor-community/stripe on iOS, with a
+  // visible fallback message on web (we don't ship a card-form fallback for
+  // VIP here; the demo flow is native-only).
   async function pay() {
+    if (!offer.price_eur) {
+      setError('No price on this offer.')
+      return
+    }
+    if (!Capacitor.isNativePlatform()) {
+      setError('Apple Pay is iOS only. Open this offer in the Club Fuoco app.')
+      return
+    }
     setStep('authenticating')
-    await new Promise(r => setTimeout(r, 1400))
-    setStep('pass')
+    setError(null)
+    try {
+      // 1. Ensure the user is signed in (intent creation needs auth)
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        close()
+        router.push('/login')
+        return
+      }
+
+      // 2. Create the PaymentIntent server-side
+      const amountCents = Math.round(offer.price_eur * 100)
+      const intentRes = await apiFetch('/api/rumbalist/create-vip-intent', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          club_id:  clubId,
+          amount:   amountCents,
+          currency: 'eur',
+        }),
+      })
+      const intentData = await intentRes.json()
+      if (!intentRes.ok || !intentData?.data?.client_secret) {
+        throw new Error(intentData?.error ?? 'Could not start payment.')
+      }
+      const { client_secret, payment_intent_id } = intentData.data
+
+      // 3. Prime + present the native Apple Pay sheet
+      await initStripeNative()
+      const { Stripe, ApplePayEventsEnum } = await import('@capacitor-community/stripe')
+      await Stripe.createApplePay({
+        paymentIntentClientSecret: client_secret,
+        merchantIdentifier:        MERCHANT_ID,
+        countryCode:               'ES',
+        currency:                  'eur',
+        paymentSummaryItems: [
+          { label: `${offer.title} — ${venueName}`, amount: offer.price_eur },
+        ],
+      })
+      const { paymentResult } = await Stripe.presentApplePay()
+
+      if (paymentResult === ApplePayEventsEnum.Canceled) {
+        setStep('review')
+        return
+      }
+      if (paymentResult !== ApplePayEventsEnum.Completed) {
+        throw new Error('Apple Pay did not complete.')
+      }
+
+      // 4. Server-side confirm + persist booking
+      const confirmRes = await apiFetch('/api/rumbalist/confirm-vip', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_intent_id, club_id: clubId }),
+      })
+      const confirmData = await confirmRes.json()
+      if (!confirmRes.ok) {
+        throw new Error(confirmData?.error ?? 'Booking save failed.')
+      }
+      setStep('pass')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Payment failed.')
+      setStep('review')
+    }
   }
 
   // Free guestlist — no payment. Insert the booking directly via Supabase from

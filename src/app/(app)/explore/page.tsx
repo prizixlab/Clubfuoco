@@ -8,6 +8,7 @@ import {
 
 import { apiFetch } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
+import { RUMBALIST_OFFERS } from '@/lib/rumbalist-offers'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -265,14 +266,19 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   const byPopular  = (a: Place, b: Place) => b.ratings_total - a.ratings_total
   const shuffle    = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5)
 
-  // ── 1. FOR YOU — hero (always first) ─────────────────────────────────────
-  const forYou = [...places]
+  // ── 1. CURATED TONIGHT — Rumbalist's partner clubs ───────────────────────
+  // Demo: the featured shelf is locked to the venues Rumbalist works with.
+  const rumbalistIds = new Set(Object.keys(RUMBALIST_OFFERS))
+  const forYou = places
+    .filter(p => rumbalistIds.has(p.place_id))
     .sort((a, b) => {
       const open = (b.is_open ? 1 : 0) - (a.is_open ? 1 : 0)
-      return open !== 0 ? open : prefScore(b) - prefScore(a)
+      return open !== 0 ? open : (b.rating ?? 0) - (a.rating ?? 0)
     })
     .slice(0, 12)
-  shelves.push({ id: 'for_you', title: 'Curated Tonight', subtitle: 'Matched to your taste', places: forYou, featured: true })
+  if (forYou.length > 0) {
+    shelves.push({ id: 'for_you', title: 'Curated Tonight', subtitle: 'Tonight with Rumbalist', places: forYou, featured: true })
+  }
 
   // ── 2. RUMBAS (active guest list events) ─────────────────────────────────
   // Injected as second shelf only when rumbas exist — completely absent otherwise
@@ -1495,8 +1501,8 @@ export default function ExplorePage() {
             )
           })()}
 
-          {/* Featured hero shelf — hidden in demo mode when Rumbalist hero is showing */}
-          {shelves.length > 0 && shelves[0].featured && rumbas.length === 0 && (
+          {/* Curated Tonight — the featured shelf, now locked to Rumbalist's partner clubs */}
+          {shelves.length > 0 && shelves[0].featured && (
             <ShelfRow key={shelves[0].id} shelf={shelves[0]} saved={saved} onSave={handleSave} index={0} />
           )}
 

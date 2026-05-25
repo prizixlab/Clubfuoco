@@ -934,7 +934,7 @@ export default function PlaceDetailPage() {
                       <span className="material-symbols-outlined" style={{
                         fontSize: 22, color: isVip ? 'rgb(42,27,8)' : C.ink,
                         fontVariationSettings: "'FILL' 1",
-                      }}>{isVip ? 'champagne' : 'list_alt'}</span>
+                      }}>{isVip ? 'liquor' : 'list_alt'}</span>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
@@ -952,14 +952,14 @@ export default function PlaceDetailPage() {
                       fontSize: 11, fontWeight: 600,
                       color: isVip ? 'rgb(42,27,8)' : C.ink, opacity: 0.9,
                     }}>
-                      Book →
+                      {isVip ? 'Book →' : 'Join →'}
                     </span>
                   </button>
                 )
               })}
             </div>
             <p style={{ margin: '10px 4px 0', fontSize: 10, color: C.ink3, letterSpacing: '0.02em' }}>
-              Book with Apple Pay — confirmation added straight to your Apple Wallet.
+              Confirmation added straight to your Apple Wallet.
             </p>
           </div>
         )}
@@ -1147,6 +1147,7 @@ export default function PlaceDetailPage() {
           offer={activeOffer}
           venueName={place.name}
           venueAddress={place.address}
+          clubId={id as string}
           onClose={() => setActiveOffer(null)}
         />
       )}

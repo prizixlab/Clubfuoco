@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { apiFetch } from '@/lib/api'
 import { RumbalistOffer } from '@/lib/rumbalist-offers'
 
 /**
@@ -15,25 +17,59 @@ import { RumbalistOffer } from '@/lib/rumbalist-offers'
 type Step = 'review' | 'authenticating' | 'pass'
 
 export default function RumbalistBookSheet({
-  offer, venueName, venueAddress, onClose,
+  offer, venueName, venueAddress, clubId, onClose,
 }: {
   offer:        RumbalistOffer
   venueName:    string
   venueAddress: string
+  clubId:       string
   onClose:      () => void
 }) {
+  const router = useRouter()
+  const isFree = offer.kind === 'free_guestlist'
+
   const [visible, setVisible] = useState(false)
   const [step,    setStep]    = useState<Step>('review')
+  const [error,   setError]   = useState<string | null>(null)
 
   useEffect(() => { requestAnimationFrame(() => setVisible(true)) }, [])
 
   function close() { setVisible(false); setTimeout(onClose, 280) }
 
+  // Paid VIP — Apple Pay mock + Face ID authentication.
   async function pay() {
     setStep('authenticating')
-    // Simulated Face ID authentication
     await new Promise(r => setTimeout(r, 1400))
     setStep('pass')
+  }
+
+  // Free guestlist — no payment. Add the user to the guestlist registry
+  // and a ticket lands on their profile (Tickets tab).
+  async function joinGuestlist() {
+    setStep('authenticating')
+    setError(null)
+    try {
+      const res = await apiFetch('/api/rumbalist/join-guestlist', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ club_id: clubId }),
+      })
+      if (res.status === 401) {
+        close()
+        router.push('/login')
+        return
+      }
+      if (!res.ok) {
+        const detail = await res.json().catch(() => null)
+        setError(detail?.error ?? 'Could not join the guestlist.')
+        setStep('review')
+        return
+      }
+      setStep('pass')
+    } catch {
+      setError('Could not join the guestlist.')
+      setStep('review')
+    }
   }
 
   // The night the booking is for — next Friday, demo-realistic
@@ -73,9 +109,14 @@ export default function RumbalistBookSheet({
         <div style={{ width: 40, height: 5, background: 'rgba(255,255,255,0.18)', borderRadius: 3, margin: '0 auto 18px' }} />
 
         {step === 'review' && (
-          <ReviewStep offer={offer} venueName={venueName} venueAddress={venueAddress} onPay={pay} onClose={close} />
+          <ReviewStep
+            offer={offer} venueName={venueName} venueAddress={venueAddress}
+            error={error}
+            onConfirm={isFree ? joinGuestlist : pay}
+            onClose={close}
+          />
         )}
-        {step === 'authenticating' && <AuthStep amount={offer.price_eur} />}
+        {step === 'authenticating' && <AuthStep amount={offer.price_eur} isFree={isFree} />}
         {step === 'pass' && (
           <PassStep offer={offer} venueName={venueName} venueAddress={venueAddress} date={date} code={passCode} onClose={close} />
         )}
@@ -85,74 +126,116 @@ export default function RumbalistBookSheet({
 }
 
 /* ─── Review ───────────────────────────────────────────────────────────── */
-function ReviewStep({ offer, venueName, venueAddress, onPay, onClose }: {
-  offer: RumbalistOffer; venueName: string; venueAddress: string; onPay: () => void; onClose: () => void
+function ReviewStep({ offer, venueName, venueAddress, error, onConfirm, onClose }: {
+  offer: RumbalistOffer; venueName: string; venueAddress: string;
+  error: string | null;
+  onConfirm: () => void; onClose: () => void
 }) {
-  const total = offer.price_eur ? `€${offer.price_eur.toFixed(2)}` : 'Free'
+  const isFree = offer.kind === 'free_guestlist'
+  const total  = offer.price_eur ? `€${offer.price_eur.toFixed(2)}` : 'Free'
   return (
     <div style={{ padding: '0 22px', color: '#F5F5F7', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
-      {/* Apple Pay header */}
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-        <ApplePayLogo />
+        {isFree
+          ? <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(245,245,247,0.7)' }}>Free Guestlist · Rumbalist</span>
+          : <ApplePayLogo />}
         <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#fff', borderRadius: 999, width: 30, height: 30, fontSize: 16, cursor: 'pointer' }}>×</button>
       </div>
 
-      {/* Merchant */}
-      <p style={{ margin: '0 0 4px', fontSize: 13, color: 'rgba(245,245,247,0.55)' }}>Pay Club Fuoco</p>
-      <p style={{ margin: 0, fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 32, fontStyle: 'italic', letterSpacing: '-0.4px' }}>
-        {total}
-      </p>
+      {/* Title / amount */}
+      {isFree ? (
+        <>
+          <p style={{ margin: '0 0 4px', fontSize: 13, color: 'rgba(245,245,247,0.55)' }}>Join the guestlist at</p>
+          <p style={{ margin: 0, fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 30, fontStyle: 'italic', letterSpacing: '-0.4px', lineHeight: 1.1 }}>
+            {venueName}
+          </p>
+        </>
+      ) : (
+        <>
+          <p style={{ margin: '0 0 4px', fontSize: 13, color: 'rgba(245,245,247,0.55)' }}>Pay Club Fuoco</p>
+          <p style={{ margin: 0, fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 32, fontStyle: 'italic', letterSpacing: '-0.4px' }}>
+            {total}
+          </p>
+        </>
+      )}
 
       {/* Items */}
       <div style={{ marginTop: 22, background: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: '14px 16px' }}>
-        <Row label="Pay to"  value="Club Fuoco · via Rumbalist" />
+        {isFree ? (
+          <Row label="Operator" value="Club Fuoco · via Rumbalist" />
+        ) : (
+          <Row label="Pay to" value="Club Fuoco · via Rumbalist" />
+        )}
         <Hr />
         <Row label="Venue"   value={venueName} />
         <Row label="Address" value={venueAddress} small />
         <Hr />
-        <Row label={offer.title}    value={offer.subtitle} small />
-        <Row label="Valid"          value={offer.valid_days} small />
-        <Row label="Dress code"     value={offer.dress_code} small />
-        <Hr />
-        <Row label="Total" value={total} bold />
+        <Row label={offer.title} value={offer.subtitle} small />
+        <Row label="Valid"       value={offer.valid_days} small />
+        <Row label="Dress code"  value={offer.dress_code} small />
+        {!isFree && (
+          <>
+            <Hr />
+            <Row label="Total" value={total} bold />
+          </>
+        )}
       </div>
 
-      {/* Apple Pay button */}
-      <button onClick={onPay}
+      {error && (
+        <p style={{ margin: '12px 0 0', fontSize: 12, color: '#FFB4A2', textAlign: 'center' }}>{error}</p>
+      )}
+
+      {/* Confirm button */}
+      <button onClick={onConfirm}
         style={{
           marginTop: 22, width: '100%', height: 54,
-          background: '#FFFFFF', color: '#000',
+          background: isFree ? '#F3EEE0' : '#FFFFFF',
+          color: '#000',
           border: 'none', borderRadius: 12,
           fontSize: 17, fontWeight: 600,
           fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           cursor: 'pointer',
         }}>
-        <ApplePayGlyph /> &nbsp;Pay
+        {isFree ? 'Join Guestlist' : <><ApplePayGlyph /> &nbsp;Pay</>}
       </button>
       <p style={{ marginTop: 12, fontSize: 11, color: 'rgba(245,245,247,0.45)', textAlign: 'center' }}>
-        Confirm with Face ID. Booking added to Wallet instantly.
+        {isFree
+          ? 'You’re added to the door list. Ticket lands on your profile + Apple Wallet.'
+          : 'Confirm with Face ID. Booking added to Wallet instantly.'}
       </p>
     </div>
   )
 }
 
 /* ─── Authenticating ───────────────────────────────────────────────────── */
-function AuthStep({ amount }: { amount: number | null }) {
+function AuthStep({ amount, isFree }: { amount: number | null; isFree: boolean }) {
   return (
     <div style={{ padding: '32px 22px 22px', color: '#F5F5F7', textAlign: 'center', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
       <div style={{ width: 86, height: 86, borderRadius: 22, margin: '0 auto 24px',
                     border: '2px solid rgba(255,255,255,0.18)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     animation: 'cfPulse 1.4s ease-in-out infinite' }}>
-        <FaceIdGlyph />
+        {isFree ? <ListGlyph /> : <FaceIdGlyph />}
       </div>
-      <p style={{ margin: 0, fontSize: 19, fontWeight: 500 }}>Authenticate to pay</p>
+      <p style={{ margin: 0, fontSize: 19, fontWeight: 500 }}>
+        {isFree ? 'Adding you to the guestlist…' : 'Authenticate to pay'}
+      </p>
       <p style={{ margin: '8px 0 0', fontSize: 13, color: 'rgba(245,245,247,0.55)' }}>
-        {amount ? `€${amount.toFixed(2)} to Club Fuoco` : 'Free guestlist · Club Fuoco'}
+        {isFree ? 'Recording your spot on the door list' : (amount ? `€${amount.toFixed(2)} to Club Fuoco` : 'Free guestlist · Club Fuoco')}
       </p>
       <style>{`@keyframes cfPulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.05);opacity:0.7} }`}</style>
     </div>
+  )
+}
+
+function ListGlyph() {
+  return (
+    <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#fff' }}>
+      <path d="M3 6h18M3 12h18M3 18h12"/>
+      <path d="M19 17l1.5 1.5L23 16"/>
+    </svg>
   )
 }
 

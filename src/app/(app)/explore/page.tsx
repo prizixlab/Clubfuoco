@@ -1494,8 +1494,8 @@ export default function ExplorePage() {
             )
           })()}
 
-          {/* Featured hero shelf */}
-          {shelves.length > 0 && shelves[0].featured && (
+          {/* Featured hero shelf — hidden in demo mode when Rumbalist hero is showing */}
+          {shelves.length > 0 && shelves[0].featured && rumbas.length === 0 && (
             <ShelfRow key={shelves[0].id} shelf={shelves[0]} saved={saved} onSave={handleSave} index={0} />
           )}
 
@@ -1532,9 +1532,13 @@ export default function ExplorePage() {
                 <p style={{ fontSize: 14, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>No clubs found nearby</p>
               </div>
             )
-            : shelves.slice(shelves[0]?.featured ? 1 : 0).map((shelf, i) => (
-                <ShelfRow key={shelf.id} shelf={shelf} saved={saved} onSave={handleSave} index={i + 1} />
-              ))
+            : shelves.slice(shelves[0]?.featured ? 1 : 0)
+                // Demo mode: rumbas are already shown in the Rumbalist hero above,
+                // so don't duplicate them as a regular shelf in the middle of the feed.
+                .filter(s => s.id !== 'rumbas')
+                .map((shelf, i) => (
+                  <ShelfRow key={shelf.id} shelf={shelf} saved={saved} onSave={handleSave} index={i + 1} />
+                ))
           }
         </>
       )}

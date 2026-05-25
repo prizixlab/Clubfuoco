@@ -548,7 +548,7 @@ const C = {
 
 function HeroCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; onSave: (id: string) => void }) {
   const router = useRouter()
-  const genre = place.music_genres?.length > 0 ? place.music_genres[0] : 'Featured'
+  const genre = (place.music_genres?.length > 0 ? place.music_genres[0] : 'Featured').replace(/_/g, ' ')
   const meta: string[] = []
   if (place.neighborhood) meta.push(place.neighborhood)
   if (place.price_level !== null && place.price_level !== undefined) meta.push(PRICE_LABEL[place.price_level])
@@ -627,7 +627,7 @@ function HeroCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; 
 
 function LandCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; onSave: (id: string) => void }) {
   const router = useRouter()
-  const genre = place.music_genres?.length > 0 ? place.music_genres[0] : null
+  const genre = place.music_genres?.length > 0 ? place.music_genres[0].replace(/_/g, ' ') : null
   return (
     <button onClick={() => router.push(`/clubs/place/placeholder?id=${place.place_id}`)} style={{ display: 'block', flexShrink: 0, background: 'none', border: 'none', padding: 0, cursor: 'pointer', touchAction: 'manipulation' }}>
       <div style={{ width: 220, borderRadius: 12, overflow: 'hidden', background: C.surface, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 16px rgba(34,30,26,0.06)' }}>

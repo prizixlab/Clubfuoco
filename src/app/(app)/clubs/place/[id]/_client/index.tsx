@@ -678,7 +678,7 @@ export default function PlaceDetailPage() {
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 20px 28px' }}>
           {genre && (
             <p style={{ fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', margin: '0 0 6px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
-              {genre} · Barcelona
+              {genre?.replace(/_/g, ' ')} · Barcelona
             </p>
           )}
           {!genre && (
@@ -765,10 +765,10 @@ export default function PlaceDetailPage() {
         {allTags.length > 0 && (
           <div style={{ padding: '20px 20px 0', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {(place.music_genres ?? []).map(g => (
-              <span key={g} style={{ fontSize: 11, color: C.accent, background: `${C.accent}14`, borderRadius: 99, padding: '4px 12px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', letterSpacing: '0.04em' }}>{g}</span>
+              <span key={g} style={{ fontSize: 11, color: C.accent, background: `${C.accent}14`, borderRadius: 99, padding: '4px 12px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', letterSpacing: '0.04em' }}>{g.replace(/_/g, ' ')}</span>
             ))}
             {(place.tags ?? []).slice(0, 4).map(t => (
-              <span key={t} style={{ fontSize: 11, color: C.ink3, background: C.bg, borderRadius: 99, padding: '4px 12px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{t}</span>
+              <span key={t} style={{ fontSize: 11, color: C.ink3, background: C.bg, borderRadius: 99, padding: '4px 12px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{t.replace(/_/g, ' ')}</span>
             ))}
           </div>
         )}

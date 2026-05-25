@@ -272,7 +272,7 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
       return open !== 0 ? open : prefScore(b) - prefScore(a)
     })
     .slice(0, 12)
-  shelves.push({ id: 'for_you', title: 'For You Tonight', subtitle: 'Matched to your taste', places: forYou, featured: true })
+  shelves.push({ id: 'for_you', title: 'Curated Tonight', subtitle: 'Matched to your taste', places: forYou, featured: true })
 
   // ── 2. RUMBAS (active guest list events) ─────────────────────────────────
   // Injected as second shelf only when rumbas exist — completely absent otherwise

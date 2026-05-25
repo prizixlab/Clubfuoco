@@ -38,20 +38,15 @@ export default function RumbalistBookSheet({
     setMounted(true)
     requestAnimationFrame(() => setVisible(true))
 
-    // Lock the page underneath: stop scroll & hide the tab bar so the sheet
-    // truly takes over the screen the way a native Apple Pay sheet would.
-    const scrollEl = document.getElementById('app-scroll')
-    const navHost  = document.querySelector('nav')?.parentElement as HTMLElement | null
-    const prevBody = document.body.style.overflow
-    const prevScroll = scrollEl?.style.overflow ?? ''
-    const prevNav    = navHost?.style.display ?? ''
-    document.body.style.overflow = 'hidden'
-    if (scrollEl) scrollEl.style.overflow = 'hidden'
-    if (navHost)  navHost.style.display = 'none'
+    // Hide the bottom tab bar while the sheet owns the screen — the scrim's
+    // touch-action: none blocks scroll on the page below so we don't need to
+    // touch overflow anywhere (touching overflow on #app-scroll leaves it
+    // permanently locked because overflowY isn't restored by overflow shorthand).
+    const navHost = document.querySelector('nav')?.parentElement as HTMLElement | null
+    const prevNav = navHost?.style.display ?? ''
+    if (navHost) navHost.style.display = 'none'
     return () => {
-      document.body.style.overflow = prevBody
-      if (scrollEl) scrollEl.style.overflow = prevScroll
-      if (navHost)  navHost.style.display = prevNav
+      if (navHost) navHost.style.display = prevNav
     }
   }, [])
 
@@ -110,10 +105,12 @@ export default function RumbalistBookSheet({
     <>
       {/* Scrim */}
       <div onClick={step === 'pass' ? close : undefined}
+        onTouchMove={e => e.preventDefault()}
         style={{
           position: 'fixed', inset: 0, zIndex: 9998,
           background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)',
           opacity: visible ? 1 : 0, transition: 'opacity 0.28s ease',
+          touchAction: 'none',
         }}
       />
 

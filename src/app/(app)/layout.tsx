@@ -14,6 +14,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#F8F5EE' }}>
+      {/* Global keyframes for the Rumbalist wordmark's gloss sweep. Defined at
+          the (app) layout so it's available everywhere the mark renders, not
+          just inside the booking-sheet portal. */}
+      <style>{`@keyframes rumbaGloss {
+        0%   { background-position: 100% 0; }
+        55%  { background-position: -60% 0; }
+        100% { background-position: -60% 0; }
+      }`}</style>
       {/* Scrollable content */}
       <div
         id="app-scroll"

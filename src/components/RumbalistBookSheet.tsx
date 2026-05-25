@@ -404,7 +404,7 @@ function Row({ label, value, bold, small }: { label: string; value: React.ReactN
 // shapes are exact, then fills it with a moving pink → white → pink gradient.
 // The white band sweeps across every ~3.4s, giving the wet-gloss highlight on
 // the Miami-pink mark. The PNG ships from /public, served from the iOS bundle.
-function RumbalistMark({ size = 18 }: { size?: number }) {
+export function RumbalistMark({ size = 18 }: { size?: number }) {
   const mask = "url(/rumbalist-logo.png) no-repeat left center / contain"
   return (
     <span

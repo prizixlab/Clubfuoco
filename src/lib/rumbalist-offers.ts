@@ -28,16 +28,11 @@ const FREE = (sub: string, music: string, dress: string, days = 'Sun – Fri', t
   music,
 })
 
-// TEMP: pricing is overridden to €0.50 across all VIPs while we verify the
-// live Apple Pay → Stripe flow end-to-end. Revert this branch back to the
-// real `price` before App Store submission / production rollout.
-const VIP_TEST_PRICE = 0.50
-
 const VIP = (price: number, music: string, size = 5): RumbalistOffer => ({
   kind: 'vip_table',
   title: 'VIP Table',
   subtitle: `From €${price} · ${size} people · Fully consumable on bottles`,
-  price_eur: VIP_TEST_PRICE,
+  price_eur: price,
   party_size: size,
   time_window: 'Reservation for the night',
   valid_days: 'Any night',

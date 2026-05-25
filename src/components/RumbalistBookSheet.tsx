@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { apiFetch } from '@/lib/api'
+import { createClient } from '@/lib/supabase/client'
 import { RumbalistOffer } from '@/lib/rumbalist-offers'
 
 /**
@@ -59,31 +59,43 @@ export default function RumbalistBookSheet({
     setStep('pass')
   }
 
-  // Free guestlist — no payment. Add the user to the guestlist registry
-  // and a ticket lands on their profile (Tickets tab).
+  // Free guestlist — no payment. Insert the booking directly via Supabase from
+  // the client (this demo branch doesn't ship a backend route). A row in
+  // `bookings` is all the Tickets tab needs to render the pass.
   async function joinGuestlist() {
     setStep('authenticating')
     setError(null)
     try {
-      const res = await apiFetch('/api/rumbalist/join-guestlist', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ club_id: clubId }),
-      })
-      if (res.status === 401) {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
         close()
         router.push('/login')
         return
       }
-      if (!res.ok) {
-        const detail = await res.json().catch(() => null)
-        setError(detail?.error ?? 'Could not join the guestlist.')
+      const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10)
+      const qrToken = (crypto as Crypto).randomUUID?.()
+        ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const { error: insertErr } = await supabase.from('bookings').insert({
+        user_id:        user.id,
+        club_id:        clubId,
+        booking_type:   'free_guestlist',
+        party_size:     1,
+        booking_date:   tomorrow,
+        status:         'confirmed',
+        unit_price:     0,
+        total_amount:   0,
+        platform_fee:   0,
+        qr_code_token:  qrToken,
+      })
+      if (insertErr) {
+        setError(insertErr.message)
         setStep('review')
         return
       }
       setStep('pass')
-    } catch {
-      setError('Could not join the guestlist.')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not join the guestlist.')
       setStep('review')
     }
   }

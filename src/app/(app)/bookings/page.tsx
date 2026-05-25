@@ -276,7 +276,7 @@ export default function BookingsPage() {
     setTimeout(() => setToast(null), 3500)
   }
 
-  async function cancelBooking(id: string) {
+  async function cancelBooking(id: string, isFree = false) {
     setConfirmId(null)
     setCancelling(id)
     try {
@@ -288,7 +288,14 @@ export default function BookingsPage() {
         setBookings(prev =>
           prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b)
         )
-        showToast(`Cancelled — €${data.data?.refund_amount ?? '?'} refund on its way`, true)
+        // Free bookings have nothing to refund — show a clean confirmation
+        // instead of the paid-flow refund language.
+        showToast(
+          isFree
+            ? 'Booking cancelled.'
+            : `Cancelled — €${data.data?.refund_amount ?? '?'} refund on its way`,
+          true,
+        )
       }
     } catch {
       showToast('Something went wrong', false)
@@ -346,7 +353,12 @@ export default function BookingsPage() {
   const hasPast     = pastBookings.length > 0 || pastSignups.length > 0 || pastTickets.length > 0
   const isEmpty     = bookings.length === 0 && guestSignups.length === 0 && ticketOrders.length === 0
 
-  const totalCount  = bookings.length + guestSignups.length + ticketOrders.length
+  // Badge on the Tickets tab shows what's actionable now — tonight + upcoming
+  // (active, not cancelled). Lifetime totals (past, used, cancelled) are not
+  // useful here and used to bake to misleading numbers like "18".
+  const totalCount  =
+      tonightBookings.length + tonightSignups.length + tonightTickets.length
+    + upcomingBookings.length + upcomingSignups.length + upcomingTickets.length
 
   // ─── BookingCard ────────────────────────────────────────────────────────────
   function BookingCard({ booking, tonight }: { booking: Booking; tonight?: boolean }) {
@@ -521,23 +533,18 @@ export default function BookingsPage() {
           {canCancel && (
             <div style={{ marginTop: 12, borderTop: '1px solid #F0EDE8', paddingTop: 12 }}>
               {confirmId === booking.id ? (
-                <div>
-                  <p style={{ fontSize: 11, color: '#9F9486', marginBottom: 8 }}>
-                    We&apos;ll refund everything except the 10% service fee.
-                  </p>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      onClick={() => setConfirmId(null)}
-                      style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #E8E2D8', background: '#F8F5EE', fontSize: 12, fontWeight: 600, color: '#221E1A', cursor: 'pointer' }}>
-                      Keep
-                    </button>
-                    <button
-                      onClick={() => cancelBooking(booking.id)}
-                      disabled={cancelling === booking.id}
-                      style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'rgba(140,42,42,0.12)', fontSize: 12, fontWeight: 600, color: '#8C2A2A', cursor: 'pointer', opacity: cancelling === booking.id ? 0.5 : 1 }}>
-                      {cancelling === booking.id ? 'Cancelling…' : 'Confirm cancel'}
-                    </button>
-                  </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => setConfirmId(null)}
+                    style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #E8E2D8', background: '#F8F5EE', fontSize: 12, fontWeight: 600, color: '#221E1A', cursor: 'pointer' }}>
+                    Keep
+                  </button>
+                  <button
+                    onClick={() => cancelBooking(booking.id, (booking.total_amount ?? 0) === 0)}
+                    disabled={cancelling === booking.id}
+                    style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'rgba(140,42,42,0.12)', fontSize: 12, fontWeight: 600, color: '#8C2A2A', cursor: 'pointer', opacity: cancelling === booking.id ? 0.5 : 1 }}>
+                    {cancelling === booking.id ? 'Cancelling…' : 'Confirm cancel'}
+                  </button>
                 </div>
               ) : (
                 <button
@@ -1241,8 +1248,8 @@ export default function BookingsPage() {
               ))}
             </div>
 
-            {/* Receipt */}
-            <div style={{ marginBottom: 20 }}>
+            {/* Receipt — hidden entirely for free bookings (nothing to itemise) */}
+            <div style={{ marginBottom: 20, display: (qrFullscreen.total ?? 0) > 0 ? 'block' : 'none' }}>
               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#9F9486', marginBottom: 12 }}>Receipt</div>
               {[
                 { label: `Ticket × ${qrFullscreen.partySize ?? 1}`, value: `€${((qrFullscreen.total ?? 0) * 0.9).toFixed(2)}` },

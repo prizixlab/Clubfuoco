@@ -70,12 +70,11 @@ export async function DELETE(
     return err('Cancellations are not allowed within 1 hour of midnight on the event night', 400)
   }
 
-  // Partial refund — we keep the platform_fee (our 10%), refund the rest
+  // Partial refund — user keeps 25% as a cancellation fee, gets 75% back.
+  const refundAmountEuros = Math.round((booking.total_amount ?? 0) * 0.75 * 100) / 100
   let refundError: string | null = null
   if (booking.stripe_payment_intent_id) {
-    const refundAmountCents = Math.round(
-      ((booking.total_amount ?? 0) - (booking.platform_fee ?? 0)) * 100
-    )
+    const refundAmountCents = Math.round(refundAmountEuros * 100)
     if (refundAmountCents > 0) {
       try {
         await stripe.refunds.create({
@@ -98,6 +97,9 @@ export async function DELETE(
 
   if (updateError) return err(updateError.message)
 
-  const refundAmount = ((booking.total_amount ?? 0) - (booking.platform_fee ?? 0)).toFixed(2)
-  return ok({ cancelled: true, refund_amount: refundAmount, refund_note: refundError ? 'Refund will be processed manually' : null })
+  return ok({
+    cancelled:     true,
+    refund_amount: refundAmountEuros.toFixed(2),
+    refund_note:   refundError ? 'Refund will be processed manually' : null,
+  })
 }

@@ -79,7 +79,7 @@ export default function RumbalistBookSheet({
       const { error: insertErr } = await supabase.from('bookings').insert({
         user_id:        user.id,
         club_id:        clubId,
-        booking_type:   'free_guestlist',
+        booking_type:   'general',
         party_size:     1,
         booking_date:   tomorrow,
         status:         'confirmed',

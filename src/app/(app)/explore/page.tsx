@@ -278,7 +278,7 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
     })
     .slice(0, 12)
   if (forYou.length > 0) {
-    shelves.push({ id: 'for_you', title: 'Curated Tonight', subtitle: 'Tonight with Rumbalist', places: forYou, featured: true })
+    shelves.push({ id: 'for_you', title: 'Curated Tonight', subtitle: 'Tonight in Barcelona', places: forYou, featured: true })
   }
 
   // ── 2. RUMBAS (active guest list events) ─────────────────────────────────
@@ -1181,7 +1181,7 @@ export default function ExplorePage() {
               <span style={{ fontFamily: "'Instrument Serif', 'Bodoni Moda', Georgia, serif", fontSize: 28, fontStyle: 'italic', fontWeight: 400, color: C.ink, letterSpacing: '-0.01em', lineHeight: 1 }}>fuoco.</span>
             </div>
             <p style={{ fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontSize: 10, color: C.ink3, letterSpacing: '0.08em', margin: 0 }}>
-              Barcelona · Curated by Rumbalist
+              Barcelona · Curated nightlife
             </p>
           </div>
 

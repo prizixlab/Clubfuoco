@@ -11,6 +11,8 @@ import { z } from 'zod'
 const schema = z.object({
   payment_intent_id: z.string().min(1),
   club_id:           z.string().min(1),
+  venue_name:        z.string().optional(),
+  product_name:      z.string().optional(),
 })
 
 export async function POST(req: Request) {
@@ -65,6 +67,32 @@ export async function POST(req: Request) {
     .select('*')
     .single()
   if (insertErr) return err(insertErr.message)
+
+  // 4. Rumbalist purchase audit row — non-fatal on failure so we don't lose
+  //    the user's paid booking if the audit table is missing.
+  try {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('full_name, email, phone')
+      .eq('id', user!.id)
+      .single()
+    await supabase.from('rumbalist_purchases').insert({
+      user_id:                  user!.id,
+      full_name:                profile?.full_name ?? null,
+      email:                    profile?.email ?? null,
+      phone:                    profile?.phone ?? null,
+      venue_id:                 parsed.data.club_id,
+      venue_name:               parsed.data.venue_name ?? 'Unknown venue',
+      product_name:             parsed.data.product_name ?? 'VIP Table',
+      product_kind:             'vip_table',
+      price_eur:                total,
+      event_date:               tomorrow,
+      stripe_payment_intent_id: intent.id,
+      booking_id:               booking.id,
+    })
+  } catch (auditErr) {
+    console.error('rumbalist_purchases insert failed (non-fatal):', auditErr)
+  }
 
   return ok(booking)
 }

@@ -970,7 +970,7 @@ export default function PlaceDetailPage() {
               })}
             </div>
             <p style={{ margin: '10px 4px 0', fontSize: 10, color: C.ink3, letterSpacing: '0.02em' }}>
-              Confirmation added straight to your Apple Wallet.
+              Confirmation lands on your Tickets tab instantly.
             </p>
           </div>
         )}

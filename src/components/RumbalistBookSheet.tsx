@@ -65,6 +65,10 @@ export default function RumbalistBookSheet({
   const [mounted, setMounted] = useState(false)
   const [dragY,   setDragY]   = useState(0)
   const [dragging, setDragging] = useState(false)
+  // VIP path only — disables the Pay button + relabels while the network
+  // round-trip + Apple Pay sheet are in flight. Avoids the misleading
+  // "Authenticate to pay" mock step that used to render here.
+  const [paying, setPaying] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -112,6 +116,12 @@ export default function RumbalistBookSheet({
   // Paid VIP — real Apple Pay via @capacitor-community/stripe on iOS, with a
   // visible fallback message on web (we don't ship a card-form fallback for
   // VIP here; the demo flow is native-only).
+  //
+  // We deliberately do NOT switch to the 'authenticating' step here — iOS's
+  // own Apple Pay sheet (Face ID + amount + card picker) is the auth UI. A
+  // pre-sheet "authenticating" screen would be a misleading mock. Instead we
+  // toggle `paying` to disable the Pay button + change its label while the
+  // network round-trip happens.
   async function pay() {
     if (!offer.price_eur) {
       setError('No price on this offer.')
@@ -121,7 +131,7 @@ export default function RumbalistBookSheet({
       setError('Apple Pay is iOS only. Open this offer in the Club Fuoco app.')
       return
     }
-    setStep('authenticating')
+    setPaying(true)
     setError(null)
     try {
       // 1. Ensure the user is signed in (intent creation needs auth)
@@ -165,7 +175,7 @@ export default function RumbalistBookSheet({
       const { paymentResult } = await Stripe.presentApplePay()
 
       if (paymentResult === ApplePayEventsEnum.Canceled) {
-        setStep('review')
+        setPaying(false)
         return
       }
       if (paymentResult !== ApplePayEventsEnum.Completed) {
@@ -176,48 +186,47 @@ export default function RumbalistBookSheet({
       const confirmRes = await apiFetch('/api/rumbalist/confirm-vip', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payment_intent_id, club_id: clubId }),
+        body: JSON.stringify({
+          payment_intent_id,
+          club_id:      clubId,
+          venue_name:   venueName,
+          product_name: offer.title,
+        }),
       })
       const confirmData = await confirmRes.json()
       if (!confirmRes.ok) {
         throw new Error(confirmData?.error ?? 'Booking save failed.')
       }
+      setPaying(false)
       setStep('pass')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Payment failed.')
-      setStep('review')
+      setPaying(false)
     }
   }
 
-  // Free guestlist — no payment. Insert the booking directly via Supabase from
-  // the client (this demo branch doesn't ship a backend route). A row in
-  // `bookings` is all the Tickets tab needs to render the pass.
+  // Free guestlist — server route writes both the `bookings` row and the
+  // `rumbalist_purchases` audit row in one transaction.
   async function joinGuestlist() {
     setStep('authenticating')
     setError(null)
     try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      const res = await apiFetch('/api/rumbalist/join-guestlist', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          club_id:      clubId,
+          venue_name:   venueName,
+          product_name: offer.title,
+        }),
+      })
+      if (res.status === 401) {
         close()
         router.push('/login')
         return
       }
-      const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10)
-      const qrToken = (crypto as Crypto).randomUUID?.()
-        ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
-      const { error: insertErr } = await supabase.from('bookings').insert({
-        user_id:        user.id,
-        club_id:        clubId,
-        booking_type:   'general',
-        party_size:     1,
-        booking_date:   tomorrow,
-        status:         'confirmed',
-        unit_price:     0,
-        total_amount:   0,
-        platform_fee:   0,
-        qr_code_token:  qrToken,
-      })
+      const data = await res.json().catch(() => null)
+      const insertErr = (!res.ok && data?.error) ? { message: data.error as string } : null
       if (insertErr) {
         setError(insertErr.message)
         setStep('review')
@@ -287,6 +296,7 @@ export default function RumbalistBookSheet({
           <ReviewStep
             offer={offer} venueName={venueName} venueAddress={venueAddress}
             error={error}
+            paying={paying}
             onConfirm={isFree ? joinGuestlist : pay}
             onClose={close}
           />
@@ -302,9 +312,10 @@ export default function RumbalistBookSheet({
 }
 
 /* ─── Review ───────────────────────────────────────────────────────────── */
-function ReviewStep({ offer, venueName, venueAddress, error, onConfirm, onClose }: {
+function ReviewStep({ offer, venueName, venueAddress, error, paying, onConfirm, onClose }: {
   offer: RumbalistOffer; venueName: string; venueAddress: string;
   error: string | null;
+  paying: boolean;
   onConfirm: () => void; onClose: () => void
 }) {
   const isFree = offer.kind === 'free_guestlist'
@@ -365,7 +376,7 @@ function ReviewStep({ offer, venueName, venueAddress, error, onConfirm, onClose 
       )}
 
       {/* Confirm button */}
-      <button onClick={onConfirm}
+      <button onClick={paying ? undefined : onConfirm} disabled={paying}
         style={{
           marginTop: 22, width: '100%', height: 54,
           background: isFree ? '#F3EEE0' : '#FFFFFF',
@@ -374,18 +385,21 @@ function ReviewStep({ offer, venueName, venueAddress, error, onConfirm, onClose 
           fontSize: 17, fontWeight: 600,
           fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          cursor: 'pointer',
+          cursor: paying ? 'default' : 'pointer',
+          opacity: paying ? 0.55 : 1,
         }}>
         {isFree
           ? <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
               Free Guestlist with <RumbalistMark size={18} />
             </span>
-          : <><ApplePayGlyph /> &nbsp;Pay</>}
+          : paying
+            ? <>Opening Apple Pay…</>
+            : <><ApplePayGlyph /> &nbsp;Pay</>}
       </button>
       <p style={{ marginTop: 12, fontSize: 11, color: 'rgba(245,245,247,0.45)', textAlign: 'center' }}>
         {isFree
-          ? 'You’re added to the door list. Ticket lands on your profile + Apple Wallet.'
-          : 'Confirm with Face ID. Booking added to Wallet instantly.'}
+          ? 'You’re added to the door list. Ticket lands on your Tickets tab.'
+          : 'Confirm with Face ID. Your booking is saved to your Tickets.'}
       </p>
     </div>
   )
@@ -428,7 +442,7 @@ function PassStep({ offer, venueName, venueAddress, date, code, onClose }: {
   return (
     <div style={{ padding: '4px 16px 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', color: '#F5F5F7' }}>
       <p style={{ margin: '0 0 14px', textAlign: 'center', fontSize: 13, color: 'rgba(245,245,247,0.65)' }}>
-        ✓ Added to Apple Wallet
+        ✓ Booking confirmed
       </p>
 
       {/* The pass */}

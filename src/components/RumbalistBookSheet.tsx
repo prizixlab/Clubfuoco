@@ -37,6 +37,22 @@ export default function RumbalistBookSheet({
   useEffect(() => {
     setMounted(true)
     requestAnimationFrame(() => setVisible(true))
+
+    // Lock the page underneath: stop scroll & hide the tab bar so the sheet
+    // truly takes over the screen the way a native Apple Pay sheet would.
+    const scrollEl = document.getElementById('app-scroll')
+    const navHost  = document.querySelector('nav')?.parentElement as HTMLElement | null
+    const prevBody = document.body.style.overflow
+    const prevScroll = scrollEl?.style.overflow ?? ''
+    const prevNav    = navHost?.style.display ?? ''
+    document.body.style.overflow = 'hidden'
+    if (scrollEl) scrollEl.style.overflow = 'hidden'
+    if (navHost)  navHost.style.display = 'none'
+    return () => {
+      document.body.style.overflow = prevBody
+      if (scrollEl) scrollEl.style.overflow = prevScroll
+      if (navHost)  navHost.style.display = prevNav
+    }
   }, [])
 
   function close() { setVisible(false); setTimeout(onClose, 280) }
@@ -106,14 +122,14 @@ export default function RumbalistBookSheet({
         position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 9999,
         background: '#0A0A0A',
         borderRadius: '24px 24px 0 0',
-        padding: '12px 0 calc(env(safe-area-inset-bottom, 16px) + 24px)',
+        padding: '14px 0 calc(env(safe-area-inset-bottom, 16px) + 22px)',
         transform: visible ? 'translateY(0)' : 'translateY(100%)',
         transition: 'transform 0.32s cubic-bezier(0.32, 0.72, 0, 1)',
         boxShadow: '0 -20px 60px rgba(0,0,0,0.4)',
         maxHeight: '92vh', overflowY: 'auto',
       }}>
         {/* Handle */}
-        <div style={{ width: 40, height: 5, background: 'rgba(255,255,255,0.18)', borderRadius: 3, margin: '0 auto 18px' }} />
+        <div style={{ width: 40, height: 5, background: 'rgba(255,255,255,0.18)', borderRadius: 3, margin: '4px auto 26px' }} />
 
         {step === 'review' && (
           <ReviewStep

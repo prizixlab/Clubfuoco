@@ -917,7 +917,10 @@ export default function PlaceDetailPage() {
               <div>
                 <p style={{ margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
                             fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
-                            color: C.ink3 }}>Book this venue · Powered by Rumbalist</p>
+                            color: C.ink3, display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                  Book this venue · Powered by
+                  <span style={{ fontFamily: '"Audiowide", "Impact", system-ui, sans-serif', letterSpacing: '0.06em', fontSize: 11, color: C.accent }}>Rumbalist</span>
+                </p>
                 <h3 style={{ margin: '4px 0 0', fontFamily: "'Instrument Serif', Georgia, serif",
                              fontStyle: 'italic', fontSize: 22, color: C.ink, letterSpacing: '-0.3px' }}>
                   Tonight&apos;s options

@@ -203,7 +203,9 @@ function ReviewStep({ offer, venueName, venueAddress, error, onConfirm, onClose 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         {isFree
-          ? <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(245,245,247,0.7)' }}>Free Guestlist · Rumbalist</span>
+          ? <span style={{ fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(245,245,247,0.7)', fontFamily: 'ui-monospace, monospace', display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
+              Free Guestlist · <RumbalistMark size={12} color="#F5F5F7" />
+            </span>
           : <ApplePayLogo />}
         <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#fff', borderRadius: 999, width: 30, height: 30, fontSize: 16, cursor: 'pointer' }}>×</button>
       </div>
@@ -228,9 +230,9 @@ function ReviewStep({ offer, venueName, venueAddress, error, onConfirm, onClose 
       {/* Items */}
       <div style={{ marginTop: 22, background: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: '14px 16px' }}>
         {isFree ? (
-          <Row label="Operator" value="Club Fuoco · via Rumbalist" />
+          <Row label="Operator" value={<>Club Fuoco · via <RumbalistMark /></>} />
         ) : (
-          <Row label="Pay to" value="Club Fuoco · via Rumbalist" />
+          <Row label="Pay to" value={<>Club Fuoco · via <RumbalistMark /></>} />
         )}
         <Hr />
         <Row label="Venue"   value={venueName} />
@@ -327,7 +329,9 @@ function PassStep({ offer, venueName, venueAddress, date, code, onClose }: {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
           <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 18 }}>fuoco.</span>
-          <span style={{ fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.7 }}>via Rumbalist</span>
+          <span style={{ fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.85, display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
+            via <RumbalistMark size={11} />
+          </span>
         </div>
 
         <p style={{ margin: '20px 0 4px', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.7, position: 'relative' }}>
@@ -372,12 +376,26 @@ function PassStep({ offer, venueName, venueAddress, date, code, onClose }: {
 }
 
 /* ─── Bits ─────────────────────────────────────────────────────────────── */
-function Row({ label, value, bold, small }: { label: string; value: string; bold?: boolean; small?: boolean }) {
+function Row({ label, value, bold, small }: { label: string; value: React.ReactNode; bold?: boolean; small?: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, padding: '7px 0' }}>
       <span style={{ fontSize: 12, color: 'rgba(245,245,247,0.55)' }}>{label}</span>
       <span style={{ fontSize: small ? 12 : 14, fontWeight: bold ? 600 : 400, color: '#F5F5F7', textAlign: 'right', maxWidth: '60%' }}>{value}</span>
     </div>
+  )
+}
+
+// The "Rumbalist" wordmark: Audiowide (80s retro-futurist) so the brand reads
+// as its own thing alongside Club Fuoco — Mercedes-AMG style co-branding.
+function RumbalistMark({ size, color }: { size?: number; color?: string }) {
+  return (
+    <span style={{
+      fontFamily: '"Audiowide", "Impact", system-ui, sans-serif',
+      letterSpacing: '0.06em',
+      fontSize: size,
+      color,
+      whiteSpace: 'nowrap',
+    }}>Rumbalist</span>
   )
 }
 const Hr = () => <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />

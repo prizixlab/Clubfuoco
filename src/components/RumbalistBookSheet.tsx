@@ -413,7 +413,7 @@ function RumbalistMark({ size = 18 }: { size?: number }) {
         display: 'inline-block',
         height: size,
         aspectRatio: '1600 / 325',
-        verticalAlign: '-0.15em',
+        verticalAlign: '-0.28em',
         backgroundImage:
           'linear-gradient(105deg, #FF2D92 0%, #FF2D92 38%, #FFFFFF 50%, #FF2D92 62%, #FF2D92 100%)',
         backgroundSize: '260% 100%',

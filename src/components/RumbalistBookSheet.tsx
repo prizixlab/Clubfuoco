@@ -142,13 +142,6 @@ export default function RumbalistBookSheet({
 
   return createPortal(
     <>
-      {/* Wordmark gloss-sweep keyframes — moves the white band from far right
-          through the letters and off to the left, then pauses before repeating. */}
-      <style>{`@keyframes rumbalistGloss {
-        0%   { background-position: 100% 0; }
-        55%  { background-position: -60% 0; }
-        100% { background-position: -60% 0; }
-      }`}</style>
       {/* Scrim */}
       <div onClick={step === 'pass' ? close : undefined}
         onTouchMove={e => e.preventDefault()}
@@ -211,7 +204,7 @@ function ReviewStep({ offer, venueName, venueAddress, error, onConfirm, onClose 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         {isFree
           ? <span style={{ fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(245,245,247,0.7)', fontFamily: 'ui-monospace, monospace', display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
-              Free Guestlist · <RumbalistMark size={12} color="#F5F5F7" />
+              Free Guestlist · <RumbalistMark size={14} />
             </span>
           : <ApplePayLogo />}
         <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#fff', borderRadius: 999, width: 30, height: 30, fontSize: 16, cursor: 'pointer' }}>×</button>
@@ -399,28 +392,71 @@ function Row({ label, value, bold, small }: { label: string; value: React.ReactN
 // The "Rumbalist" wordmark: chunky Bowlby One in Miami pink with a sweeping
 // white-gloss highlight — like a glossy badge / Mercedes-AMG style co-brand.
 // `color` lets callers override the base pink if it needs to read on a dark sheet.
-function RumbalistMark({ size = 14, color = '#FF2D92' }: { size?: number; color?: string }) {
+// The Rumbalist wordmark — drawn as SVG from geometric primitives because the
+// real brand mark isn't a font. Each letter is a hand-built path: R is a bar +
+// half-circle + diagonal leg, M is two filled triangles, A is one solid
+// triangle, etc. Filled with a linearGradient that animates a white gloss band
+// sweeping across the pink fill (SMIL animate on x1/x2).
+function RumbalistMark({ size = 18 }: { size?: number }) {
+  const pink = '#FF2D92'
   return (
-    <span style={{
-      fontFamily: '"Bowlby One", "Impact", system-ui, sans-serif',
-      letterSpacing: '0.02em',
-      fontSize: size,
-      lineHeight: 1,
-      textTransform: 'uppercase',
-      whiteSpace: 'nowrap',
-      // Miami-pink fill with a white "wet" gloss sweeping across the letters.
-      // background-clip:text reveals the gradient only inside letterforms; the
-      // gradient runs pink → white → pink so the wordmark is always readable
-      // while the white band moves over it.
-      backgroundImage: `linear-gradient(105deg, ${color} 0%, ${color} 38%, #FFFFFF 50%, ${color} 62%, ${color} 100%)`,
-      backgroundSize: '260% 100%',
-      backgroundPosition: '100% 0',
-      WebkitBackgroundClip: 'text',
-      backgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-      color: 'transparent',
-      animation: 'rumbalistGloss 3.4s ease-in-out infinite',
-    }}>Rumbalist</span>
+    <svg
+      height={size}
+      viewBox="0 0 680 100"
+      style={{ display: 'inline-block', verticalAlign: '-0.18em', overflow: 'visible' }}
+      aria-label="Rumbalist"
+    >
+      <defs>
+        <linearGradient id="rumba-gloss" gradientUnits="userSpaceOnUse"
+                        x1="-280" y1="0" x2="-80" y2="0">
+          <stop offset="0"   stopColor={pink}/>
+          <stop offset="0.5" stopColor="#FFFFFF"/>
+          <stop offset="1"   stopColor={pink}/>
+          <animate attributeName="x1" values="-280;760;760" keyTimes="0;0.6;1" dur="3.6s" repeatCount="indefinite"/>
+          <animate attributeName="x2" values="-80;960;960"  keyTimes="0;0.6;1" dur="3.6s" repeatCount="indefinite"/>
+        </linearGradient>
+      </defs>
+      <g fill="url(#rumba-gloss)" fillRule="evenodd">
+        {/* R: left bar + half-disk bowl + diagonal leg, with a triangular eye-cutout */}
+        <path d="M 0,0 H 36 A 30 30 0 0 1 36,60 H 24 L 64,100 H 40 L 20,72 V 100 H 0 Z M 18,16 H 30 A 14 14 0 0 1 30,44 H 18 Z"/>
+        {/* U: arch — two verticals joined by a half-pipe */}
+        <g transform="translate(74,0)">
+          <path d="M 0,0 H 18 V 65 A 17 17 0 0 0 52,65 V 0 H 70 V 65 A 35 35 0 0 1 0,65 Z"/>
+        </g>
+        {/* M: two solid triangles, peaks up */}
+        <g transform="translate(154,0)">
+          <path d="M 0,100 L 22,0 L 44,100 Z M 46,100 L 68,0 L 90,100 Z"/>
+        </g>
+        {/* B: bar + two stacked half-disks */}
+        <g transform="translate(254,0)">
+          <path d="M 0,0 H 32 A 26 26 0 0 1 32,52 H 0 Z M 18,14 H 26 A 12 12 0 0 1 26,38 H 18 Z"/>
+          <path d="M 0,48 H 32 A 26 26 0 0 1 32,100 H 0 Z M 18,62 H 26 A 12 12 0 0 1 26,86 H 18 Z"/>
+        </g>
+        {/* A: one solid equilateral triangle */}
+        <g transform="translate(322,0)">
+          <path d="M 40,0 L 80,100 L 0,100 Z"/>
+        </g>
+        {/* L: bar + foot */}
+        <g transform="translate(412,0)">
+          <path d="M 0,0 H 18 V 82 H 58 V 100 H 0 Z"/>
+        </g>
+        {/* I: thin bar */}
+        <g transform="translate(480,0)">
+          <path d="M 0,0 H 18 V 100 H 0 Z"/>
+        </g>
+        {/* S: two opposing half-circles */}
+        <g transform="translate(510,0)">
+          <path d="M 0,30 A 30 30 0 0 1 60,30 H 42 A 12 12 0 0 0 18,30 Z"/>
+          <path d="M 0,30 A 30 30 0 0 0 30,60 A 30 30 0 0 1 30,100 A 30 30 0 0 1 0,70 H 18 A 12 12 0 0 0 30,82 A 12 12 0 0 0 30,78 A 30 30 0 0 1 0,30 Z"/>
+          <path d="M 30,60 A 30 30 0 0 0 60,30 H 42 A 12 12 0 0 1 30,42 Z"/>
+          <path d="M 60,70 A 30 30 0 0 1 30,100 V 82 A 12 12 0 0 0 42,70 Z"/>
+        </g>
+        {/* T: top bar + center stem */}
+        <g transform="translate(584,0)">
+          <path d="M 0,0 H 76 V 18 H 47 V 100 H 29 V 18 H 0 Z"/>
+        </g>
+      </g>
+    </svg>
   )
 }
 const Hr = () => <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />

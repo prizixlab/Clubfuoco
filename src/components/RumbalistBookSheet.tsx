@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { RumbalistOffer } from '@/lib/rumbalist-offers'
@@ -31,8 +32,12 @@ export default function RumbalistBookSheet({
   const [visible, setVisible] = useState(false)
   const [step,    setStep]    = useState<Step>('review')
   const [error,   setError]   = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
 
-  useEffect(() => { requestAnimationFrame(() => setVisible(true)) }, [])
+  useEffect(() => {
+    setMounted(true)
+    requestAnimationFrame(() => setVisible(true))
+  }, [])
 
   function close() { setVisible(false); setTimeout(onClose, 280) }
 
@@ -83,7 +88,9 @@ export default function RumbalistBookSheet({
 
   const passCode = 'CF-' + Math.random().toString(36).slice(2, 10).toUpperCase()
 
-  return (
+  if (!mounted) return null
+
+  return createPortal(
     <>
       {/* Scrim */}
       <div onClick={step === 'pass' ? close : undefined}
@@ -121,7 +128,8 @@ export default function RumbalistBookSheet({
           <PassStep offer={offer} venueName={venueName} venueAddress={venueAddress} date={date} code={passCode} onClose={close} />
         )}
       </div>
-    </>
+    </>,
+    document.body
   )
 }
 

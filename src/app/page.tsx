@@ -182,21 +182,10 @@ export default function SplashPage() {
             Sign in
           </Link>
 
-          {/* Guest browsing — guideline 5.1.1(v) compliance. */}
-          <p
-            style={{
-              marginTop: 10,
-              marginBottom: 4,
-              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
-              fontSize: 12,
-              lineHeight: 1.4,
-              color: 'rgba(244,236,221,0.55)',
-              textAlign: 'center',
-              fontStyle: 'italic',
-            }}
-          >
-            Creating an account tells us what you like and what you don&apos;t.
-          </p>
+          {/* Guest browsing — Guideline 5.1.1(v) compliance. This MUST read as
+              a primary action, not a footnote. Apple Review explicitly rejected
+              a prior build because the guest path was rendered as low-emphasis
+              text and a reviewer couldn't find it. Treat as a peer button. */}
           <button
             type="button"
             onClick={continueAsGuest}
@@ -206,20 +195,35 @@ export default function SplashPage() {
               alignItems: 'center',
               justifyContent: 'center',
               width: '100%',
-              padding: '14px 0',
-              background: 'none',
-              border: 'none',
-              color: 'rgba(244,236,221,0.85)',
+              height: 55,
+              background: 'rgba(255,246,229,0.10)',
+              border: '1px solid rgba(244,236,221,0.30)',
+              color: 'rgb(244,236,221)',
+              borderRadius: 14,
               fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
-              fontSize: 13,
-              fontWeight: 400,
+              fontSize: 15,
+              fontWeight: 500,
+              letterSpacing: '0.01em',
               cursor: 'pointer',
-              letterSpacing: '0.02em',
               opacity: continuing ? 0.6 : 1,
             }}
           >
-            {continuing ? 'Opening…' : 'Continue with no account →'}
+            {continuing ? 'Opening…' : 'Continue as guest'}
           </button>
+
+          <p
+            style={{
+              marginTop: 14,
+              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+              fontSize: 12,
+              lineHeight: 1.4,
+              color: 'rgba(244,236,221,0.55)',
+              textAlign: 'center',
+              fontStyle: 'italic',
+            }}
+          >
+            Browse everything without an account. You only share details when you book.
+          </p>
         </div>
 
         {/* Footer legal */}

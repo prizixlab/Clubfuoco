@@ -60,22 +60,32 @@ export default function LoginPage() {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: C.cream, overflow: 'hidden' } as React.CSSProperties}>
-      {/* Header nav */}
+      {/* Header nav — Back goes to the previous page in history (the venue
+          page they came from, the explore feed, etc.) instead of hard-routing
+          to the splash. Falls back to splash if there's no history. */}
       <div style={{ padding: '16px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Link
-          href="/"
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              router.back()
+            } else {
+              router.push('/')
+            }
+          }}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             fontFamily: 'var(--font-geist-mono), monospace',
             fontSize: 10, color: C.stone, letterSpacing: '1.8px',
-            textDecoration: 'none', textTransform: 'uppercase',
+            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+            textTransform: 'uppercase',
           }}
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           Back
-        </Link>
+        </button>
       </div>
 
       <div style={{ padding: '24px 24px 40px' }}>

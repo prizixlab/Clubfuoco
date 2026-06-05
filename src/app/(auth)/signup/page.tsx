@@ -392,8 +392,19 @@ export default function SignupPage() {
   }
 
   function goBack() {
-    if (step <= 2) router.push('/')
-    else setStep(s => (s - 1) as 1 | 2 | 3 | 4)
+    // Within the signup wizard, "Back" rewinds steps. From step 1 or 2 (the
+    // entry points), it returns to wherever the user came from in history —
+    // a venue page they tapped a booking from, or the splash if it's a fresh
+    // entry. Avoids hard-routing back to splash and losing their context.
+    if (step <= 2) {
+      if (typeof window !== 'undefined' && window.history.length > 1) {
+        router.back()
+      } else {
+        router.push('/')
+      }
+    } else {
+      setStep(s => (s - 1) as 1 | 2 | 3 | 4)
+    }
   }
 
   // Layout wrapper (cream bg, full height)

@@ -134,12 +134,15 @@ export default function RumbalistBookSheet({
     setPaying(true)
     setError(null)
     try {
-      // 1. Ensure the user is signed in (intent creation needs auth)
+      // 1. Ensure the user is signed in with a real account. Anonymous guests
+      //    can browse + open this sheet, but booking requires a verified
+      //    identity (name on the door, payment receipt, refund destination).
+      //    We bounce them to /login with a return path so they come back here.
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      if (!user || user.is_anonymous) {
         close()
-        router.push('/login')
+        router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`)
         return
       }
 
@@ -211,6 +214,16 @@ export default function RumbalistBookSheet({
     setStep('authenticating')
     setError(null)
     try {
+      // Anonymous guests must sign in to put their name on the door — bounce
+      // to /login with a return path. The server-side route gives a useful
+      // 401 too, but checking client-side avoids a confusing "load failed".
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || user.is_anonymous) {
+        close()
+        router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`)
+        return
+      }
       const res = await apiFetch('/api/rumbalist/join-guestlist', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },

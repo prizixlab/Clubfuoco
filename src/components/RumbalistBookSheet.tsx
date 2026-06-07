@@ -72,6 +72,9 @@ export default function RumbalistBookSheet({
   // The CF-XXXXXXXX reference returned by the server after a successful
   // booking. Always set before we navigate to the 'pass' step.
   const [serverRef, setServerRef] = useState<string | null>(null)
+  // Booking row id (UUID) — used by the "Add to Apple Wallet" button on the
+  // confirmation screen to fetch the signed .pkpass from /api/bookings/:id/wallet.
+  const [bookingId, setBookingId] = useState<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -204,7 +207,9 @@ export default function RumbalistBookSheet({
         throw new Error(confirmData?.error ?? 'Booking save failed.')
       }
       const ref = confirmData?.data?.qr_code_token
+      const id  = confirmData?.data?.id
       if (typeof ref === 'string') setServerRef(ref)
+      if (typeof id === 'string')  setBookingId(id)
       setPaying(false)
       setStep('pass')
     } catch (e: unknown) {
@@ -252,7 +257,9 @@ export default function RumbalistBookSheet({
       }
       // Server returns the booking row with its persisted reference code.
       const ref = data?.data?.qr_code_token
+      const id  = data?.data?.id
       if (typeof ref === 'string') setServerRef(ref)
+      if (typeof id === 'string')  setBookingId(id)
       setStep('pass')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not join the guestlist.')
@@ -330,7 +337,7 @@ export default function RumbalistBookSheet({
         )}
         {step === 'authenticating' && <AuthStep amount={offer.price_eur} isFree={isFree} />}
         {step === 'pass' && (
-          <PassStep offer={offer} venueName={venueName} venueAddress={venueAddress} date={date} code={passCode} onClose={close} />
+          <PassStep offer={offer} venueName={venueName} venueAddress={venueAddress} date={date} code={passCode} bookingId={bookingId} onClose={close} />
         )}
       </div>
     </>,
@@ -468,12 +475,32 @@ function ListGlyph() {
 // (Apple Pay/Wallet visual imitation), but every accent is Miami pink and the
 // Rumbalist wordmark sits prominently at the top so the booking reads as
 // Rumbalist's, with Club Fuoco as the surface.
-function PassStep({ offer, venueName, venueAddress, date, code, onClose }: {
-  offer: RumbalistOffer; venueName: string; venueAddress: string; date: string; code: string; onClose: () => void
+function PassStep({ offer, venueName, venueAddress, date, code, bookingId, onClose }: {
+  offer: RumbalistOffer; venueName: string; venueAddress: string;
+  date: string; code: string; bookingId: string | null; onClose: () => void
 }) {
   const PINK      = '#FF2D92'
   const PINK_DIM  = 'rgba(255,45,146,0.14)'
   const PINK_RULE = 'rgba(255,45,146,0.32)'
+
+  // Open the signed .pkpass in an in-app Safari view — iOS intercepts the
+  // `application/vnd.apple.pkpass` content-type and shows the native "Add to
+  // Apple Wallet" sheet. We send the user to Vercel directly because the
+  // Capacitor `capacitor://localhost` scheme can't serve the file.
+  async function addToAppleWallet() {
+    if (!bookingId) return
+    const base =
+      typeof window !== 'undefined' && window.location.protocol === 'capacitor:'
+        ? 'https://clubfuoco.vercel.app'
+        : (typeof window !== 'undefined' ? window.location.origin : '')
+    const url = `${base}/api/bookings/${bookingId}/wallet`
+    try {
+      const { Browser } = await import('@capacitor/browser')
+      await Browser.open({ url, presentationStyle: 'popover' })
+    } catch {
+      if (typeof window !== 'undefined') window.open(url, '_blank')
+    }
+  }
 
   return (
     <div style={{ padding: '8px 22px 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', color: '#F5F5F7' }}>
@@ -530,9 +557,26 @@ function PassStep({ offer, venueName, venueAddress, date, code, onClose }: {
         Show this on the door, or open it any time from your Tickets.
       </p>
 
+      {/* Add to Apple Wallet — black pill, native PassKit visual language.
+          Only renders once the server-confirmed booking id is in hand. */}
+      {bookingId && (
+        <button onClick={addToAppleWallet}
+          style={{
+            marginTop: 22, width: '100%', height: 50,
+            background: '#000000', color: '#FFFFFF',
+            border: 'none', borderRadius: 12,
+            fontSize: 15, fontWeight: 500, cursor: 'pointer',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: "'FILL' 1" }}>account_balance_wallet</span>
+          Add to Apple Wallet
+        </button>
+      )}
+
       <button onClick={onClose}
         style={{
-          marginTop: 22, width: '100%', height: 50,
+          marginTop: 12, width: '100%', height: 50,
           background: PINK, color: '#FFFFFF',
           border: 'none', borderRadius: 12,
           fontSize: 15, fontWeight: 600, cursor: 'pointer',

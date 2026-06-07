@@ -448,39 +448,55 @@ function ListGlyph() {
   )
 }
 
-/* ─── Wallet Pass ──────────────────────────────────────────────────────── */
-// Receipt-style confirmation. Deliberately NOT shaped like a Wallet pass —
-// no gradient pass card, no barcode/QR block, no rounded-card trade dress.
-// Plain on-sheet copy + a typographic confirmation code, so Apple Review
-// can't flag it under Guideline 4.5.4 (Apple Pay/Wallet visual imitation).
+/* ─── Confirmation receipt ────────────────────────────────────────────── */
+// Rumbalist-branded confirmation. We deliberately stay flat-receipt (no
+// gradient pass card, no barcode/QR block) so we don't trip Guideline 4.5.4
+// (Apple Pay/Wallet visual imitation), but every accent is Miami pink and the
+// Rumbalist wordmark sits prominently at the top so the booking reads as
+// Rumbalist's, with Club Fuoco as the surface.
 function PassStep({ offer, venueName, venueAddress, date, code, onClose }: {
   offer: RumbalistOffer; venueName: string; venueAddress: string; date: string; code: string; onClose: () => void
 }) {
-  return (
-    <div style={{ padding: '12px 22px 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', color: '#F5F5F7' }}>
+  const PINK      = '#FF2D92'
+  const PINK_DIM  = 'rgba(255,45,146,0.14)'
+  const PINK_RULE = 'rgba(255,45,146,0.32)'
 
-      {/* Success */}
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+  return (
+    <div style={{ padding: '8px 22px 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', color: '#F5F5F7' }}>
+
+      {/* Top accent rule + Rumbalist lockup */}
+      <div style={{ height: 2, background: PINK, margin: '0 -22px 18px' }} />
+      <div style={{ textAlign: 'center', marginBottom: 18 }}>
+        <p style={{ margin: '0 0 6px', fontSize: 10, letterSpacing: '0.24em', textTransform: 'uppercase', color: 'rgba(245,245,247,0.55)' }}>
+          A booking with
+        </p>
+        <div style={{ display: 'inline-flex', alignItems: 'baseline', justifyContent: 'center' }}>
+          <RumbalistMark size={22} />
+        </div>
+      </div>
+
+      {/* Success badge */}
+      <div style={{ textAlign: 'center', marginBottom: 22 }}>
         <div style={{
           width: 54, height: 54, borderRadius: 27, margin: '0 auto 14px',
-          background: 'rgba(80,200,120,0.14)',
-          border: '1px solid rgba(80,200,120,0.45)',
+          background: PINK_DIM,
+          border: `1px solid ${PINK_RULE}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 26, color: '#7BD698', fontWeight: 600,
+          fontSize: 26, color: PINK, fontWeight: 600,
         }}>✓</div>
         <p style={{ margin: 0, fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 28, lineHeight: 1.2 }}>
-          You&rsquo;re booked at
+          You&rsquo;re on the list at
         </p>
-        <p style={{ margin: '4px 0 0', fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 28, lineHeight: 1.2, color: '#F0CC85' }}>
+        <p style={{ margin: '4px 0 0', fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 28, lineHeight: 1.2, color: PINK }}>
           {venueName}
         </p>
       </div>
 
       <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0 -22px' }} />
 
-      {/* Plain receipt rows — no card shape */}
+      {/* Receipt rows */}
       <div style={{ padding: '4px 0' }}>
-        <Row label={offer.title} value={<span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>with <RumbalistMark size={11} /></span>} />
+        <Row label={offer.title} value={<span style={{ color: PINK, fontWeight: 600 }}>Confirmed</span>} />
         <Row label="Date"        value={date} />
         <Row label="Door"        value={offer.subtitle.split(' · ')[0]} small />
         <Row label="Dress"       value={offer.dress_code.split(' — ')[0]} small />
@@ -489,8 +505,8 @@ function PassStep({ offer, venueName, venueAddress, date, code, onClose }: {
 
       <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '6px -22px 16px' }} />
 
-      {/* Confirmation reference — typographic, no barcode/QR */}
-      <p style={{ margin: 0, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(245,245,247,0.5)', textAlign: 'center' }}>
+      {/* Reference — pink-tinted label, monospace code */}
+      <p style={{ margin: 0, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: PINK, textAlign: 'center' }}>
         Reference
       </p>
       <p style={{ margin: '6px 0 0', fontFamily: 'ui-monospace, monospace', fontSize: 16, letterSpacing: '0.18em', textAlign: 'center', color: '#F5F5F7' }}>
@@ -503,10 +519,11 @@ function PassStep({ offer, venueName, venueAddress, date, code, onClose }: {
       <button onClick={onClose}
         style={{
           marginTop: 22, width: '100%', height: 50,
-          background: 'rgba(255,255,255,0.08)', color: '#F5F5F7',
+          background: PINK, color: '#FFFFFF',
           border: 'none', borderRadius: 12,
-          fontSize: 15, fontWeight: 500, cursor: 'pointer',
+          fontSize: 15, fontWeight: 600, cursor: 'pointer',
           fontFamily: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif',
+          letterSpacing: '0.01em',
         }}>
         Done
       </button>

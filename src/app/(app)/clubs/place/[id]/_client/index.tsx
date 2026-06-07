@@ -348,11 +348,17 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
   const [markupCents,  setMarkupCents]  = useState(0)
   const [success,      setSuccess]      = useState(false)
 
+  // Platforms whose ticket-purchase API we *can* drive directly from our app.
+  // Everything else (RA, Xceed, Songkick…) doesn't expose a public purchase API,
+  // so for those we send the user to the platform's own checkout in an in-app
+  // browser tab — they buy there, the platform pays us a referral.
+  const IN_APP_PLATFORMS = new Set(['dice', 'eventbrite'])
+  const isInAppPurchase  = IN_APP_PLATFORMS.has(event.platform)
+
   async function startCheckout() {
     setBuying(true)
 
-    // Fire-and-forget click telemetry (for partner-program traffic numbers).
-    // Never await — must not slow down checkout, must not fail it.
+    // Click telemetry, never blocks the user. Reads as traffic to partners.
     apiFetch('/api/ticket-clicks', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -368,47 +374,107 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
       }),
     }).catch(() => {})
 
-    // Free events — just record an RSVP, no payment needed
+    // Free events — just record an RSVP, no payment, no platform handoff
     if (event.base_price === 0) {
-      await apiFetch('/api/tickets', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          platform: event.platform, platform_event_id: event.id,
-          event_name: event.title, venue_name: event.venue_name,
-          venue_place_id: placeId, event_date: event.date,
-          quantity: 1, base_price_cents: 0, currency: event.currency,
-        }),
-      })
-      setSuccess(true)
+      try {
+        await apiFetch('/api/tickets', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            platform: event.platform, platform_event_id: event.id,
+            event_name: event.title, venue_name: event.venue_name,
+            venue_place_id: placeId, event_date: event.date,
+            quantity: 1, base_price_cents: 0, currency: event.currency,
+          }),
+        })
+        setSuccess(true)
+      } catch {
+        setBuying(false)
+      }
       return
     }
 
-    const res  = await apiFetch('/api/tickets', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        platform:          event.platform,
-        platform_event_id: event.id,
-        event_name:        event.title,
-        venue_name:        event.venue_name,
-        venue_place_id:    placeId,
-        event_date:        event.date,
-        quantity:          1,
-        base_price_cents:  event.base_price,
-        currency:          event.currency,
-        lat:               placeLat,
-        lng:               placeLng,
-      }),
-    })
-    const data = await res.json()
-    if (data.data?.client_secret) {
-      setClientSecret(data.data.client_secret)
-      setOrderId(data.data.order_id)
-      setIntentId(data.data.client_secret.split('_secret_')[0])
-      setTotalCents(data.data.total_cents)
-      setMarkupCents(data.data.markup_cents)
-    } else {
+    // ── Platforms without a purchase API → external checkout ──────────────────
+    // We open the platform's own page in an in-app Safari view. The user buys
+    // there, we get attribution via the click record we just wrote.
+    if (!isInAppPurchase) {
+      try {
+        const { Browser } = await import('@capacitor/browser')
+        await Browser.open({ url: event.platform_url, presentationStyle: 'popover' })
+      } catch {
+        // Fallback: regular link navigation (e.g. on web)
+        if (typeof window !== 'undefined') window.open(event.platform_url, '_blank')
+      }
+      setBuying(false)
+      return
+    }
+
+    // ── Dice / Eventbrite → native Apple Pay via @capacitor-community/stripe ──
+    // Same shape as the Rumbalist VIP flow: server creates an unconfirmed
+    // PaymentIntent, native sheet authorises, server reconciles + flips order
+    // status to paid. Falls back to the Stripe card-form sheet on web.
+    try {
+      const res  = await apiFetch('/api/tickets', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          platform:          event.platform,
+          platform_event_id: event.id,
+          event_name:        event.title,
+          venue_name:        event.venue_name,
+          venue_place_id:    placeId,
+          event_date:        event.date,
+          quantity:          1,
+          base_price_cents:  event.base_price,
+          currency:          event.currency,
+          lat:               placeLat,
+          lng:               placeLng,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data?.data?.client_secret) {
+        setBuying(false)
+        return
+      }
+      const { client_secret, order_id, total_cents, markup_cents } = data.data
+      const intent_id = client_secret.split('_secret_')[0]
+      setOrderId(order_id)
+      setIntentId(intent_id)
+      setTotalCents(total_cents)
+      setMarkupCents(markup_cents)
+
+      const { Capacitor } = await import('@capacitor/core')
+      if (Capacitor.isNativePlatform()) {
+        // Native — present the OS Apple Pay sheet
+        const { Stripe, ApplePayEventsEnum } = await import('@capacitor-community/stripe')
+        await Stripe.initialize({ publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY! })
+        const totalEuros = total_cents / 100
+        await Stripe.createApplePay({
+          paymentIntentClientSecret: client_secret,
+          merchantIdentifier:        'merchant.com.clubfuoco.app',
+          countryCode:               'ES',
+          currency:                  (event.currency || 'EUR').toLowerCase(),
+          paymentSummaryItems: [
+            { label: `${event.title} — ${event.venue_name}`, amount: totalEuros },
+          ],
+        })
+        const { paymentResult } = await Stripe.presentApplePay()
+        if (paymentResult !== ApplePayEventsEnum.Completed) {
+          setBuying(false)
+          return
+        }
+        await apiFetch('/api/tickets/confirm', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ order_id, payment_intent_id: intent_id }),
+        })
+        setSuccess(true)
+        return
+      }
+
+      // Web — Stripe Elements card form (the existing in-page flow)
+      setClientSecret(client_secret)
+    } catch {
       setBuying(false)
     }
   }
@@ -515,8 +581,16 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
             <button
               onClick={startCheckout}
               disabled={buying}
-              style={{ padding: '10px 18px', background: C.ink, color: '#F8F5EE', border: 'none', borderRadius: 99, fontSize: 13, fontWeight: 600, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', cursor: buying ? 'not-allowed' : 'pointer', opacity: buying ? 0.6 : 1 }}>
-              {buying ? '…' : event.base_price === 0 ? 'Reserve' : 'Get Tickets'}
+              style={{ padding: '10px 18px', background: C.ink, color: '#F8F5EE', border: 'none', borderRadius: 99, fontSize: 13, fontWeight: 600, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', cursor: buying ? 'not-allowed' : 'pointer', opacity: buying ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {buying
+                ? '…'
+                : event.base_price === 0
+                  ? 'Reserve'
+                  : isInAppPurchase
+                    ? 'Get Tickets'
+                    : <>View on {platformBadge[event.platform] ?? 'site'}
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_outward</span>
+                      </>}
             </button>
           )}
         </div>

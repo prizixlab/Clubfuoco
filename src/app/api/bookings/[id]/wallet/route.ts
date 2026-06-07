@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { PKPass } from 'passkit-generator'
 import path from 'path'
 import fs from 'fs'
+import { RUMBALIST_OFFERS } from '@/lib/rumbalist-offers'
 
 // Apple Wallet pass generation
 // Required env vars (all cert values are base64-encoded PEM):
@@ -37,7 +38,7 @@ export async function GET(
   const { data: booking, error } = await supabase
     .from('bookings')
     .select(`
-      id, booking_type, party_size, booking_date, status, total_amount, qr_code_token,
+      id, booking_type, party_size, booking_date, status, total_amount, qr_code_token, club_id,
       clubs (id, name, address, neighborhood)
     `)
     .eq('id', id)
@@ -59,17 +60,26 @@ export async function GET(
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })
 
+  // Rumbalist partner bookings get a Miami-pink pass with the Rumbalist
+  // wordmark in the logo slot. Detected by club id, so this stays in sync
+  // with the rest of the app's Rumbalist routing (same source of truth).
+  const isRumbalist = booking.club_id && booking.club_id in RUMBALIST_OFFERS
+
   const passJson = {
     formatVersion:      1,
     passTypeIdentifier: process.env.APPLE_PASS_TYPE_ID!,
     serialNumber:       booking.id,
     teamIdentifier:     process.env.APPLE_TEAM_ID!,
-    organizationName:   'Club Fuoco',
-    description:        `${clubName} ticket`,
+    organizationName:   isRumbalist ? 'Rumbalist' : 'Club Fuoco',
+    description:        isRumbalist
+      ? `${clubName} with Rumbalist`
+      : `${clubName} ticket`,
     foregroundColor:    'rgb(255, 255, 255)',
-    backgroundColor:    'rgb(18, 20, 20)',
-    labelColor:         'rgb(255, 180, 166)',
-    logoText:           'Club Fuoco',
+    backgroundColor:    isRumbalist ? 'rgb(255, 45, 146)' : 'rgb(18, 20, 20)',
+    labelColor:         isRumbalist ? 'rgb(255, 226, 240)' : 'rgb(255, 180, 166)',
+    // Logo slot already shows the Rumbalist wordmark image, so leave logoText
+    // empty for partner passes — otherwise the text would duplicate the mark.
+    logoText:           isRumbalist ? '' : 'Club Fuoco',
     eventTicket: {
       primaryFields: [
         { key: 'venue', label: 'VENUE', value: clubName },
@@ -105,6 +115,11 @@ export async function GET(
   }
 
   const assetsDir = path.join(process.cwd(), 'public', 'pass-assets')
+  // Rumbalist partner passes use the Rumbalist wordmark in the logo slot
+  // (white-on-transparent at Wallet's 160×32 / 320×65 logo sizes). Icon
+  // assets stay shared since the icon is the small notification glyph.
+  const logoName    = isRumbalist ? 'logo-rumbalist.png'    : 'logo.png'
+  const logo2xName  = isRumbalist ? 'logo-rumbalist@2x.png' : 'logo@2x.png'
 
   try {
     const pass = new PKPass(
@@ -113,8 +128,8 @@ export async function GET(
         'icon.png':    fs.readFileSync(path.join(assetsDir, 'icon.png')),
         'icon@2x.png': fs.readFileSync(path.join(assetsDir, 'icon@2x.png')),
         'icon@3x.png': fs.readFileSync(path.join(assetsDir, 'icon@3x.png')),
-        'logo.png':    fs.readFileSync(path.join(assetsDir, 'logo.png')),
-        'logo@2x.png': fs.readFileSync(path.join(assetsDir, 'logo@2x.png')),
+        'logo.png':    fs.readFileSync(path.join(assetsDir, logoName)),
+        'logo@2x.png': fs.readFileSync(path.join(assetsDir, logo2xName)),
       },
       {
         wwdr:                Buffer.from(process.env.APPLE_WWDR_PEM!,        'base64'),

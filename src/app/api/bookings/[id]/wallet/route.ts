@@ -77,9 +77,11 @@ export async function GET(
     foregroundColor:    'rgb(255, 255, 255)',
     backgroundColor:    isRumbalist ? 'rgb(255, 45, 146)' : 'rgb(18, 20, 20)',
     labelColor:         isRumbalist ? 'rgb(255, 226, 240)' : 'rgb(255, 180, 166)',
-    // Logo slot already shows the Rumbalist wordmark image, so leave logoText
-    // empty for partner passes — otherwise the text would duplicate the mark.
-    logoText:           isRumbalist ? '' : 'Club Fuoco',
+    // Rumbalist passes show the wordmark in the logo image — duplicating it
+    // as logoText would be redundant. We OMIT the key entirely for partners;
+    // passkit-generator's Joi schema rejects empty strings (silently — then
+    // type never gets set → "MISSING_TYPE" 500 at close()).
+    ...(isRumbalist ? {} : { logoText: 'Club Fuoco' }),
     eventTicket: {
       primaryFields: [
         { key: 'venue', label: 'VENUE', value: clubName },
@@ -155,10 +157,6 @@ export async function GET(
     })
   } catch (err: any) {
     console.error('[wallet] pass generation failed:', err)
-    return NextResponse.json({
-      error:  'Failed to generate pass',
-      detail: String(err?.message ?? err),
-      where:  err?.stack ? String(err.stack).split('\n').slice(0, 3).join(' | ') : undefined,
-    }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to generate pass' }, { status: 500 })
   }
 }

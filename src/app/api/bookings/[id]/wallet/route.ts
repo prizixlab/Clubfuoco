@@ -90,10 +90,17 @@ export async function GET(
         { key: 'date',  label: 'DATE',   value: dateStr },
         { key: 'type',  label: 'TICKET', value: booking.booking_type === 'vip' ? 'VIP' : 'General' },
       ],
-      auxiliaryFields: [
-        { key: 'guests', label: 'GUESTS', value: String(booking.party_size) },
-        { key: 'paid',   label: 'PAID',   value: `€${(booking.total_amount ?? 0).toFixed(2)}` },
-      ],
+      // PAID row is dropped on Rumbalist passes — free guestlists would show
+      // "€0.00" which reads as a glitch, and paid VIP tables don't need the
+      // amount on the wallet face.
+      auxiliaryFields: isRumbalist
+        ? [
+            { key: 'guests', label: 'GUESTS', value: String(booking.party_size) },
+          ]
+        : [
+            { key: 'guests', label: 'GUESTS', value: String(booking.party_size) },
+            { key: 'paid',   label: 'PAID',   value: `€${(booking.total_amount ?? 0).toFixed(2)}` },
+          ],
       backFields: [
         { key: 'address', label: 'LOCATION', value: address },
         { key: 'support', label: 'SUPPORT',  value: 'tickets@clubfuoco.com' },

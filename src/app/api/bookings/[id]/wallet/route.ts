@@ -115,11 +115,15 @@ export async function GET(
   }
 
   const assetsDir = path.join(process.cwd(), 'public', 'pass-assets')
-  // Rumbalist partner passes use the Rumbalist wordmark in the logo slot
-  // (white-on-transparent at Wallet's 160×32 / 320×65 logo sizes). Icon
-  // assets stay shared since the icon is the small notification glyph.
-  const logoName    = isRumbalist ? 'logo-rumbalist.png'    : 'logo.png'
-  const logo2xName  = isRumbalist ? 'logo-rumbalist@2x.png' : 'logo@2x.png'
+
+  // Read every logo variant with a literal string path so Vercel's static
+  // file tracer bundles them into the serverless function. (Reading via a
+  // variable name skips the tracer → ENOENT on Vercel → 500.) We pick the
+  // Rumbalist variant only AFTER both are loaded.
+  const logoFuoco       = fs.readFileSync(path.join(assetsDir, 'logo.png'))
+  const logoFuoco2x     = fs.readFileSync(path.join(assetsDir, 'logo@2x.png'))
+  const logoRumbalist   = fs.readFileSync(path.join(assetsDir, 'logo-rumbalist.png'))
+  const logoRumbalist2x = fs.readFileSync(path.join(assetsDir, 'logo-rumbalist@2x.png'))
 
   try {
     const pass = new PKPass(
@@ -128,8 +132,8 @@ export async function GET(
         'icon.png':    fs.readFileSync(path.join(assetsDir, 'icon.png')),
         'icon@2x.png': fs.readFileSync(path.join(assetsDir, 'icon@2x.png')),
         'icon@3x.png': fs.readFileSync(path.join(assetsDir, 'icon@3x.png')),
-        'logo.png':    fs.readFileSync(path.join(assetsDir, logoName)),
-        'logo@2x.png': fs.readFileSync(path.join(assetsDir, logo2xName)),
+        'logo.png':    isRumbalist ? logoRumbalist   : logoFuoco,
+        'logo@2x.png': isRumbalist ? logoRumbalist2x : logoFuoco2x,
       },
       {
         wwdr:                Buffer.from(process.env.APPLE_WWDR_PEM!,        'base64'),

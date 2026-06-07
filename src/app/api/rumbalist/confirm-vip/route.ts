@@ -2,7 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { stripe } from '@/lib/stripe'
 import { ok, err } from '@/lib/utils'
-import { randomUUID } from 'crypto'
+import { generateReferenceCode } from '@/lib/rumbalist-reference'
 import { z } from 'zod'
 
 // Verify with Stripe that the Apple Pay confirmation actually succeeded,
@@ -46,26 +46,36 @@ export async function POST(req: Request) {
     .maybeSingle()
   if (existing) return ok(existing)
 
-  // 3. Insert booking row
+  // 3. Insert booking row — retry on reference-code collision (Postgres unique
+  //    violation = 23505). Five attempts is overkill at 1/2.8-trillion odds.
   const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10)
   const total = intent.amount / 100   // cents → euros
-  const { data: booking, error: insertErr } = await supabase
-    .from('bookings')
-    .insert({
-      user_id:                   user!.id,
-      club_id:                   parsed.data.club_id,
-      booking_type:              'vip',
-      party_size:                1,
-      booking_date:              tomorrow,
-      status:                    'confirmed',
-      unit_price:                total,
-      total_amount:              total,
-      platform_fee:              0,
-      stripe_payment_intent_id:  intent.id,
-      qr_code_token:             randomUUID(),
-    })
-    .select('*')
-    .single()
+  let booking: any = null
+  let insertErr: any = null
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateReferenceCode()
+    const res  = await supabase
+      .from('bookings')
+      .insert({
+        user_id:                   user!.id,
+        club_id:                   parsed.data.club_id,
+        booking_type:              'vip',
+        party_size:                1,
+        booking_date:               tomorrow,
+        status:                    'confirmed',
+        unit_price:                total,
+        total_amount:              total,
+        platform_fee:              0,
+        stripe_payment_intent_id:  intent.id,
+        qr_code_token:             code,
+      })
+      .select('*')
+      .single()
+    booking   = res.data
+    insertErr = res.error
+    if (!insertErr) break
+    if (insertErr.code !== '23505') break
+  }
   if (insertErr) return err(insertErr.message)
 
   // 4. Rumbalist purchase audit row — non-fatal on failure so we don't lose

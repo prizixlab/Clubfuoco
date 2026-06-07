@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { ok, err } from '@/lib/utils'
-import { randomUUID } from 'crypto'
+import { generateReferenceCode } from '@/lib/rumbalist-reference'
 
 // Add the authenticated user to a Rumbalist free guestlist for a club.
 // Writes two rows:
@@ -20,23 +20,34 @@ export async function POST(req: Request) {
   const supabase = await createServiceClient()
   const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10)
 
-  // 1. Booking row
-  const { data: booking, error: bookingErr } = await supabase
-    .from('bookings')
-    .insert({
-      user_id:        user!.id,
-      club_id:        clubId,
-      booking_type:   'general',  // 'free_guestlist' violates the bookings CHECK constraint
-      party_size:     1,
-      booking_date:   tomorrow,
-      status:         'confirmed',
-      unit_price:     0,
-      total_amount:   0,
-      platform_fee:   0,
-      qr_code_token:  randomUUID(),
-    })
-    .select('*')
-    .single()
+  // 1. Booking row — retry on the (vanishingly rare) reference-code collision.
+  //    Postgres unique violation = code 23505. Five attempts is plenty since
+  //    each attempt re-rolls 8 chars from a 36-char alphabet.
+  let booking: any = null
+  let bookingErr: any = null
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateReferenceCode()
+    const res  = await supabase
+      .from('bookings')
+      .insert({
+        user_id:        user!.id,
+        club_id:        clubId,
+        booking_type:   'general',  // 'free_guestlist' violates the bookings CHECK constraint
+        party_size:     1,
+        booking_date:   tomorrow,
+        status:         'confirmed',
+        unit_price:     0,
+        total_amount:   0,
+        platform_fee:   0,
+        qr_code_token:  code,
+      })
+      .select('*')
+      .single()
+    booking    = res.data
+    bookingErr = res.error
+    if (!bookingErr) break
+    if (bookingErr.code !== '23505') break  // not a unique conflict — give up
+  }
   if (bookingErr) return err(bookingErr.message)
 
   // 2. Rumbalist purchase audit row — failure here is non-fatal so the user

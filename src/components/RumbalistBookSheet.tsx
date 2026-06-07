@@ -69,6 +69,9 @@ export default function RumbalistBookSheet({
   // round-trip + Apple Pay sheet are in flight. Avoids the misleading
   // "Authenticate to pay" mock step that used to render here.
   const [paying, setPaying] = useState(false)
+  // The CF-XXXXXXXX reference returned by the server after a successful
+  // booking. Always set before we navigate to the 'pass' step.
+  const [serverRef, setServerRef] = useState<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -200,6 +203,8 @@ export default function RumbalistBookSheet({
       if (!confirmRes.ok) {
         throw new Error(confirmData?.error ?? 'Booking save failed.')
       }
+      const ref = confirmData?.data?.qr_code_token
+      if (typeof ref === 'string') setServerRef(ref)
       setPaying(false)
       setStep('pass')
     } catch (e: unknown) {
@@ -245,6 +250,9 @@ export default function RumbalistBookSheet({
         setStep('review')
         return
       }
+      // Server returns the booking row with its persisted reference code.
+      const ref = data?.data?.qr_code_token
+      if (typeof ref === 'string') setServerRef(ref)
       setStep('pass')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not join the guestlist.')
@@ -261,7 +269,13 @@ export default function RumbalistBookSheet({
     return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
   })()
 
-  const passCode = 'CF-' + Math.random().toString(36).slice(2, 10).toUpperCase()
+  // Reference code shown on the confirmation receipt. Comes back from the
+  // server (which generates it, persists it as the booking's qr_code_token,
+  // and guarantees uniqueness on conflict) — kept in state so the value the
+  // user sees matches a real row they can be looked up by at the door.
+  // Falls back to "CF-PENDING" only if for some reason the server response
+  // doesn't include one (it always should).
+  const passCode = serverRef ?? 'CF-PENDING'
 
   if (!mounted) return null
 

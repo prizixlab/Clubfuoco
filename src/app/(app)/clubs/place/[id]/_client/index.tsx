@@ -352,7 +352,14 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
   // Everything else (RA, Xceed, Songkick…) doesn't expose a public purchase API,
   // so for those we send the user to the platform's own checkout in an in-app
   // browser tab — they buy there, the platform pays us a referral.
-  const IN_APP_PLATFORMS = new Set(['dice', 'eventbrite'])
+  // No in-app purchases for external events right now. Every platform we
+  // surface (RA, Dice, Eventbrite, Xceed, Songkick) routes the user to the
+  // platform's own checkout via an in-app Safari view. We can re-enable
+  // direct in-app purchase later for any platform we have an affiliate /
+  // distributor agreement with (e.g. Eventbrite Distributor API, Dice
+  // Partner Program). Until then: zero risk of taking money for tickets
+  // we can't actually deliver.
+  const IN_APP_PLATFORMS = new Set<string>([])
   const isInAppPurchase  = IN_APP_PLATFORMS.has(event.platform)
 
   async function startCheckout() {
@@ -374,30 +381,15 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
       }),
     }).catch(() => {})
 
-    // Free events — just record an RSVP, no payment, no platform handoff
-    if (event.base_price === 0) {
-      try {
-        await apiFetch('/api/tickets', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({
-            platform: event.platform, platform_event_id: event.id,
-            event_name: event.title, venue_name: event.venue_name,
-            venue_place_id: placeId, event_date: event.date,
-            quantity: 1, base_price_cents: 0, currency: event.currency,
-          }),
-        })
-        setSuccess(true)
-      } catch {
-        setBuying(false)
-      }
-      return
-    }
-
-    // ── Platforms without a purchase API → external checkout ──────────────────
-    // We open the platform's own page in an in-app Safari view. The user buys
-    // there, we get attribution via the click record we just wrote.
-    if (!isInAppPurchase) {
+    // ── External checkout (open the platform's own page) ──────────────────────
+    // We send the user to the source platform in two cases:
+    //   1. The event is FREE — there's no real reservation we can create
+    //      via the platform's API, and faking an in-app "Reserve" success
+    //      tells the user nothing real happened (the venue has no list).
+    //   2. The event is PAID but on a platform with no purchase API
+    //      (Resident Advisor, Xceed, Songkick).
+    // Either way we already wrote the click telemetry above for attribution.
+    if (event.base_price === 0 || !isInAppPurchase) {
       try {
         const { Browser } = await import('@capacitor/browser')
         await Browser.open({ url: event.platform_url, presentationStyle: 'popover' })
@@ -584,13 +576,11 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
               style={{ padding: '10px 18px', background: C.ink, color: '#F8F5EE', border: 'none', borderRadius: 99, fontSize: 13, fontWeight: 600, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', cursor: buying ? 'not-allowed' : 'pointer', opacity: buying ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {buying
                 ? '…'
-                : event.base_price === 0
-                  ? 'Reserve'
-                  : isInAppPurchase
-                    ? 'Get Tickets'
-                    : <>View on {platformBadge[event.platform] ?? 'site'}
-                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_outward</span>
-                      </>}
+                : (event.base_price === 0 || !isInAppPurchase)
+                  ? <>View on {platformBadge[event.platform] ?? 'site'}
+                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_outward</span>
+                    </>
+                  : 'Get Tickets'}
             </button>
           )}
         </div>

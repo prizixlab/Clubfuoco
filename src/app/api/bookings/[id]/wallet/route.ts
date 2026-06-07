@@ -155,6 +155,10 @@ export async function GET(
     })
   } catch (err: any) {
     console.error('[wallet] pass generation failed:', err)
-    return NextResponse.json({ error: 'Failed to generate pass' }, { status: 500 })
+    return NextResponse.json({
+      error:  'Failed to generate pass',
+      detail: String(err?.message ?? err),
+      where:  err?.stack ? String(err.stack).split('\n').slice(0, 3).join(' | ') : undefined,
+    }, { status: 500 })
   }
 }

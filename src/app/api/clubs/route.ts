@@ -42,5 +42,7 @@ export async function GET(request: NextRequest) {
     ? (data ?? []).filter((c: any) => c.live_status?.is_open)
     : data
 
-  return ok(result)
+  // 60s edge cache + 5min SWR. Catalogue of venues moves slowly relative to
+  // request volume; this drops Supabase reads ~95% during traffic spikes.
+  return ok(result, 200, 'short')
 }

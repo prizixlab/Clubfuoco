@@ -399,10 +399,14 @@ export async function GET(req: NextRequest) {
       return true
     })
     deduped.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    return NextResponse.json({ data: deduped })
+    return NextResponse.json({ data: deduped }, {
+      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=1800' },
+    })
   }
 
-  if (!venue) return NextResponse.json({ data: [] })
+  if (!venue) return NextResponse.json({ data: [] }, {
+    headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=1800' },
+  })
 
   const [raEvents, ebEvents, diceEvents, xceedEvents, skEvents] = await Promise.all([
     fetchRA(venue),
@@ -429,5 +433,9 @@ export async function GET(req: NextRequest) {
 
   // Only return venue-matched events — nearby Barcelona fallback handled on explore page
   const matched = merged.filter(e => e.venue_matched).slice(0, 8)
-  return NextResponse.json({ data: matched })
+  return NextResponse.json({ data: matched }, {
+    // 5min edge cache + 30min SWR. External event sources move slowly and
+    // are expensive to fan out to (5 parallel HTTPS calls per miss).
+    headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=1800' },
+  })
 }

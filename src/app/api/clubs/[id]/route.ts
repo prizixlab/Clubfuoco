@@ -20,5 +20,6 @@ export async function GET(
     .single()
 
   if (error || !data) return err('Club not found', 404)
-  return ok(data)
+  // 5min edge cache + 1hr SWR. Venue detail moves slower than the list.
+  return ok(data, 200, 'medium')
 }

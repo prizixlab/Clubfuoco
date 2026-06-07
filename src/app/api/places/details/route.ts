@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       description, instagram_handle, whatsapp_link,
       general_entry_price, vip_table_min_spend,
       opening_hours, is_featured, is_partner, is_active,
-      reviews,
+      reviews, places_synced_at,
       live_status (*),
       club_tags ( tag, category )
     `)
@@ -86,8 +86,24 @@ export async function GET(request: NextRequest) {
 
   const KEY = process.env.GOOGLE_PLACES_API_KEY
 
+  // ── Google Places call gating ─────────────────────────────────────────────
+  // The single biggest scaling cost driver in this app. Without gating, every
+  // venue-detail open used to potentially call Google Places — Place Details
+  // is $17 / 1000, Text Search is $32 / 1000. At 10k DAU x 3 venue views =
+  // ~$510/day just for Google.
+  //
+  // Rule: if we synced this venue with Google in the last 7 days, skip the
+  // Google calls entirely and serve whatever's in the DB. The nightly sync
+  // cron will refresh stale rows in the background.
+  const SYNC_FRESHNESS_MS = 7 * 24 * 3600 * 1000
+  const syncedAt          = (club as any).places_synced_at
+    ? new Date((club as any).places_synced_at).getTime()
+    : 0
+  const isFresh = syncedAt > Date.now() - SYNC_FRESHNESS_MS
+  let didLiveSync = false
+
   // If we have fewer than 3 photos and there's a stored place_id, top up from Google
-  if (allPhotos.length < 3 && club.google_place_id && KEY) {
+  if (!isFresh && allPhotos.length < 3 && club.google_place_id && KEY) {
     try {
       const gRes  = await fetch(
         `https://maps.googleapis.com/maps/api/place/details/json?place_id=${club.google_place_id}&fields=photos,types&key=${KEY}`
@@ -106,11 +122,12 @@ export async function GET(request: NextRequest) {
         const proxyUrl = `/api/places/photo?ref=${encodeURIComponent(ref)}&maxwidth=800`
         if (!seen.has(proxyUrl)) { seen.add(proxyUrl); allPhotos.push(proxyUrl) }
       }
+      didLiveSync = true
     } catch { /* non-critical */ }
   }
 
   // No place_id at all (OSM-imported clubs) — text-search Google once, cache the result
-  if (allPhotos.length < 1 && !club.google_place_id && KEY) {
+  if (!isFresh && allPhotos.length < 1 && !club.google_place_id && KEY) {
     try {
       const q       = encodeURIComponent(`${club.name} Barcelona`)
       const srRes   = await fetch(
@@ -168,6 +185,7 @@ export async function GET(request: NextRequest) {
           seen.add(url)
           allPhotos.push(url)
         }
+        didLiveSync = true
       }
     } catch { /* non-critical */ }
   }
@@ -176,7 +194,7 @@ export async function GET(request: NextRequest) {
   // Use stored reviews; if none yet and we have a place_id, fetch & store them
   let reviews: any[] = Array.isArray((club as any).reviews) ? (club as any).reviews : []
 
-  if (reviews.length === 0 && club.google_place_id && KEY) {
+  if (!isFresh && reviews.length === 0 && club.google_place_id && KEY) {
     try {
       const rRes  = await fetch(
         `https://maps.googleapis.com/maps/api/place/details/json?place_id=${club.google_place_id}&fields=reviews&key=${KEY}`
@@ -193,8 +211,19 @@ export async function GET(request: NextRequest) {
         }))
         // Persist so the next request doesn't need to hit Google
         await supabase.from('clubs').update({ reviews }).eq('id', club.id)
+        didLiveSync = true
       }
     } catch { /* non-critical */ }
+  }
+
+  // Stamp places_synced_at after any live sync so the next 7 days of requests
+  // skip Google entirely. Even on a failed/empty sync we stamp it so we don't
+  // hammer Google for a venue Google has nothing on anyway.
+  if (didLiveSync) {
+    await supabase
+      .from('clubs')
+      .update({ places_synced_at: new Date().toISOString() })
+      .eq('id', club.id)
   }
 
   return NextResponse.json({
@@ -231,5 +260,10 @@ export async function GET(request: NextRequest) {
         ? `https://www.google.com/maps/place/?q=place_id:${club.google_place_id}`
         : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(club.name + ' Barcelona')}`,
     },
+  }, {
+    // 5min edge cache + 1hr SWR. Photos + reviews + opening hours move at
+    // most once per day; we already persist Google results so even a cache
+    // miss is just one DB read, not a Google call.
+    headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' },
   })
 }

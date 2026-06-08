@@ -1,3 +1,24 @@
+  /* Single editorial column — no portrait, no attribution. Replaces the
+     founder-block from when the page listed a founder explicitly. */
+  .prose-block {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .prose-block .lead-p {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: clamp(22px, 2.6vw, 28px);
+    line-height: 1.5;
+    color: var(--ink);
+    margin-bottom: 22px;
+  }
+  .prose-block p + p {
+    margin-top: 18px;
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.85;
+  }
+
   .founder-block {
     display: grid;
     grid-template-columns: 1fr;

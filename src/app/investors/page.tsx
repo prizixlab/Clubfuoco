@@ -138,7 +138,7 @@ function InvestorsClient() {
             </div>
             <div className="opp-actions">
               <h3>Go deeper</h3>
-              <p>Materials and time with the founder.</p>
+              <p>Materials and time with the team.</p>
               <a href="mailto:invest@clubfuoco.com?subject=Club%20Fuoco%20deck" className="btn btn-primary">
                 Request the deck →
               </a>

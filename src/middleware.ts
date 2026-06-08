@@ -64,6 +64,12 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/explore') ||      // Guest browsing — venue feed
     pathname.startsWith('/clubs') ||        // Guest browsing — venue detail pages
     pathname.startsWith('/rumbas') ||       // Guest browsing — events
+    // Marketing site surfaces (clubfuoco.com only — iOS never hits these)
+    pathname.startsWith('/about') ||
+    pathname.startsWith('/partners') ||
+    pathname.startsWith('/investors') ||
+    pathname.startsWith('/press') ||
+    pathname.startsWith('/api/partnership-inquiries') ||
     pathname.startsWith('/api/places') ||   // Venue/details/photo APIs
     pathname.startsWith('/api/events') ||   // Event listings
     pathname.startsWith('/api/clubs') ||    // Public clubs read APIs

@@ -1,0 +1,47 @@
+  .partner-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(40px, 6vw, 70px);
+    align-items: start;
+  }
+  @media (min-width: 920px) { .partner-layout { grid-template-columns: 1fr 1fr; } }
+
+  /* audience tabs (CSS-only via radios) */
+  .tabs input { position: absolute; opacity: 0; pointer-events: none; }
+  .tab-labels { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
+  .tab-labels label {
+    font-family: var(--sans);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--muted);
+    padding: 9px 16px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+  }
+  .tab-labels label:hover { color: var(--ink); }
+  #aud-venues:checked ~ .tab-labels label[for="aud-venues"],
+  #aud-ticketing:checked ~ .tab-labels label[for="aud-ticketing"],
+  #aud-operators:checked ~ .tab-labels label[for="aud-operators"] {
+    color: #1a1206; background: var(--gold); border-color: var(--gold);
+  }
+  .tab-panel { display: none; }
+  #aud-venues:checked ~ .tab-bodies .panel-venues,
+  #aud-ticketing:checked ~ .tab-bodies .panel-ticketing,
+  #aud-operators:checked ~ .tab-bodies .panel-operators { display: block; }
+  .tab-panel h3 { font-family: var(--serif); font-style: italic; font-size: 30px; color: var(--gold); margin-bottom: 14px; }
+  .tab-panel p { font-size: 16px; line-height: 1.72; color: var(--ink); opacity: 0.84; margin-bottom: 16px; text-wrap: pretty; }
+  .tab-panel ul { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+  .tab-panel li { position: relative; padding-left: 22px; font-size: 15px; color: var(--muted); line-height: 1.55; }
+  .tab-panel li::before { content: "—"; position: absolute; left: 0; color: var(--gold); }
+
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: clamp(28px, 4vw, 40px);
+  }
+  .form-card h2 { font-family: var(--serif); font-style: normal; font-size: 28px; color: var(--ink); margin-bottom: 6px; }
+  .form-card .sub { font-size: 14px; color: var(--muted); margin-bottom: 26px; }
+  .form-card .btn { width: 100%; justify-content: center; margin-top: 6px; }

@@ -1,0 +1,35 @@
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-top: clamp(40px, 6vh, 56px);
+  }
+  @media (min-width: 760px) { .metrics { grid-template-columns: repeat(4, 1fr); } }
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 26px 24px;
+  }
+  .metric .val { font-family: var(--serif); font-style: italic; font-size: 44px; line-height: 1; color: var(--gold); }
+  .metric .val.small { font-size: 28px; }
+  .metric .lbl { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-top: 14px; }
+  .metric.locked .val { color: var(--muted); opacity: 0.55; }
+
+  .opp-grid { display: grid; grid-template-columns: 1fr; gap: 40px; align-items: start; }
+  @media (min-width: 880px) { .opp-grid { grid-template-columns: 1.4fr 1fr; gap: 60px; } }
+  .opp-actions {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 30px 28px;
+  }
+  .opp-actions h3 { font-family: var(--serif); font-style: normal; font-size: 24px; color: var(--ink); margin-bottom: 6px; }
+  .opp-actions p { font-size: 14px; color: var(--muted); margin-bottom: 22px; }
+  .opp-actions .btn { width: 100%; justify-content: center; margin-bottom: 12px; }
+
+  /* gate */
+  #gate { display: flex; }
+  #vault { display: none; }
+  body.unlocked #gate { display: none; }
+  body.unlocked #vault { display: block; }

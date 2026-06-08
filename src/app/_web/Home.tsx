@@ -3,6 +3,7 @@
 // src/app/page.tsx via process.env.BUILD_TARGET.
 
 import './site.css'
+import './home.css'
 import SiteNav from './SiteNav'
 import MiniFooter from './MiniFooter'
 

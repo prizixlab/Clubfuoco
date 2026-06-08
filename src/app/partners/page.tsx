@@ -1,6 +1,7 @@
 'use client'
 
 import '../_web/site.css'
+import '../_web/partners.css'
 import SiteNav    from '../_web/SiteNav'
 import MiniFooter from '../_web/MiniFooter'
 import { useState } from 'react'

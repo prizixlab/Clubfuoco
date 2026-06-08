@@ -1,4 +1,5 @@
 import '../_web/site.css'
+import '../_web/press.css'
 import SiteNav    from '../_web/SiteNav'
 import MiniFooter from '../_web/MiniFooter'
 

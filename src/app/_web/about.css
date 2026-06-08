@@ -1,0 +1,19 @@
+  .founder-block {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 36px;
+    align-items: start;
+  }
+  @media (min-width: 820px) { .founder-block { grid-template-columns: 320px 1fr; gap: 56px; } }
+  .founder-side .name { font-family: var(--serif); font-style: italic; font-size: 26px; margin-top: 20px; }
+  .founder-side .role { font-family: var(--mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+  .mission-quote {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: clamp(28px, 4vw, 42px);
+    line-height: 1.28;
+    color: var(--ink);
+    max-width: 880px;
+    text-wrap: pretty;
+  }
+  .mission-quote .gold { color: var(--gold); }

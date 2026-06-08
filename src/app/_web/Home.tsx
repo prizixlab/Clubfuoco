@@ -86,7 +86,7 @@ export default function WebHome() {
         </div>
       </section>
 
-      {/* ===== HOW IT WORKS ===== */}
+      {/* ===== HOW IT WORKS — vertical numbered sequence ===== */}
       <section className="section" id="how">
         <div className="wrap">
           <div className="how-head">
@@ -96,24 +96,19 @@ export default function WebHome() {
             </h2>
           </div>
           <div className="steps">
-            <div className="step">
-              <div className="step-num">01</div>
-              <h3>Find tonight&rsquo;s room</h3>
-              <p>Browse what&rsquo;s actually open tonight — rooms, line-ups, and tables, ranked for the night you&rsquo;re after.</p>
-              <div className="step-rule" />
-            </div>
-            <div className="step">
-              <div className="step-num">02</div>
-              <h3>Book in two taps</h3>
-              <p>Entry, guest list, or a table — confirmed and paid inside the app before you leave the house.</p>
-              <div className="step-rule" />
-            </div>
-            <div className="step">
-              <div className="step-num">03</div>
-              <h3>Walk straight to the door</h3>
-              <p>Your pass lives on your phone. Skip the queue, show the door, and you&rsquo;re in.</p>
-              <div className="step-rule" />
-            </div>
+            {[
+              ['01', 'Find tonight’s room',         'Browse what’s actually open tonight — rooms, line-ups, and tables, ranked for the night you’re after.'],
+              ['02', 'Book in two taps',                 'Entry, guest list, or a table — confirmed and paid inside the app before you leave the house.'],
+              ['03', 'Walk straight to the door',        'Your pass lives on your phone. Skip the queue, show the door, and you’re in.'],
+            ].map(([n, title, body]) => (
+              <div className="step" key={n}>
+                <div className="step-num">{n}</div>
+                <div className="step-body">
+                  <h3>{title}</h3>
+                  <p>{body}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

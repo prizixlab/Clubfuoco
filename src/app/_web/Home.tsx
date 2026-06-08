@@ -59,7 +59,11 @@ export default function WebHome() {
             </div>
             <div className="app-body">
               <p className="app-eyebrow">Tonight with</p>
-              <div className="app-title">RUMBALIST</div>
+              <span
+                className="rumba-mark"
+                role="img"
+                aria-label="Rumbalist"
+              />
               <div className="venue-list">
                 {[
                   ['Opium Barcelona',  'Free guestlist',            'linear-gradient(135deg,#3a2a4a,#160f22)'],

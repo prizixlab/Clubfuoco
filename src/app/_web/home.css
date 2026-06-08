@@ -227,12 +227,16 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 760px;
-    height: 760px;
-    max-width: 150vw;
+    width: 820px;
+    height: 820px;
+    max-width: 160vw;
     pointer-events: none;
     z-index: 0;
-    background: radial-gradient(circle, rgba(255,45,146,0.10) 0%, rgba(192,153,80,0.06) 30%, transparent 60%);
+    background: radial-gradient(circle,
+      rgba(255, 45, 146, 0.18) 0%,
+      rgba(255, 45, 146, 0.08) 18%,
+      rgba(192, 153, 80, 0.06) 38%,
+      transparent 62%);
   }
   .iphone {
     position: relative;
@@ -276,14 +280,101 @@
   .statusbar .sb .batt::before { content:""; position:absolute; inset:1.5px; right: 5px; background:#fff; border-radius:1px; }
   .statusbar .sb .batt::after { content:""; position:absolute; right:-2px; top:3px; width:1.5px; height:4px; background: rgba(255,255,255,0.6); border-radius:0 1px 1px 0; }
   .app-body { padding: 14px 16px 24px; }
-  .app-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--muted); }
-  .app-title { font-family: "Bowlby One", var(--serif); color: var(--pink); font-size: 34px; line-height: 0.92; margin-top: 5px; letter-spacing: 0.005em; }
-  .venue-list { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
-  .venue-row { display: flex; align-items: center; gap: 12px; background: #141312; border: 1px solid var(--border); border-radius: 14px; padding: 9px; }
-  .venue-thumb { width: 48px; height: 48px; border-radius: 9px; flex: none; border: 1px solid rgba(255,255,255,0.06); }
-  .venue-meta { display: flex; flex-direction: column; }
-  .venue-name { font-family: var(--sans); font-size: 13px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
-  .venue-label { font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); margin-top: 4px; }
+  .app-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  /* Real Rumbalist wordmark — actual logo PNG used as a CSS mask so the
+     geometry is authentic (R/U/M/B/A as the brand's geometric primitives,
+     not a chunky display-font approximation). Filled with a Miami pink
+     gradient that animates a white gloss sweep across the letters every
+     ~3.4s. Mirrors the treatment we ship in the iOS app. */
+  .rumba-mark {
+    display: block;
+    height: 30px;
+    aspect-ratio: 1600 / 325;
+    background-image: linear-gradient(105deg,
+      #FF2D92 0%, #FF2D92 38%,
+      #FFFFFF 50%,
+      #FF2D92 62%, #FF2D92 100%);
+    background-size: 260% 100%;
+    background-position: 100% 0;
+    -webkit-mask: url('/rumbalist-logo.png') no-repeat left center / contain;
+            mask: url('/rumbalist-logo.png') no-repeat left center / contain;
+    animation: rumba-gloss 3.4s ease-in-out infinite;
+    filter: drop-shadow(0 0 14px rgba(255, 45, 146, 0.28));
+  }
+  @keyframes rumba-gloss {
+    0%   { background-position: 100% 0; }
+    55%  { background-position: -60% 0; }
+    100% { background-position: -60% 0; }
+  }
+
+  /* Pink-tinted hairline between the wordmark + the venue list — anchors
+     the section as Rumbalist's, not just generic app UI. */
+  .venue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 45, 146, 0.22);
+  }
+  .venue-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(180deg, #161516 0%, #121012 100%);
+    border: 1px solid rgba(244, 236, 221, 0.06);
+    border-radius: 14px;
+    padding: 9px;
+    transition: border-color 0.2s ease;
+  }
+  .venue-row:hover { border-color: rgba(255, 45, 146, 0.22); }
+  .venue-thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    flex: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Subtle highlight stroke on each thumbnail so they read as photos, not
+     swatches — a single diagonal sheen catches the eye. */
+  .venue-thumb::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.10) 0%,
+      rgba(255, 255, 255, 0) 35%,
+      rgba(0, 0, 0, 0.20) 100%);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .venue-meta { display: flex; flex-direction: column; min-width: 0; }
+  .venue-name {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.01em;
+  }
+  .venue-label {
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-top: 4px;
+  }
 
   /* ---------- Route handoff strip ---------- */
   .route-strip {

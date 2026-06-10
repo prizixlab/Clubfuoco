@@ -4,6 +4,7 @@ import './site.css'
 import SiteNav    from './SiteNav'
 import MiniFooter from './MiniFooter'
 import { useState } from 'react'
+import Script from 'next/script'
 
 // Shared layout for the three /partners/<audience> pages. Each sub-page just
 // passes its own content (eyebrow, headline, deals, steps, pull-quote) — the
@@ -125,7 +126,8 @@ export default function PartnerSubpage({
               <span className="q">&ldquo;</span>{pullQuote}<span className="q">&rdquo;</span>
             </blockquote>
             <div className="attr">
-              <div className="role">Club Fuoco — Barcelona</div>
+              <div className="name">Yakov Vinnik</div>
+              <div className="role">Founder</div>
             </div>
           </div>
         </div>
@@ -160,6 +162,7 @@ export default function PartnerSubpage({
       </section>
 
       <MiniFooter />
+      <Script src="/motion.js" strategy="afterInteractive" />
     </div>
   )
 }

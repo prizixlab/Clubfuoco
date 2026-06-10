@@ -1,3 +1,4 @@
+import Script from 'next/script'
 import '../_web/site.css'
 import '../_web/press.css'
 import SiteNav    from '../_web/SiteNav'
@@ -8,17 +9,21 @@ export default function PressPage() {
 
   return (
     <div className="cf-site">
+      <div className="ambient-light" aria-hidden="true" />
       <div className="grain" aria-hidden="true" />
       <SiteNav active="press" />
 
-      <header className="page-hero">
+      <header className="page-hero left">
         <div className="page-glow" aria-hidden="true" />
-        <p className="eyebrow">Press</p>
-        <h1>News from the <span className="gold">night.</span></h1>
-        <p className="lead">
-          Announcements, coverage, and assets. For interviews and anything not
-          listed here, reach the team directly.
-        </p>
+        <div className="wrap">
+          <p className="eyebrow">Press</p>
+          <h1>News from the <span className="gold">night.</span></h1>
+          <p className="lead">
+            Announcements, coverage, and assets. For interviews and anything not
+            listed here, reach the team directly.
+          </p>
+          <span className="scroll-cue" aria-hidden="true">↓</span>
+        </div>
       </header>
 
       <section className="section">
@@ -36,15 +41,21 @@ export default function PressPage() {
                 eleven partner venues in Barcelona.
               </p>
             </article>
+            <article className="release">
+              <span className="date">May 2026</span>
+              <h3>Club Fuoco partners with Rumbalist</h3>
+              <p>
+                A network partnership brings guest lists, VIP tables, and direct
+                entry at the city&rsquo;s best rooms into one app.
+              </p>
+            </article>
           </div>
 
-          <div className="press-cta" style={{ marginTop: 'clamp(56px, 8vh, 80px)' }}>
-            <p className="hint" style={{ maxWidth: 620, margin: '0 auto', textAlign: 'center' }}>
-              Coverage and mentions will appear here as they happen. For
-              interviews, reviews, or assets, write to{' '}
-              <a href="mailto:press@clubfuoco.com">press@clubfuoco.com</a>.
-            </p>
-          </div>
+          <p className="press-note">
+            Coverage and mentions will appear here as they happen. For
+            interviews, reviews, or assets, write to{' '}
+            <a href="mailto:press@clubfuoco.com">press@clubfuoco.com</a>.
+          </p>
 
           <div className="press-cta">
             <h2>Press inquiries</h2>
@@ -54,6 +65,7 @@ export default function PressPage() {
       </section>
 
       <MiniFooter />
+      <Script src="/motion.js" strategy="afterInteractive" />
     </div>
   )
 }

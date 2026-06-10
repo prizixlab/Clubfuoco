@@ -1,3 +1,4 @@
+import Script from 'next/script'
 import '../_web/site.css'
 import '../_web/partners.css'
 import SiteNav    from '../_web/SiteNav'
@@ -220,6 +221,7 @@ export default function PartnersLanding() {
       </section>
 
       <MiniFooter />
+      <Script src="/motion.js" strategy="afterInteractive" />
     </div>
   )
 }

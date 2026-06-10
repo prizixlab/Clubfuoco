@@ -33,7 +33,7 @@ html {
   scroll-padding-top: calc(var(--nav-h) + 20px);
 }
 
-.cf-site {
+body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--sans);
@@ -104,7 +104,6 @@ a { color: inherit; }
   line-height: 1.04;
   letter-spacing: -0.01em;
 }
-/* italic-gold accent on individual emphasis words within a roman heading */
 .serif-title .gold { font-style: italic; }
 
 .divider {
@@ -425,108 +424,6 @@ a { color: inherit; }
 .route-card:hover .arrow { transform: translateX(6px); }
 
 /* ============================================================
-   SITE FOOTER
-   ============================================================ */
-.site-footer {
-  position: relative;
-  z-index: 2;
-  border-top: 1px solid var(--border);
-  background: #070707;
-}
-.footer-grid {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr 1fr;
-  gap: 40px 30px;
-  padding-top: 60px;
-  padding-bottom: 44px;
-}
-@media (max-width: 860px) { .footer-grid { grid-template-columns: 1fr 1fr; gap: 36px 24px; } }
-@media (max-width: 480px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
-
-.footer-brand .fb-mark {
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 26px;
-  color: var(--gold);
-  text-decoration: none;
-}
-.footer-brand p {
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 15px;
-  color: var(--muted);
-  margin-top: 8px;
-}
-.footer-brand .fb-mail {
-  display: inline-block;
-  margin-top: 18px;
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  text-decoration: none;
-  transition: color 0.18s ease;
-}
-.footer-brand .fb-mail:hover { color: var(--gold); }
-
-.footer-col h4 {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 400;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--muted);
-  opacity: 0.6;
-  margin-bottom: 16px;
-}
-.footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 11px; }
-.footer-col a {
-  font-size: 14px;
-  color: var(--ink);
-  opacity: 0.78;
-  text-decoration: none;
-  transition: color 0.18s ease, opacity 0.18s ease;
-}
-.footer-col a:hover { color: var(--gold-soft); opacity: 1; }
-.footer-col a.inactive { opacity: 0.4; pointer-events: none; }
-
-.footer-social {
-  display: flex;
-  gap: 14px;
-  margin-top: 18px;
-}
-.footer-social a {
-  width: 34px;
-  height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
-  transition: border-color 0.18s ease, color 0.18s ease;
-}
-.footer-social a:hover { border-color: var(--gold); color: var(--gold); }
-.footer-social svg { width: 16px; height: 16px; }
-
-.footer-strip {
-  border-top: 1px solid var(--border);
-  padding: 22px 0;
-}
-.footer-strip .wrap {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-  opacity: 0.5;
-}
-
-/* ============================================================
    FORMS (partners, staff, investors)
    ============================================================ */
 .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
@@ -564,7 +461,7 @@ a { color: inherit; }
 }
 
 /* ============================================================
-   INNER PAGE SHELLS (about / partners / investors / staff / press)
+   INNER PAGE SHELLS
    ============================================================ */
 .page-hero {
   position: relative;
@@ -611,7 +508,7 @@ a { color: inherit; }
   text-wrap: pretty;
 }
 
-/* Asymmetric / left-aligned hero (sub-pages, about, press) */
+/* Asymmetric / left-aligned hero */
 .page-hero.left { text-align: left; overflow: visible; }
 .page-hero.left .wrap { position: relative; z-index: 1; }
 .page-hero.left h1 { max-width: 14ch; }
@@ -755,7 +652,7 @@ a { color: inherit; }
 }
 
 /* ============================================================
-   PARTNER SECTION (landing + venues / ticketing / operators)
+   PARTNER SECTION
    ============================================================ */
 .breadcrumb {
   font-family: var(--mono);
@@ -770,77 +667,7 @@ a { color: inherit; }
 .breadcrumb .sep { color: var(--gold); opacity: 0.6; margin: 0 8px; }
 .breadcrumb .here { color: var(--ink); }
 
-/* audience picker cards */
-.aud-cards {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 18px;
-  margin-top: clamp(44px, 6vh, 64px);
-}
-@media (min-width: 800px) { .aud-cards { grid-template-columns: repeat(3, 1fr); } }
-.aud-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  min-height: 280px;
-  padding: 32px 30px;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: var(--card-shadow);
-  text-decoration: none;
-  color: inherit;
-  transition: border-color 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
-}
-.aud-card:hover { border-color: var(--gold); transform: scale(1.01); }
-.aud-card .ac-icon { width: 40px; height: 40px; color: var(--gold); margin-bottom: 24px; }
-.aud-card .ac-icon svg { width: 100%; height: 100%; display: block; }
-.aud-card .eyebrow { display: block; margin-bottom: 12px; }
-.aud-card h3 {
-  font-family: var(--serif);
-  font-style: italic;
-  font-weight: 400;
-  font-size: clamp(30px, 3.4vw, 38px);
-  line-height: 1.05;
-  color: var(--ink);
-}
-.aud-card p {
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--muted);
-  margin-top: 14px;
-  text-wrap: pretty;
-}
-.aud-card .arrow {
-  margin-top: auto;
-  padding-top: 24px;
-  align-self: flex-end;
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 26px;
-  color: var(--gold);
-  transition: transform 0.2s ease;
-}
-.aud-card:hover .arrow { transform: translateX(6px); }
-
-/* "Already in touch" strip */
-.contact-strip {
-  margin-top: clamp(48px, 7vh, 72px);
-  padding-top: clamp(36px, 5vh, 48px);
-  border-top: 1px solid var(--border);
-  text-align: center;
-}
-.contact-strip p {
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 19px;
-  font-weight: 300;
-  color: var(--muted);
-}
-.contact-strip a { color: var(--gold); text-decoration: none; }
-.contact-strip a:hover { color: var(--ink); }
-
-/* numbered sequence — vertical long-form rows ("What you get" / "How it works") */
+/* numbered sequence — vertical long-form rows */
 .num-cols {
   display: flex;
   flex-direction: column;
@@ -929,3 +756,127 @@ a { color: inherit; }
 .form-card h2 { font-family: var(--serif); font-style: normal; font-size: 28px; color: var(--ink); margin-bottom: 6px; }
 .form-card .sub { font-size: 14px; font-weight: 300; color: var(--muted); margin-bottom: 26px; text-wrap: pretty; }
 .form-card .btn { width: 100%; justify-content: center; margin-top: 6px; }
+
+/* ============================================================
+   MOTION — scroll reveals, hero entrance, ambient drift.
+   All gated behind html.motion (added by motion.js only when
+   prefers-reduced-motion is NOT reduce). No-JS renders end state.
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  /* ---- ambient: breathing glows ---- */
+  html.motion .hero-glow { animation: cf-breathe 4s ease-in-out infinite; }
+  @keyframes cf-breathe {
+    0%, 100% { transform: translateX(-50%) scale(1); }
+    50%      { transform: translateX(-50%) scale(1.08); }
+  }
+  html.motion .page-glow { animation: cf-breathe-pg 9s ease-in-out infinite; }
+  @keyframes cf-breathe-pg {
+    0%, 100% { transform: translateX(-50%) scale(1); opacity: 1; }
+    50%      { transform: translateX(-50%) scale(1.05); opacity: 0.82; }
+  }
+  html.motion .ambient-light { animation: cf-ambient 16s ease-in-out infinite; }
+  @keyframes cf-ambient {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.7; }
+  }
+
+  /* ---- hero wordmark: 60px upward fade-in on load ---- */
+  html.motion .hero-mark { opacity: 0; transform: translateY(60px); }
+  html.motion.loaded .hero-mark {
+    opacity: 1; transform: none;
+    transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* ---- hero supporting elements: gentle staggered load ---- */
+  html.motion .hero .eyebrow,
+  html.motion .hero-tag,
+  html.motion .hero .divider,
+  html.motion .hero-lede,
+  html.motion .hero-cta,
+  html.motion .page-hero .eyebrow,
+  html.motion .page-hero h1,
+  html.motion .page-hero .lead,
+  html.motion .page-hero .scroll-cue,
+  html.motion .breadcrumb {
+    opacity: 0; transform: translateY(24px);
+  }
+  html.motion.loaded .hero .eyebrow,
+  html.motion.loaded .hero-tag,
+  html.motion.loaded .hero .divider,
+  html.motion.loaded .hero-lede,
+  html.motion.loaded .hero-cta,
+  html.motion.loaded .page-hero .eyebrow,
+  html.motion.loaded .page-hero h1,
+  html.motion.loaded .page-hero .lead,
+  html.motion.loaded .page-hero .scroll-cue,
+  html.motion.loaded .breadcrumb {
+    opacity: 1; transform: none;
+    transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  html.motion.loaded .breadcrumb { transition-delay: 60ms; }
+  html.motion.loaded .hero .eyebrow { transition-delay: 100ms; }
+  html.motion.loaded .hero-tag { transition-delay: 230ms; }
+  html.motion.loaded .hero .divider { transition-delay: 330ms; }
+  html.motion.loaded .hero-lede { transition-delay: 430ms; }
+  html.motion.loaded .hero-cta { transition-delay: 550ms; }
+  html.motion.loaded .page-hero .eyebrow { transition-delay: 140ms; }
+  html.motion.loaded .page-hero h1 { transition-delay: 260ms; }
+  html.motion.loaded .page-hero .lead { transition-delay: 420ms; }
+  html.motion.loaded .page-hero .scroll-cue { transition-delay: 600ms; }
+
+  /* ---- hero stats: stagger 150ms (delay set inline by JS) ---- */
+  html.motion .hero-stats .hstat { opacity: 0; transform: translateY(20px); }
+  html.motion.loaded .hero-stats .hstat {
+    opacity: 1; transform: none;
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* ---- scroll-LINKED reveal ---- */
+  html.motion .reveal { opacity: 0; transform: translateY(56px); will-change: opacity, transform; }
+  html.motion .reveal.shown { opacity: 1; transform: none; filter: none; will-change: auto; }
+
+  /* ---- iPhone: scale-in on scroll, then gentle float loop ---- */
+  html.motion .showcase { transform: translateY(var(--px, 0px)); will-change: transform; }
+  html.motion .iphone { opacity: 0; transform: scale(0.92); filter: blur(6px); }
+  html.motion .iphone.in {
+    opacity: 1; transform: none; filter: blur(0);
+    transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1), transform 1s cubic-bezier(0.16, 1, 0.3, 1), filter 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: cf-float 6s ease-in-out 1s infinite;
+  }
+  @keyframes cf-float {
+    0%, 100% { transform: translateY(0); }
+    25%      { transform: translateY(-8px); }
+    75%      { transform: translateY(8px); }
+  }
+
+  /* ---- headline clip-reveal ---- */
+  html.motion h2.serif-title.split .w-outer {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: top;
+    padding: 0 0.05em 0.12em;
+    margin: 0 -0.05em -0.12em;
+  }
+  html.motion h2.serif-title.split .w-inner {
+    display: inline-block;
+    transform: translateY(118%);
+    transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: var(--d, 0ms);
+  }
+  html.motion h2.serif-title.split.in .w-inner { transform: none; }
+
+  /* ---- quotes settle ---- */
+  html.motion .founder-quote,
+  html.motion .mission-quote,
+  html.motion .pq blockquote {
+    opacity: 0;
+    letter-spacing: 0.08em;
+  }
+  html.motion .founder-quote.in,
+  html.motion .mission-quote.in,
+  html.motion .pq blockquote.in {
+    opacity: 1;
+    letter-spacing: 0.02em;
+    transition: opacity 1.5s ease, letter-spacing 1.5s ease;
+  }
+}

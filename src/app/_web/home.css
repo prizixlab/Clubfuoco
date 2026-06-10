@@ -1,363 +1,401 @@
-  /* ---------- Hero ---------- */
-  .hero {
-    position: relative;
-    min-height: calc(100vh - var(--nav-h));
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: clamp(40px, 8vh, 90px) clamp(22px, 5vw, 40px) clamp(60px, 9vh, 100px);
-    overflow: hidden;
-  }
-  .hero-glow {
-    position: absolute;
-    top: -380px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 1100px;
-    height: 1000px;
-    max-width: 150vw;
-    pointer-events: none;
-    z-index: 0;
-    background: radial-gradient(circle at 50% 0%,
-      rgba(232,182,91,0.45) 0%,
-      rgba(194,86,45,0.30) 22%,
-      rgba(107,31,31,0.20) 42%,
-      rgba(20,12,8,0) 62%);
-  }
-  .hero > *:not(.hero-glow) { position: relative; z-index: 1; }
+/* ---------- Hero ---------- */
+.hero {
+  position: relative;
+  min-height: calc(100vh - var(--nav-h));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: clamp(40px, 8vh, 90px) clamp(22px, 5vw, 40px) clamp(60px, 9vh, 100px);
+  overflow: hidden;
+}
+.hero-glow {
+  position: absolute;
+  top: -380px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1100px;
+  height: 1000px;
+  max-width: 150vw;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle at 50% 0%,
+    rgba(232,182,91,0.45) 0%,
+    rgba(194,86,45,0.30) 22%,
+    rgba(107,31,31,0.20) 42%,
+    rgba(20,12,8,0) 62%);
+}
+.hero > *:not(.hero-glow):not(.glimmer-layer) { position: relative; z-index: 1; }
 
-  .hero-mark {
-    font-family: var(--serif);
-    font-style: italic;
-    color: var(--gold);
-    font-size: clamp(52px, 9.5vw, 98px);
-    line-height: 0.95;
-    letter-spacing: -0.005em;
-    margin-top: 26px;
-    text-shadow: 0 0 70px rgba(192, 153, 80, 0.20);
-    white-space: nowrap;
-  }
-  .hero-tag {
-    font-family: var(--serif);
-    font-style: italic;
-    font-size: clamp(24px, 3.4vw, 36px);
-    line-height: 1.2;
-    margin-top: 16px;
-    opacity: 0.95;
-  }
-  .hero .divider { margin: clamp(30px, 5vh, 46px) 0; }
-  .hero-lede {
-    max-width: 640px;
-    font-size: 19px;
-    font-weight: 300;
-    line-height: 1.9;
-    opacity: 0.82;
-    text-wrap: pretty;
-  }
-  .hero-cta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    justify-content: center;
-    align-items: center;
-    margin-top: 38px;
-  }
+/* ---------- Cursor glimmers (app-UI embers that trail the mouse) ---------- */
+.glimmer-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.glimmer {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity, filter;
+  white-space: nowrap;
+  border-radius: 8px;
+  border: 1px solid rgba(192, 153, 80, 0.18);
+  background: linear-gradient(180deg, rgba(255, 240, 220, 0.045), rgba(255, 240, 220, 0.015));
+  box-shadow: 0 8px 24px -12px rgba(232, 182, 91, 0.25);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.glimmer.g-label {
+  padding: 5px 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.glimmer.g-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 11px 6px 7px;
+  border-radius: 11px;
+}
+.glimmer.g-row .gthumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.glimmer.g-row .gname {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: rgba(240, 237, 230, 0.92);
+}
+.glimmer.g-row .glabel {
+  font-family: var(--mono);
+  font-size: 7.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-top: 2px;
+}
+.glimmer.g-pill {
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(240, 237, 230, 0.9);
+}
+.glimmer.g-mark {
+  padding: 5px 12px;
+  font-family: "Bowlby One", var(--serif);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--pink);
+  border-color: rgba(255, 45, 146, 0.22);
+  box-shadow: 0 8px 26px -12px rgba(255, 45, 146, 0.3);
+}
+@media (hover: none), (prefers-reduced-motion: reduce) {
+  .glimmer-layer { display: none; }
+}
 
-  /* ---------- By the numbers (inside hero) ---------- */
-  .hero-stats {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    width: 100%;
-    max-width: 740px;
-    margin-top: clamp(58px, 8vh, 80px);
-  }
-  @media (min-width: 720px) { .hero-stats { grid-template-columns: repeat(4, 1fr); } }
-  .hstat { padding: 4px 16px; text-align: center; }
-  .hstat + .hstat { border-left: 1px solid rgba(192, 153, 80, 0.24); }
-  @media (max-width: 719px) {
-    .hstat:nth-child(odd) { border-left: 0; }
-    .hstat:nth-child(n+3) { margin-top: 30px; }
-  }
-  .hstat .num {
-    font-family: var(--serif);
-    font-style: italic;
-    font-weight: 400;
-    font-size: clamp(28px, 3.3vw, 36px);
-    line-height: 1;
-    color: var(--gold);
-    letter-spacing: -0.01em;
-  }
-  .hstat .lbl {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-top: 12px;
-    line-height: 1.4;
-  }
+.hero-mark {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--gold);
+  font-size: clamp(52px, 9.5vw, 98px);
+  line-height: 0.95;
+  letter-spacing: -0.005em;
+  margin-top: 26px;
+  text-shadow: 0 0 70px rgba(192, 153, 80, 0.20);
+  white-space: nowrap;
+}
+.hero-tag {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(24px, 3.4vw, 36px);
+  line-height: 1.2;
+  margin-top: 16px;
+  opacity: 0.95;
+}
+.hero .divider { margin: clamp(30px, 5vh, 46px) 0; }
+.hero-lede {
+  max-width: 640px;
+  font-size: 19px;
+  font-weight: 300;
+  line-height: 1.9;
+  opacity: 0.82;
+  text-wrap: pretty;
+}
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 38px;
+}
 
-  /* ---------- iPhone showcase ---------- */
-  .showcase {
-    position: relative;
-    z-index: 2;
-    display: flex;
-    justify-content: center;
-    padding: clamp(24px, 5vh, 64px) 22px clamp(48px, 9vh, 100px);
-  }
-  .showcase-glow {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 760px;
-    height: 760px;
-    max-width: 150vw;
-    pointer-events: none;
-    z-index: 0;
-    background: radial-gradient(circle, rgba(255,45,146,0.10) 0%, rgba(192,153,80,0.06) 30%, transparent 60%);
-  }
-  .iphone {
-    position: relative;
-    z-index: 1;
-    width: 320px;
-    background: linear-gradient(160deg, #1d1d1f, #0c0c0d);
-    border-radius: 46px;
-    padding: 11px;
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    box-shadow: 0 40px 90px rgba(0, 0, 0, 0.6), 0 2px 0 rgba(255,255,255,0.05) inset;
-  }
-  .iphone-screen {
-    position: relative;
-    background: #0a0a0a;
-    border-radius: 36px;
-    overflow: hidden;
-  }
-  .notch {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 126px;
-    height: 26px;
-    background: #000;
-    border-radius: 0 0 16px 16px;
-    z-index: 5;
-  }
-  .statusbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 13px 24px 2px;
-  }
-  .statusbar .time { font-family: var(--sans); font-size: 13px; font-weight: 600; color: #fff; }
-  .statusbar .sb { display: flex; align-items: center; gap: 5px; }
-  .statusbar .sb .bars { width: 16px; height: 10px; background:
-    linear-gradient(to right, #fff 0 3px, transparent 3px 4px, #fff 4px 7px, transparent 7px 8px, #fff 8px 11px, transparent 11px 12px, rgba(255,255,255,0.4) 12px 15px);
-  }
-  .statusbar .sb .batt { width: 18px; height: 10px; border: 1px solid rgba(255,255,255,0.6); border-radius: 2px; position: relative; }
-  .statusbar .sb .batt::before { content:""; position:absolute; inset:1.5px; right: 5px; background:#fff; border-radius:1px; }
-  .statusbar .sb .batt::after { content:""; position:absolute; right:-2px; top:3px; width:1.5px; height:4px; background: rgba(255,255,255,0.6); border-radius:0 1px 1px 0; }
-  .app-body { padding: 14px 16px 24px; }
-  .app-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--muted); }
-  .app-title { font-family: "Bowlby One", var(--serif); color: var(--pink); font-size: 34px; line-height: 0.92; margin-top: 5px; letter-spacing: 0.005em; }
-  .venue-list { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
-  .venue-row { display: flex; align-items: center; gap: 12px; background: #141312; border: 1px solid var(--border); border-radius: 14px; padding: 9px; }
-  .venue-thumb { width: 48px; height: 48px; border-radius: 9px; flex: none; border: 1px solid rgba(255,255,255,0.06); }
-  .venue-meta { display: flex; flex-direction: column; }
-  .venue-name { font-family: var(--sans); font-size: 13px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
-  .venue-label { font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); margin-top: 4px; }
+/* ---------- By the numbers (inside hero) ---------- */
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  width: 100%;
+  max-width: 740px;
+  margin-top: clamp(58px, 8vh, 80px);
+}
+@media (min-width: 720px) { .hero-stats { grid-template-columns: repeat(4, 1fr); } }
+.hstat { padding: 4px 16px; text-align: center; }
+.hstat + .hstat { border-left: 1px solid rgba(192, 153, 80, 0.24); }
+@media (max-width: 719px) {
+  .hstat:nth-child(odd) { border-left: 0; }
+  .hstat:nth-child(n+3) { margin-top: 30px; }
+}
+.hstat .num {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(28px, 3.3vw, 36px);
+  line-height: 1;
+  color: var(--gold);
+  letter-spacing: -0.01em;
+}
+.hstat .lbl {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 12px;
+  line-height: 1.4;
+}
 
-  /* ---------- How it works ---------- */
-  .how-head { max-width: 720px; }
-  .how-head h2 { font-size: clamp(40px, 6vw, 60px); color: var(--ink); }
-  .how-head .gold { color: var(--gold); }
-  .steps {
-    display: flex;
-    flex-direction: column;
-    margin-top: clamp(56px, 8vh, 88px);
-  }
+/* ---------- iPhone showcase ---------- */
+.showcase {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  padding: clamp(24px, 5vh, 64px) 22px clamp(48px, 9vh, 100px);
+}
+.showcase-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 760px;
+  height: 760px;
+  max-width: 150vw;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle, rgba(255,45,146,0.10) 0%, rgba(192,153,80,0.06) 30%, transparent 60%);
+}
+.iphone {
+  position: relative;
+  z-index: 1;
+  width: 320px;
+  background: linear-gradient(160deg, #1d1d1f, #0c0c0d);
+  border-radius: 46px;
+  padding: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 40px 90px rgba(0, 0, 0, 0.6), 0 2px 0 rgba(255,255,255,0.05) inset;
+}
+.iphone-screen {
+  position: relative;
+  background: #0a0a0a;
+  border-radius: 36px;
+  overflow: hidden;
+}
+.notch {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 126px;
+  height: 26px;
+  background: #000;
+  border-radius: 0 0 16px 16px;
+  z-index: 5;
+}
+.statusbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 13px 24px 2px;
+}
+.statusbar .time { font-family: var(--sans); font-size: 13px; font-weight: 600; color: #fff; }
+.statusbar .sb { display: flex; align-items: center; gap: 5px; }
+.statusbar .sb .bars { width: 16px; height: 10px; background:
+  linear-gradient(to right, #fff 0 3px, transparent 3px 4px, #fff 4px 7px, transparent 7px 8px, #fff 8px 11px, transparent 11px 12px, rgba(255,255,255,0.4) 12px 15px);
+}
+.statusbar .sb .batt { width: 18px; height: 10px; border: 1px solid rgba(255,255,255,0.6); border-radius: 2px; position: relative; }
+.statusbar .sb .batt::before { content:""; position:absolute; inset:1.5px; right: 5px; background:#fff; border-radius:1px; }
+.statusbar .sb .batt::after { content:""; position:absolute; right:-2px; top:3px; width:1.5px; height:4px; background: rgba(255,255,255,0.6); border-radius:0 1px 1px 0; }
+.app-body { padding: 14px 16px 24px; }
+.app-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--muted); }
+.app-title { font-family: "Bowlby One", var(--serif); color: var(--pink); font-size: 34px; line-height: 0.92; margin-top: 5px; letter-spacing: 0.005em; }
+.venue-list { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.venue-row { display: flex; align-items: center; gap: 12px; background: #141312; border: 1px solid var(--border); border-radius: 14px; padding: 9px; }
+.venue-thumb { width: 48px; height: 48px; border-radius: 9px; flex: none; border: 1px solid rgba(255,255,255,0.06); }
+.venue-meta { display: flex; flex-direction: column; }
+.venue-name { font-family: var(--sans); font-size: 13px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+.venue-label { font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); margin-top: 4px; }
+
+/* ---------- How it works ---------- */
+.how-head { max-width: 720px; }
+.how-head h2 { font-size: clamp(40px, 6vw, 60px); color: var(--ink); }
+.how-head .gold { color: var(--gold); }
+.steps {
+  display: flex;
+  flex-direction: column;
+  margin-top: clamp(56px, 8vh, 88px);
+}
+.step {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px 0;
+  padding-bottom: 56px;
+  border-bottom: 1px solid rgba(244, 236, 221, 0.04);
+}
+.step + .step { padding-top: 56px; }
+.step:last-child { border-bottom: 0; padding-bottom: 0; }
+@media (min-width: 760px) {
   .step {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px 0;
-    padding-bottom: 56px;
-    border-bottom: 1px solid rgba(244, 236, 221, 0.04);
-  }
-  .step + .step { padding-top: 56px; }
-  .step:last-child { border-bottom: 0; padding-bottom: 0; }
-  @media (min-width: 760px) {
-    .step {
-      grid-template-columns: minmax(160px, 0.5fr) minmax(0, 1fr);
-      gap: 0 56px;
-      align-items: start;
-      padding-bottom: 80px;
-    }
-    .step + .step { padding-top: 80px; }
-  }
-  .step-num {
-    font-family: var(--serif);
-    font-style: italic;
-    font-size: clamp(64px, 9vw, 96px);
-    line-height: 0.9;
-    color: var(--gold);
-  }
-  .step-body { max-width: 46ch; }
-  .step h3 {
-    font-family: var(--sans);
-    font-size: 22px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-  }
-  .step p {
-    font-size: 16px;
-    font-weight: 300;
-    color: var(--muted);
-    margin-top: 14px;
-    line-height: 1.85;
-    text-wrap: pretty;
-  }
-  .step-rule { display: none; }
-
-  /* ---------- Partner / Rumbalist ---------- */
-  .partner { text-align: center; }
-  .partner h2 {
-    font-size: clamp(32px, 4.6vw, 50px);
-    color: var(--ink);
-    max-width: 760px;
-    margin: 0 auto;
-  }
-  .partner .sub {
-    max-width: 620px;
-    margin: 22px auto 0;
-    font-size: 17px;
-    font-weight: 300;
-    line-height: 1.85;
-    color: var(--muted);
-    text-wrap: pretty;
-  }
-  .rumbalist {
-    color: var(--pink);
-    font-weight: 600;
-    font-style: normal;
-    letter-spacing: 0.01em;
-    text-shadow: 0 0 28px rgba(255, 45, 146, 0.30);
-  }
-  .venues {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 10px 0;
-    margin-top: clamp(40px, 6vh, 60px);
-    max-width: 900px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .venues span {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-variant: small-caps;
-    letter-spacing: 0.18em;
-    text-transform: lowercase;
-    color: var(--muted);
-    opacity: 0.5;
-  }
-  .venues .sep { margin: 0 14px; opacity: 0.3; color: var(--gold); }
-
-  /* ---------- Founder quote ---------- */
-  .founder-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 32px;
+    grid-template-columns: minmax(160px, 0.5fr) minmax(0, 1fr);
+    gap: 0 56px;
     align-items: start;
+    padding-bottom: 80px;
   }
-  @media (min-width: 860px) { .founder-grid { grid-template-columns: 1.7fr 1fr; gap: 60px; } }
-  .founder-quote {
-    font-family: var(--serif);
-    font-style: italic;
-    font-size: clamp(26px, 3.4vw, 34px);
-    line-height: 1.32;
-    color: var(--ink);
-    text-wrap: pretty;
-  }
-  .founder-quote .q { color: var(--gold); }
-  .founder-attr { padding-top: 8px; }
-  .founder-attr .name { font-size: 16px; font-weight: 500; }
-  .founder-attr .role {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-top: 6px;
-  }
-  @media (min-width: 860px) {
-    .founder-attr { border-left: 1px solid var(--border); padding-left: 32px; }
-  }
+  .step + .step { padding-top: 80px; }
+}
+.step-num {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(64px, 9vw, 96px);
+  line-height: 0.9;
+  color: var(--gold);
+}
+.step-body { max-width: 46ch; }
+.step h3 {
+  font-family: var(--sans);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.step p {
+  font-size: 16px;
+  font-weight: 300;
+  color: var(--muted);
+  margin-top: 14px;
+  line-height: 1.85;
+  text-wrap: pretty;
+}
+.step-rule { display: none; }
 
-  /* ---------- Route handoff strip ---------- */
-  .route-strip {
-    position: relative;
-    z-index: 2;
-    padding: clamp(120px, 16vh, 200px) 22px;
-  }
-  .route-links {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: 10px 20px;
-  }
-  .route-links a {
-    font-family: var(--serif);
-    font-style: italic;
-    font-size: 22px;
-    color: var(--gold);
-    text-decoration: none;
-    transition: color 0.18s ease;
-  }
-  .route-links a:hover { color: var(--ink); }
-  .route-links .dot { color: var(--gold); opacity: 0.5; font-size: 14px; }
+/* ---------- Partner / Rumbalist ---------- */
+.partner { text-align: center; }
+.partner h2 {
+  font-size: clamp(32px, 4.6vw, 50px);
+  color: var(--ink);
+  max-width: 760px;
+  margin: 0 auto;
+}
+.partner .sub {
+  max-width: 620px;
+  margin: 22px auto 0;
+  font-size: 17px;
+  font-weight: 300;
+  line-height: 1.85;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+.rumbalist {
+  color: var(--pink);
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 28px rgba(255, 45, 146, 0.30);
+}
+.venues {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 0;
+  margin-top: clamp(40px, 6vh, 60px);
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.venues span {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant: small-caps;
+  letter-spacing: 0.18em;
+  text-transform: lowercase;
+  color: var(--muted);
+  opacity: 0.5;
+}
+.venues .sep { margin: 0 14px; opacity: 0.3; color: var(--gold); }
 
-  /* ---------- Real Rumbalist wordmark ---------- */
-  /* Authentic logo PNG used as a CSS mask, filled with a Miami pink gradient
-     that animates a white gloss sweep across the letters every ~3.4s.
-     Same treatment we ship in the iOS app — beats a chunky display-font
-     stand-in for the actual brand mark. */
-  .rumba-mark {
-    display: block;
-    height: 30px;
-    aspect-ratio: 1600 / 325;
-    margin-top: 6px;
-    background-image: linear-gradient(105deg,
-      #FF2D92 0%, #FF2D92 38%,
-      #FFFFFF 50%,
-      #FF2D92 62%, #FF2D92 100%);
-    background-size: 260% 100%;
-    background-position: 100% 0;
-    -webkit-mask: url('/rumbalist-logo.png') no-repeat left center / contain;
-            mask: url('/rumbalist-logo.png') no-repeat left center / contain;
-    animation: rumba-gloss 3.4s ease-in-out infinite;
-    filter: drop-shadow(0 0 14px rgba(255, 45, 146, 0.28));
-  }
-  @keyframes rumba-gloss {
-    0%   { background-position: 100% 0; }
-    55%  { background-position: -60% 0; }
-    100% { background-position: -60% 0; }
-  }
+/* ---------- Founder quote ---------- */
+.founder-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+  align-items: start;
+}
+@media (min-width: 860px) { .founder-grid { grid-template-columns: 1.7fr 1fr; gap: 60px; } }
+.founder-quote {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(26px, 3.4vw, 34px);
+  line-height: 1.32;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+.founder-quote .q { color: var(--gold); }
+.founder-attr { padding-top: 8px; }
+.founder-attr .name { font-size: 16px; font-weight: 500; }
+.founder-attr .role {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 6px;
+}
+@media (min-width: 860px) {
+  .founder-attr { border-left: 1px solid var(--border); padding-left: 32px; }
+}
 
-  /* Pink-tinted hairline between the Rumbalist wordmark + venue list */
-  .venue-list {
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px solid rgba(255, 45, 146, 0.22);
-  }
-  .venue-row {
-    background: linear-gradient(180deg, #161516 0%, #121012 100%);
-    border-color: rgba(244, 236, 221, 0.06);
-    transition: border-color 0.2s ease;
-  }
-  .venue-row:hover { border-color: rgba(255, 45, 146, 0.22); }
+/* ---------- Route handoff strip ---------- */
+.route-strip {
+  position: relative;
+  z-index: 2;
+  padding: clamp(120px, 16vh, 200px) 22px;
+}
+.route-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px 20px;
+}
+.route-links a {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 22px;
+  color: var(--gold);
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+.route-links a:hover { color: var(--ink); }
+.route-links .dot { color: var(--gold); opacity: 0.5; font-size: 14px; }

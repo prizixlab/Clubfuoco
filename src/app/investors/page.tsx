@@ -5,6 +5,7 @@ import '../_web/investors.css'
 import SiteNav    from '../_web/SiteNav'
 import MiniFooter from '../_web/MiniFooter'
 import { useEffect, useState } from 'react'
+import Script from 'next/script'
 
 // Hand-shared code distributed in intro emails. Not a real auth surface —
 // the assets behind it (deck, model) are protected separately. The point of
@@ -40,6 +41,7 @@ function InvestorsClient() {
   if (!unlocked) {
     return (
       <div className="cf-site">
+        <div className="ambient-light" aria-hidden="true" />
         <div className="grain" aria-hidden="true" />
         <SiteNav active="" />
         <main className="auth-wrap">
@@ -65,6 +67,7 @@ function InvestorsClient() {
             </div>
             <button type="submit" className="btn btn-primary">Unlock →</button>
             {err && <p className="error-msg" style={{ marginTop: 10 }}>{err}</p>}
+            <p className="auth-note">Preview code — FUOCO2026</p>
             <p className="auth-foot">
               No code?{' '}
               <a href="mailto:invest@clubfuoco.com">Request access</a>
@@ -72,12 +75,14 @@ function InvestorsClient() {
           </form>
         </main>
         <MiniFooter />
+        <Script src="/motion.js" strategy="afterInteractive" />
       </div>
     )
   }
 
   return (
     <div className="cf-site">
+      <div className="ambient-light" aria-hidden="true" />
       <div className="grain" aria-hidden="true" />
       <SiteNav active="" />
 
@@ -154,6 +159,7 @@ function InvestorsClient() {
       </section>
 
       <MiniFooter />
+      <Script src="/motion.js" strategy="afterInteractive" />
     </div>
   )
 }

@@ -1,7 +1,4 @@
-// Marketing homepage at clubfuoco.com. Rendered for web visitors only.
-// The iOS bundle ships the NativeSplash instead, selected at build time in
-// src/app/page.tsx via process.env.BUILD_TARGET.
-
+import Script from 'next/script'
 import './site.css'
 import './home.css'
 import SiteNav from './SiteNav'
@@ -10,6 +7,7 @@ import MiniFooter from './MiniFooter'
 export default function WebHome() {
   return (
     <div className="cf-site">
+      <div className="ambient-light" aria-hidden="true" />
       <div className="grain" aria-hidden="true" />
 
       <SiteNav active="" />
@@ -17,6 +15,7 @@ export default function WebHome() {
       {/* ===== HERO ===== */}
       <header className="hero">
         <div className="hero-glow" aria-hidden="true" />
+        <div className="glimmer-layer" aria-hidden="true" />
         <p className="eyebrow">EST · MMXXVI · BARCELONA</p>
         <h1 className="hero-mark">Club Fuoco</h1>
         <p className="hero-tag">Barcelona nightlife, curated.</p>
@@ -27,7 +26,7 @@ export default function WebHome() {
         </p>
         <div className="hero-cta">
           <a
-            href="https://apps.apple.com/"
+            href="https://apps.apple.com/us/app/club-fuoco/id6770632084"
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-primary"
@@ -59,11 +58,7 @@ export default function WebHome() {
             </div>
             <div className="app-body">
               <p className="app-eyebrow">Tonight with</p>
-              <span
-                className="rumba-mark"
-                role="img"
-                aria-label="Rumbalist"
-              />
+              <div className="app-title">RUMBALIST</div>
               <div className="venue-list">
                 {[
                   ['Opium Barcelona',  'Free guestlist',            'linear-gradient(135deg,#3a2a4a,#160f22)'],
@@ -86,7 +81,7 @@ export default function WebHome() {
         </div>
       </section>
 
-      {/* ===== HOW IT WORKS — vertical numbered sequence ===== */}
+      {/* ===== HOW IT WORKS ===== */}
       <section className="section" id="how">
         <div className="wrap">
           <div className="how-head">
@@ -97,9 +92,9 @@ export default function WebHome() {
           </div>
           <div className="steps">
             {[
-              ['01', 'Find tonight’s room',         'Browse what’s actually open tonight — rooms, line-ups, and tables, ranked for the night you’re after.'],
-              ['02', 'Book in two taps',                 'Entry, guest list, or a table — confirmed and paid inside the app before you leave the house.'],
-              ['03', 'Walk straight to the door',        'Your pass lives on your phone. Skip the queue, show the door, and you’re in.'],
+              ['01', 'Find tonight’s room',      'Browse what’s actually open tonight — rooms, line-ups, and tables, ranked for the night you’re after.'],
+              ['02', 'Book in two taps',               'Entry, guest list, or a table — confirmed and paid inside the app before you leave the house.'],
+              ['03', 'Walk straight to the door',      'Your pass lives on your phone. Skip the queue, show the door, and you’re in.'],
             ].map(([n, title, body]) => (
               <div className="step" key={n}>
                 <div className="step-num">{n}</div>
@@ -136,7 +131,7 @@ export default function WebHome() {
         </div>
       </section>
 
-      {/* ===== EDITORIAL STATEMENT ===== */}
+      {/* ===== FOUNDER QUOTE ===== */}
       <section className="section">
         <div className="wrap">
           <div className="founder-grid">
@@ -148,7 +143,8 @@ export default function WebHome() {
               <span className="q">&rdquo;</span>
             </blockquote>
             <div className="founder-attr">
-              <div className="role">Club Fuoco — Barcelona</div>
+              <div className="name">Yakov Vinnik</div>
+              <div className="role">Founder</div>
             </div>
           </div>
         </div>
@@ -166,6 +162,9 @@ export default function WebHome() {
       </section>
 
       <MiniFooter />
+
+      <Script src="/motion.js" strategy="afterInteractive" />
+      <Script src="/glimmer.js" strategy="afterInteractive" />
     </div>
   )
 }

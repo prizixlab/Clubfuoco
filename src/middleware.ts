@@ -117,6 +117,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Exclude Next internals and static public assets (images, scripts, styles,
+    // fonts). Files like /motion.js and /glimmer.js live in public/ and must be
+    // served directly — without this the auth guard redirects them to /login.
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|js|css|woff|woff2|ttf|ico|txt|json)$).*)',
   ],
 }

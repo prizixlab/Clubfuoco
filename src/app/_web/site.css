@@ -33,7 +33,10 @@ html {
   scroll-padding-top: calc(var(--nav-h) + 20px);
 }
 
-body {
+/* Theme is scoped to the .cf-site wrapper (not body) — the app's Tailwind
+   `bg-background` class lives on <body> and would otherwise override a plain
+   `body { background }` rule, washing the marketing site out to a light theme. */
+.cf-site {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--sans);

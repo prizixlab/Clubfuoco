@@ -173,3 +173,27 @@ export interface RumbaSignup {
   checked_in_by:  string | null
   created_at:     string
 }
+
+// ---- Friends ----
+export interface FriendUser {
+  id:            string
+  full_name:     string | null
+  avatar_url:    string | null
+  friendship_id: string          // the friendships row connecting us
+}
+
+export interface FriendsData {
+  friends:  FriendUser[]   // accepted
+  incoming: FriendUser[]   // pending requests sent TO me — I can accept/decline
+  outgoing: FriendUser[]   // pending requests I sent
+}
+
+export type FriendRelation = 'none' | 'friends' | 'incoming' | 'outgoing'
+
+export interface FriendSearchResult {
+  id:            string
+  full_name:     string | null
+  avatar_url:    string | null
+  relation:      FriendRelation
+  friendship_id: string | null
+}

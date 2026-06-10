@@ -11,9 +11,11 @@ const createSchema = z.object({
   booking_type: z.enum(['general', 'vip']),
   booking_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   organizer_pays: z.boolean().default(true),
+  organizer_amount: z.number().nonnegative().optional(),  // custom € the organizer pays (e.g. a VIP table)
   members: z.array(z.object({
     user_id:          z.string().uuid(),
     payment_required: z.boolean(),
+    amount_due:       z.number().nonnegative().optional(),
   })).max(19).default([]),
 })
 
@@ -48,7 +50,7 @@ export async function POST(request: NextRequest) {
 
   const parsed = createSchema.safeParse(await request.json())
   if (!parsed.success) return err(parsed.error.issues[0]?.message ?? 'Invalid request')
-  const { club_id, booking_type, booking_date, organizer_pays, members } = parsed.data
+  const { club_id, booking_type, booking_date, organizer_pays, organizer_amount, members } = parsed.data
 
   const sb = await createServiceClient()
 
@@ -84,9 +86,15 @@ export async function POST(request: NextRequest) {
 
   // Organizer is a "going" member; pays their own entry from the group screen.
   const memberRows = [
-    { group_id: group.id, user_id: me, role: 'organizer', rsvp: 'going', payment_required: organizer_pays },
+    {
+      group_id: group.id, user_id: me, role: 'organizer', rsvp: 'going',
+      payment_required: organizer_pays || (organizer_amount ?? 0) > 0,
+      amount_due: organizer_amount ?? null,
+    },
     ...invited.map(m => ({
-      group_id: group.id, user_id: m.user_id, role: 'member', rsvp: 'invited', payment_required: m.payment_required,
+      group_id: group.id, user_id: m.user_id, role: 'member', rsvp: 'invited',
+      payment_required: m.payment_required || (m.amount_due ?? 0) > 0,
+      amount_due: m.amount_due ?? null,
     })),
   ]
   const { error: mErr } = await sb.from('booking_group_members').insert(memberRows)

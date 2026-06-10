@@ -34,7 +34,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { data: existing } = await sb
     .from('booking_group_members')
-    .select('id, rsvp, payment_required, paid, booking_id')
+    .select('id, rsvp, payment_required, amount_due, paid, booking_id')
     .eq('group_id', groupId)
     .eq('user_id', me)
     .maybeSingle()
@@ -56,10 +56,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // Link-joiners aren't pre-listed: add them, paying their own entry.
   const paymentRequired = existing ? existing.payment_required : true
+  // Custom organizer allocation (e.g. a split VIP table) overrides club pricing.
+  const customAmount = existing && existing.amount_due != null ? Number(existing.amount_due) : null
 
   const club: any = Array.isArray(group.clubs) ? group.clubs[0] : group.clubs
   const unitPrice = group.booking_type === 'vip' ? club?.vip_table_min_spend : club?.general_entry_price
-  if (!unitPrice) return err('Pricing not available', 400)
+  if (customAmount == null && !unitPrice) return err('Pricing not available', 400)
 
   const { data: profile } = await sb
     .from('users')
@@ -72,9 +74,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   let platformFee = 0
   let paymentIntentId: string | null = null
 
-  if (paymentRequired) {
+  // Custom amount → charge it flat (no membership discount). Otherwise the
+  // standard per-person price with the member's membership discount applied.
+  const willCharge = customAmount != null ? customAmount > 0 : paymentRequired
+  const chargeUnit = customAmount != null ? customAmount : unitPrice
+
+  if (willCharge) {
     if (!payment_method_id) return err('Payment required', 402)
-    const calc = calculateOrderTotal(unitPrice, 1, profile?.membership_tier ?? 'free', club?.is_partner ?? false)
+    const calc = customAmount != null
+      ? calculateOrderTotal(customAmount, 1, 'free', false)
+      : calculateOrderTotal(unitPrice, 1, profile?.membership_tier ?? 'free', club?.is_partner ?? false)
     total = calc.total
     platformFee = calc.platformFee
     try {
@@ -104,7 +113,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       booking_date:             group.booking_date,
       status:                   'confirmed',
       stripe_payment_intent_id: paymentIntentId,
-      unit_price:               unitPrice,
+      unit_price:               chargeUnit,
       total_amount:             total,
       platform_fee:             platformFee,
       qr_code_token:            qrToken,
@@ -116,12 +125,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Upsert my membership as "going"
   if (existing) {
     await sb.from('booking_group_members')
-      .update({ rsvp: 'going', paid: paymentRequired, booking_id: booking.id })
+      .update({ rsvp: 'going', paid: willCharge, booking_id: booking.id })
       .eq('id', existing.id)
   } else {
     await sb.from('booking_group_members').insert({
       group_id: groupId, user_id: me, role: 'member', rsvp: 'going',
-      payment_required: paymentRequired, paid: paymentRequired, booking_id: booking.id,
+      payment_required: willCharge, paid: willCharge, booking_id: booking.id,
     })
   }
 

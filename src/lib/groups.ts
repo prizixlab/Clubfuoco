@@ -23,7 +23,7 @@ export async function getGroupDetail(sb: SB, groupId: string, meId: string): Pro
 
   const { data: memberRows } = await sb
     .from('booking_group_members')
-    .select('id, user_id, role, rsvp, payment_required, paid')
+    .select('id, user_id, role, rsvp, payment_required, amount_due, paid')
     .eq('group_id', groupId)
     .order('created_at', { ascending: true })
 
@@ -35,6 +35,11 @@ export async function getGroupDetail(sb: SB, groupId: string, meId: string): Pro
     for (const u of users ?? []) profiles.set(u.id, { full_name: u.full_name, avatar_url: u.avatar_url })
   }
 
+  // Resolve what each member actually owes: a custom allocation if the organizer
+  // set one, otherwise the club's per-person price when they're a payer, else 0.
+  const resolveCharge = (amountDue: number | null, paymentRequired: boolean): number =>
+    amountDue != null ? Number(amountDue) : (paymentRequired ? unitPrice : 0)
+
   const members: GroupMember[] = rows.map(r => ({
     id: r.id,
     user_id: r.user_id,
@@ -43,6 +48,8 @@ export async function getGroupDetail(sb: SB, groupId: string, meId: string): Pro
     role: r.role,
     rsvp: r.rsvp,
     payment_required: r.payment_required,
+    amount_due: r.amount_due != null ? Number(r.amount_due) : null,
+    charge: resolveCharge(r.amount_due, r.payment_required),
     paid: r.paid,
     is_me: r.user_id === meId,
   }))

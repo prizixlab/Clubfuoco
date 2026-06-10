@@ -209,6 +209,8 @@ export interface GroupMember {
   role:             'organizer' | 'member'
   rsvp:             GroupRsvp
   payment_required: boolean
+  amount_due:       number | null   // organizer's custom allocation (null = club default)
+  charge:           number          // resolved euros this member owes (0 = free guest)
   paid:             boolean
   is_me:            boolean
 }

@@ -43,37 +43,27 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Founder story */}
+      {/* Our story */}
       <section className="section">
         <div className="wrap">
-          <div className="founder-block">
-            <div className="founder-side">
-              <div className="portrait">
-                <span className="mono-mark">YV</span>
-                <span className="cap">Portrait — to come</span>
-              </div>
-              <div className="name">Yakov Vinnik</div>
-              <div className="role">Founder</div>
-            </div>
-            <div className="prose">
-              <p className="lead-p">
-                I&rsquo;ve gone out in this city for years. The pattern was
-                always the same — a dozen group chats, a promoter who may or
-                may not answer, and a queue at the door regardless.
-              </p>
-              <p>
-                Club Fuoco is the app I wanted to exist. It works with the
-                operators who actually run Barcelona nights, so what you see is
-                real: open rooms tonight, tables you can actually book, guest
-                lists that actually clear you at the door.
-              </p>
-              <p>
-                We&rsquo;re deliberately small and deliberately local.
-                We&rsquo;d rather cover eleven venues perfectly than five
-                hundred badly. Every venue on Club Fuoco is one we&rsquo;d
-                send a friend to.
-              </p>
-            </div>
+          <div className="prose">
+            <p className="lead-p">
+              We&rsquo;ve gone out in this city for years. The pattern was
+              always the same — a dozen group chats, a promoter who may or
+              may not answer, and a queue at the door regardless.
+            </p>
+            <p>
+              Club Fuoco is the app we wanted to exist. It works with the
+              operators who actually run Barcelona nights, so what you see is
+              real: open rooms tonight, tables you can actually book, guest
+              lists that actually clear you at the door.
+            </p>
+            <p>
+              We&rsquo;re deliberately small and deliberately local.
+              We&rsquo;d rather cover eleven venues perfectly than five
+              hundred badly. Every venue on Club Fuoco is one we&rsquo;d
+              send a friend to.
+            </p>
           </div>
         </div>
       </section>

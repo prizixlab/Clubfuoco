@@ -126,8 +126,7 @@ export default function PartnerSubpage({
               <span className="q">&ldquo;</span>{pullQuote}<span className="q">&rdquo;</span>
             </blockquote>
             <div className="attr">
-              <div className="name">Yakov Vinnik</div>
-              <div className="role">Founder</div>
+              <div className="role">Club Fuoco — Barcelona</div>
             </div>
           </div>
         </div>

@@ -131,7 +131,7 @@ export default function WebHome() {
         </div>
       </section>
 
-      {/* ===== FOUNDER QUOTE ===== */}
+      {/* ===== EDITORIAL QUOTE ===== */}
       <section className="section">
         <div className="wrap">
           <div className="founder-grid">
@@ -143,8 +143,7 @@ export default function WebHome() {
               <span className="q">&rdquo;</span>
             </blockquote>
             <div className="founder-attr">
-              <div className="name">Yakov Vinnik</div>
-              <div className="role">Founder</div>
+              <div className="role">Club Fuoco — Barcelona</div>
             </div>
           </div>
         </div>

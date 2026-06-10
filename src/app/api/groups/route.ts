@@ -63,7 +63,13 @@ export async function POST(request: NextRequest) {
   if (!club || !club.is_active) return err('Club not found', 404)
 
   const unitPrice = booking_type === 'vip' ? club.vip_table_min_spend : club.general_entry_price
-  if (!unitPrice) return err('Pricing not available for this club', 400)
+  // Club per-person pricing is only needed when someone relies on it — i.e. a
+  // payer with no custom amount. Rumbalist groups pass organizer_amount / custom
+  // per-member amounts (e.g. a €400 VIP table), so a missing club price is fine.
+  const needsClubPrice =
+    (organizer_pays && organizer_amount == null) ||
+    members.some(m => m.payment_required && m.amount_due == null)
+  if (needsClubPrice && !unitPrice) return err('Pricing not available for this club', 400)
 
   // De-dupe invited members and drop the organizer if they slipped in
   const invited = members.filter((m, i) =>

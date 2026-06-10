@@ -197,3 +197,34 @@ export interface FriendSearchResult {
   relation:      FriendRelation
   friendship_id: string | null
 }
+
+// ---- Group bookings ----
+export type GroupRsvp = 'invited' | 'going' | 'declined'
+
+export interface GroupMember {
+  id:               string
+  user_id:          string
+  full_name:        string | null
+  avatar_url:       string | null
+  role:             'organizer' | 'member'
+  rsvp:             GroupRsvp
+  payment_required: boolean
+  paid:             boolean
+  is_me:            boolean
+}
+
+export interface GroupDetail {
+  id:            string
+  club_id:       string
+  club_name:     string
+  club_image:    string | null
+  organizer_id:  string
+  organizer_name: string | null
+  booking_type:  BookingType
+  booking_date:  string
+  invite_code:   string
+  status:        'open' | 'closed' | 'cancelled'
+  unit_price:    number
+  members:       GroupMember[]
+  me:            GroupMember | null   // my membership, or null if not a member yet
+}

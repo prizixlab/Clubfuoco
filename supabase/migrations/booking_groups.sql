@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS public.booking_group_members (
   role              text        NOT NULL DEFAULT 'member'
                                   CHECK (role IN ('organizer', 'member')),
   rsvp              text        NOT NULL DEFAULT 'invited'
-                                  CHECK (rsvp IN ('invited', 'going', 'declined')),
+                                  CHECK (rsvp IN ('invited', 'going', 'maybe', 'declined')),
   payment_required  boolean     NOT NULL DEFAULT false,
   -- Exact euros this member owes. NULL = derive from the club's per-person price
   -- when payment_required (standard general-entry groups). A set value is the

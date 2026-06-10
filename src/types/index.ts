@@ -199,7 +199,7 @@ export interface FriendSearchResult {
 }
 
 // ---- Group bookings ----
-export type GroupRsvp = 'invited' | 'going' | 'declined'
+export type GroupRsvp = 'invited' | 'going' | 'maybe' | 'declined'
 
 export interface GroupMember {
   id:               string

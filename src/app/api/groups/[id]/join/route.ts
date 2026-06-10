@@ -7,7 +7,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 
 const schema = z.object({
-  action:            z.enum(['join', 'decline']).default('join'),
+  action:            z.enum(['join', 'decline', 'maybe']).default('join'),
   payment_method_id: z.string().optional(),
 })
 
@@ -44,6 +44,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!existing) return ok({ rsvp: 'declined' })
     await sb.from('booking_group_members').update({ rsvp: 'declined' }).eq('id', existing.id)
     return ok({ rsvp: 'declined' })
+  }
+
+  // ── Maybe (tentative) — no booking, no charge ────────────────────────────────
+  if (action === 'maybe') {
+    if (existing?.paid) return err('You already paid for this group', 400)
+    if (existing) {
+      await sb.from('booking_group_members').update({ rsvp: 'maybe' }).eq('id', existing.id)
+    } else {
+      await sb.from('booking_group_members').insert({
+        group_id: groupId, user_id: me, role: 'member', rsvp: 'maybe',
+        payment_required: false, amount_due: null,
+      })
+    }
+    return ok({ rsvp: 'maybe' })
   }
 
   // ── Join ─────────────────────────────────────────────────────────────────--

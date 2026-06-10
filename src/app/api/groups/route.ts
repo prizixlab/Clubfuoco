@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       type: 'group_invite',
       title: `${myName} invited you out at ${club.name}`,
       body: m.payment_required ? 'Tap to join and grab your spot.' : "You're on the list — tap to confirm.",
-      link: `/groups/${group.id}`,
+      link: `/groups/placeholder?id=${group.id}`,
     }),
   ))
 

@@ -58,7 +58,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       type: 'group_invite',
       title: `${myName} invited you out at ${club?.name ?? 'a club'}`,
       body: 'Tap to see the plan and confirm.',
-      link: `/groups/${groupId}`,
+      link: `/groups/placeholder?id=${groupId}`,
     }),
   ))
 

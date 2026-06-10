@@ -141,7 +141,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       user_id: group.organizer_id,
       type: 'group_join',
       title: `${myName} joined your group at ${club?.name ?? 'the club'}`,
-      link: `/groups/${groupId}`,
+      link: `/groups/placeholder?id=${groupId}`,
     })
   }
 

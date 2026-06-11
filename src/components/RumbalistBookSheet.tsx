@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
 import { apiFetch } from '@/lib/api'
+import { usePlan } from '@/contexts/PlanContext'
 import { RumbalistOffer } from '@/lib/rumbalist-offers'
 
 /**
@@ -57,6 +58,7 @@ export default function RumbalistBookSheet({
   onClose:      () => void
 }) {
   const router = useRouter()
+  const { plan } = usePlan()
   const isFree = offer.kind === 'free_guestlist'
 
   const [visible, setVisible] = useState(false)
@@ -267,14 +269,34 @@ export default function RumbalistBookSheet({
     }
   }
 
-  // The night the booking is for — next Friday, demo-realistic
-  const date = (() => {
-    const d = new Date()
-    const dow = d.getDay()
-    const daysToFri = (5 - dow + 7) % 7 || 7
-    d.setDate(d.getDate() + daysToFri)
-    return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
-  })()
+  // The night the booking is for — the day the user picked in the planner.
+  const date = new Date(`${plan.date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  // Going with friends → create a group for this offer and open the group screen.
+  // Free guestlist: everyone joins free. VIP: organizer pays the table by default
+  // and can re-split who pays how much on the group screen.
+  async function createGroup() {
+    setError(null)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || user.is_anonymous) { close(); router.push('/login?next=/explore'); return }
+
+      const body = isFree
+        ? { club_id: clubId, booking_type: 'general', booking_date: plan.date, organizer_pays: false, organizer_amount: 0, members: [] }
+        : { club_id: clubId, booking_type: 'vip', booking_date: plan.date, organizer_pays: true, organizer_amount: offer.price_eur ?? undefined, members: [] }
+
+      const res = await apiFetch('/api/groups', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Could not create group')
+      close()
+      router.push(`/groups/placeholder?id=${d.data.id}`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not create group')
+    }
+  }
 
   // Reference code shown on the confirmation receipt. Comes back from the
   // server (which generates it, persists it as the booking's qr_code_token,
@@ -332,6 +354,7 @@ export default function RumbalistBookSheet({
             error={error}
             paying={paying}
             onConfirm={isFree ? joinGuestlist : pay}
+            onGroup={createGroup}
             onClose={close}
           />
         )}
@@ -346,11 +369,11 @@ export default function RumbalistBookSheet({
 }
 
 /* ─── Review ───────────────────────────────────────────────────────────── */
-function ReviewStep({ offer, venueName, venueAddress, error, paying, onConfirm, onClose }: {
+function ReviewStep({ offer, venueName, venueAddress, error, paying, onConfirm, onGroup, onClose }: {
   offer: RumbalistOffer; venueName: string; venueAddress: string;
   error: string | null;
   paying: boolean;
-  onConfirm: () => void; onClose: () => void
+  onConfirm: () => void; onGroup: () => void; onClose: () => void
 }) {
   const isFree = offer.kind === 'free_guestlist'
   const total  = offer.price_eur ? `€${offer.price_eur.toFixed(2)}` : 'Free'
@@ -434,6 +457,21 @@ function ReviewStep({ offer, venueName, venueAddress, error, paying, onConfirm, 
         {isFree
           ? 'You’re added to the door list. Ticket lands on your Tickets tab.'
           : 'Confirm with Face ID. Your booking is saved to your Tickets.'}
+      </p>
+
+      {/* Going with friends — create a group for this offer */}
+      <button onClick={onGroup}
+        style={{
+          marginTop: 14, width: '100%', height: 48, background: 'transparent',
+          color: '#F5F5F7', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 12,
+          fontSize: 15, fontWeight: 500, fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer',
+        }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 19 }}>group</span>
+        {isFree ? 'Bring your crew' : 'Split with friends'}
+      </button>
+      <p style={{ marginTop: 8, fontSize: 11, color: 'rgba(245,245,247,0.45)', textAlign: 'center' }}>
+        {isFree ? 'Invite friends to the guestlist — everyone’s on the door.' : 'You cover the table by default; choose who chips in.'}
       </p>
     </div>
   )
@@ -647,9 +685,10 @@ function ApplePayLogo() {
   )
 }
 function ApplePayGlyph() {
+  // Apple symbol only — the "Pay" wordmark is rendered as text alongside it.
   return (
-    <svg width="22" height="14" viewBox="0 0 50 31" fill="currentColor" aria-hidden>
-      <path d="M9.4 4.05c-.6.71-1.56 1.27-2.52 1.19-.12-.96.35-1.98.9-2.6.6-.73 1.65-1.25 2.5-1.3.1 1 -.3 1.99-.88 2.71zm.86 1.39c-1.39-.08-2.58.79-3.24.79-.67 0-1.69-.75-2.79-.73-1.43.02-2.76.83-3.49 2.12-1.5 2.58-.39 6.4 1.07 8.49.71 1.03 1.57 2.18 2.7 2.14 1.07-.04 1.49-.69 2.78-.69 1.29 0 1.67.69 2.79.67 1.16-.02 1.89-1.04 2.6-2.07.81-1.18 1.15-2.33 1.17-2.4-.02-.01-2.24-.86-2.27-3.42-.02-2.14 1.76-3.17 1.83-3.22-1-1.49-2.57-1.65-3.15-1.68zm9.61-3.49v15.6h2.43V12.2h3.36c3.07 0 5.22-2.1 5.22-5.13s-2.11-5.13-5.14-5.13h-5.87zm2.43 2.05h2.79c2.1 0 3.31 1.13 3.31 3.09s-1.21 3.1-3.32 3.1H22.3V3.99zm11.86 13.66c1.53 0 2.94-.78 3.58-2.01h.05v1.89h2.25V8.59c0-2.27-1.81-3.74-4.6-3.74-2.59 0-4.51 1.49-4.58 3.53h2.19c.18-.97 1.07-1.61 2.32-1.61 1.51 0 2.36.71 2.36 2.01v.88l-3.07.18c-2.86.17-4.41 1.35-4.41 3.39 0 2.07 1.6 3.43 3.92 3.43zm.65-1.85c-1.31 0-2.14-.63-2.14-1.6 0-1 .8-1.59 2.34-1.68l2.74-.17v.9c0 1.49-1.26 2.55-2.94 2.55zm9.13 5.97c2.37 0 3.49-.9 4.46-3.65L52.0 8.41h-2.47l-2.74 8.86h-.05L43.99 8.41h-2.54l3.95 10.94-.21.67c-.36 1.14-.94 1.58-1.98 1.58-.18 0-.55-.02-.69-.04v1.89c.13.04.74.06.92.06z"/>
+    <svg width="14" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
     </svg>
   )
 }

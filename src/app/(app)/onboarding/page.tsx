@@ -495,7 +495,7 @@ export default function OnboardingPage() {
 
         {/* ── Squad size */}
         {current.key === 'squad' && (
-          <div style={{ display: 'flex', gap: 10, marginBottom: 32 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 32 }}>
             {SQUAD.map(s => (
               <SquadCard
                 key={s.value}

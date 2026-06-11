@@ -4,7 +4,9 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import './globals.css'
 import LoadingScreen from '@/components/LoadingScreen'
+import AuthDeepLinkHandler from '@/components/AuthDeepLinkHandler'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { LocaleProvider } from '@/contexts/LocaleContext'
 
 const inter = Inter({ subsets: ['latin'], weight: ['400', '600', '700', '800'] })
 
@@ -42,10 +44,13 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
       </head>
       <body className={`${inter.className} ${GeistSans.variable} ${GeistMono.variable} bg-background text-on-surface antialiased`}>
-        <AuthProvider>
-          <LoadingScreen />
-          {children}
-        </AuthProvider>
+        <LocaleProvider>
+          <AuthProvider>
+            <AuthDeepLinkHandler />
+            <LoadingScreen />
+            {children}
+          </AuthProvider>
+        </LocaleProvider>
       </body>
     </html>
   )

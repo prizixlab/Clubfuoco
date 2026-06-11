@@ -1,0 +1,1804 @@
+{
+  "generated_at": "2026-06-10T02:56:49.760Z",
+  "source": "Barcelona Open Data — Barris (official neighborhood boundaries)",
+  "method": "point-in-polygon on existing club lat/lng",
+  "totals": {
+    "clubs": 359,
+    "missing_neighborhood": 352,
+    "filled": 325,
+    "no_coords": 0,
+    "outside_barcelona": 27
+  },
+  "proposals": [
+    {
+      "club_id": "0feba81c-13af-4a3b-bfd4-f3788eded354",
+      "club_name": "23 Robadors",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "adb2acb0-f7a1-405a-8332-17ec8a0bdd55",
+      "club_name": "83.3 Terrace Bar - Hotel Royal Passeig de Gràcia",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "84c0f2b8-7506-46ca-bd85-6a6db2593aed",
+      "club_name": "360°",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "8fe18719-f283-4218-9ec0-134c826a3b5d",
+      "club_name": "Aloha",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "1b232c14-9cbc-42f4-96d1-a4b8039a5c69",
+      "club_name": "Andorra",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "56bf0eff-77c9-422a-bf2c-83a3595ad8ac",
+      "club_name": "Animal del Vi",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "b560335b-5882-4c8f-b9f4-f219f5496c1f",
+      "club_name": "Antilla Latin Club",
+      "neighborhood": "la Nova Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "d732a888-b2ed-48fc-a2cb-24beeab7b584",
+      "club_name": "Ascensor Bar",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "2a20557e-23ba-477c-825d-603583187fb0",
+      "club_name": "Kamona",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "00f0f674-9595-4ab2-bcdd-3309226cd8cb",
+      "club_name": "Balius",
+      "neighborhood": "el Poblenou"
+    },
+    {
+      "club_id": "f7b58e7c-1423-4615-9b88-984fc6138015",
+      "club_name": "Xiloca",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "cc50f0fb-a430-456e-8fe9-95789ed6d641",
+      "club_name": "Banker's Bar",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "9cf133db-e6c6-4725-8f31-1950e83980b8",
+      "club_name": "Mobsters",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "d4674fad-5cf7-42a3-ba7e-03000bac6de4",
+      "club_name": "Revolución 30",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "0c259489-e511-4a75-a49e-d361230d91bc",
+      "club_name": "Lonely Bar Hi-Fi",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "5c99e17d-5727-4b71-8ab0-0b04c4b2248c",
+      "club_name": "Bar Belice",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "23a2de87-6d93-4a83-b43c-b4ab0a339848",
+      "club_name": "Bar Billar HDP",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "dc16e4cf-f867-4b00-acc6-0ec5f38bcd2a",
+      "club_name": "W Lounge",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "b0ba286a-23d3-44fe-aff7-9bcdee8a1fa1",
+      "club_name": "Lounge Barcelona",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "165f5085-983f-4f2d-be3b-68dc63bb17e1",
+      "club_name": "Bar Sauvage",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "55ea8e5f-34fa-4a12-b70b-eed7916bc1e9",
+      "club_name": "Musical Maria",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "d00ace36-6895-4613-b545-1c8d83d0e560",
+      "club_name": "Vinilo",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "996e8a2e-7178-4224-8f25-a1aedb790f78",
+      "club_name": "GAU LOUNGE BARCELOVA - BARCELONA COCKTAIL SHISHA GASTRO BAR",
+      "neighborhood": "la Sagrada Família"
+    },
+    {
+      "club_id": "4cdf7512-6728-483f-8f46-8e3494f9a83e",
+      "club_name": "LA ROSE 432 COCKTAIL & SHISHA BAR",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "ec5885e9-8fb8-4ebf-bbaf-f8c074936152",
+      "club_name": "Terraza Verbena Rooftop by Monument Hotel",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "1113733e-1763-4c95-9e11-9db787b39a83",
+      "club_name": "ENVY LOUNGE",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "698a6be1-6ccf-451d-a11a-94269a8db57b",
+      "club_name": "Kyoudai33",
+      "neighborhood": "Sant Antoni"
+    },
+    {
+      "club_id": "64a559cc-988e-4f6e-950b-cf64cc7ae3a3",
+      "club_name": "Tinta Roja",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "da99d517-12be-4897-b8ee-f4a11dd01aef",
+      "club_name": "Bar Chivago",
+      "neighborhood": "la Verneda i la Pau"
+    },
+    {
+      "club_id": "c3e545aa-ab3e-4456-9412-1c2f38918021",
+      "club_name": "Lunatic",
+      "neighborhood": "la Maternitat i Sant Ramon"
+    },
+    {
+      "club_id": "561d473a-5ab4-4dba-bc36-f3f96fc02385",
+      "club_name": "DRACO",
+      "neighborhood": "el Camp d'en Grassot i Gràcia Nova"
+    },
+    {
+      "club_id": "63e27d54-1950-4e97-a38c-8759b44526ad",
+      "club_name": "Savannah",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "a4ebc7e7-9df7-43b4-a1f8-467fd1fad1ab",
+      "club_name": "Thales",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "eb41f2d1-4ce1-4010-86e8-6f60a383caf3",
+      "club_name": "Bar International Beer",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "dbf8342b-e7b8-4f27-97d2-5982bc4a3947",
+      "club_name": "Costa Breve",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "b9fdfd67-5389-4c60-95e2-033dfb196d46",
+      "club_name": "Nitsa Club",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "1fc2e528-eb27-4c3b-bcd6-1abdab73dc77",
+      "club_name": "L'ideal",
+      "neighborhood": "Sant Andreu"
+    },
+    {
+      "club_id": "d39f5e83-d7a6-45fd-999d-6d0deace43a7",
+      "club_name": "Club Sauvage - Live Music & Club Sessions",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "37500bbf-26c1-4536-b2f8-7b87f4518c83",
+      "club_name": "Oblicuo Hi-Fi",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "f925c048-abdc-498f-9c44-fd6b11727bcc",
+      "club_name": "Wookah Lounge Barcelona",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "e8e15ff0-0c8e-4328-a75c-416b2eb31cf4",
+      "club_name": "Craft Barcelona",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "8efac147-aed6-42da-a776-90f819af5f1b",
+      "club_name": "nose",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "02a3c043-7ff5-46fc-8591-4ccc3162a631",
+      "club_name": "Trash Talk - Food & Booze",
+      "neighborhood": "el Poblenou"
+    },
+    {
+      "club_id": "4d811636-918b-4b75-bfd2-ee22788d704e",
+      "club_name": "HABIBI SHISHA LOUNGE",
+      "neighborhood": "el Camp de l'Arpa del Clot"
+    },
+    {
+      "club_id": "322f2a3f-4558-49ad-b57c-3e3875f0e110",
+      "club_name": "Cuba de Janeiro",
+      "neighborhood": "Sant Antoni"
+    },
+    {
+      "club_id": "65d06763-fa95-4a2c-8dfa-f953fed6d133",
+      "club_name": "Dry Martini",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "6b6a169a-4945-44dc-806e-8577de189ba6",
+      "club_name": "Jacqueline Barcelona",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "99963c1c-dbdb-4c3b-a8de-e4c4ae0aa3e3",
+      "club_name": "Big Bang Bar",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "27b8c01a-ff7e-437c-b746-bb03d7ee67ee",
+      "club_name": "Ilusion",
+      "neighborhood": "la Nova Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "a275fc45-f69b-4f96-a0f7-bc1731b53513",
+      "club_name": "Skygarden Barcelona Rooftop",
+      "neighborhood": "el Parc i la Llacuna del Poblenou"
+    },
+    {
+      "club_id": "9bd0dde2-8abd-4eeb-9387-123f8b1bbb65",
+      "club_name": "Purobeach Barcelona",
+      "neighborhood": "Diagonal Mar i el Front Marítim del Poblenou"
+    },
+    {
+      "club_id": "bdafd62c-2543-4238-9951-e4a1a17bb7eb",
+      "club_name": "Disco City Hall",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "baa93b9e-4b2c-45b9-ad5c-6e449c32a6f5",
+      "club_name": "Anita's Bar Vela",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "0a3fe9d3-1e09-4349-bcb6-c74c88151149",
+      "club_name": "Makamaka | Barcelona",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "07fc6f8e-ed38-409a-8b63-d2d36607929c",
+      "club_name": "La Terraza del Central",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "760ef870-28f2-4ff0-a2e9-373ac9aa0be5",
+      "club_name": "Oxyzen Club Barcelona",
+      "neighborhood": "Sant Antoni"
+    },
+    {
+      "club_id": "75102d1d-6a80-4581-849f-12f21311e00a",
+      "club_name": "Blondie Bar",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "edffa907-111b-4b50-82b2-8094201ad478",
+      "club_name": "Tapitas",
+      "neighborhood": "el Camp de l'Arpa del Clot"
+    },
+    {
+      "club_id": "fb8a09e0-6a79-4023-b990-6a0702d88053",
+      "club_name": "La Fira",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "fc029b03-9372-41b5-ad94-496c766a4d9b",
+      "club_name": "La Traviesa",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "d2fa4982-0551-473d-9801-e9dbf9f96e6b",
+      "club_name": "Rock'N'Trini",
+      "neighborhood": "la Trinitat Vella"
+    },
+    {
+      "club_id": "17ba63c3-2221-4ece-adc7-0c1474fc89f2",
+      "club_name": "Bar escocés",
+      "neighborhood": "Sant Gervasi - la Bonanova"
+    },
+    {
+      "club_id": "85551615-939b-44e4-8a3b-fce229175a0f",
+      "club_name": "Tirabuixo Bar",
+      "neighborhood": "Sant Martí de Provençals"
+    },
+    {
+      "club_id": "cbe1a0a7-5270-4aeb-ab3b-46097b43a57b",
+      "club_name": "GinGin Gay Queer Bar",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "fd034a94-314c-4eda-8ad8-1640edf8f63d",
+      "club_name": "M7 Club Barcelona",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "72871de9-89da-44b9-b404-89736345b10c",
+      "club_name": "La Deskomvnal",
+      "neighborhood": "Sants"
+    },
+    {
+      "club_id": "3af186a0-7ec2-401a-91bf-318a94596bb3",
+      "club_name": "Polaroid bar",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "770f50a3-816f-40b1-b949-a04056859e5f",
+      "club_name": "LEVEL BARCELONA",
+      "neighborhood": "el Fort Pienc"
+    },
+    {
+      "club_id": "9e7f2be1-2394-4420-ae14-28cdb54e450e",
+      "club_name": "Bitacora",
+      "neighborhood": "el Poblenou"
+    },
+    {
+      "club_id": "f9b492a6-72bd-48ba-9ab3-c2dbb73b8aac",
+      "club_name": "L'Electricitat",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "a4b7d7b1-9c83-4b71-ab3f-d0a9f49db8d2",
+      "club_name": "Gin Palau Barcelona",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "a337d346-29a9-46d9-90cb-eee344fb9dfb",
+      "club_name": "L'Atomic",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "6c7ec900-c036-474d-a53f-9f93d5e2c7d4",
+      "club_name": "La Unión",
+      "neighborhood": "el Camp de l'Arpa del Clot"
+    },
+    {
+      "club_id": "f16be235-00a8-40d8-adc7-6176a3254815",
+      "club_name": "Azimuth Rooftop Bar",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "c2315381-d89b-4eb8-a1de-69d6a3eb8f18",
+      "club_name": "Jazz petit",
+      "neighborhood": "el Camp d'en Grassot i Gràcia Nova"
+    },
+    {
+      "club_id": "317d51fd-0d39-41c7-8585-9a27e3566485",
+      "club_name": "Le Kasbah",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "5bbd8eb5-9566-454d-9ebe-4562f7306fc4",
+      "club_name": "Les Gens Que J'Aime",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "87c1ad9c-54d9-4ed5-b35e-26e0c333827c",
+      "club_name": "Mariatchi",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "eb862093-9cfc-4579-9759-05958f052e10",
+      "club_name": "Lounge Restaurant",
+      "neighborhood": "el Parc i la Llacuna del Poblenou"
+    },
+    {
+      "club_id": "d7cbf84a-dc8e-4c92-a843-ac029f9cce3f",
+      "club_name": "Soho Shisha Lounge & Cocktails Barcelona",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "af4dba68-d478-463a-abf7-43e7dbc3503d",
+      "club_name": "The Top",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "d85ffef3-3ec7-474a-95f5-1724abcbde99",
+      "club_name": "la llibreria",
+      "neighborhood": "les Corts"
+    },
+    {
+      "club_id": "c4130200-adb9-49c5-87bc-00f64e732059",
+      "club_name": "Sincopa",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "8dbcdcb1-009a-46cf-8763-f2b86109fd29",
+      "club_name": "Ginesta",
+      "neighborhood": "Montbau"
+    },
+    {
+      "club_id": "3a0a5464-a42e-44cb-84b0-ea2d062c4bda",
+      "club_name": "SNOOKER - Cocteles y Billarea",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "65ec44a5-237a-484d-aa3d-1a5d6045f5e7",
+      "club_name": "Rooftop Garden",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "e4d7fd83-513c-4ca9-bde6-3d04fd1ce4bd",
+      "club_name": "The Alchemix",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "f380a9c2-3e18-4da1-a119-0bf56dabdf5e",
+      "club_name": "La Sastrería",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "74e24005-1a9c-4f9b-825c-d13c7188f4ee",
+      "club_name": "Absenta del Raval",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "6416a9b8-a8e7-4163-82e5-e259cd9eb2a1",
+      "club_name": "Alaire Rooftop Bar",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "701b7bfd-aafc-49b6-9a8a-cc917972dfc8",
+      "club_name": "Discoteca Barcelona / Night Club Barcelona",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "dbb33c20-4878-43d0-a316-12cab01826bd",
+      "club_name": "Diobar",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "62758695-a5c1-4905-9cd5-68f546e9305e",
+      "club_name": "Almodobar",
+      "neighborhood": "el Camp d'en Grassot i Gràcia Nova"
+    },
+    {
+      "club_id": "004ec467-1fce-4abd-8b55-d2069ba4799c",
+      "club_name": "Gangsta’s Paradise - Cocktail Bar, Speakeasy en Barcelona",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "f68dd75e-f361-4449-8e34-8659530a3d9e",
+      "club_name": "La Fourmi",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "e7faf01d-035b-4142-bc83-4bf9a70214ed",
+      "club_name": "Ly Brothers Cocktail Bar",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "42705817-01fb-4804-a3b3-fe3083c4392b",
+      "club_name": "La Fira Casanova",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "e66339d9-b122-4110-88df-a1d756937fe6",
+      "club_name": "Mundus Lounge Shisha Bar Barcelona",
+      "neighborhood": "el Fort Pienc"
+    },
+    {
+      "club_id": "ff80ed72-ead6-40dc-9595-34abfd544244",
+      "club_name": "Nola Cocktail Bar & Food",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "04316c0a-febb-44e6-ba4e-a7e3cfee2d77",
+      "club_name": "Ocaña",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "74242ea1-626c-48a1-b92d-16351ace5b15",
+      "club_name": "Le Rocher – Cocktail Bar & Shisha Lounge en Sarrià - Barcelona",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "eeb55cd9-e0c6-44d1-80af-6e3395de7964",
+      "club_name": "Casa Spritz - Cocktail Bar",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "0f70ef2e-2220-407c-88d4-a15e3d0e99ae",
+      "club_name": "El Quinto Moño",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "7a307e37-33c2-41b5-812e-34af7313ea29",
+      "club_name": "Ideal Cocktail Bar",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "58944888-9b33-479a-8195-ccd8e0620c6b",
+      "club_name": "Miramelindo",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "51178a4f-8b53-4719-b0d1-2d1088c7b0a7",
+      "club_name": "Sasha Bar 1968",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "65570773-b032-4683-865a-5f650005cb11",
+      "club_name": "Henry‘s Bar",
+      "neighborhood": "el Poblenou"
+    },
+    {
+      "club_id": "44483288-b3dd-44a3-a880-2ebe173c912f",
+      "club_name": "Châtelet",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "49f783c1-6a27-4023-ab9f-c168aca5a109",
+      "club_name": "Marmalade",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "db3aedf4-9dcf-44bd-a3c0-90ffa4d3ae94",
+      "club_name": "Ya tú sabes",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "1686194a-3c49-4f67-aa9f-9acaaf856479",
+      "club_name": "Skybar Barcelona (45 Times Barcelona Hotel)",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "63a1fc47-df57-4f4a-8e37-66f9cb49be2d",
+      "club_name": "Prize Bar",
+      "neighborhood": "Sant Antoni"
+    },
+    {
+      "club_id": "a62faa3b-2b07-417f-b720-7519fe3fc824",
+      "club_name": "Open Mind",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "d6c1fd4c-44da-4df7-afd2-f7c24c03e091",
+      "club_name": "Matinée Barcelona Events",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "c9a70162-92a4-4149-a064-d672d73513fd",
+      "club_name": "El Copetín",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "50f0c44e-8737-4d08-8a4a-6c67bb94cca6",
+      "club_name": "Gat Negre",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "00936c9d-eeb5-4bd1-8085-a1d10be4bf50",
+      "club_name": "Bar l'Escenari",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "37802584-fd9e-4f55-a778-c8afd7472ef9",
+      "club_name": "Lamenuda",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "d7222468-4413-4d86-ade6-3c9b16787c2f",
+      "club_name": "Verdis.co",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "20283802-c1e9-4f51-82c5-8ffa5bfe5125",
+      "club_name": "Heliogàbal",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "751fcb31-dde2-4fea-a79f-05d67ad341b0",
+      "club_name": "Bollocks",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "7c04b6e2-b2cd-4f68-8bc1-e407b740d354",
+      "club_name": "Café Bar R-207",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "084164d0-f204-4fa6-9490-3c570d419e6b",
+      "club_name": "Lying",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "e0cf6310-28e5-4117-ad5f-01179f87d8fd",
+      "club_name": "Sutton Club Barcelona",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "18ec2a1c-9e51-4ca4-bc2b-b501456afdc8",
+      "club_name": "The Clock Terrace",
+      "neighborhood": "Hostafrancs"
+    },
+    {
+      "club_id": "974054b1-004a-4cf2-8ec3-09b8f3536782",
+      "club_name": "Tirsa BCN",
+      "neighborhood": "la Nova Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "c74f4726-5fb8-44aa-8624-326587eee530",
+      "club_name": "Chill Bar",
+      "neighborhood": "la Sagrada Família"
+    },
+    {
+      "club_id": "d044b1d3-4ad9-4c70-8ba9-1e255e6f8331",
+      "club_name": "Bar Ke",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "611ccbba-a077-473c-9898-822bc4018457",
+      "club_name": "Night Barcelona",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "44e3adca-d364-4730-95c7-1d6590e0d7e1",
+      "club_name": "Local 225",
+      "neighborhood": "el Poblenou"
+    },
+    {
+      "club_id": "348d0842-140d-485c-80f8-a7566ce8aa60",
+      "club_name": "Eleven BCN",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "58d45d24-0914-4f16-a17b-202ccf3eb7a1",
+      "club_name": "The Rooftop at Sir Victor",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "ff937f92-2a67-4dc2-b21e-1ee003a9b643",
+      "club_name": "Believe Club",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "d6e23b03-3c69-4eaf-b0f0-efdda3ba1022",
+      "club_name": "Garage 442",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "4810ae48-ec8a-457c-972c-d81961eeb474",
+      "club_name": "Backdoor",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "caa28df9-aa97-4d10-beee-975a34e8ba92",
+      "club_name": "Beat Lab House & Techno",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "3f147f9c-e936-44d7-b605-9742709610bd",
+      "club_name": "Raimon Social Club",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "bd234b06-6629-43f0-b013-78428eb83440",
+      "club_name": "La Perla",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "9174af45-bcf0-4078-8ac5-112766551e97",
+      "club_name": "Elephant Club",
+      "neighborhood": "Pedralbes"
+    },
+    {
+      "club_id": "48c2aa09-c0a7-4397-94e2-29e554020b37",
+      "club_name": "Seven Under bar",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "e2ef5f09-8ccb-4228-a423-1f82af00be25",
+      "club_name": "El Paraigua",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "400fee1d-f63e-47eb-82f9-c402b6361e91",
+      "club_name": "MEZZ // VINTAGE HI-FI BAR",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "1f32b951-0baa-4703-bccf-49ff91118cab",
+      "club_name": "Hyde Club Barcelona",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "d96548dc-1703-41d0-9407-29054a226c8f",
+      "club_name": "El Kabron Beach Club",
+      "neighborhood": "Diagonal Mar i el Front Marítim del Poblenou"
+    },
+    {
+      "club_id": "322090d0-d39b-4f2f-ab0e-8c7b4d4bd685",
+      "club_name": "Freedonia",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "e12e3c1c-012f-4d20-9d41-721ed3fa4864",
+      "club_name": "Zahara Cocktail Club",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "e517665e-4a63-4b98-a893-0c88813dca3b",
+      "club_name": "LOFT 205 Lounge Bar Barcelona",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "c938d362-9130-48a3-afa9-499960226fca",
+      "club_name": "Razzmatazz sales 2 & 3",
+      "neighborhood": "el Parc i la Llacuna del Poblenou"
+    },
+    {
+      "club_id": "67106948-594b-480c-92e5-6be52911f68f",
+      "club_name": "Shisha Lounge vip Room Barcelona",
+      "neighborhood": "el Parc i la Llacuna del Poblenou"
+    },
+    {
+      "club_id": "f19fdce3-f16f-4fac-aec2-1a67dda85023",
+      "club_name": "Pussy Cat Strip Club Barcelona",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "6f2121c6-9315-45c3-98fa-dc1e36094c3e",
+      "club_name": "Absenta",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "b7273018-a851-449f-b7be-be5e49989c91",
+      "club_name": "Bobby Gin",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "d649395c-d3db-4397-b200-42b575d1738a",
+      "club_name": "CDLC Barcelona (Carpe Diem)",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "7c2990d6-e06b-4e09-a72f-a335a40c9351",
+      "club_name": "Solange",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "9e66e2db-03b9-4184-8ee1-dd728a5c1397",
+      "club_name": "Sala Bóveda",
+      "neighborhood": "el Poblenou"
+    },
+    {
+      "club_id": "6e8bf60e-7fbe-4443-bb86-0373ad5ad2b1",
+      "club_name": "Neverland Cocktail Bar",
+      "neighborhood": "la Sagrada Família"
+    },
+    {
+      "club_id": "a3fa5a96-cbfc-4027-87af-bbb71e28a3dd",
+      "club_name": "Arena Xperience",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "9e8de0de-3e08-49ab-a541-68819b666ecc",
+      "club_name": "ArteSants",
+      "neighborhood": "Sants"
+    },
+    {
+      "club_id": "ec121b0c-8b0f-4b3c-8377-e4a872c9beee",
+      "club_name": "La Federica",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "5bf815a1-4654-4615-a8c6-a8901ad8d49f",
+      "club_name": "La Paloma",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "4c0f3a12-6b11-4ee5-83e1-b08c5666dadc",
+      "club_name": "Koitton Club",
+      "neighborhood": "Sants"
+    },
+    {
+      "club_id": "8704bd14-8f92-4cfd-b4f9-449ee762586d",
+      "club_name": "El Sarau",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "89fdfb62-829a-4d0a-b5e0-441d861e7ca3",
+      "club_name": "Sala de Fiestas Tango",
+      "neighborhood": "la Nova Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "f88ef448-8bee-4b1d-8127-ed152638ded3",
+      "club_name": "Bar Marsella",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "008357fd-38ef-4954-a363-94a45883d63f",
+      "club_name": "Mariposa Negra Cocktail Bar - Cocteleria artesana",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "7313addc-cc03-4eb2-ae71-f40330116d3f",
+      "club_name": "nevermind",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "72615f2e-26aa-4db8-8e7a-5b7af95d472a",
+      "club_name": "Wolf Barcelona",
+      "neighborhood": "el Parc i la Llacuna del Poblenou"
+    },
+    {
+      "club_id": "0674fa6a-1674-4883-a8bc-bbb88e1658bb",
+      "club_name": "Paradiso",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "63995e84-f6be-448a-9918-41bba39ccbb3",
+      "club_name": "Raven Poblenou",
+      "neighborhood": "el Poblenou"
+    },
+    {
+      "club_id": "eeef883d-224a-40aa-ad78-136a02706e99",
+      "club_name": "Coco Vintage Market",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "ddca5d10-9b4f-47c4-81a2-2c36bef77e49",
+      "club_name": "Shôko",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "acfe5fb3-707b-4dde-8ca7-95a416a415a2",
+      "club_name": "L'Ovella Negra",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "ebb6b490-9761-4fec-9a4d-c7963850e0a7",
+      "club_name": "Genius",
+      "neighborhood": "Hostafrancs"
+    },
+    {
+      "club_id": "2ebce3f2-045f-497c-922f-4b4d5df28b04",
+      "club_name": "Madame Jasmine",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "3557368f-67b7-429e-8f07-bdb59d2b2657",
+      "club_name": "Xixbar",
+      "neighborhood": "Sant Antoni"
+    },
+    {
+      "club_id": "1a1a81fb-22ea-4291-8edd-8a2bb5593a98",
+      "club_name": "Kahiki Barcelona, Tiki bar, pub, cocteleria",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "38ef92f7-0b09-4add-91da-b8c04ba0e6e8",
+      "club_name": "Magma Bar",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "b635bfba-36ea-4914-a3c7-420bdb704323",
+      "club_name": "Colors Club Barcelona",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "a5d17d71-229d-4396-8e2a-4bb22009007b",
+      "club_name": "Steam City Cocktail Bar | by COBA",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "07ce6a58-ceee-48e4-89ce-3c3e6b6ff2b2",
+      "club_name": "Bling Bling Barcelona",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "795580c2-d419-445e-8d69-e056b15926a7",
+      "club_name": "Dmen's",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "7256a044-c88b-4105-866c-aa2f32e162ba",
+      "club_name": "Bär Sant Pere",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "7f1d6bcb-33b5-4267-ab45-88be935bcfe4",
+      "club_name": "El Ciclista",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "3ca9a644-9de1-4749-9012-9bc02e7f3a67",
+      "club_name": "Chica Club",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "9d07567f-d1ec-4c2c-b561-afca7233a5dc",
+      "club_name": "Casa Astor",
+      "neighborhood": "Sants"
+    },
+    {
+      "club_id": "0baf0cf9-70fe-4750-bab6-212a8dec9f2f",
+      "club_name": "MutiClub",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "24128ba8-2a87-4249-ada8-f0d837c2a2b2",
+      "club_name": "Jardinet del Mar",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "21810b40-8784-4eb8-a7b5-40ae8534e5c4",
+      "club_name": "El Forat",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "acf8c15c-83d6-4704-91ff-b04058916d30",
+      "club_name": "Los Tarantos",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "d0631532-9371-478b-bb1d-ce012fe9a26a",
+      "club_name": "La clave",
+      "neighborhood": "Sants - Badal"
+    },
+    {
+      "club_id": "5f960742-afcf-4383-a4e4-cddb1d0adc57",
+      "club_name": "la maison",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "1ba3a83d-ff06-4ece-bd85-86e756e8e16b",
+      "club_name": "Lord Byron",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "2f71227b-17f2-4b74-b237-1eb7c8937915",
+      "club_name": "Latin Palace",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "2e6d9ef2-081e-4ad3-be7e-57ae90787f81",
+      "club_name": "Madame George",
+      "neighborhood": "el Poblenou"
+    },
+    {
+      "club_id": "c7ed8a66-5bed-43cd-9a6a-a6ff204c6c10",
+      "club_name": "Cristis Cocktail Bar",
+      "neighborhood": "Sant Antoni"
+    },
+    {
+      "club_id": "792f4957-40fc-4d48-9c89-3e4750771563",
+      "club_name": "London Bar",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "c17252bf-df5d-4927-84cf-c87d85639850",
+      "club_name": "Pez Bruja",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "794177b1-bff4-4ee4-bdb8-de0c3acb06d7",
+      "club_name": "Club Swinger Charlie Privée",
+      "neighborhood": "Navas"
+    },
+    {
+      "club_id": "c7e4e02a-3e94-4892-a32a-6fbadf3275f1",
+      "club_name": "Raspall",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "eeee1c0b-f70e-4929-98e4-fb61d1db9654",
+      "club_name": "Never Cocktail Bar",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "101e327b-d2f0-4c18-83a3-766c10f1eec7",
+      "club_name": "Gracia Latina",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "56e9d8fb-61e3-4f31-9711-db744494ed3d",
+      "club_name": "La Concha",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "84b29d62-e1d7-48f6-bcb8-66bdbcda8b4d",
+      "club_name": "número nueve",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "ca397bf8-16dc-4904-b914-bed40bd71479",
+      "club_name": "Magic Rock Club Barcelona",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "718f61ba-dd67-4ce3-8d24-3815e88e367a",
+      "club_name": "Quatre Cocteleria | Barcelona",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "cbacd56b-9fd5-4a40-9e9f-5219322b18e0",
+      "club_name": "Bloody Mary Cocktail Bar",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "f28ea5dd-dc85-4243-a159-52be7f5b71c7",
+      "club_name": "El Bosc de Les Fades",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "e044c769-356a-47ec-917f-e2aa0612ddf9",
+      "club_name": "Bar Milano",
+      "neighborhood": "el Camp d'en Grassot i Gràcia Nova"
+    },
+    {
+      "club_id": "21e54b7e-0e71-42fa-a78e-d6b80454448f",
+      "club_name": "Moog",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "60d6f94e-26cc-4d24-bacc-8a255e1c7924",
+      "club_name": "Downtown Barcelona",
+      "neighborhood": "la Maternitat i Sant Ramon"
+    },
+    {
+      "club_id": "e0043e23-82b7-41a9-8998-30ab999ca046",
+      "club_name": "Bestiari",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "4b88417b-98e3-47fd-8085-ed65dab37d94",
+      "club_name": "Sips",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "a180d29b-b61b-45b0-a6d7-95647742180a",
+      "club_name": "Candy Darling",
+      "neighborhood": "Sant Antoni"
+    },
+    {
+      "club_id": "3883057b-1cdd-4252-94e7-ef3b1746ebd4",
+      "club_name": "Casa Figari",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "828f86ed-87ea-4b39-92aa-89f55742b869",
+      "club_name": "tablao flamenco",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "54de2335-d13a-4d09-9603-f021e21866f4",
+      "club_name": "Sor Rita",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "03235235-0c1c-423f-bcac-dcb28a85cf32",
+      "club_name": "Velvet Room",
+      "neighborhood": "les Corts"
+    },
+    {
+      "club_id": "1e534e09-1933-4cc8-a174-130cd907a621",
+      "club_name": "Lupara",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "8206763a-c17f-4fb7-9b32-7903be059999",
+      "club_name": "Monaco Shisha Lounge",
+      "neighborhood": "Sant Antoni"
+    },
+    {
+      "club_id": "299e26e0-727d-4e01-9e63-45df0f95dd4e",
+      "club_name": "Creps al Born",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "1dcc042a-b052-44b7-b19c-b264b5abf885",
+      "club_name": "Tres Tíos",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "2cadacc3-411c-443a-8bc5-ddbcb99d1988",
+      "club_name": "Miles",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "06363ee3-17d7-4c02-a48f-51d151f7dafa",
+      "club_name": "Oops",
+      "neighborhood": "Sarrià"
+    },
+    {
+      "club_id": "27de463f-c3db-46a2-8d6a-5eb710738ee1",
+      "club_name": "Nina",
+      "neighborhood": "el Poblenou"
+    },
+    {
+      "club_id": "3636194e-f62b-4996-9991-ddf1a7925887",
+      "club_name": "La Carrà",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "0e9465e4-f915-4473-aaf6-098f815d0efc",
+      "club_name": "Bitter",
+      "neighborhood": "Sant Antoni"
+    },
+    {
+      "club_id": "b9bc5258-4349-4f05-af59-6556d961524a",
+      "club_name": "Otto Zutz Club",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "4ed0193f-6155-4ae6-912c-152cd3b956a8",
+      "club_name": "El Col·leccionista",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "8758d103-6acb-476f-853f-d63b3df1cc47",
+      "club_name": "Laut",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "350c71df-7702-4c89-839a-22c644bea9b5",
+      "club_name": "Almayer Cocktail Bar",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "cf079f57-1272-4fb2-a17e-ef7159f06979",
+      "club_name": "Bobby's Free",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "cae2d161-7d6e-4342-bcab-39c977262ecf",
+      "club_name": "DECODE",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "a7a3eaca-d978-43f7-a51a-8e7c4a44929e",
+      "club_name": "Dr. Stravinsky cocktail bar",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "ea2bfa0b-a992-42fe-b045-4f255bf51361",
+      "club_name": "Collage Cocktail Bar",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "b3f7747f-d911-490d-a688-d04add6a1c8b",
+      "club_name": "Opium Barcelona Restaurant and Club",
+      "neighborhood": "la Barceloneta"
+    },
+    {
+      "club_id": "9fee2253-3ff7-49c1-981e-784f54df83c0",
+      "club_name": "Sala Plataforma Barcelona",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "2e2f0938-de60-4c68-b57b-b5275a36abf4",
+      "club_name": "Strass Barcelona",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "e1224533-c643-4096-aab2-b9126dc1ab65",
+      "club_name": "Gatsby",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "f18f4238-85f1-4e08-b2d4-97a6062396de",
+      "club_name": "Quilombo",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "cdb18c54-53c8-4f39-9d30-b3129acdbb7f",
+      "club_name": "Botanicus Cocktail Bar",
+      "neighborhood": "el Poblenou"
+    },
+    {
+      "club_id": "c05e2872-c3c6-46c0-a457-278bf2ae0790",
+      "club_name": "Lucky Schmuck",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "9c71c396-bbb6-440c-ba26-c00cf281e5c6",
+      "club_name": "Moeem Barcelona",
+      "neighborhood": "Sant Antoni"
+    },
+    {
+      "club_id": "c50cbb82-ffe0-4076-b766-69cc8a827231",
+      "club_name": "Plata Cocktail Bar",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "5dbc19ed-6f1d-44f0-992d-b45565b94e01",
+      "club_name": "Eleven Shisha Lounge Barcelona & Cocktails",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "350a721b-f53f-429c-8e6b-bc7a1d87a533",
+      "club_name": "The Comedy Clubhouse",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "df0b7386-df33-4d87-8e7e-07b63c44e595",
+      "club_name": "Mala Hierba Coctel Bar",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "df6c5ee6-99c4-4342-826b-e7333c85956f",
+      "club_name": "LVNA",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "e3591643-5069-4ef2-8a8b-ba613dafadaa",
+      "club_name": "Torre Rosa",
+      "neighborhood": "el Congrés i els Indians"
+    },
+    {
+      "club_id": "1a49859c-ebcf-417a-b025-3dd84bcb1d54",
+      "club_name": "La Biblio",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "bd4d4815-8e82-477b-8850-f8cad1a7631b",
+      "club_name": "ESPECIARIUM BAR | Barcelona",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "084cc5f7-2cbe-4aa0-b5a0-83195bfd82f3",
+      "club_name": "Dux Gin & Cocktail Bar Barcelona",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "b3191181-1ef4-490f-a868-786e44c70aa2",
+      "club_name": "Betty Ford's",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "e0debff0-262b-426a-b34c-871635541cfd",
+      "club_name": "New Chaps",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "022aa4d8-2605-4806-87b7-b7a5ee5c3e33",
+      "club_name": "Bonavida",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "e583adda-b8e3-44d9-a5d7-4e35267b9cce",
+      "club_name": "Imperator",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "b9b9c400-7d15-4b0b-b375-7fdd4a3bc883",
+      "club_name": "INPUT - High Fidelity Dance Club",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "3756b26e-117a-4277-8f3a-5283a39c30cd",
+      "club_name": "Boys Bar BCN",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "2423068e-b69b-43bd-b1a6-688a8a7c2cad",
+      "club_name": "la burnessa",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "cca8800c-4f37-4530-88b7-f4d1b1302c67",
+      "club_name": "Space Cowboy",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "90041f3a-2b37-4617-8402-ce5b8e7047c4",
+      "club_name": "Manoda",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "f442d8a0-50d5-4d54-9ab0-c0fa819bccf5",
+      "club_name": "Manchester",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "9d2f5a2d-b710-4cc3-b855-0743671710b7",
+      "club_name": "Bar Falstaff",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "cb7ae31b-8329-47f9-ac4e-35a6e4dcb129",
+      "club_name": "Berlin Dark",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "d4419ffb-75fe-44b1-b247-50c58b8895d8",
+      "club_name": "Caribbean Club Cocktail Bar",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "0c31464e-6fdb-4d7c-97f2-045a749b0a54",
+      "club_name": "Barcelona Pipa Club",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "b41ac26c-2a52-4753-aa57-0520d6f91eac",
+      "club_name": "Safari Disco Club",
+      "neighborhood": "Hostafrancs"
+    },
+    {
+      "club_id": "cb23f61d-4455-48cc-a8c6-5e890d54a7c7",
+      "club_name": "Soda Acústic",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "55d03768-61eb-4d43-aab3-5c197abc5c5f",
+      "club_name": "La Taberna del ESPIT",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "ce3bf276-b958-4f82-b706-be383a2843d7",
+      "club_name": "Disco Bar Joe's",
+      "neighborhood": "Sants"
+    },
+    {
+      "club_id": "c608e5fc-7c4e-4300-8d17-b99d5def9023",
+      "club_name": "Sala Bikini",
+      "neighborhood": "les Corts"
+    },
+    {
+      "club_id": "4feea765-3e7c-4cc9-bed8-b695e118a04e",
+      "club_name": "Café Berlin",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "ab7a10f0-3019-4aff-819c-d2c254783ef9",
+      "club_name": "Ginger",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "3b7e6f37-2622-442f-bcd1-07738f1980da",
+      "club_name": "La Chapelle",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "114e4765-15b9-453d-87e0-0dfa3716a85f",
+      "club_name": "Jardinets de Gràcia",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "e47ab0c7-d51a-4c69-a53a-a6ce47e82ceb",
+      "club_name": "First bar",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "2fc0980b-e39b-491b-a12e-6a3dc768f7eb",
+      "club_name": "Negroni",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "6b9cb5f6-a07b-457a-add6-36c05f169903",
+      "club_name": "Las Cuevas de Los Rajahs",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "e438ee4f-e7f0-4eb0-9af3-fea17d0645ec",
+      "club_name": "Espit Chupitos",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "ce83a8a4-1b89-44a5-921f-37cdd3b81a1c",
+      "club_name": "33/45",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "baf6bc5c-7a6d-43cf-9c08-5b92f3fd430f",
+      "club_name": "Jazz Sí Club",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "0ceff93a-df08-4d3f-9793-027166e95525",
+      "club_name": "Dixi 724",
+      "neighborhood": "el Parc i la Llacuna del Poblenou"
+    },
+    {
+      "club_id": "150ae3ca-f689-4b04-b8ff-5bf8cda86359",
+      "club_name": "Bar 27",
+      "neighborhood": "el Clot"
+    },
+    {
+      "club_id": "30e12431-d32d-4fee-9cae-547c30768ce2",
+      "club_name": "Mr White Cocktail Bar",
+      "neighborhood": "Sant Antoni"
+    },
+    {
+      "club_id": "fdbaa9fd-fa4d-4813-aaec-52e578193d1e",
+      "club_name": "Boadas",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "4614c827-7a48-48f2-bc3f-3ae2aef7e151",
+      "club_name": "New Fizz",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "cbcd3a67-23d5-4ae9-9ef1-014695fc96ee",
+      "club_name": "Déjà Vu",
+      "neighborhood": "Sant Antoni"
+    },
+    {
+      "club_id": "b7adfcba-8b92-4271-a34e-2019d9b808f2",
+      "club_name": "Club Astoria",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "70046f6e-08d3-406a-868a-fedaaf732a47",
+      "club_name": "Continental",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "055e07ef-1799-43bd-932d-6484ca045319",
+      "club_name": "Slow Barcelona",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "21a93e66-8d57-44ef-b854-e12b07fab187",
+      "club_name": "Hell awaits",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "8d662e23-78e0-4cba-8355-863188ad453f",
+      "club_name": "Barroko's",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "26b16f54-dcd0-450b-83fa-d4e7ad1923f0",
+      "club_name": "San Pedrito",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "1eb95121-7578-4b87-84cb-aead8df2c051",
+      "club_name": "Switch Pocket Club",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "ca5986a6-cb3a-4a15-8984-f04f8199de76",
+      "club_name": "La Cueva Lounge Club",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "bc162133-5b02-4134-bc96-5a3336c2be5c",
+      "club_name": "Bar L'antic Teatre",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "3c3716e0-0361-4a62-b4d2-ec1eb5d00bbb",
+      "club_name": "Twenties Barcelona",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "7a1b23c8-b767-45e8-b0e0-ccef93b19745",
+      "club_name": "Les Enfants Brillants",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "9ec660d1-38cc-4a8f-ad8a-4770a4acea8b",
+      "club_name": "Harlem Jazz Club",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "3ed9fa72-f9d9-4691-abe6-d33fb6f75a1f",
+      "club_name": "Two Schmucks",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "e250a72b-4531-4f4a-b96a-ea71dd40fce8",
+      "club_name": "Sala Vivaldi",
+      "neighborhood": "Sant Antoni"
+    },
+    {
+      "club_id": "0a98d703-4ab8-4786-9363-f779de2df374",
+      "club_name": "Chulapio",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "ef6db028-8f0d-408c-83ec-ee46b969c4cc",
+      "club_name": "Old fashioned",
+      "neighborhood": "la Vila de Gràcia"
+    },
+    {
+      "club_id": "e446aea9-73df-458d-ae3a-b3f9223d1fd8",
+      "club_name": "Hemingway",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "4462180a-5a6e-45ef-9900-52840f6a8f99",
+      "club_name": "Marula Cafè",
+      "neighborhood": "el Barri Gòtic"
+    },
+    {
+      "club_id": "c5a23437-cf3f-40a3-b8df-ec817d3a7c1a",
+      "club_name": "Pastis",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "384d4b60-fb1f-4317-ad38-447e427d9415",
+      "club_name": "La Whiskeria",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "28a6cf55-9f0e-4905-95f0-e9b4c260960d",
+      "club_name": "Coyotes",
+      "neighborhood": "Sants"
+    },
+    {
+      "club_id": "49c62a25-1c64-40b3-8253-19392ef01c32",
+      "club_name": "KAHALA - Tiki Bar | Barcelona",
+      "neighborhood": "les Corts"
+    },
+    {
+      "club_id": "4be9ff7f-3746-4ae5-9936-c223405ef1ef",
+      "club_name": "La Isabela",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "8bfd177d-2a21-461b-a1af-07941da7079e",
+      "club_name": "Carita Bonita",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "b066e9c7-2d08-454c-86ef-f32b8072dce8",
+      "club_name": "Voyager Cocktail Bar | by COBA",
+      "neighborhood": "la Nova Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "1050d106-2484-43ca-8347-d3430f8083a7",
+      "club_name": "La perla negra",
+      "neighborhood": "Hostafrancs"
+    },
+    {
+      "club_id": "82fb4ace-f41c-4caf-8dc8-7265c339a9cb",
+      "club_name": "Merbeyé",
+      "neighborhood": "Sant Gervasi - la Bonanova"
+    },
+    {
+      "club_id": "68dd8349-0b15-4cfc-ba53-479c92bc39dc",
+      "club_name": "La Terrrazza Barcelona",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "6fd062ce-6d0d-4f4a-86cf-afdc855c6c09",
+      "club_name": "The Black Room",
+      "neighborhood": "la Dreta de l'Eixample"
+    },
+    {
+      "club_id": "bf94a04c-6db3-4ea4-849a-7d5110b49cde",
+      "club_name": "Superclàssic",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "23b20e49-fc27-4e7d-b2ad-2a5871824c72",
+      "club_name": "Galileo",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "f2cbf973-5b3e-49fd-83a2-90007b032c54",
+      "club_name": "Rocktail",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "0d06dda2-82a6-447c-bb23-3fe02f999b78",
+      "club_name": "El cangrejo",
+      "neighborhood": "el Raval"
+    },
+    {
+      "club_id": "3999056a-4f4e-4631-8e0d-8e092cc76f64",
+      "club_name": "The Mint",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "4b8e1dde-2999-4ddc-93e8-140b4424a46b",
+      "club_name": "Showroom Fashion Bar",
+      "neighborhood": "Sant Gervasi - Galvany"
+    },
+    {
+      "club_id": "56e68e3d-90d1-4c2e-abdc-21e4b5e07f50",
+      "club_name": "Tandem Cocktail Bar",
+      "neighborhood": "l'Antiga Esquerra de l'Eixample"
+    },
+    {
+      "club_id": "a9cea119-edce-4b59-b93b-13855c75ee74",
+      "club_name": "Etniko Cocktail Bar",
+      "neighborhood": "Sant Pere, Santa Caterina i la Ribera"
+    },
+    {
+      "club_id": "e8301c85-d190-44e5-9079-eebffa97fbd3",
+      "club_name": "Lilith & sons",
+      "neighborhood": "el Poble-sec"
+    },
+    {
+      "club_id": "40029d65-2357-4632-b676-e931edeb71bb",
+      "club_name": "La nuit coctelería",
+      "neighborhood": "Sant Antoni"
+    }
+  ],
+  "no_coords": [],
+  "outside_barcelona": [
+    {
+      "id": "9850747f-969c-48f7-8aa8-8287316e1397",
+      "name": "Bar Benuga",
+      "lat": 41.4383471,
+      "lng": 2.2243229
+    },
+    {
+      "id": "23971b86-8ad0-4c94-9e99-a98a0efbadf6",
+      "name": "Badamola",
+      "lat": 41.4514484,
+      "lng": 2.2454403
+    },
+    {
+      "id": "41cf2ccc-dcfc-48c4-af04-ec1d3485f032",
+      "name": "Pixolo",
+      "lat": 41.4630718,
+      "lng": 2.1685634
+    },
+    {
+      "id": "c4af646e-bf9a-4354-9844-17d4dd753813",
+      "name": "Orígen",
+      "lat": 41.4518352,
+      "lng": 2.2326684
+    },
+    {
+      "id": "ab007c91-a867-4c0b-b423-bf13d90041e3",
+      "name": "Albaycin",
+      "lat": 41.3537342,
+      "lng": 2.0874088
+    },
+    {
+      "id": "ee0d8d23-41fa-41b2-8dec-f26db7eabf70",
+      "name": "Fumée Shisha Lounge & Cocktail bar Barcelona",
+      "lat": 41.4139542,
+      "lng": 2.2263206
+    },
+    {
+      "id": "791d4b7e-1e85-473f-ba59-97761a0498cf",
+      "name": "Bar Los Amigos",
+      "lat": 41.4381238,
+      "lng": 2.2211044
+    },
+    {
+      "id": "ddd50c65-4037-4119-bf94-0f5133731aff",
+      "name": "Bar Los baratos",
+      "lat": 41.4356384,
+      "lng": 2.2142191
+    },
+    {
+      "id": "765133c0-b785-4d37-a35b-5a49f0c43a9f",
+      "name": "Mi Candé",
+      "lat": 41.4430784,
+      "lng": 2.2477656
+    },
+    {
+      "id": "83dbf48a-2a60-416a-98eb-0f3aec7e0363",
+      "name": "Go Beach Club Barcelona",
+      "lat": 41.4137625,
+      "lng": 2.2292746
+    },
+    {
+      "id": "def52320-0896-4884-91dc-0ab0ae365242",
+      "name": "Bar Victor",
+      "lat": 41.4381701,
+      "lng": 2.2222397
+    },
+    {
+      "id": "d8601757-d7d1-4122-8e5f-44f997f38789",
+      "name": "Bar Turia",
+      "lat": 41.3522292,
+      "lng": 2.1073478
+    },
+    {
+      "id": "db7806fe-38a2-4a7c-a0ec-8967f18dd426",
+      "name": "Little Beach House Barcelona",
+      "lat": 41.2545582,
+      "lng": 1.9046508
+    },
+    {
+      "id": "2f3bd120-0a97-4910-afbf-5d0e08d3c5f9",
+      "name": "Bar Las Tapas",
+      "lat": 41.442218,
+      "lng": 2.2224034
+    },
+    {
+      "id": "58816969-7db5-43df-ad50-bd8ec15337e7",
+      "name": "On the Vas",
+      "lat": 41.3619409,
+      "lng": 2.1022147
+    },
+    {
+      "id": "768cb088-80c7-413b-8590-d396ecd1bbaf",
+      "name": "Caribe Caliente",
+      "lat": 41.3744995,
+      "lng": 2.1148664
+    },
+    {
+      "id": "4c87b58e-1d69-4706-a332-92aed39f70ec",
+      "name": "Chiringuito INTI",
+      "lat": 41.4419522,
+      "lng": 2.246918
+    },
+    {
+      "id": "9bf8594d-91e2-4129-849d-ccabfffe5b5f",
+      "name": "Nebula Shisha Lounge",
+      "lat": 41.3656491,
+      "lng": 2.118924
+    },
+    {
+      "id": "fd6b8925-18e6-40dc-9a3d-8fe37dcd3c70",
+      "name": "Discoteca Juanchito",
+      "lat": 41.3636657,
+      "lng": 2.1135686
+    },
+    {
+      "id": "a3d3c5f3-1922-41e1-9fb6-14ff4142423d",
+      "name": "Bar El Pesca",
+      "lat": 41.4417256,
+      "lng": 2.2151354
+    },
+    {
+      "id": "5c190985-b9e0-4d51-9230-eaf7c9e18d4d",
+      "name": "Waris Bar",
+      "lat": 41.375111,
+      "lng": 2.1200415
+    },
+    {
+      "id": "a170ba60-229b-4ab9-b8b4-8a11b843067d",
+      "name": "Bar Libra",
+      "lat": 41.3627296,
+      "lng": 2.1316929
+    },
+    {
+      "id": "50b9a47c-6124-47fb-8c99-5d690657419b",
+      "name": "El plan \"B\"",
+      "lat": 41.4347895,
+      "lng": 2.2152266
+    },
+    {
+      "id": "03776b63-3edf-4004-82c0-ce09801a1b5d",
+      "name": "El Círcol",
+      "lat": 41.4501968,
+      "lng": 2.2474223
+    },
+    {
+      "id": "8ed0dc77-098a-4f35-b7ef-7705f6cd4942",
+      "name": "Bar Kumhara",
+      "lat": 41.4535562,
+      "lng": 2.2356471
+    },
+    {
+      "id": "3bcfeb07-3184-49ba-95f7-91bea078b58c",
+      "name": "Bar Ski",
+      "lat": 41.4373537,
+      "lng": 2.2203441
+    },
+    {
+      "id": "9e02a8e4-57a1-497c-aba3-d51500ded0c0",
+      "name": "Mambo Club",
+      "lat": 41.4462226,
+      "lng": 2.2401134
+    }
+  ]
+}

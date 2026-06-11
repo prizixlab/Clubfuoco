@@ -5,12 +5,26 @@ import { requireAuth } from '@/lib/auth'
 import { stripe, calculateOrderTotal } from '@/lib/stripe'
 import { z } from 'zod'
 
+// Bookings may only be made for today through 14 days ahead (server-side guard
+// mirroring the WhenPlanner cap). Compared in UTC date terms — generous by a day
+// across timezones, which is acceptable for a "no further than 2 weeks" rule.
+function isWithinBookingWindow(value: string): boolean {
+  const picked = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(picked.getTime())) return false
+  const today = new Date()
+  const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+  const diffDays = Math.floor((picked.getTime() - todayUTC) / 86_400_000)
+  return diffDays >= 0 && diffDays <= 14
+}
+
 const createBookingSchema = z.object({
   club_id:           z.string().uuid(),
   booking_type:      z.enum(['general', 'vip']),
   party_size:        z.number().int().min(1).max(20),
-  booking_date:      z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  arrival_window:    z.string().optional(),
+  booking_date:      z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(isWithinBookingWindow, {
+                       message: 'Booking date must be today or within the next 14 days',
+                     }),
+  arrival_window:    z.string().regex(/^\d{2}:\d{2}$/).optional(),
   payment_method_id: z.string().min(1),
 })
 

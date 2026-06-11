@@ -34,26 +34,28 @@ function parseClock(s: string): number {
  * Handles cross-midnight ranges (e.g. 6:00 PM – 3:00 AM closes the next day).
  * Returns true / false, or null if it can't be determined.
  */
+// Parse one weekday row ("Monday: 6:00 PM – 3:00 AM") → [openMin, closeMin],
+// or null if closed / unparseable.
+function parseRow(row: string | undefined): [number, number] | null {
+  if (!row) return null
+  const colon = row.indexOf(':')
+  const hrs = colon > -1 ? row.slice(colon + 1).trim() : row
+  if (/closed/i.test(hrs)) return null
+  // Split on en-dash, em-dash, hyphen, or " to "
+  const parts = hrs.split(/\s*[–—\-]\s*|\s+to\s+/i)
+  if (parts.length !== 2) return null
+  const o = parseClock(parts[0])
+  const c = parseClock(parts[1])
+  if (o < 0 || c < 0) return null
+  return [o, c]
+}
+
 export function computeOpenNow(rows: string[] | null | undefined): boolean | null {
   if (!rows || rows.length < 7) return null
   const now = new Date()
   const nowMin   = now.getHours() * 60 + now.getMinutes()
   const todayIdx = (now.getDay() + 6) % 7   // Mon=0 … Sun=6
   const yIdx     = (todayIdx + 6) % 7
-
-  const parseRow = (row: string | undefined): [number, number] | null => {
-    if (!row) return null
-    const colon = row.indexOf(':')
-    const hrs = colon > -1 ? row.slice(colon + 1).trim() : row
-    if (/closed/i.test(hrs)) return null
-    // Split on en-dash, em-dash, hyphen, or " to "
-    const parts = hrs.split(/\s*[–—\-]\s*|\s+to\s+/i)
-    if (parts.length !== 2) return null
-    const o = parseClock(parts[0])
-    const c = parseClock(parts[1])
-    if (o < 0 || c < 0) return null
-    return [o, c]
-  }
 
   // Today's range
   const today = parseRow(rows[todayIdx])
@@ -75,4 +77,33 @@ export function computeOpenNow(rows: string[] | null | undefined): boolean | nul
   }
 
   return false
+}
+
+/**
+ * Whether a venue is open for the NIGHT of a given calendar date — i.e. it has
+ * evening/late hours on that date's weekday. Used by the schedule-ahead feed to
+ * surface places that will be open on the night the user picked.
+ *
+ * `date` is a local "YYYY-MM-DD". Returns true / false, or null if undetermined.
+ * "Night" = opens at 18:00 or later, or the range runs past midnight, or it
+ * closes at 22:00 or later — which excludes daytime-only spots (e.g. a café).
+ */
+export function isOpenOnDate(
+  rows: string[] | null | undefined,
+  date: string,
+): boolean | null {
+  if (!rows || rows.length < 7) return null
+  const m = date.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return null
+  // Parse as a LOCAL date so the weekday isn't shifted by the timezone.
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  const idx = (d.getDay() + 6) % 7   // Mon=0 … Sun=6
+
+  const range = parseRow(rows[idx])
+  if (!range) return false
+  const [open, close] = range
+  const opensEvening = open >= 18 * 60       // 18:00 or later
+  const crossesMidnight = close < open        // e.g. 18:00 → 03:00
+  const closesLate = close >= 22 * 60         // still open at/after 22:00
+  return opensEvening || crossesMidnight || closesLate
 }

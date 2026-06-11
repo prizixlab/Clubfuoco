@@ -1,0 +1,374 @@
+{
+  "generated_at": "2026-06-10T02:54:58.055Z",
+  "source": "OpenStreetMap via Overpass (© OpenStreetMap contributors, ODbL)",
+  "totals": {
+    "clubs": 359,
+    "osm_venues": 1696,
+    "proposals": 17,
+    "by_confidence": {
+      "high": 17,
+      "medium": 0,
+      "low": 0
+    },
+    "unmatched": 42
+  },
+  "proposals": [
+    {
+      "club_id": "0feba81c-13af-4a3b-bfd4-f3788eded354",
+      "club_name": "23 Robadors",
+      "osm_name": "23 Robadors",
+      "osm_id": "node/2892037115",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "robadors23"
+      }
+    },
+    {
+      "club_id": "23a2de87-6d93-4a83-b43c-b4ab0a339848",
+      "club_name": "Bar Billar HDP",
+      "osm_name": "Bar Billar HDP",
+      "osm_id": "node/10679155605",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "hdpbillar"
+      }
+    },
+    {
+      "club_id": "b9fdfd67-5389-4c60-95e2-033dfb196d46",
+      "club_name": "Nitsa Club",
+      "osm_name": "Nitsa Club",
+      "osm_id": "node/12077033449",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "nitsa_club"
+      }
+    },
+    {
+      "club_id": "37500bbf-26c1-4536-b2f8-7b87f4518c83",
+      "club_name": "Oblicuo Hi-Fi",
+      "osm_name": "Oblicuo Hi-Fi",
+      "osm_id": "node/10282626825",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "oblicuohifibar"
+      }
+    },
+    {
+      "club_id": "e8e15ff0-0c8e-4328-a75c-416b2eb31cf4",
+      "club_name": "Craft Barcelona",
+      "osm_name": "Craft Barcelona",
+      "osm_id": "node/2247789630",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "craftbarcelonabar"
+      }
+    },
+    {
+      "club_id": "dbb33c20-4878-43d0-a316-12cab01826bd",
+      "club_name": "Diobar",
+      "osm_name": "Diobar",
+      "osm_id": "node/13667481779",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "diobar_mons_de_musica"
+      }
+    },
+    {
+      "club_id": "62758695-a5c1-4905-9cd5-68f546e9305e",
+      "club_name": "Almodobar",
+      "osm_name": "Almodobar",
+      "osm_id": "node/6038913886",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "almodobar_bcn"
+      }
+    },
+    {
+      "club_id": "f68dd75e-f361-4449-8e34-8659530a3d9e",
+      "club_name": "La Fourmi",
+      "osm_name": "La Fourmi",
+      "osm_id": "node/588012926",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "lafourmibarcelona"
+      }
+    },
+    {
+      "club_id": "65570773-b032-4683-865a-5f650005cb11",
+      "club_name": "Henry‘s Bar",
+      "osm_name": "Henry‘s Bar",
+      "osm_id": "node/13740551701",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "henrys.cocktailbar"
+      }
+    },
+    {
+      "club_id": "9d07567f-d1ec-4c2c-b561-afca7233a5dc",
+      "club_name": "Casa Astor",
+      "osm_name": "Casa Astor",
+      "osm_id": "node/11346396079",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "astorbcn"
+      }
+    },
+    {
+      "club_id": "d0631532-9371-478b-bb1d-ce012fe9a26a",
+      "club_name": "La clave",
+      "osm_name": "La clave",
+      "osm_id": "node/11622247653",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "barlaclave"
+      }
+    },
+    {
+      "club_id": "c17252bf-df5d-4927-84cf-c87d85639850",
+      "club_name": "Pez Bruja",
+      "osm_name": "Pez Bruja",
+      "osm_id": "node/11255961498",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "pez_bruja"
+      }
+    },
+    {
+      "club_id": "c7e4e02a-3e94-4892-a32a-6fbadf3275f1",
+      "club_name": "Raspall",
+      "osm_name": "Raspall",
+      "osm_id": "node/4406708695",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "raspallbcn"
+      }
+    },
+    {
+      "club_id": "4ed0193f-6155-4ae6-912c-152cd3b956a8",
+      "club_name": "El Col·leccionista",
+      "osm_name": "El Col·leccionista",
+      "osm_id": "node/5048602524",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "elcol.leccionista"
+      }
+    },
+    {
+      "club_id": "350c71df-7702-4c89-839a-22c644bea9b5",
+      "club_name": "Almayer Cocktail Bar",
+      "osm_name": "Almayer Cocktail Bar",
+      "osm_id": "node/12787992302",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "almayerbar"
+      }
+    },
+    {
+      "club_id": "9d2f5a2d-b710-4cc3-b855-0743671710b7",
+      "club_name": "Bar Falstaff",
+      "osm_name": "Bar Falstaff",
+      "osm_id": "node/2710652088",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "barfalstaff"
+      }
+    },
+    {
+      "club_id": "1050d106-2484-43ca-8347-d3430f8083a7",
+      "club_name": "La perla negra",
+      "osm_name": "La perla negra",
+      "osm_id": "node/11343930968",
+      "distance_m": 0,
+      "confidence": "high",
+      "fills": {
+        "instagram_handle": "perlanegrasants"
+      }
+    }
+  ],
+  "unmatched": [
+    {
+      "id": "23971b86-8ad0-4c94-9e99-a98a0efbadf6",
+      "name": "Badamola"
+    },
+    {
+      "id": "dc16e4cf-f867-4b00-acc6-0ec5f38bcd2a",
+      "name": "W Lounge"
+    },
+    {
+      "id": "4cdf7512-6728-483f-8f46-8e3494f9a83e",
+      "name": "LA ROSE 432 COCKTAIL & SHISHA BAR"
+    },
+    {
+      "id": "ec5885e9-8fb8-4ebf-bbaf-f8c074936152",
+      "name": "Terraza Verbena Rooftop by Monument Hotel"
+    },
+    {
+      "id": "1113733e-1763-4c95-9e11-9db787b39a83",
+      "name": "ENVY LOUNGE"
+    },
+    {
+      "id": "02a3c043-7ff5-46fc-8591-4ccc3162a631",
+      "name": "Trash Talk - Food & Booze"
+    },
+    {
+      "id": "4d811636-918b-4b75-bfd2-ee22788d704e",
+      "name": "HABIBI SHISHA LOUNGE"
+    },
+    {
+      "id": "765133c0-b785-4d37-a35b-5a49f0c43a9f",
+      "name": "Mi Candé"
+    },
+    {
+      "id": "bdafd62c-2543-4238-9951-e4a1a17bb7eb",
+      "name": "Disco City Hall"
+    },
+    {
+      "id": "85551615-939b-44e4-8a3b-fce229175a0f",
+      "name": "Tirabuixo Bar"
+    },
+    {
+      "id": "f16be235-00a8-40d8-adc7-6176a3254815",
+      "name": "Azimuth Rooftop Bar"
+    },
+    {
+      "id": "af4dba68-d478-463a-abf7-43e7dbc3503d",
+      "name": "The Top"
+    },
+    {
+      "id": "65ec44a5-237a-484d-aa3d-1a5d6045f5e7",
+      "name": "Rooftop Garden"
+    },
+    {
+      "id": "e4d7fd83-513c-4ca9-bde6-3d04fd1ce4bd",
+      "name": "The Alchemix"
+    },
+    {
+      "id": "6416a9b8-a8e7-4163-82e5-e259cd9eb2a1",
+      "name": "Alaire Rooftop Bar"
+    },
+    {
+      "id": "e7faf01d-035b-4142-bc83-4bf9a70214ed",
+      "name": "Ly Brothers Cocktail Bar"
+    },
+    {
+      "id": "ff80ed72-ead6-40dc-9595-34abfd544244",
+      "name": "Nola Cocktail Bar & Food"
+    },
+    {
+      "id": "04316c0a-febb-44e6-ba4e-a7e3cfee2d77",
+      "name": "Ocaña"
+    },
+    {
+      "id": "0f70ef2e-2220-407c-88d4-a15e3d0e99ae",
+      "name": "El Quinto Moño"
+    },
+    {
+      "id": "63a1fc47-df57-4f4a-8e37-66f9cb49be2d",
+      "name": "Prize Bar"
+    },
+    {
+      "id": "18ec2a1c-9e51-4ca4-bc2b-b501456afdc8",
+      "name": "The Clock Terrace"
+    },
+    {
+      "id": "974054b1-004a-4cf2-8ec3-09b8f3536782",
+      "name": "Tirsa BCN"
+    },
+    {
+      "id": "c74f4726-5fb8-44aa-8624-326587eee530",
+      "name": "Chill Bar"
+    },
+    {
+      "id": "d044b1d3-4ad9-4c70-8ba9-1e255e6f8331",
+      "name": "Bar Ke"
+    },
+    {
+      "id": "348d0842-140d-485c-80f8-a7566ce8aa60",
+      "name": "Eleven BCN"
+    },
+    {
+      "id": "d6e23b03-3c69-4eaf-b0f0-efdda3ba1022",
+      "name": "Garage 442"
+    },
+    {
+      "id": "caa28df9-aa97-4d10-beee-975a34e8ba92",
+      "name": "Beat Lab House & Techno"
+    },
+    {
+      "id": "48c2aa09-c0a7-4397-94e2-29e554020b37",
+      "name": "Seven Under bar"
+    },
+    {
+      "id": "d96548dc-1703-41d0-9407-29054a226c8f",
+      "name": "El Kabron Beach Club"
+    },
+    {
+      "id": "ebb6b490-9761-4fec-9a4d-c7963850e0a7",
+      "name": "Genius"
+    },
+    {
+      "id": "2e6d9ef2-081e-4ad3-be7e-57ae90787f81",
+      "name": "Madame George"
+    },
+    {
+      "id": "792f4957-40fc-4d48-9c89-3e4750771563",
+      "name": "London Bar"
+    },
+    {
+      "id": "f28ea5dd-dc85-4243-a159-52be7f5b71c7",
+      "name": "El Bosc de Les Fades"
+    },
+    {
+      "id": "e0043e23-82b7-41a9-8998-30ab999ca046",
+      "name": "Bestiari"
+    },
+    {
+      "id": "8758d103-6acb-476f-853f-d63b3df1cc47",
+      "name": "Laut"
+    },
+    {
+      "id": "03776b63-3edf-4004-82c0-ce09801a1b5d",
+      "name": "El Círcol"
+    },
+    {
+      "id": "8ed0dc77-098a-4f35-b7ef-7705f6cd4942",
+      "name": "Bar Kumhara"
+    },
+    {
+      "id": "cbcd3a67-23d5-4ae9-9ef1-014695fc96ee",
+      "name": "Déjà Vu"
+    },
+    {
+      "id": "e250a72b-4531-4f4a-b96a-ea71dd40fce8",
+      "name": "Sala Vivaldi"
+    },
+    {
+      "id": "0a98d703-4ab8-4786-9363-f779de2df374",
+      "name": "Chulapio"
+    },
+    {
+      "id": "0d06dda2-82a6-447c-bb23-3fe02f999b78",
+      "name": "El cangrejo"
+    },
+    {
+      "id": "3999056a-4f4e-4631-8e0d-8e092cc76f64",
+      "name": "The Mint"
+    }
+  ]
+}

@@ -54,5 +54,24 @@
 	<string>Club Fuoco uses your photo library so you can choose a profile photo.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Club Fuoco saves images, such as tickets and passes, to your photo library.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.clubfuoco.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.clubfuoco.app</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.googleusercontent.apps</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.170229454537-b4a62382bcnq7ugfckklvv75koih8heo</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

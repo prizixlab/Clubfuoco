@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api'
 import { MUSIC_OPTIONS, VIBE_OPTIONS, DRINK_CATEGORIES, BUDGET_NO_LIMIT } from '@/lib/preferences'
 import { useAuth } from '@/contexts/AuthContext'
 import { Iap, isIapAvailable } from '@/lib/iap'
+import { useLocale, type LocaleSetting } from '@/contexts/LocaleContext'
 
 /* ─── Design tokens ─────────────────────────────────────────────────────── */
 const C = {
@@ -32,12 +33,7 @@ const BUDGET_TIERS = [
   { label: 'Generoso',     range: '€80 — €150', value: 110 },
   { label: 'Senza limiti', range: 'No limit',   value: BUDGET_NO_LIMIT },
 ]
-const NOTIFS = [
-  { key: 'openings',  label: "Tonight's openings", desc: 'A short note before doors open' },
-  { key: 'curator',   label: 'Curator picks',      desc: 'One curated event each week'    },
-  { key: 'guestlist', label: 'Guest list ready',   desc: 'When a friend lists you'        },
-  { key: 'concierge', label: 'Concierge messages', desc: 'From your Fuoco host'           },
-]
+const NOTIF_KEYS = ['openings', 'curator', 'guestlist', 'concierge'] as const
 type NotifState = Record<string, boolean>
 
 function budgetTier(v: number) {
@@ -196,6 +192,7 @@ export default function SettingsPage() {
   const router   = useRouter()
   const supabase = createClient()
   const { user: authUser } = useAuth()
+  const { t, setting, setLocaleSetting } = useLocale()
 
   const [userId,   setUserId]   = useState('')
   const [fullName, setFullName] = useState('')
@@ -210,7 +207,7 @@ export default function SettingsPage() {
   const [drinks, setDrinks] = useState<string[]>([])
   const [music,  setMusic]  = useState<string[]>([])
   const [vibes,  setVibes]  = useState<string[]>([])
-  const [notifs, setNotifs] = useState<NotifState>(Object.fromEntries(NOTIFS.map(n => [n.key, true])))
+  const [notifs, setNotifs] = useState<NotifState>(Object.fromEntries(NOTIF_KEYS.map(k => [k, true])))
 
   const [loading,    setLoading]    = useState(true)
   const [saving,     setSaving]     = useState(false)
@@ -256,7 +253,7 @@ export default function SettingsPage() {
         setMusic(p.music_genres ?? [])
         setVibes(p.vibes ?? [])
         const n = p.notifications ?? {}
-        const nx = Object.fromEntries(NOTIFS.map(x => [x.key, n[x.key] ?? true]))
+        const nx = Object.fromEntries(NOTIF_KEYS.map(k => [k, n[k] ?? true]))
         setNotifs(nx)
         savedPrefs.current = {
           budget: p.budget ?? 55, drinks: p.drinks ?? [],
@@ -393,7 +390,7 @@ export default function SettingsPage() {
     )
   }
 
-  const summary = (arr: string[]) => arr.length ? arr.slice(0, 3).join(' · ') : 'None yet'
+  const summary = (arr: string[]) => arr.length ? arr.slice(0, 3).join(' · ') : t('settings.noneYet')
 
   /* ── Render ───────────────────────────────────────────────────────────── */
   return (
@@ -426,7 +423,7 @@ export default function SettingsPage() {
             fontFamily: MONO, fontSize: 9.5, letterSpacing: '1.5px', textTransform: 'uppercase',
             cursor: 'pointer', opacity: saving ? 0.7 : 1,
           }}>
-            {saving ? '…' : 'Save'}
+            {saving ? '…' : t('settings.save')}
           </button>
         ) : (
           <div style={{ width: 36 }} />
@@ -437,13 +434,13 @@ export default function SettingsPage() {
 
         {/* Title block */}
         <p style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '2px', textTransform: 'uppercase', color: C.ink3, margin: '0 0 6px' }}>
-          Your Account
+          {t('settings.yourAccount')}
         </p>
         <h1 style={{ fontFamily: SERIF, fontStyle: 'italic', fontWeight: 400, fontSize: 46, color: C.ink, margin: '0 0 8px', lineHeight: 1 }}>
           Impostazioni
         </h1>
         <p style={{ fontFamily: SERIF, fontStyle: 'italic', fontSize: 16, color: C.ink2, margin: '0 0 18px', lineHeight: 1.4 }}>
-          Personal details, preferences, and what we send you.
+          {t('settings.subtitle')}
         </p>
 
         {/* Info banner */}
@@ -454,19 +451,17 @@ export default function SettingsPage() {
         }}>
           <span className="material-symbols-outlined" style={{ fontSize: 16, color: C.accent, flexShrink: 0, marginTop: 1 }}>info</span>
           <p style={{ margin: 0, fontSize: 12, color: C.ink2, lineHeight: 1.5 }}>
-            Personal, Account &amp; Preferences need{' '}
-            <span style={{ fontFamily: SERIF, fontStyle: 'italic', color: C.accent, fontSize: 14 }}>Save</span>.
-            {' '}Notifications save instantly.
+            {t('settings.infoNote')}
           </p>
         </div>
 
         {/* ── N° 01 Personal ─────────────────────────────────────────────── */}
-        <SectionHead n="01" name="Personal" />
+        <SectionHead n="01" name={t('settings.personal')} />
         <Card>
-          <FieldRow label="Full name">
+          <FieldRow label={t('settings.fullName')}>
             <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Your name" style={serifInput} />
           </FieldRow>
-          <FieldRow label="Birthday">
+          <FieldRow label={t('settings.birthday')}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
               <input value={bDay}   onChange={e => setBDay(e.target.value.replace(/\D/g,'').slice(0,2))}   placeholder="DD"   inputMode="numeric" style={{ ...serifInput, width: 38, textAlign: 'center' }} />
               <span style={{ fontFamily: SERIF, fontSize: 19, color: C.ink3 }}>/</span>
@@ -476,16 +471,16 @@ export default function SettingsPage() {
               <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: '1px', color: C.ink3, marginLeft: 6 }}>DD · MM · YYYY</span>
             </div>
           </FieldRow>
-          <FieldRow label="Phone" last>
+          <FieldRow label={t('settings.phone')} last>
             <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+34 600 000 000" inputMode="tel" style={serifInput} />
           </FieldRow>
         </Card>
 
         {/* ── N° 02 Account ──────────────────────────────────────────────── */}
-        <SectionHead n="02" name="Account" />
+        <SectionHead n="02" name={t('settings.account')} />
         <Card>
           <div style={{ padding: '13px 16px' }}>
-            <p style={{ ...rowLabel, marginBottom: 7 }}>Email</p>
+            <p style={{ ...rowLabel, marginBottom: 7 }}>{t('settings.email')}</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <input value={newEmail} onChange={e => setNewEmail(e.target.value)} inputMode="email"
                 style={{ ...serifInput, flex: 1, minWidth: 0, fontSize: 18 }} />
@@ -498,7 +493,7 @@ export default function SettingsPage() {
                   fontFamily: MONO, fontSize: 9.5, letterSpacing: '1.5px', textTransform: 'uppercase',
                   cursor: 'pointer',
                 }}>
-                Verify
+                {t('settings.verify')}
               </button>
             </div>
             {emailMsg && (
@@ -510,11 +505,11 @@ export default function SettingsPage() {
         </Card>
 
         {/* ── N° 03 Nightlife Preferences ────────────────────────────────── */}
-        <SectionHead n="03" name="Nightlife Preferences" />
+        <SectionHead n="03" name={t('settings.nightlifePrefs')} />
         <Card>
-          <PrefRow k="budget" label="Typical budget"
+          <PrefRow k="budget" label={t('settings.typicalBudget')}
             value={budget >= BUDGET_NO_LIMIT ? '∞' : `€${budget}`}
-            sub={budget >= BUDGET_NO_LIMIT ? 'No limit' : 'per night'}>
+            sub={budget >= BUDGET_NO_LIMIT ? t('settings.noLimit') : t('settings.perNight')}>
             <div style={{ paddingTop: 4 }}>
               {/* value display */}
               <div style={{ textAlign: 'center', marginBottom: 18 }}>
@@ -522,7 +517,7 @@ export default function SettingsPage() {
                   {budget >= BUDGET_NO_LIMIT ? '∞' : `€${budget}`}
                 </p>
                 <p style={{ margin: '5px 0 0', fontFamily: MONO, fontSize: 8.5, letterSpacing: '2px', textTransform: 'uppercase', color: C.ink3 }}>
-                  {budget >= BUDGET_NO_LIMIT ? 'No limit — vip mode' : 'per night'}
+                  {budget >= BUDGET_NO_LIMIT ? t('settings.vipMode') : t('settings.perNight')}
                 </p>
               </div>
               {/* slider */}
@@ -538,7 +533,7 @@ export default function SettingsPage() {
               </div>
             </div>
           </PrefRow>
-          <PrefRow k="drinks" label="Drinks I like"
+          <PrefRow k="drinks" label={t('settings.drinksILike')}
             value={summary(drinks)} sub={drinks.length ? `${drinks.length} selected` : ''}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {DRINK_CATEGORIES.filter(c => c.items.length > 0).map(cat => (
@@ -553,13 +548,13 @@ export default function SettingsPage() {
               ))}
             </div>
           </PrefRow>
-          <PrefRow k="music" label="Music I like"
+          <PrefRow k="music" label={t('settings.musicILike')}
             value={summary(music)} sub={music.length ? `${music.length} selected` : ''}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {MUSIC_OPTIONS.map(o => <Chip key={o} label={o} active={music.includes(o)} onClick={() => toggleMulti(setMusic, o)} />)}
             </div>
           </PrefRow>
-          <PrefRow k="vibe" label="My vibe" last
+          <PrefRow k="vibe" label={t('settings.myVibe')} last
             value={summary(vibes)} sub={vibes.length ? `${vibes.length} selected` : ''}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {VIBE_OPTIONS.map(o => <Chip key={o} label={o} active={vibes.includes(o)} onClick={() => toggleMulti(setVibes, o)} />)}
@@ -568,27 +563,59 @@ export default function SettingsPage() {
         </Card>
 
         {/* ── N° 04 Notifications ────────────────────────────────────────── */}
-        <SectionHead n="04" name="Notifications" />
+        <SectionHead n="04" name={t('settings.notifications')} />
         <Card>
-          {NOTIFS.map((n, i) => (
-            <div key={n.key} style={{
+          {NOTIF_KEYS.map((k, i) => (
+            <div key={k} style={{
               display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
-              borderBottom: i < NOTIFS.length - 1 ? `1px solid ${C.line}` : 'none',
+              borderBottom: i < NOTIF_KEYS.length - 1 ? `1px solid ${C.line}` : 'none',
             }}>
               <div style={{ flex: 1 }}>
-                <p style={{ margin: '0 0 2px', fontFamily: SERIF, fontSize: 18, color: C.ink }}>{n.label}</p>
-                <p style={{ margin: 0, fontSize: 11.5, color: C.ink3 }}>{n.desc}</p>
+                <p style={{ margin: '0 0 2px', fontFamily: SERIF, fontSize: 18, color: C.ink }}>
+                  {t(`notif.${k}.label` as any)}
+                </p>
+                <p style={{ margin: 0, fontSize: 11.5, color: C.ink3 }}>
+                  {t(`notif.${k}.desc` as any)}
+                </p>
               </div>
-              <Toggle value={notifs[n.key]} onChange={v => toggleNotif(n.key, v)} />
-              <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '1px', color: C.ink3, width: 30 }}>
-                {notifs[n.key] ? 'SAVED' : ''}
+              <Toggle value={notifs[k]} onChange={v => toggleNotif(k, v)} />
+              <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '1px', color: C.ink3, width: 40 }}>
+                {notifs[k] ? t('settings.saved') : ''}
               </span>
             </div>
           ))}
         </Card>
 
-        {/* ── N° 05 Account Actions ──────────────────────────────────────── */}
-        <SectionHead n="05" name="Account Actions" />
+        {/* ── N° 05 Language ─────────────────────────────────────────────── */}
+        <SectionHead n="05" name={t('settings.language')} />
+        <Card>
+          {(['en', 'es', 'device'] as LocaleSetting[]).map((opt, i, arr) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => setLocaleSetting(opt)}
+              style={{
+                width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+                padding: '15px 16px',
+                borderBottom: i < arr.length - 1 ? `1px solid ${C.line}` : 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                textAlign: 'left',
+              }}
+            >
+              <span style={{ fontFamily: SERIF, fontSize: 19, color: C.ink }}>
+                {t(`settings.lang.${opt}` as any)}
+              </span>
+              {setting === opt && (
+                <span className="material-symbols-outlined" style={{ fontSize: 18, color: C.accent }}>
+                  check
+                </span>
+              )}
+            </button>
+          ))}
+        </Card>
+
+        {/* ── N° 06 Account Actions ──────────────────────────────────────── */}
+        <SectionHead n="06" name={t('settings.accountActions')} />
 
         {tier !== 'free' && (
           <>
@@ -598,13 +625,13 @@ export default function SettingsPage() {
               color: C.ink, fontFamily: MONO, fontSize: 10.5, letterSpacing: '2px', textTransform: 'uppercase',
               cursor: 'pointer', marginBottom: 6,
             }}>
-              Cancel Subscription
+              {t('settings.cancelSubscription')}
             </button>
             <p style={{
               margin: '0 0 14px', fontSize: 11, lineHeight: 1.5, color: C.ink2,
               fontFamily: 'Inter, sans-serif', textAlign: 'center',
             }}>
-              Opens Apple’s subscription settings. Your membership stays active until the end of the current billing period.
+              {t('settings.cancelSubNote')}
             </p>
           </>
         )}
@@ -615,7 +642,7 @@ export default function SettingsPage() {
           color: C.ink, fontFamily: MONO, fontSize: 10.5, letterSpacing: '2px', textTransform: 'uppercase',
           cursor: 'pointer', marginBottom: 14,
         }}>
-          Sign out
+          {t('settings.signOut')}
         </button>
 
         {!confirmDel ? (
@@ -623,33 +650,33 @@ export default function SettingsPage() {
             width: '100%', padding: '6px 0', background: 'none', border: 'none', cursor: 'pointer',
             color: C.accent, fontFamily: MONO, fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase',
           }}>
-            Delete account
+            {t('settings.deleteAccount')}
           </button>
         ) : (
           <div style={{ background: C.bannerBg, border: `1px solid ${C.accent}`, borderRadius: 14, padding: '18px 18px 16px' }}>
             <p style={{ margin: '0 0 8px', fontFamily: MONO, fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', color: C.accent, display: 'flex', alignItems: 'center', gap: 6 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 13 }}>warning</span>
-              This is permanent
+              {t('settings.permanent')}
             </p>
             <h3 style={{ margin: '0 0 8px', fontFamily: SERIF, fontStyle: 'italic', fontWeight: 400, fontSize: 23, color: C.accent }}>
-              Delete account?
+              {t('settings.deleteQuestion')}
             </h3>
             <p style={{ margin: '0 0 16px', fontSize: 12.5, color: C.ink2, lineHeight: 1.5 }}>
-              All your reviews, Fiamme, and membership history will be erased. This cannot be undone.
+              {t('settings.deleteWarning')}
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" onClick={() => setConfirmDel(false)} disabled={deleting} style={{
                 flex: 1, padding: '12px 0', borderRadius: 10, background: C.card, border: `1px solid ${C.line}`,
                 color: C.ink, fontFamily: MONO, fontSize: 9.5, letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer',
               }}>
-                Keep account
+                {t('settings.keepAccount')}
               </button>
               <button type="button" onClick={deleteAccount} disabled={deleting} style={{
                 flex: 1, padding: '12px 0', borderRadius: 10, background: C.accentDk, border: 'none',
                 color: '#FFFFFF', fontFamily: MONO, fontSize: 9.5, letterSpacing: '1.5px', textTransform: 'uppercase',
                 cursor: 'pointer', opacity: deleting ? 0.7 : 1,
               }}>
-                {deleting ? 'Deleting…' : 'Yes, delete'}
+                {deleting ? t('settings.deleting') : t('settings.yesDelete')}
               </button>
             </div>
           </div>
@@ -675,13 +702,13 @@ export default function SettingsPage() {
         }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.accent, flexShrink: 0 }} />
           <span style={{ flex: 1, fontFamily: MONO, fontSize: 9.5, letterSpacing: '1.5px', textTransform: 'uppercase', color: C.accent }}>
-            Unsaved changes
+            {t('settings.unsavedChanges')}
           </span>
           <button type="button" onClick={() => window.location.reload()} style={{
             padding: '9px 14px', borderRadius: 10, background: 'transparent', border: `1px solid ${C.line}`,
             color: C.ink2, fontFamily: MONO, fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer',
           }}>
-            Discard
+            {t('settings.discard')}
           </button>
         </div>
       )}

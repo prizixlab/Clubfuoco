@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import NavSpacer from '@/components/NavSpacer'
 import { createClient } from '@/lib/supabase/client'
+import { apiFetch } from '@/lib/api'
 import type { User } from '@/types'
 
 // ─── Tier themes (pixel-perfect from Figma) ──────────────────────────────────
@@ -114,6 +115,8 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [nights,  setNights]  = useState<number | null>(null)
   const [saved,   setSaved]   = useState<number | null>(null)
+  const [friendCount,  setFriendCount]  = useState<number | null>(null)
+  const [pendingCount, setPendingCount] = useState(0)
 
   const supabase = createClient()
 
@@ -129,6 +132,15 @@ export default function ProfilePage() {
     getPlaceFavorites()
       .then(d => setSaved(d.length ?? 0))
       .catch(() => setSaved(0))
+
+    apiFetch('/api/friends')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d?.data) return
+        setFriendCount(d.data.friends?.length ?? 0)
+        setPendingCount(d.data.incoming?.length ?? 0)
+      })
+      .catch(() => {})
   }, [])
 
   async function signOut() {
@@ -138,6 +150,12 @@ export default function ProfilePage() {
 
   const tier   = (profile?.membership_tier ?? 'free') as TierKey
   const t      = TIERS[tier]
+
+  const friendsSub = friendCount === null
+    ? '—'
+    : pendingCount > 0
+      ? `${friendCount} friends · ${pendingCount} request${pendingCount > 1 ? 's' : ''}`
+      : `${friendCount} friends`
 
   const nameParts  = (profile?.full_name ?? '').trim().split(/\s+/).filter(Boolean)
   const firstName  = nameParts[0] ?? ''
@@ -405,7 +423,8 @@ export default function ProfilePage() {
         {[
           { n: '01', icon: 'confirmation_number', label: 'My Bookings',  sub: nights !== null ? `${nights} bookings` : '—',       href: '/bookings'   },
           { n: '02', icon: 'favorite',            label: 'Saved Clubs',  sub: saved !== null  ? `${saved} saved`    : '—',       href: '/saved'      },
-          { n: '03', icon: 'workspace_premium',   label: 'Membership',   sub: `${t.label} · ${t.memberLabel}`,                   href: '/membership' },
+          { n: '03', icon: 'group',               label: 'Friends',      sub: friendsSub,                                        href: '/friends'    },
+          { n: '04', icon: 'workspace_premium',   label: 'Membership',   sub: `${t.label} · ${t.memberLabel}`,                   href: '/membership' },
         ].map(({ n, icon, label, sub, href }, i) => (
           <Link
             key={label}
@@ -419,11 +438,14 @@ export default function ProfilePage() {
           >
             <span style={{ fontSize: 9, color: 'rgb(159,148,134)', letterSpacing: '1.62px', width: 18, flexShrink: 0 }}>{n}</span>
             <div style={{
-              width: 32, height: 32, borderRadius: '50%',
+              width: 32, height: 32, borderRadius: '50%', position: 'relative',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: 'rgba(140,42,42,0.08)', flexShrink: 0,
             }}>
               <span className="material-symbols-outlined" style={{ fontSize: 17, color: 'rgb(140,42,42)', fontVariationSettings: "'FILL' 1" }}>{icon}</span>
+              {label === 'Friends' && pendingCount > 0 && (
+                <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 99, background: 'rgb(140,42,42)', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>{pendingCount}</span>
+              )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 19, color: 'rgb(34,30,26)', letterSpacing: '-0.095px', lineHeight: 1.2, fontFamily: SERIF }}>{label}</p>
@@ -463,11 +485,14 @@ export default function ProfilePage() {
           >
             <span style={{ fontSize: 9, color: 'rgb(159,148,134)', letterSpacing: '1.62px', width: 18, flexShrink: 0 }}>{n}</span>
             <div style={{
-              width: 32, height: 32, borderRadius: '50%',
+              width: 32, height: 32, borderRadius: '50%', position: 'relative',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: 'rgba(140,42,42,0.08)', flexShrink: 0,
             }}>
               <span className="material-symbols-outlined" style={{ fontSize: 17, color: 'rgb(140,42,42)', fontVariationSettings: "'FILL' 1" }}>{icon}</span>
+              {label === 'Friends' && pendingCount > 0 && (
+                <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 99, background: 'rgb(140,42,42)', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>{pendingCount}</span>
+              )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 19, color: 'rgb(34,30,26)', letterSpacing: '-0.095px', lineHeight: 1.2, fontFamily: SERIF }}>{label}</p>

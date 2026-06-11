@@ -44,6 +44,20 @@ function proxyPhoto(url: string | null | undefined): string | null {
   return url
 }
 
+/**
+ * A "real" photo is uploaded venue imagery we host ourselves (Supabase storage).
+ * Google Places photo URLs — raw (`maps.googleapis.com/.../place/photo`) or routed
+ * through our proxy (`/api/places/photo`) — don't count: the Places photo key is
+ * dead (403 → the proxy 502s), so they render a broken image. Until a venue has
+ * its own photography we treat it as having no usable photos and hold it back.
+ */
+function isUsablePhoto(url: string | null | undefined): boolean {
+  if (!url) return false
+  if (url.includes('maps.googleapis.com/maps/api/place/photo')) return false
+  if (url.includes('/api/places/photo')) return false
+  return true
+}
+
 // ─── Places / Clubs ───────────────────────────────────────────────────────────
 
 /** Fetch clubs within `radius` metres of (lat, lng). */
@@ -85,7 +99,7 @@ export async function getNearbyClubs(lat: number, lng: number, radius: number) {
       ...(Array.isArray(club.photos)       ? club.photos       : []),
       ...(Array.isArray(club.gallery_urls) ? club.gallery_urls : []),
     ]
-      .filter(Boolean)
+      .filter(isUsablePhoto)
       .map(proxyPhoto)
       .filter((url): url is string => {
         if (!url || photoSeen.has(url)) return false
@@ -124,6 +138,12 @@ export async function getNearbyClubs(lat: number, lng: number, radius: number) {
         : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(club.name + ' Barcelona')}`,
     }
   })
+  // Hold photoless venues on the backend — never surface a venue in the app
+  // until it has at least one usable (uploaded) photo. The row stays in `clubs`;
+  // it's just not returned to the feed until the required imagery is filled in.
+  // Venues whose only images are Google Places photos count as photoless here
+  // (see isUsablePhoto), so they don't show broken thumbnails.
+  .filter((place: { photos: string[] }) => place.photos.length > 0)
 }
 
 // ─── Favorites ────────────────────────────────────────────────────────────────
@@ -290,7 +310,7 @@ export async function getClubById(id: string) {
     ...(Array.isArray(club.photos)       ? club.photos       : []),
     ...(Array.isArray(club.gallery_urls) ? club.gallery_urls : []),
   ]
-    .filter(Boolean)
+    .filter(isUsablePhoto)
     .map(proxyPhoto)
     .filter((url): url is string => {
       if (!url || seen.has(url)) return false

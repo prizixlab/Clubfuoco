@@ -15,7 +15,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ExploreLoader from '@/components/ExploreLoader'
-import { computeOpenNow } from '@/lib/hours'
+import WhenPlanner from '@/components/WhenPlanner'
+import { computeOpenNow, isOpenOnDate } from '@/lib/hours'
+import { usePlan } from '@/contexts/PlanContext'
 import type { ExternalEvent } from '@/lib/tickets'
 import type { Rumba } from '@/types'
 
@@ -137,8 +139,12 @@ function timeGreeting() {
 }
 
 // --- Algorithmic shelf builder ---
-function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [], rumbas: Rumba[] = [], surveyPrefs: any = null, tasteProfile: any = null): Shelf[] {
-  if (!places.length) return []
+// `places` is the chip-filtered set that drives most shelves. `curatedPool` is
+// the full set (night-scoped, but ignoring the active filter chip) used for the
+// always-on curated shelves — Rumbalist partners + rumbas — so selecting a chip
+// like "Cocktails" never collapses those promotional rows.
+function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [], rumbas: Rumba[] = [], surveyPrefs: any = null, tasteProfile: any = null, curatedPool: Place[] = places): Shelf[] {
+  if (!places.length && !curatedPool.length) return []
   const shelves: Shelf[] = []
 
   // ── helpers ──────────────────────────────────────────────────────────────
@@ -271,7 +277,7 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   // ── 1. CURATED TONIGHT — Rumbalist's partner clubs ───────────────────────
   // Demo: the featured shelf is locked to the venues Rumbalist works with.
   const rumbalistIds = new Set(Object.keys(RUMBALIST_OFFERS))
-  const forYou = places
+  const forYou = curatedPool
     .filter(p => rumbalistIds.has(p.place_id))
     .sort((a, b) => {
       const open = (b.is_open ? 1 : 0) - (a.is_open ? 1 : 0)
@@ -336,10 +342,8 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
       shelves.push({ id: 'events_tonight', title: 'Events Tonight', subtitle: 'Tickets available through Club Fuoco', places: eventPlaces.slice(0, 12) })
   }
 
-  // ── 3. OPEN RIGHT NOW ─────────────────────────────────────────────────────
-  const openNow = places.filter(placeIsOpen)
-  if (openNow.length)
-    shelves.push({ id: 'open_now', title: 'Open Right Now', subtitle: 'Doors are open — get in', places: top(openNow.sort(byRating)) })
+  // The whole feed is pre-filtered to venues open on the selected night
+  // (see ExplorePage), so there's no dedicated "open" shelf here.
 
   // ── 3. DRINK SHELVES (preference-based) ───────────────────────────────────
   const drinks: string[] = prefs?.drinks ?? []
@@ -439,7 +443,7 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   candidate('most_popular','Most Popular Right Now',  'Everyone\'s talking about these',  [...places].sort(byPopular))
   candidate('local_fav',  'Local Favourites',         'Where Barcelonians actually go',   shuffle([...places].filter(p => (p.rating ?? 0) >= 4.0)).slice(0, 12))
   candidate('wild_card',  'Surprise Me',              'We picked for you — trust us',     shuffle([...places]).slice(0, 12))
-  candidate('late_night', 'Still Going Strong',       'Open & rated highly right now',    [...places].filter(p => placeIsOpen(p) && (p.rating ?? 0) >= 3.8).sort(byRating))
+  candidate('late_night', 'Still Going Strong',       'Open that night & highly rated',   [...places].filter(p => (p.rating ?? 0) >= 3.8).sort(byRating))
 
   // ── VENUE TYPE ────────────────────────────────────────────────────────────
   candidate('clubs',      'Clubs & Discos',           'Proper dancefloors all night',     [...places].filter(p => anyHas(p, ['club','disco','discoteca','sala','nightclub'])).sort(byRating))
@@ -885,7 +889,6 @@ function ShelfRow({ shelf, saved, onSave, index }: { shelf: Shelf; saved: Set<st
 
 const FILTER_CHIPS = [
   { id: 'all',       label: 'All' },
-  { id: 'open',      label: 'Open Now' },
   { id: 'free',      label: 'Free' },
   { id: 'cocktails', label: 'Cocktails' },
   { id: 'live',      label: 'Live Music' },
@@ -975,6 +978,7 @@ function mergeCustomShelves(base: Shelf[], records: CustomShelfRecord[], places:
 export default function ExplorePage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { plan } = usePlan()
   const [places,       setPlaces]       = useState<Place[]>([])
   const [loading,      setLoading]      = useState(true)
   // Skip the cinematic loader if it already played this session
@@ -1148,11 +1152,17 @@ export default function ExplorePage() {
     setLoading(false)
   }
 
-  const filteredPlaces = filterPlaces(places, activeFilter)
+  // Silently scope the feed to venues open on the night the user picked up top.
+  // `!== false` keeps venues with unknown hours so the feed never empties out —
+  // only places we KNOW are closed/daytime-only that night are dropped.
+  // `nightAll` ignores the active chip so curated shelves (Rumbalist, rumbas)
+  // stay put when a chip like "Cocktails" is selected.
+  const nightAll    = places.filter(p => isOpenOnDate(p.weekday_hours, plan.date) !== false)
+  const nightPlaces = filterPlaces(nightAll, activeFilter)
   const shelves = mergeCustomShelves(
-    buildShelves(filteredPlaces, prefs, raEvents, rumbas, surveyPrefs, tasteProfile),
+    buildShelves(nightPlaces, prefs, raEvents, rumbas, surveyPrefs, tasteProfile, nightAll),
     customShelves,
-    filteredPlaces,
+    nightPlaces,
   )
 
   const searchResults = search
@@ -1230,6 +1240,9 @@ export default function ExplorePage() {
           </div>
         )}
       </header>
+
+      {/* ── Schedule-ahead planner — sets the global "going out" day + time ── */}
+      {!showSearch && !showSaved && <WhenPlanner />}
 
       {/* ── "Get to know you" prompt — persists until the survey is completed ── */}
       {!loading && !onboardingDone && (

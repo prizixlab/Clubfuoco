@@ -5,12 +5,14 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLocale } from '@/contexts/LocaleContext'
 
 // ── Native splash — dark cinema theme. Loaded only by the iOS bundle
 // (selected at build time in src/app/page.tsx via BUILD_TARGET=ios).
 // The web build does not import this file.
 export default function NativeSplash() {
   const { user, loading } = useAuth()
+  const { t } = useLocale()
   const router = useRouter()
   const [continuing, setContinuing] = useState(false)
 
@@ -137,7 +139,7 @@ export default function NativeSplash() {
             lineHeight: 1.3,
           }}
         >
-          Where the night begins before you arrive.
+          {t('splash.tagline')}
         </p>
 
         {/* CTAs */}
@@ -160,7 +162,7 @@ export default function NativeSplash() {
               letterSpacing: '0.01em',
             }}
           >
-            Create account
+            {t('splash.createAccount')}
           </Link>
 
           <Link
@@ -181,7 +183,7 @@ export default function NativeSplash() {
               textDecoration: 'none',
             }}
           >
-            Sign in
+            {t('splash.signIn')}
           </Link>
 
           {/* Guest browsing — Guideline 5.1.1(v) compliance. This MUST read as
@@ -209,7 +211,7 @@ export default function NativeSplash() {
               opacity: continuing ? 0.6 : 1,
             }}
           >
-            {continuing ? 'Opening…' : 'Continue as guest'}
+            {continuing ? t('splash.opening') : t('splash.continueGuest')}
           </button>
 
           <p
@@ -223,7 +225,7 @@ export default function NativeSplash() {
               fontStyle: 'italic',
             }}
           >
-            Browse everything without an account. You only share details when you book.
+            {t('splash.guestNote')}
           </p>
         </div>
 
@@ -238,7 +240,7 @@ export default function NativeSplash() {
             textTransform: 'uppercase',
           }}
         >
-          By continuing you accept the terms &amp; privacy
+          {t('splash.termsNote')}
         </p>
       </div>
     </div>

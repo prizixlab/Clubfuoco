@@ -4,6 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useLocale } from '@/contexts/LocaleContext'
+import OAuthButtons from '@/components/OAuthButtons'
 
 // ── Sign-in screen — exact match to 02 _ Sign in-2.html
 // Cream cinema theme
@@ -19,6 +21,7 @@ const C = {
 
 export default function LoginPage() {
   const router = useRouter()
+  const { t } = useLocale()
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [showPwd,  setShowPwd]  = useState(false)
@@ -59,7 +62,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: C.cream, overflow: 'hidden' } as React.CSSProperties}>
+    <div style={{ position: 'fixed', inset: 0, background: C.cream, overflowY: 'auto' } as React.CSSProperties}>
       {/* Header nav — Back goes to the previous page in history (the venue
           page they came from, the explore feed, etc.) instead of hard-routing
           to the splash. Falls back to splash if there's no history. */}
@@ -84,7 +87,7 @@ export default function LoginPage() {
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          Back
+          {t('auth.back')}
         </button>
       </div>
 
@@ -104,7 +107,7 @@ export default function LoginPage() {
           fontSize: 52, fontWeight: 400, lineHeight: 1,
           letterSpacing: '-1.04px', color: C.ink, margin: '0 0 10px',
         }}>
-          <em>Welcome</em> back
+          <em>{t('login.welcome')}</em> {t('login.welcomeBack')}
         </h1>
 
         {/* Sub */}
@@ -113,13 +116,13 @@ export default function LoginPage() {
           fontSize: 13.5, color: C.stone, letterSpacing: '-0.07px',
           margin: '0 0 36px',
         }}>
-          Sign in to find tonight&apos;s room.
+          {t('login.subtitle')}
         </p>
 
         {/* Form */}
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Email field */}
-          <AuthField label="Email">
+          <AuthField label={t('auth.email')}>
             <input
               type="email"
               value={email}
@@ -131,7 +134,7 @@ export default function LoginPage() {
           </AuthField>
 
           {/* Password field */}
-          <AuthField label="Password" rightSlot={
+          <AuthField label={t('auth.password')} rightSlot={
             <button
               type="button"
               onClick={() => setShowPwd(v => !v)}
@@ -142,7 +145,7 @@ export default function LoginPage() {
                 cursor: 'pointer', padding: '4px 6px',
               }}
             >
-              {showPwd ? 'HIDE' : 'SHOW'}
+              {showPwd ? t('auth.hide') : t('auth.show')}
             </button>
           }>
             <input
@@ -175,7 +178,7 @@ export default function LoginPage() {
                 cursor: 'pointer', padding: '4px 8px',
               }}
             >
-              Forgot password?
+              {t('login.forgotPassword')}
             </button>
           </div>
 
@@ -193,9 +196,9 @@ export default function LoginPage() {
               transition: 'opacity 0.2s',
             }}
           >
-            {loading ? 'Signing in…' : (
+            {loading ? t('login.signingIn') : (
               <>
-                Sign in
+                {t('login.signIn')}
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -204,13 +207,18 @@ export default function LoginPage() {
           </button>
         </form>
 
+        {/* OAuth — Google / Apple */}
+        <div style={{ marginTop: 24 }}>
+          <OAuthButtons />
+        </div>
+
         {/* Footer */}
-        <div style={{ marginTop: 32, textAlign: 'center' }}>
+        <div style={{ marginTop: 24, textAlign: 'center' }}>
           <span style={{
             fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
             fontSize: 13, color: C.stone, letterSpacing: '-0.07px',
           }}>
-            No account?{' '}
+            {t('login.noAccount')}{' '}
           </span>
           <Link
             href="/signup"
@@ -219,7 +227,7 @@ export default function LoginPage() {
               fontSize: 13, color: C.red, textDecoration: 'none',
             }}
           >
-            Create one →
+            {t('login.createOne')}
           </Link>
         </div>
       </div>

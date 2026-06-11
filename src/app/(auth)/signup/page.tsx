@@ -4,6 +4,9 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useLocale } from '@/contexts/LocaleContext'
+import OAuthButtons from '@/components/OAuthButtons'
+import { DrumPicker } from '@/components/ui/DrumPicker'
 
 // ── Design tokens
 const C = {
@@ -32,137 +35,8 @@ const DAYS  = Array.from({ length: 31 },  (_, i) => i + 1)
 const YEARS = Array.from({ length: 84 },  (_, i) => currentYear - 17 - i)
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DrumPicker — iOS-style scroll snap picker
-// ─────────────────────────────────────────────────────────────────────────────
-const ITEM_H = 40
-
-function DrumPicker({
-  values, labels, selected, onSelect, label,
-}: {
-  values: (string | number)[]
-  labels?: string[]
-  selected: string
-  onSelect: (v: string) => void
-  label: string
-}) {
-  const items = values.map((v, i) => ({ value: String(v), label: labels?.[i] ?? String(v) }))
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [localIdx, setLocalIdx] = useState(() => Math.max(0, items.findIndex(i => i.value === selected)))
-  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-
-  // Scroll to selection on mount / external change
-  useEffect(() => {
-    const idx = items.findIndex(i => i.value === selected)
-    if (idx >= 0) {
-      setLocalIdx(idx)
-      if (scrollRef.current) {
-        scrollRef.current.scrollTop = idx * ITEM_H
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected])
-
-  const onScroll = useCallback(() => {
-    clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      if (!scrollRef.current) return
-      const idx = Math.round(scrollRef.current.scrollTop / ITEM_H)
-      const clamped = Math.max(0, Math.min(idx, items.length - 1))
-      setLocalIdx(clamped)
-      onSelect(items[clamped].value)
-    }, 80)
-  }, [items, onSelect])
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-      <p style={{
-        fontFamily: 'var(--font-geist-mono), monospace',
-        fontSize: 9, color: C.sand, letterSpacing: '1.8px',
-        textTransform: 'uppercase' as const, textAlign: 'center', margin: 0,
-      }}>
-        {label}
-      </p>
-
-      <div style={{
-        position: 'relative', background: C.white, borderRadius: 12,
-        overflow: 'hidden', border: '1px solid rgba(34,30,26,0.08)',
-        height: ITEM_H * 5,
-      }}>
-        {/* Fade top */}
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H * 2.2,
-          background: 'linear-gradient(to bottom, rgba(255,255,255,1) 40%, rgba(255,255,255,0))',
-          zIndex: 2, pointerEvents: 'none',
-        }} />
-        {/* Fade bottom */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H * 2.2,
-          background: 'linear-gradient(to top, rgba(255,255,255,1) 40%, rgba(255,255,255,0))',
-          zIndex: 2, pointerEvents: 'none',
-        }} />
-        {/* Top band */}
-        <div style={{
-          position: 'absolute', top: ITEM_H * 2, left: 0, right: 0,
-          height: 1, background: 'rgba(34,30,26,0.16)', zIndex: 3, pointerEvents: 'none',
-        }} />
-        {/* Bottom band */}
-        <div style={{
-          position: 'absolute', top: ITEM_H * 3, left: 0, right: 0,
-          height: 1, background: 'rgba(34,30,26,0.16)', zIndex: 3, pointerEvents: 'none',
-        }} />
-
-        {/* Scroll list */}
-        <div
-          ref={scrollRef}
-          onScroll={onScroll}
-          className="drum-scroll"
-          style={{
-            height: '100%',
-            overflowY: 'scroll',
-            scrollSnapType: 'y mandatory',
-            WebkitOverflowScrolling: 'touch',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-          } as React.CSSProperties}
-        >
-          {/* top spacer */}
-          <div style={{ height: ITEM_H * 2, flexShrink: 0 }} />
-          {items.map((item, i) => {
-            const dist = Math.abs(i - localIdx)
-            const isSel = dist === 0
-            return (
-              <div
-                key={item.value}
-                style={{
-                  height: ITEM_H, scrollSnapAlign: 'center',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: '"Instrument Serif", Georgia, serif',
-                  fontSize: isSel ? 26 : 20,
-                  fontStyle: isSel ? 'italic' : 'normal',
-                  color: isSel ? C.red : C.ink,
-                  opacity: dist === 0 ? 1 : dist === 1 ? 0.5 : 0.25,
-                  letterSpacing: '-0.07px',
-                  userSelect: 'none',
-                  cursor: 'pointer',
-                  transition: 'font-size 0.12s, color 0.12s',
-                }}
-                onClick={() => {
-                  onSelect(item.value)
-                  scrollRef.current?.scrollTo({ top: i * ITEM_H, behavior: 'smooth' })
-                }}
-              >
-                {item.label}
-              </div>
-            )
-          })}
-          {/* bottom spacer */}
-          <div style={{ height: ITEM_H * 2, flexShrink: 0 }} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
+// DrumPicker now lives in '@/components/ui/DrumPicker' (shared with WhenPlanner
+// and the booking page).
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared: AuthField wrapper
 // ─────────────────────────────────────────────────────────────────────────────
@@ -233,6 +107,7 @@ function PrimaryBtn({
   type?: 'button' | 'submit'
   loading?: boolean
 }) {
+  const { t } = useLocale()
   return (
     <button
       type={type}
@@ -249,7 +124,7 @@ function PrimaryBtn({
         opacity: loading ? 0.7 : 1,
       }}
     >
-      {loading ? 'Please wait…' : (
+      {loading ? t('auth.pleaseWait') : (
         <>
           {children}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -266,6 +141,7 @@ function PrimaryBtn({
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SignupPage() {
   const router = useRouter()
+  const { t } = useLocale()
 
   const [step,         setStep]        = useState<1 | 2 | 3 | 4>(2)
   const [accountType,  setAccountType] = useState<AccountType>('user')
@@ -283,6 +159,11 @@ export default function SignupPage() {
   const [selectedPlan, setSelectedPlan] = useState<'free' | 'gold' | 'sapphire' | 'black'>('free')
   const [loading,      setLoading]     = useState(false)
   const [error,        setError]       = useState('')
+
+  // Email verification (6-digit OTP) — sits between "details" and "birthday".
+  const [verifying,    setVerifying]   = useState(false)
+  const [otpCode,      setOtpCode]     = useState('')
+  const [resentAt,     setResentAt]    = useState<number | null>(null)
 
   const supabase = createClient()
 
@@ -304,7 +185,7 @@ export default function SignupPage() {
     setError('')
 
     if (!tosAccepted) {
-      setError('Please accept the Terms of Use and Privacy Policy to continue.')
+      setError(t('signup.tosError'))
       return
     }
 
@@ -328,12 +209,58 @@ export default function SignupPage() {
       return
     }
 
-    if (data.user) {
-      await (supabase as any).from('users').update({ account_type: accountType }).eq('id', data.user.id)
-      setUserId(data.user.id)
-    }
+    if (data.user) setUserId(data.user.id)
 
     setLoading(false)
+
+    // If email confirmation is enabled, signUp returns no session — the user
+    // must verify with the 6-digit code we just emailed before we can write to
+    // their profile (RLS needs an authenticated session). If confirmation is
+    // off, a session already exists and we can continue straight through.
+    if (data.session) {
+      await afterVerified(data.user?.id)
+    } else {
+      setOtpCode('')
+      setVerifying(true)
+    }
+  }
+
+  // ── Email verification (OTP) ────────────────────────────────────────────────
+  async function handleVerify(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    const { data, error: vErr } = await supabase.auth.verifyOtp({
+      email, token: otpCode.trim(), type: 'signup',
+    })
+
+    if (vErr) {
+      setError(vErr.message)
+      setLoading(false)
+      return
+    }
+
+    if (data.user) setUserId(data.user.id)
+    setLoading(false)
+    setVerifying(false)
+    await afterVerified(data.user?.id)
+  }
+
+  async function handleResend() {
+    setError('')
+    const { error: rErr } = await supabase.auth.resend({ type: 'signup', email })
+    if (rErr) { setError(rErr.message); return }
+    setResentAt(Date.now())
+  }
+
+  // Runs once the account is verified (or confirmation is disabled): persist the
+  // chosen account type, then continue to birthday (users) or home (club/dj).
+  async function afterVerified(uid?: string | null) {
+    const id = uid ?? userId
+    if (id) {
+      await (supabase as any).from('users').update({ account_type: accountType }).eq('id', id)
+    }
     if (accountType === 'user') {
       setStep(3)
     } else {
@@ -355,7 +282,7 @@ export default function SignupPage() {
       if (m < Number(bMonth) || (m === Number(bMonth) && today.getDate() < Number(bDay))) age--
 
       if (age < 18) {
-        setError('You must be 18 or older to use Club Fuoco.')
+        setError(t('signup.underage'))
         try { await supabase.auth.signOut() } catch { /* ignore */ }
         setUserId(null)
         setStep(2)
@@ -369,7 +296,7 @@ export default function SignupPage() {
 
       if (upErr) {
         // Server-side 18+ trigger rejected it.
-        setError('You must be 18 or older to use Club Fuoco.')
+        setError(t('signup.underage'))
         try { await supabase.auth.signOut() } catch { /* ignore */ }
         setUserId(null)
         setStep(2)
@@ -407,9 +334,122 @@ export default function SignupPage() {
     }
   }
 
+  // ── Email verification overlay (shown after "details", before "birthday") ──
+  if (verifying) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, background: C.cream,
+        display: 'flex', flexDirection: 'column', overflowY: 'auto',
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      } as React.CSSProperties}>
+        <div style={{ padding: '16px 20px 0', flexShrink: 0 }}>
+          <button
+            onClick={() => { setVerifying(false); setError('') }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontFamily: 'var(--font-geist-mono), monospace',
+              fontSize: 10, color: C.stone, letterSpacing: '1.8px',
+              textTransform: 'uppercase', background: 'none', border: 'none',
+              cursor: 'pointer', padding: 0,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {t('auth.back')}
+          </button>
+        </div>
+
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          padding: '24px', maxWidth: 480, width: '100%', margin: '0 auto', boxSizing: 'border-box',
+        }}>
+          <p style={{
+            fontFamily: 'var(--font-geist-mono), monospace',
+            fontSize: 9.5, color: C.red, letterSpacing: '2.09px',
+            textTransform: 'uppercase', margin: '0 0 16px',
+          }}>
+            N° 02 · Verifica email
+          </p>
+
+          <h1 style={{
+            fontFamily: '"Instrument Serif", Georgia, serif',
+            fontSize: 44, fontWeight: 400, lineHeight: 1.05,
+            letterSpacing: '-1.04px', color: C.ink, margin: '0 0 12px',
+          }}>
+            Check your <em>inbox</em>
+          </h1>
+
+          <p style={{
+            fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+            fontSize: 14, color: C.stone, lineHeight: 1.5, margin: '0 0 28px',
+          }}>
+            We sent an 8-digit code to <strong style={{ color: C.ink }}>{email}</strong>.
+            Enter it below to confirm your email.
+          </p>
+
+          <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={otpCode}
+              onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+              placeholder="00000000"
+              style={{
+                width: '100%', textAlign: 'center',
+                background: C.white, border: '1px solid rgba(34,30,26,0.08)',
+                borderRadius: 12, padding: '18px 0',
+                fontFamily: '"Instrument Serif", Georgia, serif',
+                fontSize: 34, letterSpacing: '8px', color: C.ink, outline: 'none',
+              }}
+            />
+
+            {error && (
+              <p style={{
+                fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+                fontSize: 12, color: C.red, margin: 0, lineHeight: 1.4,
+              }}>
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || otpCode.length < 6}
+              style={{
+                width: '100%', height: 55,
+                background: loading || otpCode.length < 6 ? 'rgba(140,42,42,0.5)' : C.red,
+                color: C.cream, borderRadius: 14, border: 'none',
+                fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+                fontSize: 15, fontWeight: 500, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              {loading ? 'Verifying…' : 'Verify email'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleResend}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+                fontSize: 13, color: C.sand, padding: '4px 0', textAlign: 'center',
+              }}
+            >
+              {resentAt ? 'Code re-sent ✓ — resend again' : "Didn't get it? Resend code"}
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
   // Layout wrapper (cream bg, full height)
   return (
-    <div style={{ position: 'fixed', inset: 0, background: C.cream, overflow: 'hidden' } as React.CSSProperties}>
+    <div style={{ position: 'fixed', inset: 0, background: C.cream, overflowY: 'auto' } as React.CSSProperties}>
 
       {/* ── Header */}
       <div style={{
@@ -429,7 +469,7 @@ export default function SignupPage() {
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          Back
+          {t('auth.back')}
         </button>
 
         {step > 1 && (
@@ -470,14 +510,14 @@ export default function SignupPage() {
               fontSize: 38, fontWeight: 400, lineHeight: 1.1,
               letterSpacing: '-1.04px', color: C.ink, margin: '0 0 6px',
             }}>
-              How will you use <em>Club Fuoco?</em>
+              {t('signup.howWillYouUse')}
             </h1>
             <p style={{
               fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
               fontSize: 13, color: C.stone, letterSpacing: '-0.07px',
               margin: '0 0 16px',
             }}>
-              Pick what fits — you can change later.
+              {t('signup.pickWhatFits')}
             </p>
 
             {/* Hero card — Notturno */}
@@ -517,7 +557,7 @@ export default function SignupPage() {
                   fontSize: 9, fontWeight: 700, color: 'rgb(42,24,16)',
                   letterSpacing: '2.16px', textTransform: 'uppercase',
                 }}>
-                  Recommended · Most users
+                  {t('signup.recommended')}
                 </span>
               </div>
 
@@ -585,7 +625,7 @@ export default function SignupPage() {
               fontSize: 12.5, fontStyle: 'italic', color: C.sand,
               textAlign: 'center', margin: '0 0 10px',
             }}>
-              or, if you&apos;re on the other side
+              {t('signup.orOtherSide')}
             </p>
 
             {/* Mini cards row */}
@@ -669,16 +709,16 @@ export default function SignupPage() {
               </button>
             </div>
 
-            <PrimaryBtn onClick={() => setStep(2)}>Continue</PrimaryBtn>
+            <PrimaryBtn onClick={() => setStep(2)}>{t('signup.continue')}</PrimaryBtn>
 
             <p style={{
               textAlign: 'center', marginTop: 14,
               fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
               fontSize: 13, color: C.stone,
             }}>
-              Already a member?{' '}
+              {t('signup.alreadyMember')}{' '}
               <Link href="/login" style={{ color: C.red, textDecoration: 'none' }}>
-                Sign in →
+                {t('signup.signInArrow')}
               </Link>
             </p>
           </div>
@@ -702,8 +742,8 @@ export default function SignupPage() {
                   fontSize: 12.5, color: C.stone, lineHeight: 1.45,
                 }}
               >
-                <strong style={{ color: C.ink }}>Are you an artist, or do you represent a club?</strong>{' '}
-                <span style={{ color: C.red, textDecoration: 'underline' }}>Tap here</span>
+                <strong style={{ color: C.ink }}>{t('signup.areYouArtist')}</strong>{' '}
+                <span style={{ color: C.red, textDecoration: 'underline' }}>{t('signup.tapHere')}</span>
               </button>
             )}
 
@@ -714,7 +754,7 @@ export default function SignupPage() {
                   fontSize: 9.5, color: C.red, letterSpacing: '1.6px',
                   textTransform: 'uppercase', margin: '0 0 2px',
                 }}>
-                  Which are you?
+                  {t('signup.whichAreYou')}
                 </p>
                 {([
                   { type: 'club', name: 'Locale',  sub: 'Club / Venue' },
@@ -745,8 +785,7 @@ export default function SignupPage() {
                   fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
                   fontSize: 12, color: C.stone, lineHeight: 1.45, margin: '4px 0 0',
                 }}>
-                  Club and artist accounts aren&apos;t open yet — these features are coming soon.
-                  For now, continue as a guest and explore the city.
+                  {t('signup.clubArtistNotOpen')}
                 </p>
                 <button
                   type="button"
@@ -758,7 +797,7 @@ export default function SignupPage() {
                     fontSize: 9.5, color: C.stone, letterSpacing: '1.4px', textTransform: 'uppercase',
                   }}
                 >
-                  ← I&apos;m just here for nights out
+                  {t('signup.justNightsOut')}
                 </button>
               </div>
             )}
@@ -773,7 +812,7 @@ export default function SignupPage() {
               }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.red, flexShrink: 0 }} />
                 <span style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: 9.5, color: C.stone, letterSpacing: '1.2px', textTransform: 'uppercase' }}>
-                  Account ·{' '}
+                  {t('signup.account')} ·{' '}
                 </span>
                 <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 14, fontStyle: 'italic', color: C.ink }}>
                   {kindLabel[accountType]}
@@ -790,7 +829,7 @@ export default function SignupPage() {
                     cursor: 'pointer', padding: 0, marginLeft: 4,
                   }}
                 >
-                  Change
+                  {t('signup.change')}
                 </button>
               </div>
             )}
@@ -810,27 +849,27 @@ export default function SignupPage() {
               fontSize: 48, fontWeight: 400, lineHeight: 1.1,
               letterSpacing: '-1.04px', color: C.ink, margin: '0 0 8px',
             }}>
-              Your <em>details</em>
+              {t('signup.yourDetails')} <em>{t('signup.yourDetailsEm')}</em>
             </h1>
             <p style={{
               fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
               fontSize: 13.5, color: C.stone, letterSpacing: '-0.07px',
               margin: '0 0 28px',
             }}>
-              A real name on the door · a real email for the guest list.
+              {t('signup.detailsSubtitle')}
             </p>
 
             <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Name row */}
               <div style={{ display: 'flex', gap: 10 }}>
-                <AuthField label="First Name">
+                <AuthField label={t('signup.firstName')}>
                   <input
                     type="text" value={firstName}
                     onChange={e => setFirstName(e.target.value)}
                     required placeholder="Marco" style={inputStyle}
                   />
                 </AuthField>
-                <AuthField label="Last Name">
+                <AuthField label={t('signup.lastName')}>
                   <input
                     type="text" value={lastName}
                     onChange={e => setLastName(e.target.value)}
@@ -839,7 +878,7 @@ export default function SignupPage() {
                 </AuthField>
               </div>
 
-              <AuthField label="Email" error={!!error && error.toLowerCase().includes('email')}>
+              <AuthField label={t('auth.email')} error={!!error && error.toLowerCase().includes('email')}>
                 <input
                   type="email" value={email}
                   onChange={e => setEmail(e.target.value)}
@@ -847,7 +886,7 @@ export default function SignupPage() {
                 />
               </AuthField>
 
-              <AuthField label="Password" error={!!error && error.toLowerCase().includes('password')} rightSlot={
+              <AuthField label={t('auth.password')} error={!!error && error.toLowerCase().includes('password')} rightSlot={
                 <button
                   type="button" onClick={() => setShowPwd(v => !v)}
                   style={{
@@ -857,7 +896,7 @@ export default function SignupPage() {
                     cursor: 'pointer', padding: '4px 0', flexShrink: 0,
                   }}
                 >
-                  {showPwd ? 'Hide' : 'Show'}
+                  {showPwd ? t('auth.hideLower') : t('auth.showLower')}
                 </button>
               }>
                 <input
@@ -874,7 +913,7 @@ export default function SignupPage() {
                 fontSize: 9.5, color: C.sand, letterSpacing: '1.14px',
                 textTransform: 'uppercase', margin: '-4px 0 0',
               }}>
-                8+ characters · one number · one symbol
+                {t('signup.passwordHint')}
               </p>
 
               {/* Error message */}
@@ -915,15 +954,15 @@ export default function SignupPage() {
                   fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
                   fontSize: 12, color: C.sand, lineHeight: 1.45,
                 }}>
-                  I have read and accept the{' '}
-                  <Link href="/legal/terms" style={{ color: C.red, textDecoration: 'underline' }}>Terms of Use</Link>
-                  {' '}and{' '}
-                  <Link href="/legal/privacy" style={{ color: C.red, textDecoration: 'underline' }}>Privacy Policy</Link>.
+                  {t('signup.tosPrefix')}{' '}
+                  <Link href="/legal/terms" style={{ color: C.red, textDecoration: 'underline' }}>{t('signup.termsOfUse')}</Link>
+                  {' '}{t('signup.and')}{' '}
+                  <Link href="/legal/privacy" style={{ color: C.red, textDecoration: 'underline' }}>{t('signup.privacyPolicy')}</Link>.
                 </span>
               </div>
 
               <div style={{ paddingTop: 8 }}>
-                <PrimaryBtn type="submit" loading={loading}>Create account</PrimaryBtn>
+                <PrimaryBtn type="submit" loading={loading}>{t('signup.createAccount')}</PrimaryBtn>
               </div>
 
               {/* Legal links */}
@@ -932,12 +971,14 @@ export default function SignupPage() {
                 fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
                 fontSize: 11.5, color: C.sand, margin: '4px 0 0',
               }}>
-                <Link href="/legal/terms" style={{ fontSize: 11.5, color: C.sand }}>Terms</Link>
+                <Link href="/legal/terms" style={{ fontSize: 11.5, color: C.sand }}>{t('auth.terms')}</Link>
                 {' · '}
-                <Link href="/legal/privacy" style={{ fontSize: 11.5, color: C.sand }}>Privacy</Link>
+                <Link href="/legal/privacy" style={{ fontSize: 11.5, color: C.sand }}>{t('auth.privacy')}</Link>
                 {' · '}
-                <Link href="/legal/help" style={{ fontSize: 11.5, color: C.sand }}>Help</Link>
+                <Link href="/legal/help" style={{ fontSize: 11.5, color: C.sand }}>{t('auth.help')}</Link>
               </p>
+
+              <OAuthButtons />
             </form>
           </div>
         )}
@@ -976,33 +1017,33 @@ export default function SignupPage() {
               fontSize: 48, fontWeight: 400, lineHeight: 1.1,
               letterSpacing: '-1.04px', color: C.ink, margin: '0 0 8px',
             }}>
-              When&apos;s your<br /><em>birthday?</em>
+              {t('signup.whensBirthday')}<br /><em>{t('signup.birthday')}</em>
             </h1>
             <p style={{
               fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
               fontSize: 13.5, color: C.stone, letterSpacing: '-0.07px',
               margin: '0 0 32px',
             }}>
-              Unlock exclusive deals and surprises on your night out.
+              {t('signup.birthdaySubtitle')}
             </p>
 
             {/* Drum pickers */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
               <DrumPicker
-                label="Day"
+                label={t('signup.day')}
                 values={DAYS}
                 selected={bDay}
                 onSelect={setBDay}
               />
               <DrumPicker
-                label="Month"
+                label={t('signup.month')}
                 values={Array.from({ length: 12 }, (_, i) => i + 1)}
                 labels={MONTHS_EN}
                 selected={bMonth}
                 onSelect={setBMonth}
               />
               <DrumPicker
-                label="Year"
+                label={t('signup.year')}
                 values={YEARS}
                 selected={bYear}
                 onSelect={setBYear}
@@ -1016,7 +1057,7 @@ export default function SignupPage() {
                 fontSize: 9, color: C.sand, letterSpacing: '1.98px',
                 textTransform: 'uppercase', margin: '0 0 4px',
               }}>
-                Selected
+                {t('signup.selected')}
               </p>
               <p style={{
                 fontFamily: '"Instrument Serif", Georgia, serif',
@@ -1037,7 +1078,7 @@ export default function SignupPage() {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <PrimaryBtn onClick={() => handleBirthday(false)}>Continue</PrimaryBtn>
+              <PrimaryBtn onClick={() => handleBirthday(false)}>{t('signup.continue')}</PrimaryBtn>
               <button
                 onClick={() => handleBirthday(true)}
                 style={{
@@ -1047,14 +1088,126 @@ export default function SignupPage() {
                   textAlign: 'center',
                 }}
               >
-                Skip for now
+                {t('signup.skipForNow')}
               </button>
             </div>
           </div>
         )}
 
-        {/* ══ Step 4: Membership ════════════════════════════════════════════ */}
+        {/* ══ Step 4: Tell us more? ═════════════════════════════════════════ */}
         {step === 4 && (
+          <div>
+            {/* Kicker */}
+            <p style={{
+              fontFamily: 'var(--font-geist-mono), monospace',
+              fontSize: 9.5, color: C.red, letterSpacing: '2.09px',
+              textTransform: 'uppercase', margin: '0 0 12px',
+            }}>
+              N° 04 · Il tuo profilo
+            </p>
+
+            {/* Headline */}
+            <h1 style={{
+              fontFamily: '"Instrument Serif", Georgia, serif',
+              fontSize: 46, fontWeight: 400, lineHeight: 1.05,
+              letterSpacing: '-1.04px', color: C.ink, margin: '0 0 8px',
+            }}>
+              Tell us more<br /><em>about yourself?</em>
+            </h1>
+            <p style={{
+              fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+              fontSize: 13.5, color: C.stone, letterSpacing: '-0.07px',
+              margin: '0 0 28px',
+            }}>
+              A few quick taps and we&apos;ll tune your nights — music, venues, the
+              works. Or skip straight in.
+            </p>
+
+            {/* Split choice — left: survey · right: straight to explore */}
+            <div style={{ display: 'flex', gap: 12, minHeight: 360 }}>
+              {/* Left — personalize (survey) */}
+              <button
+                type="button"
+                onClick={() => router.push('/onboarding')}
+                style={{
+                  flex: 1, padding: '22px 18px',
+                  background: 'linear-gradient(160deg, rgb(26,20,16) 0%, rgb(42,24,16) 42%, rgb(91,31,28) 78%, rgb(194,86,45) 118%)',
+                  border: '1px solid rgba(255,224,165,0.18)', borderRadius: 18,
+                  cursor: 'pointer', textAlign: 'left',
+                  display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                }}
+              >
+                <span style={{
+                  fontFamily: 'var(--font-geist-mono), monospace',
+                  fontSize: 9, color: 'rgba(255,232,181,0.7)',
+                  letterSpacing: '2px', textTransform: 'uppercase',
+                }}>
+                  Recommended
+                </span>
+                <span style={{
+                  fontFamily: '"Instrument Serif", Georgia, serif',
+                  fontSize: 30, fontStyle: 'italic', color: 'rgb(244,236,221)',
+                  lineHeight: 1.05, margin: '14px 0 8px',
+                }}>
+                  Yes, personalize my nights
+                </span>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontFamily: 'var(--font-geist-mono), monospace',
+                  fontSize: 10, color: 'rgb(255,232,181)',
+                  letterSpacing: '1.6px', textTransform: 'uppercase', marginTop: 'auto',
+                }}>
+                  Start survey
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </span>
+              </button>
+
+              {/* Right — skip to explore */}
+              <button
+                type="button"
+                onClick={() => router.push('/explore')}
+                style={{
+                  flex: 1, padding: '22px 18px',
+                  background: C.white,
+                  border: '1px solid rgba(34,30,26,0.1)', borderRadius: 18,
+                  cursor: 'pointer', textAlign: 'left',
+                  display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                }}
+              >
+                <span style={{
+                  fontFamily: 'var(--font-geist-mono), monospace',
+                  fontSize: 9, color: C.sand,
+                  letterSpacing: '2px', textTransform: 'uppercase',
+                }}>
+                  No thanks
+                </span>
+                <span style={{
+                  fontFamily: '"Instrument Serif", Georgia, serif',
+                  fontSize: 30, fontStyle: 'italic', color: C.ink,
+                  lineHeight: 1.05, margin: '14px 0 8px',
+                }}>
+                  Just take me in
+                </span>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontFamily: 'var(--font-geist-mono), monospace',
+                  fontSize: 10, color: C.red,
+                  letterSpacing: '1.6px', textTransform: 'uppercase', marginTop: 'auto',
+                }}>
+                  Go to explore
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ══ Step 4: Membership — HIDDEN (kept for later; flip `false` to re-enable) ══ */}
+        {false && step === 4 && (
           <div>
             {/* Kicker */}
             <p style={{
@@ -1071,14 +1224,14 @@ export default function SignupPage() {
               fontSize: 48, fontWeight: 400, lineHeight: 1.1,
               letterSpacing: '-1.04px', color: C.ink, margin: '0 0 8px',
             }}>
-              Choose your<br /><em>membership</em>
+              {t('signup.chooseMembership')}<br /><em>{t('signup.membership')}</em>
             </h1>
             <p style={{
               fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
               fontSize: 13.5, color: C.stone, letterSpacing: '-0.07px',
               margin: '0 0 28px',
             }}>
-              Start free, upgrade later · cancel anytime.
+              {t('signup.membershipSubtitle')}
             </p>
 
             {/* Tier cards */}
@@ -1297,7 +1450,7 @@ export default function SignupPage() {
             {/* Subscribe CTA */}
             <PrimaryBtn onClick={() => handleMembership(selectedPlan)} loading={loading}>
               {selectedPlan === 'free'
-                ? 'Start for free'
+                ? t('signup.startForFree')
                 : `Subscribe to ${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}`
               }
             </PrimaryBtn>
@@ -1312,7 +1465,7 @@ export default function SignupPage() {
                   fontSize: 13, color: C.sand, textAlign: 'center',
                 }}
               >
-                Start free, upgrade later
+                {t('signup.startFreeUpgrade')}
               </button>
             )}
           </div>

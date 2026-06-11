@@ -4,6 +4,7 @@ import { BottomNav } from '@/components/ui/BottomNav'
 import PresenceTracker from '@/components/PresenceTracker'
 import SwipeBack from '@/components/SwipeBack'
 import { useAuth } from '@/contexts/AuthContext'
+import { PlanProvider } from '@/contexts/PlanContext'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Guests can browse — login is only required for account-based actions
@@ -13,6 +14,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (loading) return null
 
   return (
+    <PlanProvider>
     <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#F8F5EE' }}>
       {/* Global keyframes for the Rumbalist wordmark's gloss sweep. Defined at
           the (app) layout so it's available everywhere the mark renders, not
@@ -45,5 +47,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* iOS-style edge-swipe-back gesture */}
       <SwipeBack />
     </div>
+    </PlanProvider>
   )
 }

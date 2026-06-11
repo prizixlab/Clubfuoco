@@ -28,10 +28,13 @@ export async function GET() {
 
   const { data: mine } = await sb
     .from('booking_group_members')
-    .select('group_id')
+    .select('group_id, rsvp')
     .eq('user_id', me)
   const ids = (mine ?? []).map(r => r.group_id)
   if (!ids.length) return ok([])
+
+  // My RSVP per group so the client can flag the ones awaiting my response.
+  const myRsvp = new Map((mine ?? []).map(r => [r.group_id, r.rsvp]))
 
   const { data: groups } = await sb
     .from('booking_groups')
@@ -39,7 +42,7 @@ export async function GET() {
     .in('id', ids)
     .order('booking_date', { ascending: false })
 
-  return ok(groups ?? [])
+  return ok((groups ?? []).map(g => ({ ...g, my_rsvp: myRsvp.get(g.id) ?? null })))
 }
 
 // POST /api/groups — create a group, invite friends, set who pays

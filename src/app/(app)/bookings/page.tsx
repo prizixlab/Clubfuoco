@@ -3,6 +3,7 @@ import { apiFetch } from '@/lib/api'
 import { getMyBookings, getPendingSurveys } from '@/lib/supabase/queries'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Booking } from '@/types'
 import SurveySheet from '@/components/SurveySheet'
 import NavSpacer from '@/components/NavSpacer'
@@ -25,6 +26,96 @@ async function addToWallet(apiPath: string) {
     console.error('[wallet]', e)
     alert('Could not open Wallet. Please try again.')
   }
+}
+
+// ── Your groups — nights you organize or were invited to ──────────────────────
+// Self-contained strip at the top of the Tickets tab; without it groups are
+// only reachable from the notification that invited you.
+interface GroupListItem {
+  id:           string
+  booking_type: 'general' | 'vip'
+  booking_date: string
+  status:       'open' | 'closed' | 'cancelled'
+  invite_code:  string
+  my_rsvp:      'invited' | 'going' | 'maybe' | 'declined' | null
+  clubs:        { name: string; cover_image_url: string | null } | { name: string; cover_image_url: string | null }[] | null
+}
+
+function GroupsStrip() {
+  const router = useRouter()
+  const [groups, setGroups] = useState<GroupListItem[]>([])
+
+  useEffect(() => {
+    apiFetch('/api/groups')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (Array.isArray(d?.data)) setGroups(d.data) })
+      .catch(() => {})
+  }, [])
+
+  // Only upcoming (today onward), open groups are actionable here.
+  const today = new Date()
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  // Invites awaiting my response float to the top.
+  const upcoming = groups
+    .filter(g => g.status === 'open' && g.booking_date >= todayStr)
+    .sort((a, b) => (b.my_rsvp === 'invited' ? 1 : 0) - (a.my_rsvp === 'invited' ? 1 : 0))
+  if (!upcoming.length) return null
+  const needRsvp = upcoming.filter(g => g.my_rsvp === 'invited').length
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: 9, letterSpacing: '2px', color: '#9F9486', textTransform: 'uppercase' }}>Group nights</span>
+        <span style={{ fontSize: 9, letterSpacing: '1px', color: '#B0A898' }}>· {upcoming.length}</span>
+        {needRsvp > 0 && (
+          <span style={{ fontSize: 9, letterSpacing: '1px', color: '#8C2A2A', fontWeight: 700, textTransform: 'uppercase' }}>· {needRsvp} need RSVP</span>
+        )}
+      </div>
+      {upcoming.map(g => {
+        const club: { name: string; cover_image_url: string | null } | null = Array.isArray(g.clubs) ? (g.clubs[0] ?? null) : g.clubs
+        const [y, m, d] = g.booking_date.split('-').map(Number)
+        const label = new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+        const needs = g.my_rsvp === 'invited'
+        return (
+          <button
+            key={g.id}
+            onClick={() => router.push(`/groups/placeholder?id=${g.id}`)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+              background: '#FFFFFF', borderRadius: 14,
+              border: needs ? '1px solid rgba(140,42,42,0.35)' : '1px solid rgba(34,30,26,0.08)',
+              padding: 12, marginBottom: 10, cursor: 'pointer', textAlign: 'left',
+              boxShadow: needs
+                ? '0 0 0 3px rgba(140,42,42,0.06), 0 6px 18px rgba(34,30,26,0.06)'
+                : '0 1px 2px rgba(34,30,26,0.04), 0 6px 18px rgba(34,30,26,0.05)',
+            }}
+          >
+            <div style={{ position: 'relative', width: 46, height: 46, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: '#EFE9DD' }}>
+              {club?.cover_image_url
+                ? <img src={club.cover_image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#9F9486' }}>group</span>
+                  </div>}
+              {needs && <span style={{ position: 'absolute', top: -3, right: -3, width: 12, height: 12, borderRadius: '50%', background: '#8C2A2A', boxShadow: '0 0 0 2px #fff' }} />}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 19, color: '#221E1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {club?.name ?? 'Group night'}
+              </p>
+              <p style={{ margin: '3px 0 0', fontSize: 10, letterSpacing: '1px', textTransform: 'uppercase', color: '#9F9486' }}>
+                {label} · {g.booking_type === 'vip' ? 'VIP table' : 'Guestlist'} · Code {g.invite_code}
+              </p>
+            </div>
+            {needs ? (
+              <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: '#fff', background: '#8C2A2A', borderRadius: 99, padding: '6px 11px' }}>RSVP</span>
+            ) : (
+              <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#8C2A2A', flexShrink: 0 }}>arrow_forward</span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
 interface PendingBooking {
@@ -1045,6 +1136,9 @@ export default function BookingsPage() {
         {/* ─── TICKETS TAB ─── */}
         {!loading && activeTab === 'tickets' && (
           <>
+
+        {/* Group nights — plans you organize or joined */}
+        <GroupsStrip />
 
         {/* Empty state */}
         {isEmpty && (

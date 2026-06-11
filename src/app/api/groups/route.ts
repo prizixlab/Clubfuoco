@@ -88,7 +88,12 @@ export async function POST(request: NextRequest) {
     .insert({ club_id, organizer_id: me, booking_type, booking_date, invite_code, status: 'open' })
     .select('id')
     .single()
-  if (gErr || !group) return err(gErr?.message ?? 'Could not create group')
+  if (gErr || !group) {
+    if (gErr && /relation .* does not exist|schema cache/i.test(gErr.message)) {
+      return err('Groups are not set up yet — run the booking_groups migration in Supabase.', 503)
+    }
+    return err(gErr?.message ?? 'Could not create group')
+  }
 
   // Organizer is a "going" member; pays their own entry from the group screen.
   const memberRows = [
@@ -104,7 +109,12 @@ export async function POST(request: NextRequest) {
     })),
   ]
   const { error: mErr } = await sb.from('booking_group_members').insert(memberRows)
-  if (mErr) return err(mErr.message)
+  if (mErr) {
+    if (/column .* does not exist|amount_due/i.test(mErr.message)) {
+      return err('Run the group_member_amounts migration in Supabase (adds amount_due).', 503)
+    }
+    return err(mErr.message)
+  }
 
   // Notify invited friends
   const { data: meRow } = await sb.from('users').select('full_name').eq('id', me).maybeSingle()

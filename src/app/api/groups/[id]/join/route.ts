@@ -48,14 +48,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // ── Maybe (tentative) — no booking, no charge ────────────────────────────────
   if (action === 'maybe') {
+    if (group.status !== 'open') return err('This group is closed', 400)
     if (existing?.paid) return err('You already paid for this group', 400)
-    if (existing) {
-      await sb.from('booking_group_members').update({ rsvp: 'maybe' }).eq('id', existing.id)
-    } else {
-      await sb.from('booking_group_members').insert({
-        group_id: groupId, user_id: me, role: 'member', rsvp: 'maybe',
-        payment_required: false, amount_due: null,
-      })
+    const { error: mbErr } = existing
+      ? await sb.from('booking_group_members').update({ rsvp: 'maybe' }).eq('id', existing.id)
+      : await sb.from('booking_group_members').insert({
+          group_id: groupId, user_id: me, role: 'member', rsvp: 'maybe',
+          payment_required: false, amount_due: null,
+        })
+    if (mbErr) {
+      if (/check constraint|rsvp/i.test(mbErr.message)) {
+        return err('Run the group_rsvp_maybe migration in Supabase (allows the maybe state).', 503)
+      }
+      return err(mbErr.message)
     }
     return ok({ rsvp: 'maybe' })
   }

@@ -28,7 +28,13 @@ export async function GET() {
     .from('friendships')
     .select('id, requester_id, addressee_id, status')
     .or(`requester_id.eq.${me},addressee_id.eq.${me}`)
-  if (error) return err(error.message)
+  if (error) {
+    // Most common failure mode: the friendships migration hasn't been applied.
+    if (/relation .* does not exist|schema cache/i.test(error.message)) {
+      return err('Friends is not set up yet — run the friendships migration in Supabase.', 503)
+    }
+    return err(error.message)
+  }
 
   const edges = (rows ?? []) as FriendshipRow[]
   const otherId = (r: FriendshipRow) => (r.requester_id === me ? r.addressee_id : r.requester_id)
@@ -105,7 +111,12 @@ export async function POST(request: NextRequest) {
     .insert({ requester_id: me, addressee_id: other, status: 'pending' })
     .select('id')
     .single()
-  if (insErr) return err(insErr.message)
+  if (insErr) {
+    if (/relation .* does not exist|schema cache/i.test(insErr.message)) {
+      return err('Friends is not set up yet — run the friendships migration in Supabase.', 503)
+    }
+    return err(insErr.message)
+  }
 
   await notify({ user_id: other, type: 'friend_request', title: `${myName} sent you a friend request`, link: '/friends' })
   return ok({ status: 'pending', friendship_id: created.id }, 201)

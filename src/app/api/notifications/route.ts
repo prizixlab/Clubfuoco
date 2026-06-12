@@ -1,4 +1,4 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createAuthedClient, createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { NextRequest } from 'next/server'
 import { ok, err } from '@/lib/utils'
@@ -8,7 +8,7 @@ export async function GET() {
   const { user, response } = await requireAuth()
   if (response) return response
 
-  const supabase = await createClient()
+  const supabase = await createAuthedClient()
   const { data, error } = await supabase
     .from('notifications')
     .select('id, type, title, body, link, is_read, created_at')
@@ -25,7 +25,7 @@ export async function PATCH() {
   const { user, response } = await requireAuth()
   if (response) return response
 
-  const supabase = await createClient()
+  const supabase = await createAuthedClient()
   await supabase
     .from('notifications')
     .update({ is_read: true })

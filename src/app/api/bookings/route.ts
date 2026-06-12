@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAuthedClient } from '@/lib/supabase/server'
 import { NextRequest } from 'next/server'
 import { ok, err, generateQRToken } from '@/lib/utils'
 import { requireAuth } from '@/lib/auth'
@@ -33,7 +33,7 @@ export async function GET() {
   const { user, response } = await requireAuth()
   if (response) return response
 
-  const supabase = await createClient()
+  const supabase = await createAuthedClient()
 
   const [bookingsRes, signupsRes, ticketsRes] = await Promise.all([
     supabase
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
   const parsed = createBookingSchema.safeParse(body)
   if (!parsed.success) return err(parsed.error.message)
 
-  const supabase = await createClient()
+  const supabase = await createAuthedClient()
 
   // Fetch club to get pricing
   const { data: club, error: clubError } = await supabase

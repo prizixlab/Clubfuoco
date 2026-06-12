@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
+import { getUser } from '@/lib/auth'
 
 // GET /api/rumbas/[id]/signups/mine — returns the current user's signup if any
 export async function GET(
@@ -8,8 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getUser()
 
   if (!user) return ok(null)
 

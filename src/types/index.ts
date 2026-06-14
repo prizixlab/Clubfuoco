@@ -213,6 +213,8 @@ export interface GroupMember {
   charge:           number          // resolved euros this member owes (0 = free guest)
   paid:             boolean
   is_me:            boolean
+  booking_id:       string | null   // this member's own entry booking (only set for is_me)
+  qr_token:         string | null   // their pass QR (only set for is_me — never leak others')
 }
 
 export interface GroupDetail {

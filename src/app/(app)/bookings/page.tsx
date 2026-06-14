@@ -17,15 +17,9 @@ function walletBase() {
   return typeof window !== 'undefined' ? window.location.origin : 'https://clubfuoco.vercel.app'
 }
 
-/** Open the pass URL in SFSafariViewController — iOS intercepts .pkpass and shows Add to Wallet */
+/** Open the pass URL — the browser downloads the .pkpass */
 async function addToWallet(apiPath: string) {
-  try {
-    const { Browser } = await import('@capacitor/browser')
-    await Browser.open({ url: walletBase() + apiPath })
-  } catch (e: any) {
-    console.error('[wallet]', e)
-    alert('Could not open Wallet. Please try again.')
-  }
+  window.location.href = walletBase() + apiPath
 }
 
 // ── Your groups — nights you organize or were invited to ──────────────────────

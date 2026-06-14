@@ -1,0 +1,107 @@
+{
+  "identifier" : "D1A2B3C4",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "ESP",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "CFMEMBERSHIP1",
+      "localizations" : [
+
+      ],
+      "name" : "Club Fuoco Membership",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "19.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "CFGOLD0001",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Priority entry and 15% off at partners",
+              "displayName" : "Oro · Gold",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.clubfuoco.app.membership.gold",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Gold",
+          "subscriptionGroupID" : "CFMEMBERSHIP1",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "49.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "CFSAPPH001",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "25% off, guest lists and concierge",
+              "displayName" : "Zaffiro · Sapphire",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.clubfuoco.app.membership.sapphire",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Sapphire",
+          "subscriptionGroupID" : "CFMEMBERSHIP1",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "499.99",
+          "familyShareable" : false,
+          "groupNumber" : 3,
+          "internalID" : "CFBLACK001",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Free VIP entry everywhere, 24/7 concierge",
+              "displayName" : "Nero · Black",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.clubfuoco.app.membership.black",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Black",
+          "subscriptionGroupID" : "CFMEMBERSHIP1",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

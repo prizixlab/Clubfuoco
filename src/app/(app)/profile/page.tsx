@@ -101,12 +101,7 @@ function apiOrigin() {
 
 async function addMembershipToWallet(userId: string) {
   const url = `${apiOrigin()}/api/membership/wallet/${userId}`
-  try {
-    const { Browser } = await import('@capacitor/browser')
-    await Browser.open({ url })
-  } catch {
-    window.open(url, '_blank')
-  }
+  window.open(url, '_blank')
 }
 
 export default function ProfilePage() {

@@ -390,21 +390,14 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
     //      (Resident Advisor, Xceed, Songkick).
     // Either way we already wrote the click telemetry above for attribution.
     if (event.base_price === 0 || !isInAppPurchase) {
-      try {
-        const { Browser } = await import('@capacitor/browser')
-        await Browser.open({ url: event.platform_url, presentationStyle: 'popover' })
-      } catch {
-        // Fallback: regular link navigation (e.g. on web)
-        if (typeof window !== 'undefined') window.open(event.platform_url, '_blank')
-      }
+      if (typeof window !== 'undefined') window.open(event.platform_url, '_blank')
       setBuying(false)
       return
     }
 
-    // ── Dice / Eventbrite → native Apple Pay via @capacitor-community/stripe ──
-    // Same shape as the Rumbalist VIP flow: server creates an unconfirmed
-    // PaymentIntent, native sheet authorises, server reconciles + flips order
-    // status to paid. Falls back to the Stripe card-form sheet on web.
+    // ── Dice / Eventbrite → Stripe card-form checkout ──
+    // Server creates an unconfirmed PaymentIntent; the in-page Stripe Elements
+    // form confirms it. (The iOS app sells tickets natively with Apple Pay.)
     try {
       const res  = await apiFetch('/api/tickets', {
         method:  'POST',
@@ -434,35 +427,6 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
       setIntentId(intent_id)
       setTotalCents(total_cents)
       setMarkupCents(markup_cents)
-
-      const { Capacitor } = await import('@capacitor/core')
-      if (Capacitor.isNativePlatform()) {
-        // Native — present the OS Apple Pay sheet
-        const { Stripe, ApplePayEventsEnum } = await import('@capacitor-community/stripe')
-        await Stripe.initialize({ publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY! })
-        const totalEuros = total_cents / 100
-        await Stripe.createApplePay({
-          paymentIntentClientSecret: client_secret,
-          merchantIdentifier:        'merchant.com.clubfuoco.app',
-          countryCode:               'ES',
-          currency:                  (event.currency || 'EUR').toLowerCase(),
-          paymentSummaryItems: [
-            { label: `${event.title} — ${event.venue_name}`, amount: totalEuros },
-          ],
-        })
-        const { paymentResult } = await Stripe.presentApplePay()
-        if (paymentResult !== ApplePayEventsEnum.Completed) {
-          setBuying(false)
-          return
-        }
-        await apiFetch('/api/tickets/confirm', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ order_id, payment_intent_id: intent_id }),
-        })
-        setSuccess(true)
-        return
-      }
 
       // Web — Stripe Elements card form (the existing in-page flow)
       setClientSecret(client_secret)

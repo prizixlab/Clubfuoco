@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
 import { apiFetch } from '@/lib/api'
 import { usePlan } from '@/contexts/PlanContext'
@@ -31,20 +30,6 @@ import { RumbalistOffer } from '@/lib/rumbalist-offers'
  */
 
 const MERCHANT_ID = 'merchant.com.clubfuoco.app'
-
-// Initialise the native Stripe plugin exactly once per app session.
-let stripeInitPromise: Promise<void> | null = null
-async function initStripeNative() {
-  if (!Capacitor.isNativePlatform()) return
-  if (stripeInitPromise) return stripeInitPromise
-  stripeInitPromise = (async () => {
-    const { Stripe } = await import('@capacitor-community/stripe')
-    await Stripe.initialize({
-      publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-    })
-  })()
-  return stripeInitPromise
-}
 
 type Step = 'review' | 'authenticating' | 'pass'
 
@@ -135,92 +120,13 @@ export default function RumbalistBookSheet({
       setError('No price on this offer.')
       return
     }
-    if (!Capacitor.isNativePlatform()) {
-      setError('Apple Pay is iOS only. Open this offer in the Club Fuoco app.')
-      return
-    }
-    setPaying(true)
-    setError(null)
-    try {
-      // 1. Ensure the user is signed in with a real account. Anonymous guests
-      //    can browse + open this sheet, but booking requires a verified
-      //    identity (name on the door, payment receipt, refund destination).
-      //    We bounce them to /login with a return path so they come back here.
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user || user.is_anonymous) {
-        close()
-        router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`)
-        return
-      }
-
-      // 2. Create the PaymentIntent server-side
-      const amountCents = Math.round(offer.price_eur * 100)
-      const intentRes = await apiFetch('/api/rumbalist/create-vip-intent', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          club_id:  clubId,
-          amount:   amountCents,
-          currency: 'eur',
-        }),
-      })
-      const intentData = await intentRes.json()
-      if (!intentRes.ok || !intentData?.data?.client_secret) {
-        throw new Error(intentData?.error ?? 'Could not start payment.')
-      }
-      const { client_secret, payment_intent_id } = intentData.data
-
-      // 3. Prime + present the native Apple Pay sheet
-      await initStripeNative()
-      const { Stripe, ApplePayEventsEnum } = await import('@capacitor-community/stripe')
-      await Stripe.createApplePay({
-        paymentIntentClientSecret: client_secret,
-        merchantIdentifier:        MERCHANT_ID,
-        countryCode:               'ES',
-        currency:                  'eur',
-        paymentSummaryItems: [
-          { label: `${offer.title} — ${venueName}`, amount: offer.price_eur },
-        ],
-      })
-      const { paymentResult } = await Stripe.presentApplePay()
-
-      if (paymentResult === ApplePayEventsEnum.Canceled) {
-        setPaying(false)
-        return
-      }
-      if (paymentResult !== ApplePayEventsEnum.Completed) {
-        throw new Error('Apple Pay did not complete.')
-      }
-
-      // 4. Server-side confirm + persist booking
-      const confirmRes = await apiFetch('/api/rumbalist/confirm-vip', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          payment_intent_id,
-          club_id:      clubId,
-          venue_name:   venueName,
-          product_name: offer.title,
-        }),
-      })
-      const confirmData = await confirmRes.json()
-      if (!confirmRes.ok) {
-        throw new Error(confirmData?.error ?? 'Booking save failed.')
-      }
-      const ref = confirmData?.data?.qr_code_token
-      const id  = confirmData?.data?.id
-      if (typeof ref === 'string') setServerRef(ref)
-      if (typeof id === 'string')  setBookingId(id)
-      setPaying(false)
-      setStep('pass')
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Payment failed.')
-      setPaying(false)
-    }
+    // Apple Pay VIP checkout is native-only — the iOS app sells these flows
+    // natively (PassKit + Stripe). On the web we point people at the app.
+    setError('Apple Pay is iOS only. Open this offer in the Club Fuoco app.')
+    return
   }
 
-  // Free guestlist — server route writes both the `bookings` row and the
+    // Free guestlist — server route writes both the `bookings` row and the
   // `rumbalist_purchases` audit row in one transaction.
   async function joinGuestlist() {
     setStep('authenticating')
@@ -521,23 +427,11 @@ function PassStep({ offer, venueName, venueAddress, date, code, bookingId, onClo
   const PINK_DIM  = 'rgba(255,45,146,0.14)'
   const PINK_RULE = 'rgba(255,45,146,0.32)'
 
-  // Open the signed .pkpass in an in-app Safari view — iOS intercepts the
-  // `application/vnd.apple.pkpass` content-type and shows the native "Add to
-  // Apple Wallet" sheet. We send the user to Vercel directly because the
-  // Capacitor `capacitor://localhost` scheme can't serve the file.
+  // Open the signed .pkpass — the browser downloads it / hands it to Wallet.
   async function addToAppleWallet() {
     if (!bookingId) return
-    const base =
-      typeof window !== 'undefined' && window.location.protocol === 'capacitor:'
-        ? 'https://clubfuoco.vercel.app'
-        : (typeof window !== 'undefined' ? window.location.origin : '')
-    const url = `${base}/api/bookings/${bookingId}/wallet`
-    try {
-      const { Browser } = await import('@capacitor/browser')
-      await Browser.open({ url, presentationStyle: 'popover' })
-    } catch {
-      if (typeof window !== 'undefined') window.open(url, '_blank')
-    }
+    const base = typeof window !== 'undefined' ? window.location.origin : ''
+    window.open(`${base}/api/bookings/${bookingId}/wallet`, '_blank')
   }
 
   return (

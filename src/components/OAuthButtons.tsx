@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 const C = {
@@ -10,124 +9,27 @@ const C = {
   white: '#FFFFFF',
 }
 
-// Google iOS OAuth client (no secret — safe to ship in the bundle)
-const GOOGLE_IOS_CLIENT_ID = '170229454537-b4a62382bcnq7ugfckklvv75koih8heo.apps.googleusercontent.com'
-// Apple Services ID (used for web; iOS native uses the app bundle ID automatically)
-const APPLE_SERVICES_ID = 'com.clubfuoco.web'
-
-// Nonce — Supabase verifies that the provider ID token carries SHA-256(rawNonce)
-// while we hand signInWithIdToken the rawNonce. So: hashed nonce → provider SDK,
-// raw nonce → Supabase.
-function randomNonce(): string {
-  const arr = new Uint8Array(16)
-  crypto.getRandomValues(arr)
-  return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('')
-}
-async function sha256(input: string): Promise<string> {
-  const data = new TextEncoder().encode(input)
-  const hash = await crypto.subtle.digest('SHA-256', data)
-  return Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, '0')).join('')
-}
-
-// Initialize the native social-login plugin exactly once (both Google + Apple).
-let socialLoginReady: Promise<void> | null = null
-function initSocialLogin() {
-  if (!socialLoginReady) {
-    socialLoginReady = import('@capgo/capacitor-social-login').then(({ SocialLogin }) =>
-      SocialLogin.initialize({
-        google: { iOSClientId: GOOGLE_IOS_CLIENT_ID },
-        apple:  { clientId: APPLE_SERVICES_ID, redirectUrl: '' },
-      })
-    )
-  }
-  return socialLoginReady
-}
+// (Native iOS sign-in lives in the native app now — this component only
+// renders the web OAuth redirect flows.)
 
 export default function OAuthButtons() {
-  const router = useRouter()
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading,  setAppleLoading]  = useState(false)
-  const [isNative,      setIsNative]      = useState(false)
   const supabase = createClient()
-
-  useEffect(() => {
-    import('@capacitor/core').then(({ Capacitor }) => {
-      setIsNative(Capacitor.isNativePlatform())
-    }).catch(() => {})
-  }, [])
-
-  // After a successful OAuth sign-in: capture any provider-supplied name (Apple
-  // only gives it on the first sign-in, so we must persist it now), then route
-  // to the completion form if name / email / phone / birthday are still missing.
-  async function routeAfterOAuth(profile?: { givenName?: string | null; familyName?: string | null; email?: string | null }) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.replace('/explore'); return }
-
-    const providerName = [profile?.givenName, profile?.familyName].filter(Boolean).join(' ').trim()
-
-    const { data: row } = await (supabase as any)
-      .from('users')
-      .select('full_name, email, phone, birthday, account_type')
-      .eq('id', user.id)
-      .single()
-
-    if (providerName && !row?.full_name) {
-      await (supabase as any).from('users').update({ full_name: providerName }).eq('id', user.id)
-      if (row) row.full_name = providerName
-    }
-
-    const incomplete = !row || !row.full_name || !row.email || !row.phone || !row.birthday
-    if (incomplete) {
-      router.replace('/complete-profile')
-    } else {
-      const home: Record<string, string> = { user: '/explore', club: '/club-dashboard', dj: '/dj-dashboard' }
-      router.replace(home[row.account_type] ?? '/explore')
-    }
-  }
 
   async function signInWithGoogle() {
     setGoogleLoading(true)
     try {
-      if (isNative) {
-        // Native Google account-picker sheet → returns an ID token we hand to Supabase.
-        await initSocialLogin()
-        const { SocialLogin } = await import('@capgo/capacitor-social-login')
-
-        // Force a fresh interactive sign-in. The plugin silently restores a
-        // cached session (ignoring our nonce) if a previous Google sign-in
-        // exists — signing out first routes through the nonce-aware path.
-        try { await SocialLogin.logout({ provider: 'google' }) } catch { /* not signed in */ }
-
-        const rawNonce = randomNonce()
-        const hashedNonce = await sha256(rawNonce)
-
-        const res: any = await SocialLogin.login({
-          provider: 'google',
-          options: { scopes: ['email', 'profile'], nonce: hashedNonce },
-        })
-
-        const idToken = res?.result?.idToken
-        if (!idToken) { alert('Google: no idToken returned\n' + JSON.stringify(res)); setGoogleLoading(false); return }
-
-        const { error } = await supabase.auth.signInWithIdToken({
-          provider: 'google',
-          token: idToken,
-          nonce: rawNonce,
-        })
-        if (!error) await routeAfterOAuth(res?.result?.profile)
-        else { alert('Supabase rejected token: ' + error.message); setGoogleLoading(false) }
-      } else {
-        // Web — standard OAuth redirect
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: `${window.location.origin}/api/auth/callback`,
-            skipBrowserRedirect: true,
-          },
-        })
-        if (error || !data.url) { setGoogleLoading(false); return }
-        window.location.href = data.url
-      }
+      // Web — standard OAuth redirect
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/callback`,
+          skipBrowserRedirect: true,
+        },
+      })
+      if (error || !data.url) { setGoogleLoading(false); return }
+      window.location.href = data.url
     } catch (e: any) {
       alert('Google sign-in error: ' + (e?.message ?? String(e)))
       setGoogleLoading(false)
@@ -137,37 +39,12 @@ export default function OAuthButtons() {
   async function signInWithApple() {
     setAppleLoading(true)
     try {
-      if (isNative) {
-        // Native Sign in with Apple sheet → returns an ID token we hand to Supabase.
-        await initSocialLogin()
-        const { SocialLogin } = await import('@capgo/capacitor-social-login')
-
-        const rawNonce = randomNonce()
-        const hashedNonce = await sha256(rawNonce)
-
-        const res: any = await SocialLogin.login({
-          provider: 'apple',
-          options: { scopes: ['email', 'name'], nonce: hashedNonce },
-        })
-
-        const idToken = res?.result?.idToken
-        if (!idToken) { alert('Apple: no idToken returned\n' + JSON.stringify(res)); setAppleLoading(false); return }
-
-        const { error } = await supabase.auth.signInWithIdToken({
-          provider: 'apple',
-          token: idToken,
-          nonce: rawNonce,
-        })
-        if (!error) await routeAfterOAuth(res?.result?.profile)
-        else { alert('Supabase rejected Apple token: ' + error.message); setAppleLoading(false) }
-      } else {
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: 'apple',
-          options: { redirectTo: `${window.location.origin}/api/auth/callback` },
-        })
-        if (error || !data.url) { setAppleLoading(false); return }
-        window.location.href = data.url
-      }
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: { redirectTo: `${window.location.origin}/api/auth/callback` },
+      })
+      if (error || !data.url) { setAppleLoading(false); return }
+      window.location.href = data.url
     } catch (e: any) {
       alert('Apple sign-in error: ' + (e?.message ?? String(e)))
     } finally {

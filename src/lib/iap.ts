@@ -1,10 +1,11 @@
 /**
- * IAP — TypeScript wrapper around the native `Iap` StoreKit 2 plugin.
+ * IAP — web stub.
  *
- * Only functional inside the native iOS app. On web, `isIapAvailable()`
- * returns false and memberships are presented as "available in the app".
+ * Memberships are sold exclusively through Apple In-App Purchase in the
+ * native iOS app (see ios-native/ClubFuoco/Stores/MembershipStore.swift).
+ * On the web, `isIapAvailable()` is always false and memberships are
+ * presented as "available in the app".
  */
-import { Capacitor, registerPlugin } from '@capacitor/core'
 
 export interface IapProduct {
   productId:    string
@@ -25,23 +26,23 @@ export interface IapPurchaseResult {
   jws?:      string
 }
 
-interface IapPlugin {
-  getProducts(opts: { productIds: string[] }): Promise<{ products: IapProduct[] }>
-  purchase(opts: { productId: string }): Promise<IapPurchaseResult>
-  restorePurchases(): Promise<{ entitlements: IapEntitlement[] }>
-  currentEntitlements(): Promise<{ entitlements: IapEntitlement[] }>
-  manageSubscriptions(): Promise<void>
-  addListener(
-    event: 'transactionUpdate',
-    cb: (data: { productId: string; jws: string }) => void,
-  ): Promise<{ remove: () => void }>
+const unavailable = () => Promise.reject(new Error('In-app purchases are only available in the iOS app'))
+
+const Iap = {
+  getProducts: (_opts: { productIds: string[] }): Promise<{ products: IapProduct[] }> => unavailable(),
+  purchase: (_opts: { productId: string }): Promise<IapPurchaseResult> => unavailable(),
+  restorePurchases: (): Promise<{ entitlements: IapEntitlement[] }> => unavailable(),
+  currentEntitlements: (): Promise<{ entitlements: IapEntitlement[] }> => unavailable(),
+  manageSubscriptions: (): Promise<void> => unavailable(),
+  addListener: (
+    _event: 'transactionUpdate',
+    _cb: (data: { productId: string; jws: string }) => void,
+  ): Promise<{ remove: () => void }> => Promise.resolve({ remove: () => {} }),
 }
 
-const Iap = registerPlugin<IapPlugin>('Iap')
-
-/** True only when running in the native iOS app where StoreKit exists. */
+/** Always false on the web — StoreKit only exists in the native app. */
 export function isIapAvailable(): boolean {
-  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios'
+  return false
 }
 
 export { Iap }

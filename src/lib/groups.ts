@@ -23,7 +23,7 @@ export async function getGroupDetail(sb: SB, groupId: string, meId: string): Pro
 
   const { data: memberRows } = await sb
     .from('booking_group_members')
-    .select('id, user_id, role, rsvp, payment_required, amount_due, paid')
+    .select('id, user_id, role, rsvp, payment_required, amount_due, paid, booking_id')
     .eq('group_id', groupId)
     .order('created_at', { ascending: true })
 
@@ -33,6 +33,20 @@ export async function getGroupDetail(sb: SB, groupId: string, meId: string): Pro
   if (ids.length) {
     const { data: users } = await sb.from('users').select('id, full_name, avatar_url').in('id', ids)
     for (const u of users ?? []) profiles.set(u.id, { full_name: u.full_name, avatar_url: u.avatar_url })
+  }
+
+  // The viewer's own entry is a normal booking — surface its id + QR so the
+  // app can show that member's distinct pass / wallet pass. Only ever for the
+  // viewer (each member has their own separately-generated pass).
+  const myBookingId = rows.find(r => r.user_id === meId)?.booking_id ?? null
+  let myQrToken: string | null = null
+  if (myBookingId) {
+    const { data: booking } = await sb
+      .from('bookings')
+      .select('qr_code_token')
+      .eq('id', myBookingId)
+      .maybeSingle()
+    myQrToken = booking?.qr_code_token ?? null
   }
 
   // Resolve what each member actually owes: a custom allocation if the organizer
@@ -52,6 +66,8 @@ export async function getGroupDetail(sb: SB, groupId: string, meId: string): Pro
     charge: resolveCharge(r.amount_due, r.payment_required),
     paid: r.paid,
     is_me: r.user_id === meId,
+    booking_id: r.user_id === meId ? (r.booking_id ?? null) : null,
+    qr_token: r.user_id === meId ? myQrToken : null,
   }))
 
   return {

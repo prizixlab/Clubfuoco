@@ -157,19 +157,7 @@ function PassCard({ tier, user, memberNum, validUntil, userId }: {
       <button
         onClick={async () => {
           try {
-            const { Capacitor } = await import('@capacitor/core')
-            if (Capacitor.isNativePlatform()) {
-              // Open the .pkpass URL in SFSafariViewController. When iOS sees
-              // content-type: application/vnd.apple.pkpass, Safari renders the
-              // native Wallet preview with a built-in "Add to Apple Wallet" button.
-              const { Browser } = await import('@capacitor/browser')
-              await Browser.open({
-                url: `https://clubfuoco.vercel.app/api/membership/wallet/${userId}`,
-                presentationStyle: 'popover',
-              })
-            } else {
-              window.location.href = `/api/membership/wallet/${userId}`
-            }
+            window.location.href = `/api/membership/wallet/${userId}`
           } catch (e) {
             const err = e as Error & { message?: string; code?: string }
             console.error('[wallet] FAILED:', err?.message ?? String(e), 'code=', err?.code, 'stack=', err?.stack)

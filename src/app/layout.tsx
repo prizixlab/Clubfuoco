@@ -4,7 +4,6 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import './globals.css'
 import LoadingScreen from '@/components/LoadingScreen'
-import AuthDeepLinkHandler from '@/components/AuthDeepLinkHandler'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { LocaleProvider } from '@/contexts/LocaleContext'
 
@@ -46,7 +45,6 @@ export default function RootLayout({
       <body className={`${inter.className} ${GeistSans.variable} ${GeistMono.variable} bg-background text-on-surface antialiased`}>
         <LocaleProvider>
           <AuthProvider>
-            <AuthDeepLinkHandler />
             <LoadingScreen />
             {children}
           </AuthProvider>

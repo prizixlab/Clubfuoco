@@ -3,7 +3,7 @@
 Nightlife app for Barcelona. **Next.js 15 (App Router) + React 19 + TypeScript + Tailwind**, backed by **Supabase** (auth, Postgres, storage). Ships two ways from one codebase:
 
 - **Web** → deployed to **Vercel** (`https://clubfuoco.vercel.app`). API routes run server-side here.
-- **iOS** → **Capacitor** static export (`output: 'export'`). The native shell loads a static bundle from disk; it has **no API routes** and calls the Vercel backend over HTTP.
+- **iOS** → **fully native SwiftUI app** in `ios-native/` (Xcode project generated with XcodeGen). It talks to the same backend: Supabase via `supabase-swift` (auth + PostgREST under RLS) and the Vercel API routes over HTTPS with `Authorization: Bearer <supabase access token>`. See `ios-native/README.md`.
 
 This dual-target split is the single most important thing to understand before changing anything. See "Web vs. iOS" below.
 
@@ -21,7 +21,7 @@ This dual-target split is the single most important thing to understand before c
 | **i18n dictionaries** | `src/messages/{en,es}.ts` |
 | **Types** | `src/types/index.ts` |
 | **Build/data scripts** | `scripts/**` |
-| **Native config** | `capacitor.config.ts`, `ios/` |
+| **Native iOS app** | `ios-native/` (SwiftUI, XcodeGen) |
 | **App config** | `next.config.ts`, `tailwind.config.ts`, `tsconfig.json` |
 
 ## Frontend
@@ -51,7 +51,7 @@ Standard App Router route handlers (`route.ts`). These run **only on the web/Ver
 
 ### Server/data logic — `src/lib/**`
 - `supabase/client.ts` — browser client. `supabase/server.ts` — server (cookie/SSR) client. `supabase/queries.ts` — shared query helpers.
-- `api.ts` — **`apiFetch()` frontend helper.** Critical: under Capacitor (`capacitor:` protocol) it rewrites `/api/*` to the Vercel host and attaches the Supabase session as a `Bearer` token (native requests don't send cookies). On web it uses relative paths. Use this for all client→API calls.
+- `api.ts` — **`apiFetch()` frontend helper.** On web it uses relative paths. (The native iOS app implements the same contract in Swift: Vercel host prefix + `Authorization: Bearer <supabase access token>`, since native requests don't send cookies — see `ios-native/ClubFuoco/Core/Networking/APIClient.swift`.)
 - `auth.ts`, `membership.ts`, `plan.ts`, `preferences.ts` — domain logic.
 - `stripe.ts`, `iap.ts`, `apple-iap.ts` — payments (Stripe web + Apple in-app purchase).
 - `email.ts` (Resend), `notify.ts` — messaging.
@@ -63,10 +63,10 @@ Standard App Router route handlers (`route.ts`). These run **only on the web/Ver
 
 ## Web vs. iOS — read before changing build/data flow
 
-- `next.config.ts` switches on `BUILD_TARGET=ios`: enables `output: 'export'` + unoptimized images, and aliases the native-only Stripe plugin to `false` for web.
-- `scripts/build-ios.sh` (`npm run build:ios`) temporarily moves `src/app/api` aside (to `.api_backup`), builds the static export, then restores it. Dynamic route pages keep a placeholder `generateStaticParams()` wrapper so Next.js can prerender; Capacitor then navigates client-side.
-- Native-only Capacitor plugins (e.g. `@capacitor-community/stripe`) must stay guarded by `Capacitor.isNativePlatform()`.
-- **Rule of thumb:** anything the iOS app needs at runtime must come from Supabase or a Vercel API route via `apiFetch()` — not from a local API route, which doesn't exist on device.
+- The iOS app is **fully native** (`ios-native/`, SwiftUI + supabase-swift). There is no WebView and no static export; the Capacitor shell was retired after the native cutover.
+- The native app consumes the backend two ways, mirroring the web client: direct Supabase PostgREST queries under RLS (mirrors `src/lib/supabase/queries.ts`) and the Vercel API routes with Bearer-token auth (mirrors `src/lib/api.ts`). **Changing an API route's request/response shape or a table's RLS policy affects the shipped iOS app** — keep contracts stable or version them.
+- User-facing copy lives in `src/messages/{en,es}.ts`; the native app generates its String Catalog from these via `ios-native/scripts/gen-xcstrings.js` — re-run it after editing the dictionaries.
+- **Rule of thumb:** anything the iOS app needs at runtime must come from Supabase or a Vercel API route — never from web-only state (cookies, localStorage).
 
 ## Commands
 
@@ -74,15 +74,14 @@ Standard App Router route handlers (`route.ts`). These run **only on the web/Ver
 npm run dev          # local Next.js dev server (web)
 npm run build        # web production build
 npm run lint         # eslint (eslint-config-next)
-npm run build:ios    # static export for Capacitor
-npm run open:ios     # open the iOS project in Xcode
-npm run cap:dev      # cap sync ios (dev)
+# iOS (native app):
+#   cd ios-native && xcodegen generate && open ClubFuoco.xcodeproj
 # data scripts (need .env.local):
 npm run osm:fill     # OpenStreetMap venue fill
 npm run nb:fill / nb:apply   # neighborhood enrichment
 ```
 
-Env: copy `.env.example` → `.env.local`. Stack: Next 15, React 19, TS 5.7, Tailwind 3.4, Supabase JS, Stripe, Resend, Zod, Capacitor 8.
+Env: copy `.env.example` → `.env.local`. Stack: Next 15, React 19, TS 5.7, Tailwind 3.4, Supabase JS, Stripe, Resend, Zod. iOS: SwiftUI (iOS 17+), supabase-swift, GoogleSignIn, StripeApplePay.
 
 ## Conventions
 

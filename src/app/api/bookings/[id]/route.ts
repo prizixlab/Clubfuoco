@@ -25,7 +25,11 @@ export async function GET(
   return ok(data)
 }
 
-// DELETE /api/bookings/:id — cancel + partial refund (we keep the 10% platform fee)
+// DELETE /api/bookings/:id — cancel a booking.
+//   • Free bookings cancel cleanly, no refund, no time restriction.
+//   • Paid bookings refund everything the guest paid EXCEPT the payment-
+//     processing fee Stripe charged us on the original charge (which Stripe
+//     keeps on refunds), so a cancellation never costs us money.
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -47,39 +51,36 @@ export async function DELETE(
   if (booking.status === 'used')      return err('Cannot cancel a used booking', 400)
   if (booking.status === 'cancelled') return err('Booking is already cancelled', 400)
 
-  // Refund cutoff: no cancellations after 22:59 on the event night
-  // (1 hour before 23:59 on booking_date, in Europe/Madrid time)
-  const eventDate = new Date(booking.booking_date)
-  // Build cutoff: 22:59:00 local Madrid time on the booking date
-  const cutoffStr = `${booking.booking_date}T22:59:00`
-  const cutoff = new Date(
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Europe/Madrid',
-      year: 'numeric', month: '2-digit', day: '2-digit',
-    }).format(eventDate) + 'T22:59:00'
-  )
-  // Simpler: construct the cutoff as a UTC timestamp from the Madrid date
-  const nowMadrid = new Date(
-    new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' })
-  )
-  // Parse the booking_date in Madrid time
-  const [year, month, day] = booking.booking_date.split('-').map(Number)
-  const cutoffMadrid = new Date(year, month - 1, day, 22, 59, 0)
+  const totalCents = Math.round((booking.total_amount ?? 0) * 100)
+  const isFree = !booking.stripe_payment_intent_id || totalCents <= 0
 
-  if (nowMadrid >= cutoffMadrid) {
-    return err('Cancellations are not allowed within 1 hour of midnight on the event night', 400)
-  }
-
-  // Partial refund — user keeps 25% as a cancellation fee, gets 75% back.
-  const refundAmountEuros = Math.round((booking.total_amount ?? 0) * 0.75 * 100) / 100
+  let refundAmountEuros = 0
   let refundError: string | null = null
-  if (booking.stripe_payment_intent_id) {
-    const refundAmountCents = Math.round(refundAmountEuros * 100)
-    if (refundAmountCents > 0) {
+
+  if (!isFree) {
+    // The non-recoverable cost = the processing fee Stripe took on the original
+    // payment. Pull the actual fee from the charge's balance transaction; if
+    // that lookup fails, fall back to Stripe's standard EU card fee (1.5% + €0.25).
+    let feeCents = Math.round(totalCents * 0.015) + 25
+    try {
+      const intent = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id!, {
+        expand: ['latest_charge.balance_transaction'],
+      })
+      const charge = intent.latest_charge as any
+      const actualFee = charge?.balance_transaction?.fee
+      if (typeof actualFee === 'number') feeCents = actualFee
+    } catch (feeErr: any) {
+      console.error('Could not read Stripe fee, using estimate:', feeErr.message)
+    }
+
+    const refundCents = Math.max(0, totalCents - feeCents)
+    refundAmountEuros = refundCents / 100
+
+    if (refundCents > 0) {
       try {
         await stripe.refunds.create({
-          payment_intent: booking.stripe_payment_intent_id,
-          amount: refundAmountCents,
+          payment_intent: booking.stripe_payment_intent_id!,
+          amount: refundCents,
         })
       } catch (stripeErr: any) {
         // Log but don't block — still cancel the booking so the user isn't stuck

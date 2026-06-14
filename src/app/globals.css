@@ -7,6 +7,18 @@ html, body {
   color: #221E1A;
   margin: 0;
   height: 100%;
+  /* Force light rendering of native form controls — otherwise an iOS device in
+     Dark Mode makes typed <input>/<textarea> text near-white and invisible on
+     the cream background (placeholder still shows, typed letters don't). */
+  color-scheme: light;
+}
+
+/* Belt-and-suspenders: keep typed text and caret ink-dark in every text field,
+   even ones that don't set their own color. Inline component colors still win. */
+input, textarea, select {
+  color: #221E1A;
+  -webkit-text-fill-color: #221E1A;
+  caret-color: #221E1A;
 }
 
 /* Hide scrollbars in drum pickers */

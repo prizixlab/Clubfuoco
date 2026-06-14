@@ -66,7 +66,7 @@ struct BookingsView: View {
         }
         #if DEBUG
         .fullScreenCover(item: $debugGroup) { group in
-            NavigationStack { GroupDetailView(groupId: group.id) }
+            NavigationStack { GroupDetailView(groupId: group.id, presentedModally: true) }
         }
         #endif
         .sheet(item: $qrBooking) { booking in

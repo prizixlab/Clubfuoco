@@ -305,7 +305,10 @@ final class BookNightViewModel {
                     clubId: detail.placeId,
                     bookingType: bookingType,
                     bookingDate: date,
-                    organizerPays: true,
+                    // General entry is a free guestlist pass (pay at the door),
+                    // so the organizer gets their QR right away. VIP tables are
+                    // a real charge settled from the group screen.
+                    organizerPays: bookingType == "vip",
                     members: []
                 ))
                 Haptics.success()

@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { notify } from '@/lib/notify'
-import { ok, err } from '@/lib/utils'
+import { ok, err, generateQRToken } from '@/lib/utils'
 import { generateInviteCode } from '@/lib/groups'
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
@@ -117,6 +117,36 @@ export async function POST(request: NextRequest) {
       return err('Run the group_member_amounts migration in Supabase (adds amount_due).', 503)
     }
     return err(mErr.message)
+  }
+
+  // A free-entry organizer (general guestlist) gets their pass straight away:
+  // a normal booking row with its own QR, mirroring how joiners are handled.
+  // Paying organizers (VIP / custom amount) settle from the group screen first.
+  const organizerFree = !(organizer_pays || (organizer_amount ?? 0) > 0)
+  if (organizerFree) {
+    const qrToken = generateQRToken()
+    const { data: booking } = await sb
+      .from('bookings')
+      .insert({
+        user_id:       me,
+        club_id,
+        booking_type,
+        party_size:    1,
+        booking_date,
+        status:        'confirmed',
+        unit_price:    0,
+        total_amount:  0,
+        platform_fee:  0,
+        qr_code_token: qrToken,
+      })
+      .select('id')
+      .single()
+    if (booking) {
+      await sb.from('booking_group_members')
+        .update({ booking_id: booking.id, paid: false })
+        .eq('group_id', group.id)
+        .eq('user_id', me)
+    }
   }
 
   // Notify invited friends

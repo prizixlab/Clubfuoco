@@ -56,7 +56,8 @@ struct ClubDetailView: View {
             )
         }
         .sheet(item: $planGroup) { ref in
-            NavigationStack { GroupDetailView(groupId: ref.id) }
+            NavigationStack { GroupDetailView(groupId: ref.id, presentedModally: true) }
+                .presentationDragIndicator(.visible)
         }
         .task {
             detail = try? await auth.queries.clubById(place.placeId)

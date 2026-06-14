@@ -13,7 +13,12 @@ struct GroupRef: Identifiable {
 /// button explains that instead of dead-ending on the 402.
 struct GroupDetailView: View {
     let groupId: UUID
+    /// Set when presented as a sheet (vs pushed onto a nav stack) so we can
+    /// offer an explicit Done button — the scrolling content otherwise eats the
+    /// swipe-to-dismiss gesture.
+    var presentedModally = false
     @Environment(\.api) private var api
+    @Environment(\.dismiss) private var dismiss
     @Environment(AuthStore.self) private var auth
     @Environment(LocaleStore.self) private var locale
     @State private var model = GroupDetailViewModel()
@@ -58,6 +63,15 @@ struct GroupDetailView: View {
         .sheet(isPresented: $showQR) {
             if let group = model.group, let token = passToken {
                 qrSheet(clubName: group.clubName, date: group.bookingDate, token: token)
+            }
+        }
+        .toolbar {
+            if presentedModally {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(locale.t("common.done")) { dismiss() }
+                        .font(.cfSans(15, weight: .semibold))
+                        .foregroundStyle(Theme.ink)
+                }
             }
         }
     }

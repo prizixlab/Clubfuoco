@@ -4386,6 +4386,38 @@
         }
       }
     },
+    "bookings.groupTag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Group"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grupo"
+          }
+        }
+      }
+    },
+    "bookings.seeWhosGoing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See who's going"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver quién va"
+          }
+        }
+      }
+    },
     "groups.yourSpot": {
       "localizations": {
         "en": {

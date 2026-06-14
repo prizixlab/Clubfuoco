@@ -84,7 +84,7 @@ struct GroupDetailView: View {
                     Color(hex: 0xEFE9DD)
                         .overlay {
                             if let url = group.clubImage.flatMap(URL.init(string:)) {
-                                AsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                                CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
                             }
                         }
                         .frame(height: 200)
@@ -384,7 +384,7 @@ struct GroupDetailView: View {
                 .frame(width: 40, height: 40)
                 .overlay {
                     if let avatar = member.avatarUrl, let url = URL(string: avatar) {
-                        AsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color.clear }
+                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color.clear }
                             .clipShape(.circle)
                     } else {
                         Text(member.initials)

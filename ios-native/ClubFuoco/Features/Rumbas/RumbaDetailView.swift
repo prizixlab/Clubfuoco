@@ -19,7 +19,7 @@ struct RumbaDetailView: View {
                     Color(hex: 0xEFE9DD)
                         .overlay {
                             if let url = rumba.coverImage.flatMap(URL.init(string:)) {
-                                AsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                                CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
                             }
                         }
                         .frame(height: 240)

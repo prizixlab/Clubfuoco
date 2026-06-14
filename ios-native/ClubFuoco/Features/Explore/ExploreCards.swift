@@ -11,7 +11,7 @@ private struct CardPhoto: View {
         Color(hex: 0xEFE9DD)
             .overlay {
                 if let url, let parsed = URL(string: url) {
-                    AsyncImage(url: parsed) { image in
+                    CachedAsyncImage(url: parsed) { image in
                         image.resizable().aspectRatio(contentMode: .fill)
                     } placeholder: {
                         Color(hex: 0xEFE9DD)

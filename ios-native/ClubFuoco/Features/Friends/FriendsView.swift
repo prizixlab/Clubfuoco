@@ -182,7 +182,7 @@ struct FriendsView: View {
                 .frame(width: 44, height: 44)
                 .overlay {
                     if let avatar, let url = URL(string: avatar) {
-                        AsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color.clear }
+                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color.clear }
                             .clipShape(.circle)
                     } else {
                         Text(initials)

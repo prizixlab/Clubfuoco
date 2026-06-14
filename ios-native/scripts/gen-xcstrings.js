@@ -207,6 +207,8 @@ const NATIVE_KEYS = {
     es: 'Las plazas de pago necesitan pago en la app — llega pronto. De momento usa el enlace de invitación en la web.',
   },
   'groups.notFound': { en: 'Group not found', es: 'Grupo no encontrado' },
+  'bookings.groupTag': { en: 'Group', es: 'Grupo' },
+  'bookings.seeWhosGoing': { en: "See who's going", es: 'Ver quién va' },
   'groups.yourSpot': { en: 'Your spot', es: 'Tu plaza' },
   'groups.yourPass': { en: 'Your pass', es: 'Tu pase' },
   'groups.addToCalendar': { en: 'Add to calendar', es: 'Añadir al calendario' },

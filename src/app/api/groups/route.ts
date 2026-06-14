@@ -38,7 +38,7 @@ export async function GET() {
 
   const { data: groups } = await sb
     .from('booking_groups')
-    .select('id, booking_type, booking_date, status, invite_code, clubs(name, cover_image_url)')
+    .select('id, club_id, booking_type, booking_date, status, invite_code, clubs(name, cover_image_url)')
     .in('id', ids)
     .order('booking_date', { ascending: false })
 

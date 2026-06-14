@@ -11,6 +11,7 @@ struct BookingsView: View {
     @Environment(LocaleStore.self) private var locale
     @State private var model = BookingsViewModel()
     @State private var qrBooking: Booking?
+    @State private var openGroup: GroupListItem?
     @State private var confirmCancel: Booking?
     #if DEBUG
     @State private var debugGroup: GroupListItem?
@@ -37,7 +38,7 @@ struct BookingsView: View {
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded:
-                if model.isEmpty && model.groups.isEmpty {
+                if model.isEmpty {
                     emptyState
                 } else {
                     list
@@ -46,9 +47,6 @@ struct BookingsView: View {
         }
         .background(Theme.cream)
         .navigationTitle(locale.t("nav.tickets"))
-        .navigationDestination(for: GroupListItem.self) { group in
-            GroupDetailView(groupId: group.id)
-        }
         .task {
             await model.load(api: api, queries: auth.queries)
             #if DEBUG
@@ -71,6 +69,10 @@ struct BookingsView: View {
         #endif
         .sheet(item: $qrBooking) { booking in
             qrSheet(booking)
+        }
+        .sheet(item: $openGroup) { group in
+            NavigationStack { GroupDetailView(groupId: group.id, presentedModally: true) }
+                .presentationDragIndicator(.visible)
         }
         .confirmationDialog(
             locale.t("bookings.cancelQuestion"),
@@ -115,8 +117,6 @@ struct BookingsView: View {
     private var list: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                GroupsStrip(groups: model.groups)
-
                 if !model.tonight.isEmpty {
                     section(locale.t("bookings.tonight"), items: model.tonight, tonight: true)
                 }
@@ -163,17 +163,25 @@ struct BookingsView: View {
 
     // ── Cards ─────────────────────────────────────────────────────────────────
 
+    /// The group night this booking belongs to, if any — a group entry is a
+    /// normal booking, so we match it to a group by club + date.
+    private func groupFor(_ booking: Booking) -> GroupListItem? {
+        guard let clubId = booking.club?.id else { return nil }
+        return model.groups.first { $0.clubId == clubId && $0.bookingDate == booking.bookingDate }
+    }
+
     private func bookingCard(_ booking: Booking, tonight: Bool) -> some View {
         let isCancelled = booking.status == "cancelled"
         let isLive = tonight && !isCancelled
+        let group = groupFor(booking)
 
         return VStack(spacing: 0) {
-            // ── Hero ──────────────────────────────────────────────────────────
+            // ── Hero (tap to open the group when this is a group night) ────────
             ZStack(alignment: .topLeading) {
                 Color(hex: 0x2A1F1A)
                     .overlay {
                         if let url = booking.club?.coverImageUrl.flatMap(URL.init(string:)) {
-                            AsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0x2A1F1A) }
+                            CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0x2A1F1A) }
                         }
                     }
                     .frame(height: 140)
@@ -185,9 +193,19 @@ struct BookingsView: View {
 
                 VStack(alignment: .leading) {
                     HStack {
-                        Text(locale.t("bookings.nightlife"))
-                            .font(.cfSans(10))
-                            .foregroundStyle(.white.opacity(0.85))
+                        if group != nil {
+                            Text(locale.t("bookings.groupTag").uppercased())
+                                .font(.cfSans(9, weight: .semibold))
+                                .kerning(0.8)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(.white.opacity(0.22), in: .capsule)
+                        } else {
+                            Text(locale.t("bookings.nightlife"))
+                                .font(.cfSans(10))
+                                .foregroundStyle(.white.opacity(0.85))
+                        }
                         Spacer()
                         heroBadge(isCancelled: isCancelled, isLive: isLive)
                     }
@@ -203,6 +221,12 @@ struct BookingsView: View {
                 .padding(12)
             }
             .frame(height: 140)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard let group else { return }
+                Haptics.tap()
+                openGroup = group
+            }
 
             // ── Perforation ───────────────────────────────────────────────────
             TicketPerforation()
@@ -259,6 +283,26 @@ struct BookingsView: View {
                                 .font(.cfSans(12))
                                 .foregroundStyle(Theme.wine)
                         }
+                    }
+                }
+
+                if let group {
+                    Rectangle().fill(Theme.hairline).frame(height: 1)
+                    Button {
+                        Haptics.tap()
+                        openGroup = group
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "person.2.fill")
+                                .font(.system(size: 12))
+                            Text(locale.t("bookings.seeWhosGoing"))
+                                .font(.cfSans(13, weight: .medium))
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Theme.fadedSand)
+                        }
+                        .foregroundStyle(Theme.ink)
                     }
                 }
             }

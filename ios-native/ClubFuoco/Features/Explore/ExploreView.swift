@@ -148,18 +148,34 @@ struct ExploreView: View {
     }
 
     private var searchField: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 14))
-                .foregroundStyle(Theme.fadedSand)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(Theme.stone)
             TextField(locale.t("explore.searchPlaceholder"), text: Bindable(model).search)
                 .font(.cfSans(16))
+                .foregroundStyle(Theme.ink)
+                .tint(Theme.ember)
                 .autocorrectionDisabled()
+                .submitLabel(.search)
+            if !model.search.isEmpty {
+                Button {
+                    Haptics.tap()
+                    withAnimation(.easeOut(duration: 0.15)) { model.search = "" }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Theme.sand)
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity.combined(with: .scale))
+            }
         }
-        .padding(.horizontal, 14)
-        .frame(height: 44)
-        .background(Color.white, in: .rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
+        .padding(.horizontal, 16)
+        .frame(height: 50)
+        .background(Color.white, in: .rect(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.ink.opacity(0.06), lineWidth: 1))
+        .shadow(color: Theme.ink.opacity(0.06), radius: 12, y: 4)
     }
 
     // ── Feed ──────────────────────────────────────────────────────────────────
@@ -273,7 +289,7 @@ struct ExploreView: View {
             Color(hex: 0x1A1410)
                 .overlay {
                     if let url = rumba.coverImage.flatMap(URL.init(string:)) {
-                        AsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0x1A1410) }
+                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0x1A1410) }
                     }
                 }
                 .frame(width: 220, height: 130)
@@ -316,7 +332,7 @@ struct ExploreView: View {
                             Color(hex: 0xEFE9DD)
                                 .overlay {
                                     if let url = place.coverPhoto.flatMap(URL.init(string:)) {
-                                        AsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
                                     }
                                 }
                                 .frame(width: 52, height: 52)
@@ -494,7 +510,7 @@ private struct CardPhotoLarge: View {
         Color(hex: 0xEFE9DD)
             .overlay {
                 if let url, let parsed = URL(string: url) {
-                    AsyncImage(url: parsed) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                    CachedAsyncImage(url: parsed) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
                 }
             }
             .frame(height: 200)

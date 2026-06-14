@@ -92,7 +92,7 @@ struct ClubDetailView: View {
             Color(hex: 0xEFE9DD)
                 .overlay {
                     if let url = photos.first.flatMap(URL.init(string:)) {
-                        AsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
                     } else {
                         Image(systemName: "music.note.house")
                             .font(.system(size: 44))
@@ -421,7 +421,7 @@ struct ClubDetailView: View {
                         Color(hex: 0xEFE9DD)
                             .overlay {
                                 if let parsed = URL(string: url) {
-                                    AsyncImage(url: parsed) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                                    CachedAsyncImage(url: parsed) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
                                 }
                             }
                             .frame(width: 140, height: 100)

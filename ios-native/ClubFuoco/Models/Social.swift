@@ -44,6 +44,7 @@ struct GroupListItem: Decodable, Identifiable, Sendable, Hashable {
     }
 
     let id: UUID
+    let clubId: UUID
     let bookingType: String
     let bookingDate: String
     let status: String

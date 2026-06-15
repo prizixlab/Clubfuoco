@@ -61,6 +61,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/signup') ||
     pathname.startsWith('/legal') ||
     pathname.startsWith('/auth') ||
+    pathname.startsWith('/join') ||              // Public invite landing (preview before sign-in)
+    pathname.startsWith('/api/groups/preview') || // Public, read-only invite preview
     pathname.startsWith('/explore') ||      // Guest browsing — venue feed
     pathname.startsWith('/clubs') ||        // Guest browsing — venue detail pages
     pathname.startsWith('/rumbas') ||       // Guest browsing — events

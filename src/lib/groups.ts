@@ -89,8 +89,17 @@ export async function getGroupDetail(sb: SB, groupId: string, meId: string): Pro
 
 // Short, unambiguous invite code (no easily-confused chars).
 export function generateInviteCode(len = 6): string {
+  // CSPRNG (not Math.random) so codes aren't predictable. Rejection-sample to
+  // keep a uniform distribution over the 32-char alphabet.
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const bytes = new Uint8Array(len)
+  crypto.getRandomValues(bytes)
   let out = ''
-  for (let i = 0; i < len; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)]
+  for (let i = 0; i < len; i++) {
+    let b = bytes[i]
+    // 256 isn't a multiple of 32, but 32 divides 256 evenly (256/32 = 8), so
+    // a plain modulo is already uniform here — no rejection needed.
+    out += alphabet[b % alphabet.length]
+  }
   return out
 }

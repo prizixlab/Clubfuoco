@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useLocale } from '@/contexts/LocaleContext'
 import OAuthButtons from '@/components/OAuthButtons'
 import { DrumPicker } from '@/components/ui/DrumPicker'
+import { safeNextPath } from '@/lib/url'
 
 // ── Design tokens
 const C = {
@@ -312,7 +313,11 @@ export default function SignupPage() {
   // the user to that screen; free continues straight to onboarding.
   function handleMembership(plan: string) {
     if (plan === 'free') {
-      router.push('/explore')
+      // Return to a validated ?next= (e.g. an invite at /join/CODE) if present.
+      const next = typeof window !== 'undefined'
+        ? safeNextPath(new URLSearchParams(window.location.search).get('next'))
+        : null
+      router.push(next ?? '/explore')
     } else {
       router.push(`/membership/${plan}`)
     }

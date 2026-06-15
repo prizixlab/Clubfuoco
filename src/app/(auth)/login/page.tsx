@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useLocale } from '@/contexts/LocaleContext'
 import OAuthButtons from '@/components/OAuthButtons'
+import { safeNextPath } from '@/lib/url'
 
 // ── Sign-in screen — exact match to 02 _ Sign in-2.html
 // Cream cinema theme
@@ -27,6 +28,14 @@ export default function LoginPage() {
   const [showPwd,  setShowPwd]  = useState(false)
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
+  // Carry a validated ?next= over to the sign-up link (set client-side to avoid
+  // a hydration mismatch).
+  const [signupHref, setSignupHref] = useState('/signup')
+
+  useEffect(() => {
+    const next = safeNextPath(new URLSearchParams(window.location.search).get('next'))
+    if (next) setSignupHref(`/signup?next=${encodeURIComponent(next)}`)
+  }, [])
 
   const supabase = createClient()
 
@@ -42,6 +51,11 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
+      // If we arrived with a validated ?next= (e.g. an invite at /join/CODE),
+      // return there. Otherwise route to the account's home.
+      const next = safeNextPath(new URLSearchParams(window.location.search).get('next'))
+      if (next) { router.push(next); return }
+
       let type = 'user'
       try {
         const { data: profile } = await (supabase as any)
@@ -221,7 +235,7 @@ export default function LoginPage() {
             {t('login.noAccount')}{' '}
           </span>
           <Link
-            href="/signup"
+            href={signupHref}
             style={{
               fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
               fontSize: 13, color: C.red, textDecoration: 'none',

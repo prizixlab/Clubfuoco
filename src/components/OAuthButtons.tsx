@@ -2,11 +2,20 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { safeNextPath } from '@/lib/url'
 
 const C = {
   ink:   '#221E1A',
   stone: '#6E6356',
   white: '#FFFFFF',
+}
+
+// OAuth callback URL, preserving a validated ?next= so the user returns to
+// where they started (e.g. an invite at /join/CODE) after sign-in.
+function callbackUrl(): string {
+  const base = `${window.location.origin}/api/auth/callback`
+  const next = safeNextPath(new URLSearchParams(window.location.search).get('next'))
+  return next ? `${base}?next=${encodeURIComponent(next)}` : base
 }
 
 // (Native iOS sign-in lives in the native app now — this component only
@@ -24,7 +33,7 @@ export default function OAuthButtons() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/api/auth/callback`,
+          redirectTo: callbackUrl(),
           skipBrowserRedirect: true,
         },
       })
@@ -41,7 +50,7 @@ export default function OAuthButtons() {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
-        options: { redirectTo: `${window.location.origin}/api/auth/callback` },
+        options: { redirectTo: callbackUrl() },
       })
       if (error || !data.url) { setAppleLoading(false); return }
       window.location.href = data.url

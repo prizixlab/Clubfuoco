@@ -80,7 +80,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const club: any = Array.isArray(group.clubs) ? group.clubs[0] : group.clubs
   const unitPrice = group.booking_type === 'vip' ? club?.vip_table_min_spend : club?.general_entry_price
-  if (customAmount == null && !unitPrice) return err('Pricing not available', 400)
+  // A VIP table must have a price; general entry may legitimately be free (0 or
+  // null) — e.g. a free guestlist night — and joins at no charge.
+  if (group.booking_type === 'vip' && customAmount == null && !unitPrice) {
+    return err('Pricing not available', 400)
+  }
 
   const { data: profile } = await sb
     .from('users')
@@ -93,10 +97,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   let platformFee = 0
   let paymentIntentId: string | null = null
 
-  // Custom amount → charge it flat (no membership discount). Otherwise the
-  // standard per-person price with the member's membership discount applied.
-  const willCharge = customAmount != null ? customAmount > 0 : paymentRequired
-  const chargeUnit = customAmount != null ? customAmount : unitPrice
+  // What this member actually owes: a custom organizer allocation, else the
+  // club's per-person price when they're a payer, else 0 (free entry).
+  const chargeUnit = customAmount != null ? customAmount : (paymentRequired ? (unitPrice ?? 0) : 0)
+  const willCharge = chargeUnit > 0
 
   if (willCharge) {
     if (!payment_method_id) return err('Payment required', 402)

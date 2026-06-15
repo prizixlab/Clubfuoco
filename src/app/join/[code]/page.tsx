@@ -1,16 +1,17 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { apiFetch } from '@/lib/api'
 import { normalizeInviteCode } from '@/lib/url'
 
 // ── Public invite landing — clubfuoco.com/join/CODE ──────────────────────────
 // A logged-out person sees a preview (club, date, headcount, organizer). To
-// actually join they sign in / create an account (Google · Apple · email);
-// after auth they return here and join. Free guestlist nights join on the web;
-// paid shares are sent to the app to pay.
+// join they sign in / create an account (Google · Apple · email); after auth
+// they return here and join. This is the ONLY app surface on the web — there is
+// deliberately no navigation into the rest of the app; joining ends on a
+// self-contained confirmation that points to the native app.
 
 const C = {
   cream: '#F8F5EE', ink: '#221E1A', stone: '#6E6356',
@@ -28,10 +29,9 @@ type Preview = {
   organizer_first: string | null
 }
 
-type Phase = 'loading' | 'preview' | 'joining' | 'error'
+type Phase = 'loading' | 'preview' | 'joining' | 'joined' | 'error'
 
 export default function JoinByCode() {
-  const router = useRouter()
   const params = useParams<{ code: string }>()
   const code = normalizeInviteCode(params?.code)
 
@@ -94,11 +94,13 @@ export default function JoinByCode() {
         setError(joinBody?.error ?? 'Could not join this night.')
         setPhase('error'); return
       }
-      router.replace(`/groups/${id}`)
+      // Terminal — do NOT navigate into the web app. The night lives in the
+      // native app from here.
+      setPhase('joined')
     } catch {
       setError('Could not join this night.'); setPhase('error')
     }
-  }, [code, router])
+  }, [code])
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: C.cream, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -114,6 +116,22 @@ export default function JoinByCode() {
           <Card>
             <p style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 26, color: C.ink, margin: '0 0 8px' }}>Hmm.</p>
             <p style={{ fontFamily: 'var(--font-geist-sans), Inter, sans-serif', fontSize: 14, color: C.stone, margin: 0 }}>{error}</p>
+          </Card>
+        )}
+
+        {phase === 'joined' && (
+          <Card>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(45,122,70,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 12.5l5 5 11-11" stroke="#2D7A46" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+            </div>
+            <p style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 30, color: C.ink, margin: '0 0 8px', textAlign: 'center' }}>
+              You’re in{preview?.club_name ? ` — ${preview.club_name}` : ''}
+            </p>
+            <p style={{ fontFamily: 'var(--font-geist-sans), Inter, sans-serif', fontSize: 14, color: C.stone, margin: 0, textAlign: 'center', lineHeight: 1.5 }}>
+              You’re on the list. Open the Club Fuoco app on your phone to see the night, your pass, and who’s going.
+            </p>
           </Card>
         )}
 

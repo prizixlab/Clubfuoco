@@ -51,62 +51,44 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // ── Public routes — always accessible ──────────────────────────────────────
-  // Guideline 5.1.1(v): non-account content (browsing venues, events, pricing)
-  // must be reachable without an account. Login is only required for
-  // account-based actions, which the affected pages gate themselves.
-  const isPublic =
-    pathname === '/' ||
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/signup') ||
-    pathname.startsWith('/legal') ||
-    pathname.startsWith('/auth') ||
-    pathname.startsWith('/join') ||              // Public invite landing (preview before sign-in)
-    pathname.startsWith('/api/groups/preview') || // Public, read-only invite preview
-    pathname.startsWith('/explore') ||      // Guest browsing — venue feed
-    pathname.startsWith('/clubs') ||        // Guest browsing — venue detail pages
-    pathname.startsWith('/rumbas') ||       // Guest browsing — events
-    // Marketing site surfaces (clubfuoco.com only — iOS never hits these)
-    pathname.startsWith('/about') ||
-    pathname.startsWith('/partners') ||
-    pathname.startsWith('/investors') ||
-    pathname.startsWith('/press') ||
-    pathname.startsWith('/api/partnership-inquiries') ||
-    pathname.startsWith('/api/places') ||   // Venue/details/photo APIs
-    pathname.startsWith('/api/events') ||   // Event listings
-    pathname.startsWith('/api/clubs') ||    // Public clubs read APIs
-    pathname.startsWith('/api/rumbas') ||
-    pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/api/webhooks') ||
-    /^\/api\/(bookings|tickets|guest-lists)\/[^/]+\/wallet$/.test(pathname) ||
-    /^\/api\/membership\/wallet\/[^/]+$/.test(pathname)
-
-  // ── Admin API — allow cron / manual triggers to bypass session ──────────────
+  // ── Admin API — first layer of defence ──────────────────────────────────────
+  // Allow Vercel cron (CRON_SECRET bearer) or any logged-in user through here;
+  // every /api/admin route additionally self-protects with requireRole /
+  // requireCronOrRole, so this is defence-in-depth, not the only gate.
+  // NOTE: there is intentionally NO `?manual=1` bypass — that let any
+  // unauthenticated caller run admin jobs (Google Places sync, discover, …).
   if (pathname.startsWith('/api/admin')) {
+    const cronSecret = process.env.CRON_SECRET
     const authHeader = request.headers.get('authorization')
-    const isCron     = authHeader === `Bearer ${process.env.CRON_SECRET}`
-    const isManual   = request.nextUrl.searchParams.get('manual') === '1'
-    if (!user && !isCron && !isManual) {
+    const isCron     = !!cronSecret && authHeader === `Bearer ${cronSecret}`
+    if (!user && !isCron) {
       return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 })
     }
-    // Cron/manual/logged-in admin — skip the general auth redirect below
     return NextResponse.next({ request })
   }
 
-  // ── Redirect unauthenticated users to /login ────────────────────────────────
-  if (!user && !isPublic) {
-    const loginUrl = request.nextUrl.clone()
-    loginUrl.pathname = '/login'
-    loginUrl.searchParams.set('next', pathname)
-    return NextResponse.redirect(loginUrl)
-  }
-
-  // ── Redirect logged-in users away from auth/splash pages ───────────────────
-  if (user && (pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/signup'))) {
-    const homeUrl = request.nextUrl.clone()
-    homeUrl.pathname = '/explore'
-    homeUrl.search = ''
-    return NextResponse.redirect(homeUrl)
+  // ── Web is invite-only ──────────────────────────────────────────────────────
+  // The ONLY app surface on the web is the /join invite flow plus the auth it
+  // needs to complete. Everything else — explore, clubs, rumbas, groups,
+  // tickets, profile, settings, dashboards, etc. — lives exclusively in the
+  // native app and must NOT be reachable in a browser. Any other page route is
+  // bounced to the marketing home. API routes are deliberately untouched: the
+  // native app and the join flow both depend on them (each route self-protects).
+  if (!pathname.startsWith('/api/')) {
+    const WEB_ALLOWED = [
+      '/about', '/partners', '/investors', '/press', '/legal',   // marketing
+      '/join',                                                    // invite flow
+      '/login', '/signup', '/complete-profile', '/auth',         // auth for joining
+    ]
+    const allowed =
+      pathname === '/' ||
+      WEB_ALLOWED.some(p => pathname === p || pathname.startsWith(`${p}/`))
+    if (!allowed) {
+      const home = request.nextUrl.clone()
+      home.pathname = '/'
+      home.search = ''
+      return NextResponse.redirect(home)
+    }
   }
 
   // ── Attach CORS headers to every API response ──────────────────────────────

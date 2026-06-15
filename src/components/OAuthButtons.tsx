@@ -10,12 +10,17 @@ const C = {
   white: '#FFFFFF',
 }
 
-// OAuth callback URL, preserving a validated ?next= so the user returns to
-// where they started (e.g. an invite at /join/CODE) after sign-in.
+// Returns the OAuth callback URL. IMPORTANT: this must stay exactly equal to an
+// allow-listed Supabase Redirect URL — appending a query string here can make
+// Supabase fall back to the Site URL and drop the destination. So instead of
+// putting ?next= on the redirect, we stash a validated next in a short-lived,
+// same-site cookie that the server callback reads after the provider round-trip.
 function callbackUrl(): string {
-  const base = `${window.location.origin}/api/auth/callback`
   const next = safeNextPath(new URLSearchParams(window.location.search).get('next'))
-  return next ? `${base}?next=${encodeURIComponent(next)}` : base
+  if (next) {
+    document.cookie = `cf_oauth_next=${encodeURIComponent(next)}; path=/; max-age=600; samesite=lax; secure`
+  }
+  return `${window.location.origin}/api/auth/callback`
 }
 
 // (Native iOS sign-in lives in the native app now — this component only

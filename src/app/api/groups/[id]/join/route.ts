@@ -73,8 +73,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return ok({ rsvp: 'going', booking_id: existing.booking_id })
   }
 
-  // Link-joiners aren't pre-listed: add them, paying their own entry.
-  const paymentRequired = existing ? existing.payment_required : true
+  // The host always covers the group, so guests joining via an invite link are
+  // never charged — they just RSVP. (Pre-listed members keep whatever the
+  // organizer allocated to them.)
+  const paymentRequired = existing ? existing.payment_required : false
   // Custom organizer allocation (e.g. a split VIP table) overrides club pricing.
   const customAmount = existing && existing.amount_due != null ? Number(existing.amount_due) : null
 

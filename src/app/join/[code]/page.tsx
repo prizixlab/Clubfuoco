@@ -159,10 +159,9 @@ export default function JoinByCode() {
                 </>
               ) : preview.status !== 'open' ? (
                 <Notice text="This night is no longer open." />
-              ) : preview.is_free ? (
-                <PrimaryButton onClick={join} loading={phase === 'joining'} label="Join this night" />
               ) : (
-                <Notice text="This is a paid table — open the Club Fuoco app to pay your share and join." />
+                // The host covers the group, so guests join free — no payment.
+                <PrimaryButton onClick={join} loading={phase === 'joining'} label="Join this night" />
               )}
             </div>
           </>

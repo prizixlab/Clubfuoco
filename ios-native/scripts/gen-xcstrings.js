@@ -88,10 +88,12 @@ const NATIVE_KEYS = {
   'explore.open': { en: 'Open', es: 'Abierto' },
   'explore.featuredTonight': { en: 'Featured tonight', es: 'Destacado esta noche' },
   'explore.tonightPrefix': { en: 'Tonight:', es: 'Esta noche:' },
+  'explore.featured': { en: 'Featured', es: 'Destacado' },
   'explore.noneNearby': { en: 'No clubs found nearby', es: 'No hay clubs cerca' },
   'explore.loadError': { en: 'Could not load nearby clubs', es: 'No se pudieron cargar los clubs cercanos' },
   'plan.tonight': { en: 'Tonight', es: 'Esta noche' },
   'plan.tomorrow': { en: 'Tomorrow', es: 'Mañana' },
+  'plan.next': { en: 'Next', es: 'Próximo' },
 
   // Filter chips
   'chip.all': { en: 'All', es: 'Todo' },
@@ -132,6 +134,9 @@ const NATIVE_KEYS = {
   'bookings.factDoors': { en: 'Doors', es: 'Apertura' },
   'bookings.factGuests': { en: 'Guests', es: 'Personas' },
   'bookings.factTicket': { en: 'Ticket', es: 'Entrada' },
+  'bookings.detailTitle': { en: 'Reservation', es: 'Reserva' },
+  'bookings.factStatus': { en: 'Status', es: 'Estado' },
+  'bookings.factArrival': { en: 'Arrival', es: 'Llegada' },
   'bookings.tonightBadge': { en: 'Tonight', es: 'Esta noche' },
 
   // Profile (hardcoded EN/IT on web)
@@ -228,7 +233,7 @@ const NATIVE_KEYS = {
   'rumba.plusOnes': { en: 'Plus ones', es: 'Acompañantes' },
   'rumba.onList': { en: "You're on the list", es: 'Estás en la lista' },
   'rumba.waitlist': { en: 'Waitlist', es: 'Lista de espera' },
-  'shelf.rumbas.title': { en: "Tonight's Rumbas", es: 'Las rumbas de esta noche' },
+  'shelf.rumbas.title': { en: "Tonight's Guest Lists", es: 'Las listas de esta noche' },
   'shelf.rumbas.sub': { en: 'Exclusive guest list events', es: 'Eventos exclusivos con lista' },
   'explore.eventsArrow': { en: '%d events →', es: '%d eventos →' },
 
@@ -343,6 +348,20 @@ const NATIVE_KEYS = {
   'rumbalist.address': { en: 'Address', es: 'Dirección' },
   'rumbalist.valid': { en: 'Valid', es: 'Válido' },
   'rumbalist.dressCode': { en: 'Dress code', es: 'Código de vestimenta' },
+  'rumbalist.date': { en: 'Date', es: 'Fecha' },
+  'rumbalist.offer': { en: 'Offer', es: 'Oferta' },
+  'rumbalist.time': { en: 'Time', es: 'Horario' },
+  'rumbalist.reference': { en: 'Reference', es: 'Referencia' },
+  'rumbalist.savedToTickets': {
+    en: 'Saved to your Tickets tab — find it there anytime.',
+    es: 'Guardado en tu pestaña Entradas: encuéntralo cuando quieras.',
+  },
+  'rumbalist.validNight': { en: '%@ only', es: 'Solo %@' },
+  'rumbalist.worksUntil': { en: 'Works until %@', es: 'Válido hasta %@' },
+  'rumbalist.validNote': {
+    en: 'Valid for this night only, while the venue keeps accepting Rumbalist.',
+    es: 'Válido solo para esta noche, mientras el local siga aceptando Rumbalist.',
+  },
   'rumbalist.total': { en: 'Total', es: 'Total' },
   'rumbalist.free': { en: 'Free', es: 'Gratis' },
   'rumbalist.freeGuestlistWith': { en: 'Free Guestlist with', es: 'Lista gratis con' },

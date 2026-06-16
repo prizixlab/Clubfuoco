@@ -10,6 +10,7 @@ struct SignupView: View {
     @Binding var path: [AuthRoute]
     @Environment(AuthStore.self) private var auth
     @Environment(LocaleStore.self) private var locale
+    @Environment(\.api) private var api
     @Environment(\.dismiss) private var dismiss
 
     private enum Step: Int {
@@ -23,6 +24,7 @@ struct SignupView: View {
     @State private var firstName = ""
     @State private var lastName = ""
     @State private var email = ""
+    @State private var phone = ""
     @State private var password = ""
     @State private var showPassword = false
     @State private var tosAccepted = false
@@ -40,6 +42,7 @@ struct SignupView: View {
 
     @State private var loading = false
     @State private var errorMessage: String?
+    @State private var showSurvey = false
 
     var body: some View {
         Group {
@@ -51,6 +54,16 @@ struct SignupView: View {
         }
         .background(Theme.cream)
         .toolbar(.hidden, for: .navigationBar)
+        .fullScreenCover(isPresented: $showSurvey) {
+            // Modally-presented content doesn't inherit our environment, so the
+            // survey's API client + locale (used by PrimaryButton) are re-injected.
+            SurveyView(
+                onComplete: { auth.finishOnboarding() },   // saved → into the app
+                onCancel: { showSurvey = false }            // back → return to choice
+            )
+            .environment(locale)
+            .environment(\.api, api)
+        }
     }
 
     // ── Wizard frame ──────────────────────────────────────────────────────────
@@ -74,7 +87,7 @@ struct SignupView: View {
                 switch step {
                 case .details: detailsStep
                 case .birthday: birthdayStep
-                case .membership: membershipStep
+                case .membership: profileStep
                 }
             }
             .padding(.horizontal, 20)
@@ -154,6 +167,10 @@ struct SignupView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .font(.cfSans(16))
+            }
+
+            AuthField(label: locale.t("settings.phone")) {
+                PhoneNumberField(phone: $phone)
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -297,6 +314,10 @@ struct SignupView: View {
             errorMessage = locale.t("signup.tosError")
             return
         }
+        guard !phone.trimmingCharacters(in: .whitespaces).isEmpty else {
+            errorMessage = locale.t("signup.phoneError")
+            return
+        }
         loading = true
         errorMessage = nil
         Task {
@@ -391,6 +412,12 @@ struct SignupView: View {
         Task {
             do {
                 try await auth.verifySignupOTP(email: email, code: otpCode)
+                // Persist the phone collected in the details step now that the
+                // session exists. Mirrors how birthday is saved later.
+                let trimmedPhone = phone.trimmingCharacters(in: .whitespaces)
+                if !trimmedPhone.isEmpty {
+                    try? await auth.updateProfile(["phone": .string(trimmedPhone)])
+                }
                 Haptics.success()
                 verifying = false
                 step = .birthday
@@ -536,100 +563,89 @@ struct SignupView: View {
         step = .details
     }
 
-    // ── Step 3 of 3: membership ───────────────────────────────────────────────
+    // ── Step 3 of 3: profile (survey or straight into the app) ───────────────
 
-    private var membershipStep: some View {
+    private var profileStep: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Kicker("N° 04 · Membership")
+            Kicker("N° 04 · Il tuo profilo")
 
-            (Text(locale.t("signup.chooseMembership")) + Text("\n") + Text(locale.t("signup.membership")).italic())
+            (Text("Tell us more") + Text("\n") + Text("about yourself?").italic())
                 .font(.cfSerif(44))
                 .foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
 
-            Text(locale.t("signup.membershipSubtitle"))
+            Text("A few quick taps and we'll tune your nights — music, venues, the works. Or skip straight in.")
                 .font(.cfSans(13.5))
                 .foregroundStyle(Theme.stone)
                 .padding(.bottom, 8)
 
-            // Libero — the only selectable tier (paid tiers are "coming soon")
-            tierCard(
-                name: "Libero", sub: "Free", price: "€0",
-                gradient: [Color(hex: 0xF8EFDC), Color(hex: 0xEFE0C3), Color(hex: 0xE5D2A8)],
-                textColor: Theme.darkRed, subColor: Color(hex: 0x2A1F12),
-                selected: true
-            )
+            HStack(spacing: 12) {
+                // Left — personalize (start the survey)
+                choiceCard(
+                    overline: "Recommended",
+                    overlineColor: Color(hex: 0xFFE8B5).opacity(0.7),
+                    headline: "Yes, personalize my nights",
+                    headlineColor: Theme.parchment,
+                    cta: "Start survey",
+                    ctaColor: Color(hex: 0xFFE8B5),
+                    background: AnyShapeStyle(LinearGradient(
+                        colors: [Color(hex: 0x1A1410), Color(hex: 0x2A1810), Color(hex: 0x5B1F1C), Theme.ember],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )),
+                    borderColor: Color(hex: 0xFFE0A5).opacity(0.18)
+                ) { Haptics.tap(); showSurvey = true }
 
-            // Paid tiers — blurred behind "Coming soon", exactly like web
-            ZStack {
-                VStack(spacing: 10) {
-                    tierCard(
-                        name: "Oro", sub: "Gold", price: "€19",
-                        gradient: [Color(hex: 0x4A2C0E), Color(hex: 0x8C5A1E), Color(hex: 0xC28B3D)],
-                        textColor: Color(hex: 0xFFE8B5), subColor: Color(hex: 0xFFF1D2),
-                        selected: false
-                    )
-                    tierCard(
-                        name: "Zaffiro", sub: "Sapphire", price: "€39",
-                        gradient: [Color(hex: 0x0E1B4A), Color(hex: 0x1F3590), Color(hex: 0x4A6BC4)],
-                        textColor: Color(hex: 0xDDE6FF), subColor: Color(hex: 0xEAEEFB),
-                        selected: false
-                    )
-                    tierCard(
-                        name: "Nero", sub: "Black", price: "€99",
-                        gradient: [Color(hex: 0x050505), Color(hex: 0x1A1614), Color(hex: 0x2A1F12)],
-                        textColor: Theme.flame, subColor: Theme.flame.opacity(0.8),
-                        selected: false
-                    )
-                }
-                .blur(radius: 4)
-                .opacity(0.55)
-                .allowsHitTesting(false)
-
-                Text(locale.t("signup.comingSoon").uppercased())
-                    .font(.cfMono(10, weight: .bold))
-                    .kerning(2)
-                    .foregroundStyle(Theme.ink)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(Theme.cream.opacity(0.95), in: .capsule)
-                    .overlay(Capsule().stroke(Theme.hairline))
+                // Right — skip straight to explore
+                choiceCard(
+                    overline: "No thanks",
+                    overlineColor: Theme.sand,
+                    headline: "Just take me in",
+                    headlineColor: Theme.ink,
+                    cta: "Go to explore",
+                    ctaColor: Theme.wine,
+                    background: AnyShapeStyle(Color.white),
+                    borderColor: Theme.hairline
+                ) { Haptics.tap(); auth.finishOnboarding() }
             }
-
-            PrimaryButton(title: locale.t("signup.startForFree"), loading: loading) {
-                auth.finishOnboarding()
-            }
-            .padding(.top, 8)
+            .frame(minHeight: 360)
         }
     }
 
-    private func tierCard(name: String, sub: String, price: String, gradient: [Color], textColor: Color, subColor: Color, selected: Bool) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(name)
-                    .font(.cfSerif(20, italic: true))
-                    .foregroundStyle(textColor)
-                Text(sub.uppercased())
-                    .font(.cfMono(9.5))
-                    .kerning(1.9)
-                    .foregroundStyle(subColor)
+    private func choiceCard(
+        overline: String, overlineColor: Color,
+        headline: String, headlineColor: Color,
+        cta: String, ctaColor: Color,
+        background: AnyShapeStyle, borderColor: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(overline.uppercased())
+                    .font(.cfMono(9))
+                    .kerning(2)
+                    .foregroundStyle(overlineColor)
+
+                Text(headline)
+                    .font(.cfSerif(28, italic: true))
+                    .foregroundStyle(headlineColor)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 14)
+
+                Spacer(minLength: 14)
+
+                HStack(spacing: 6) {
+                    Text(cta.uppercased())
+                        .font(.cfMono(10))
+                        .kerning(1.6)
+                    Image(systemName: "arrow.right").font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundStyle(ctaColor)
             }
-            Spacer()
-            Text(price)
-                .font(.cfSerif(19))
-                .foregroundStyle(textColor)
-            Circle()
-                .stroke(subColor.opacity(0.6), lineWidth: 1.5)
-                .background(Circle().fill(selected ? textColor : .clear).padding(3))
-                .frame(width: 18, height: 18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(18)
+            .background(background, in: .rect(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(borderColor))
         }
-        .padding(16)
-        .background(
-            LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: .rect(cornerRadius: 16)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(selected ? Color(hex: 0x2A1F12).opacity(0.35) : .white.opacity(0.2))
-        )
+        .buttonStyle(.plain)
     }
 }

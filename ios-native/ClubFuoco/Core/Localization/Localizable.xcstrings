@@ -754,6 +754,22 @@
         }
       }
     },
+    "signup.phoneError": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please enter your phone number."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Por favor introduce tu número de teléfono."
+          }
+        }
+      }
+    },
     "signup.createAccount": {
       "localizations": {
         "en": {
@@ -2786,6 +2802,22 @@
         }
       }
     },
+    "explore.featured": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Featured"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Destacado"
+          }
+        }
+      }
+    },
     "explore.noneNearby": {
       "localizations": {
         "en": {
@@ -2846,6 +2878,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mañana"
+          }
+        }
+      }
+    },
+    "plan.next": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Próximo"
           }
         }
       }
@@ -3422,6 +3470,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Entrada"
+          }
+        }
+      }
+    },
+    "bookings.detailTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reservation"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reserva"
+          }
+        }
+      }
+    },
+    "bookings.factStatus": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estado"
+          }
+        }
+      }
+    },
+    "bookings.factArrival": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrival"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Llegada"
           }
         }
       }
@@ -4647,13 +4743,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tonight's Rumbas"
+            "value": "Tonight's Guest Lists"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Las rumbas de esta noche"
+            "value": "Las listas de esta noche"
           }
         }
       }
@@ -6078,6 +6174,134 @@
           "stringUnit": {
             "state": "translated",
             "value": "Código de vestimenta"
+          }
+        }
+      }
+    },
+    "rumbalist.date": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fecha"
+          }
+        }
+      }
+    },
+    "rumbalist.offer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offer"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oferta"
+          }
+        }
+      }
+    },
+    "rumbalist.time": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Horario"
+          }
+        }
+      }
+    },
+    "rumbalist.reference": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reference"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Referencia"
+          }
+        }
+      }
+    },
+    "rumbalist.savedToTickets": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved to your Tickets tab — find it there anytime."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guardado en tu pestaña Entradas: encuéntralo cuando quieras."
+          }
+        }
+      }
+    },
+    "rumbalist.validNight": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ only"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo %@"
+          }
+        }
+      }
+    },
+    "rumbalist.worksUntil": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Works until %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Válido hasta %@"
+          }
+        }
+      }
+    },
+    "rumbalist.validNote": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valid for this night only, while the venue keeps accepting Rumbalist."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Válido solo para esta noche, mientras el local siga aceptando Rumbalist."
           }
         }
       }

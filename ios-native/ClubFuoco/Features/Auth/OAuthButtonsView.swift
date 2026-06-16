@@ -36,9 +36,13 @@ struct OAuthButtonsView: View {
                     if googleLoading {
                         ProgressView().tint(Theme.stone)
                     } else {
-                        Text("G")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color(hex: 0x4285F4))
+                        // Official Google "G" logo (4-color vector asset),
+                        // rendered as original to preserve the brand colors.
+                        Image("google-g")
+                            .renderingMode(.original)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 18, height: 18)
                     }
                     Text(locale.t("auth.continueGoogle"))
                         .font(.cfSans(14, weight: .medium))

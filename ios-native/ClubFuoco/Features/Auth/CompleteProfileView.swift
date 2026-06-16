@@ -90,10 +90,7 @@ struct CompleteProfileView: View {
 
                 if missing.phone {
                     AuthField(label: locale.t("settings.phone")) {
-                        TextField("+34 612 345 678", text: $phone)
-                            .textContentType(.telephoneNumber)
-                            .keyboardType(.phonePad)
-                            .font(.cfSans(16))
+                        PhoneNumberField(phone: $phone)
                     }
                 }
 

@@ -408,12 +408,6 @@ function ClubDashboard() {
         {/* GUEST LISTS */}
         {activeTab === 'guestlists' && (
           <div className="space-y-gutter">
-            <button onClick={() => router.push('/admin/guest-lists')}
-              className="w-full h-12 border border-primary/30 text-primary font-h2 rounded-xl flex items-center justify-center gap-sm active:scale-95">
-              <span className="material-symbols-outlined text-[20px]">add</span>
-              Create New Guest List
-            </button>
-
             {(data?.guest_lists ?? []).length === 0 && (
               <div className="text-center py-lg text-on-surface-variant">
                 <span className="material-symbols-outlined text-[48px] block mb-sm text-primary">list_alt</span>

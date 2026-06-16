@@ -17,7 +17,6 @@ const TAB_SETS: Record<AccountType, { href: string; icon: string; labelKey: Mess
   ],
   club: [
     { href: '/club-dashboard',              icon: 'dashboard',            labelKey: 'nav.dashboard' },
-    { href: '/admin/guest-lists',           icon: 'format_list_bulleted', labelKey: 'nav.lists'     },
     { href: '/club-dashboard?tab=openings', icon: 'work_outline',         labelKey: 'nav.openings'  },
     { href: '/profile',                     icon: 'person_outline',       labelKey: 'nav.profile'   },
   ],

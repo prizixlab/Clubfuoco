@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireCronOrRole } from '@/lib/auth'
 import { filterHotelPhotos, isHotel } from '@/lib/photo-filter'
 import { venueShouldBeVisible, isFreeEntryVenue } from '@/lib/venue-classify'
 
@@ -19,11 +20,9 @@ const BASE = 'https://maps.googleapis.com/maps/api/place'
  * Respects Google's ~10 QPS limit by processing sequentially with a small delay.
  */
 export async function GET(req: NextRequest) {
-  const auth = req.headers.get('authorization')
-  const isManual = req.nextUrl.searchParams.get('manual') === '1'
-  if (!isManual && auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Vercel cron (CRON_SECRET bearer) or a logged-in admin/staff member.
+  const { response } = await requireCronOrRole(req, ['admin', 'staff'])
+  if (response) return response
 
   const batch  = Math.min(parseInt(req.nextUrl.searchParams.get('batch')  ?? '30'), 100)
   const offset = parseInt(req.nextUrl.searchParams.get('offset') ?? '0')

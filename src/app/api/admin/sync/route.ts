@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireCronOrRole } from '@/lib/auth'
 import { filterHotelPhotos, isHotel } from '@/lib/photo-filter'
 
 const KEY  = process.env.GOOGLE_PLACES_API_KEY!
@@ -17,11 +18,9 @@ function similarity(tagsA: string[], tagsB: string[]): number {
 // Syncs clubs that have a google_place_id with fresh data from Google Places.
 // Supports batch/offset pagination so large catalogs don't time out.
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  const isManual   = req.nextUrl.searchParams.get('manual') === '1'
-  if (!isManual && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Vercel cron (CRON_SECRET bearer) or a logged-in admin/staff member.
+  const { response } = await requireCronOrRole(req, ['admin', 'staff'])
+  if (response) return response
 
   const batch  = Math.min(parseInt(req.nextUrl.searchParams.get('batch')  ?? '9999'), 200)
   const offset = parseInt(req.nextUrl.searchParams.get('offset') ?? '0')

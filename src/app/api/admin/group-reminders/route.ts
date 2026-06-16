@@ -1,11 +1,16 @@
+import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireCronOrRole } from '@/lib/auth'
 import { notify } from '@/lib/notify'
 import { ok } from '@/lib/utils'
 
 // GET /api/admin/group-reminders — daily cron. Nudges anyone who still hasn't
-// locked in (invited / maybe) for a group happening tomorrow. Auth is handled by
-// middleware (CRON_SECRET bearer, or an admin session, or ?manual=1).
-export async function GET() {
+// locked in (invited / maybe) for a group happening tomorrow. Self-protects:
+// accepts the Vercel cron CRON_SECRET bearer or a logged-in admin/staff session.
+export async function GET(req: NextRequest) {
+  const { response } = await requireCronOrRole(req, ['admin', 'staff'])
+  if (response) return response
+
   const sb = await createServiceClient()
 
   // Tomorrow in UTC (YYYY-MM-DD)

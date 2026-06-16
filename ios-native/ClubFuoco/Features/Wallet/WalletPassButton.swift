@@ -12,6 +12,10 @@ struct WalletPassButton: View {
     /// e.g. "/api/bookings/<id>/wallet" or "/api/membership/wallet/<userId>"
     let passPath: String
     var compact = false
+    /// Stretch to fill the width as a rounded bar (vs. a hug-content capsule).
+    var fullWidth = false
+    /// Cream-on-black instead of white-on-black — for dark surfaces.
+    var light = false
 
     @Environment(\.api) private var api
     @Environment(LocaleStore.self) private var locale
@@ -26,7 +30,7 @@ struct WalletPassButton: View {
             } label: {
                 HStack(spacing: 6) {
                     if loading {
-                        ProgressView().tint(.white).scaleEffect(0.8)
+                        ProgressView().tint(light ? .black : .white).scaleEffect(0.8)
                     } else {
                         Image(systemName: "wallet.pass.fill")
                             .font(.system(size: compact ? 11 : 13))
@@ -35,10 +39,19 @@ struct WalletPassButton: View {
                         .font(.cfSans(compact ? 11 : 13, weight: .semibold))
                         .lineLimit(1)
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, compact ? 10 : 16)
-                .padding(.vertical, compact ? 7 : 11)
-                .background(.black, in: .capsule)
+                .foregroundStyle(light ? .black : .white)
+                .padding(.horizontal, fullWidth ? 0 : (compact ? 10 : 16))
+                .padding(.vertical, fullWidth ? 0 : (compact ? 7 : 11))
+                .frame(maxWidth: fullWidth ? .infinity : nil)
+                .frame(height: fullWidth ? 46 : nil)
+                .background {
+                    let fill = light ? Color(hex: 0xF3EEE0) : Color.black
+                    if fullWidth {
+                        RoundedRectangle(cornerRadius: 12).fill(fill)
+                    } else {
+                        Capsule().fill(fill)
+                    }
+                }
             }
             .disabled(loading)
 

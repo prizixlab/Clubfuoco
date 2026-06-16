@@ -11,8 +11,8 @@ struct BookingsView: View {
     @Environment(LocaleStore.self) private var locale
     @State private var model = BookingsViewModel()
     @State private var qrBooking: Booking?
+    @State private var detailBooking: Booking?
     @State private var openGroup: GroupListItem?
-    @State private var confirmCancel: Booking?
     #if DEBUG
     @State private var debugGroup: GroupListItem?
     #endif
@@ -45,8 +45,12 @@ struct BookingsView: View {
                 }
             }
         }
-        .background(Theme.cream)
+        .background(Theme.cream, ignoresSafeAreaEdges: .all)
         .navigationTitle(locale.t("nav.tickets"))
+        // Match the nav-bar background to the page so the large-title / status-bar
+        // area doesn't render in the system white against the cream content.
+        .toolbarBackground(Theme.cream, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .task {
             await model.load(api: api, queries: auth.queries)
             #if DEBUG
@@ -70,22 +74,24 @@ struct BookingsView: View {
         .sheet(item: $qrBooking) { booking in
             qrSheet(booking)
         }
+        .fullScreenCover(item: $detailBooking) { booking in
+            BookingDetailView(
+                booking: booking,
+                group: groupFor(booking),
+                canCancel: canCancel(booking),
+                onConfirmCancel: {
+                    detailBooking = nil
+                    Task { await model.cancel(booking, api: api, queries: auth.queries, locale: locale) }
+                },
+                onOpenGroup: { group in
+                    detailBooking = nil
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { openGroup = group }
+                }
+            )
+        }
         .sheet(item: $openGroup) { group in
             NavigationStack { GroupDetailView(groupId: group.id, presentedModally: true) }
                 .presentationDragIndicator(.visible)
-        }
-        .confirmationDialog(
-            locale.t("bookings.cancelQuestion"),
-            isPresented: Binding(get: { confirmCancel != nil }, set: { if !$0 { confirmCancel = nil } }),
-            titleVisibility: .visible
-        ) {
-            Button(locale.t("bookings.yesCancel"), role: .destructive) {
-                if let booking = confirmCancel {
-                    Task { await model.cancel(booking, api: api, queries: auth.queries, locale: locale) }
-                }
-                confirmCancel = nil
-            }
-            Button(locale.t("bookings.keep"), role: .cancel) { confirmCancel = nil }
         }
         .overlay(alignment: .bottom) {
             if let toast = model.toast {
@@ -137,6 +143,7 @@ struct BookingsView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 16)
         }
         .refreshable { await model.load(api: api, queries: auth.queries) }
@@ -221,12 +228,6 @@ struct BookingsView: View {
                 .padding(12)
             }
             .frame(height: 140)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                guard let group else { return }
-                Haptics.tap()
-                openGroup = group
-            }
 
             // ── Perforation ───────────────────────────────────────────────────
             TicketPerforation()
@@ -276,8 +277,8 @@ struct BookingsView: View {
                     HStack(spacing: 10) {
                         WalletPassButton(passPath: "/api/bookings/\(booking.id.uuidString.lowercased())/wallet", compact: true)
                         Spacer()
-                        Button {
-                            confirmCancel = booking
+                        CancelConfirmButton {
+                            Task { await model.cancel(booking, api: api, queries: auth.queries, locale: locale) }
                         } label: {
                             Text(locale.t("common.cancel"))
                                 .font(.cfSans(12))
@@ -315,6 +316,18 @@ struct BookingsView: View {
         .clipShape(.rect(cornerRadius: 16))
         .shadow(color: Color(hex: 0x221E1A).opacity(0.08), radius: 8, y: 2)
         .opacity(isCancelled ? 0.6 : 1)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            Haptics.tap()
+            detailBooking = booking
+        }
+    }
+
+    /// Cancelling is allowed for upcoming bookings that aren't already cancelled.
+    private func canCancel(_ booking: Booking) -> Bool {
+        let today = DateFormatter()
+        today.dateFormat = "yyyy-MM-dd"
+        return booking.status != "cancelled" && booking.bookingDate >= today.string(from: Date())
     }
 
     private func heroBadge(isCancelled: Bool, isLive: Bool) -> some View {
@@ -467,6 +480,61 @@ struct BookingsView: View {
     }
 }
 
+/// A Cancel button that confirms inline via a small popover anchored to the
+/// button itself (so the prompt appears right where the user tapped, not as a
+/// detached sheet). Runs `perform` only after "Yes, cancel".
+struct CancelConfirmButton<Label: View>: View {
+    @Environment(LocaleStore.self) private var locale
+    let perform: () -> Void
+    @ViewBuilder var label: () -> Label
+    @State private var show = false
+
+    var body: some View {
+        Button {
+            Haptics.tap()
+            show = true
+        } label: {
+            label()
+        }
+        .popover(isPresented: $show) {
+            VStack(spacing: 0) {
+                Text(locale.t("bookings.cancelQuestion"))
+                    .font(.cfSans(13, weight: .semibold))
+                    .foregroundStyle(Theme.ink)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+                Divider()
+                Button {
+                    // Dismiss the popover first; only then run the cancel, which
+                    // removes this button from the hierarchy. Acting while the
+                    // popover is still up orphans its anchor and leaves a ghost.
+                    show = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { perform() }
+                } label: {
+                    Text(locale.t("bookings.yesCancel"))
+                        .font(.cfSans(14, weight: .semibold))
+                        .foregroundStyle(Theme.wine)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+                Divider()
+                Button {
+                    show = false
+                } label: {
+                    Text(locale.t("bookings.keep"))
+                        .font(.cfSans(14))
+                        .foregroundStyle(Theme.stone)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+            }
+            .frame(width: 230)
+            .presentationCompactAdaptation(.popover)
+        }
+    }
+}
+
 /// The ticket "tear" — a dashed line with cream notches punched into each
 /// edge (matching Perforation in the web bookings page).
 struct TicketPerforation: View {
@@ -591,6 +659,18 @@ final class BookingsViewModel {
 
     private struct CancelResult: Decodable, Sendable {
         let refundAmount: Double?
+
+        // The API returns refund_amount as a formatted string ("28.50"); accept
+        // a number too so decoding never fails on a successful cancel.
+        enum CodingKeys: String, CodingKey { case refundAmount }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            if let string = try? c.decode(String.self, forKey: .refundAmount) {
+                refundAmount = Double(string)
+            } else {
+                refundAmount = try? c.decode(Double.self, forKey: .refundAmount)
+            }
+        }
     }
 
     func cancel(_ booking: Booking, api: APIClient, queries: Queries, locale: LocaleStore) async {

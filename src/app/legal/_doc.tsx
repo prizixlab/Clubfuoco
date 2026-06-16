@@ -1,7 +1,3 @@
-'use client'
-
-import { useRouter } from 'next/navigation'
-
 /* ─── Shared renderer for legal documents (Terms, Privacy) ─────────────────── */
 
 export interface LegalSection {
@@ -23,28 +19,9 @@ export default function LegalDoc({
   intro:    string
   sections: LegalSection[]
 }) {
-  const router = useRouter()
-
   return (
     <div style={{ background: '#F8F5EE', minHeight: '100vh' }}>
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px 20px 80px' }}>
-
-        {/* Back */}
-        <button
-          onClick={() => router.back()}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            padding: 0, marginBottom: 24,
-            fontFamily: MONO, fontSize: 10, letterSpacing: '1.8px',
-            textTransform: 'uppercase', color: '#6E6356',
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Back
-        </button>
+      <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 20px 80px' }}>
 
         {/* Header */}
         <p style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '1.9px', textTransform: 'uppercase', color: '#8C2A2A', margin: '0 0 10px' }}>

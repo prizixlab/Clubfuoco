@@ -19,10 +19,10 @@ const SECTIONS: LegalSection[] = [
     body: [
       '• Account data: name, email address, date of birth, and any profile photo you add.',
       '• Usage data: clubs you view, save, or book; events you open; membership tier; and the survey and "taste profile" preferences you provide so we can personalise recommendations.',
-      '• Location data: your approximate or precise device location, used to show nearby venues and distances, and — when the App is open — to detect whether you are at a partner or listed venue so we can ask you to confirm a visit and leave a verified review. You can disable location in your device settings; the App still works without it.',
-      '• Visit data: which venues you tap directions to, request a ride to, or confirm visiting. We use this to invite genuine, verified reviews and to personalise recommendations.',
-      '• Transaction data: records of bookings, tickets, and memberships. Card details are entered directly with our payment providers and are not stored by Club Fuoco.',
-      '• Device and technical data: device type, operating system, app version, and diagnostic information.',
+      '• Social data: friends you add or accept, groups you create or join, and bookings you share with them.',
+      '• Transaction data: records of bookings, tickets, and memberships. Card details are entered directly with our payment providers (Stripe or Apple) and are not stored by Club Fuoco.',
+      '• Device and technical data: device type, operating system, and app version, used for service operation and basic diagnostics. We do not use third-party advertising identifiers and do not run analytics SDKs.',
+      'The App does not currently collect your device location or read your contacts, photos, microphone, or calendar. If you grant the App write-only calendar access to add a group night to your calendar, the App only creates the event you asked for — it cannot read your existing calendar.',
     ],
   },
   {
@@ -34,7 +34,7 @@ const SECTIONS: LegalSection[] = [
   {
     heading: 'Legal bases (GDPR)',
     body: [
-      'We process personal data under the following legal bases: performance of our contract with you (providing the App, bookings, and memberships); your consent (precise location, optional notifications, and optional personalisation — which you can withdraw at any time); our legitimate interests (improving and securing the App); and compliance with legal obligations.',
+      'We process personal data under the following legal bases: performance of our contract with you (providing the App, bookings, and memberships); your consent (optional notifications, optional calendar write access, and optional personalisation — which you can withdraw at any time); our legitimate interests (improving and securing the App); and compliance with legal obligations.',
     ],
   },
   {
@@ -42,9 +42,10 @@ const SECTIONS: LegalSection[] = [
     body: [
       'We do not sell your personal data. We share it only with service providers ("processors") who act on our instructions, and with venues where necessary to deliver a service you requested:',
       '• Supabase — authentication, database, and hosting of your account data.',
-      '• Stripe — payment processing for bookings and event tickets.',
-      '• Apple — billing and management of iOS membership subscriptions.',
-      '• Google Maps Platform — venue locations, mapping, and venue photos.',
+      '• Stripe — payment processing for bookings, event tickets, and VIP guestlist purchases.',
+      '• Apple — billing and management of iOS membership subscriptions (in-app purchases) and Apple Sign-In; generation of Apple Wallet passes for bookings and memberships.',
+      '• Google — Google Sign-In authentication, when you choose it.',
+      '• Vercel — hosting of our API and web pages.',
       '• Partner venues and event organisers — booking, guest list, and ticket details needed to admit you or fulfil your reservation.',
       'We may also disclose data where required by law or to protect our rights, users, or the public.',
     ],
@@ -100,7 +101,7 @@ export default function PrivacyPage() {
     <LegalDoc
       kicker="Club Fuoco · Legal"
       title="Privacy Policy"
-      updated="17 May 2026"
+      updated="16 June 2026"
       intro="This policy explains what personal data Club Fuoco collects, why, how it is used and shared, and the rights you have over it."
       sections={SECTIONS}
     />

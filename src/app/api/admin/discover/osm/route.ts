@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireCronOrRole } from '@/lib/auth'
 
 // OpenStreetMap Overpass API — completely free, no key needed
 // Barcelona bounding box: south, west, north, east
@@ -43,12 +44,9 @@ function buildAddress(tags: Record<string, string>): string {
  * Newly inserted clubs have last_synced_at=null so Gemini cleanup reviews them.
  */
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  const isCron     = authHeader === `Bearer ${process.env.CRON_SECRET}`
-  const isManual   = req.nextUrl.searchParams.get('manual') === '1'
-  if (!isCron && !isManual) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Vercel cron (CRON_SECRET bearer) or a logged-in admin/staff member.
+  const { response } = await requireCronOrRole(req, ['admin', 'staff'])
+  if (response) return response
 
   // Overpass QL — fetch nodes AND ways (some venues mapped as polygons)
   const query = `

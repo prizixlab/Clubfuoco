@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireCronOrRole } from '@/lib/auth'
 import { TICKET_MARKUP } from '@/lib/tickets'
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -145,13 +146,9 @@ async function fetchEventbriteForOrganizer(orgId: string, fallbackVenue: string)
 // ── Route ─────────────────────────────────────────────────────────────────────
 
 export async function GET(req: import('next/server').NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  const isManual   = authHeader === 'manual'
-  const cronSecret = process.env.CRON_SECRET
-
-  if (!isManual && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Vercel cron (CRON_SECRET bearer) or a logged-in admin/staff member.
+  const { response } = await requireCronOrRole(req, ['admin', 'staff'])
+  if (response) return response
 
   const supabase = await createServiceClient()
 

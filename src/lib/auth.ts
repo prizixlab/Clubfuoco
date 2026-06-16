@@ -97,3 +97,17 @@ export async function requireRole(roles: UserRole[]) {
 
   return { user, response: null }
 }
+
+// Use for admin routes that are ALSO invoked by Vercel cron. Accepts either:
+//   1. A request carrying the CRON_SECRET as a Bearer token (Vercel attaches this
+//      automatically to scheduled invocations when CRON_SECRET is set), or
+//   2. An authenticated user holding one of the given roles.
+// Returns { user, response } like requireRole — on the cron path user is null.
+export async function requireCronOrRole(req: Request, roles: UserRole[]) {
+  const secret = process.env.CRON_SECRET
+  const authHeader = req.headers.get('authorization')
+  if (secret && authHeader === `Bearer ${secret}`) {
+    return { user: null, response: null }
+  }
+  return requireRole(roles)
+}

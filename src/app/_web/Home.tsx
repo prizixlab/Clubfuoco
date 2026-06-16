@@ -155,8 +155,6 @@ export default function WebHome() {
           <a href="/partners">For Partners →</a>
           <span className="dot" aria-hidden="true">·</span>
           <a href="/investors">About the company →</a>
-          <span className="dot" aria-hidden="true">·</span>
-          <a href="/staff">Team login →</a>
         </nav>
       </section>
 

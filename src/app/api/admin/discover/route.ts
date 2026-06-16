@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireCronOrRole } from '@/lib/auth'
 
 const KEY  = process.env.GOOGLE_PLACES_API_KEY!
 const BASE = 'https://maps.googleapis.com/maps/api/place'
@@ -33,12 +34,9 @@ function toSlug(name: string) {
 // Step 1: Import everything from Google Places with nightlife types immediately — no AI gate.
 // Step 2: Gemini cleanup runs separately (/api/admin/cleanup) and removes bad ones later.
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  const isCron     = authHeader === `Bearer ${process.env.CRON_SECRET}`
-  const isManual   = req.nextUrl.searchParams.get('manual') === '1'
-  if (!isCron && !isManual) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Vercel cron (CRON_SECRET bearer) or a logged-in admin/staff member.
+  const { response } = await requireCronOrRole(req, ['admin', 'staff'])
+  if (response) return response
 
   const supabase = await createServiceClient()
 

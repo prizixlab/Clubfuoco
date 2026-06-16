@@ -79,7 +79,10 @@ struct ClubDetailView: View {
     private var tags: [String] { detail?.tags ?? place.tags }
     private var weekdayHours: [String] { detail?.weekdayHours ?? place.weekdayHours }
     private var ratingsTotal: Int { detail?.ratingsTotal ?? place.ratingsTotal }
-    private var rating: Double? { detail?.rating ?? place.rating }
+    private var ratingResult: RumbaScore.Result {
+        RumbaScore.score(clubId: place.placeId, realRating: detail?.rating ?? place.rating)
+    }
+    private var rating: Double? { ratingResult.value }
     private var entryPrice: Double? { detail?.generalEntryPrice ?? place.generalEntryPrice }
     private var openStatus: Bool? {
         detail?.isOpen ?? place.isOpen ?? Hours.computeOpenNow(weekdayHours)
@@ -211,7 +214,7 @@ struct ClubDetailView: View {
             factTile(label: locale.t("detail.door"), value: doorLabel)
             factTile(label: locale.t("detail.reviewsLabel"), value: reviewsLabel, sub: ratingsTotal > 0 ? locale.t("detail.onGoogle") : nil)
             factTile(label: locale.t("detail.statusLabel"), value: statusValue, valueColor: statusColor)
-            factTile(label: locale.t("detail.ratingLabel"), value: rating.map { String(format: "%.1f", $0) } ?? "—", star: rating != nil)
+            factTile(label: locale.t("detail.ratingLabel"), value: rating.map { String(format: "%.1f", $0) } ?? "—", sub: ratingResult.boosted ? "Rumba Score" : nil, star: rating != nil)
         }
     }
 
@@ -253,13 +256,13 @@ struct ClubDetailView: View {
                     .font(.cfSans(15, weight: .bold))
                     .foregroundStyle(valueColor)
             }
-            if let sub {
-                Text(sub)
-                    .font(.cfSans(9))
-                    .foregroundStyle(Theme.fadedSand)
-            }
+            // Always reserve the sub row (blank space when none) so labels,
+            // values and disclaimers line up across every tile.
+            Text(sub ?? " ")
+                .font(.cfSans(9))
+                .foregroundStyle(Theme.fadedSand)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.vertical, 12)
         .padding(.horizontal, 4)
         .background(Theme.cream, in: .rect(cornerRadius: 12))
@@ -386,6 +389,8 @@ struct ClubDetailView: View {
             Text(locale.t(offer.isVip ? "rumbalist.book" : "rumbalist.join"))
                 .font(.cfSans(11, weight: .semibold))
                 .foregroundStyle((offer.isVip ? ink : Theme.ink).opacity(0.9))
+                .lineLimit(1)
+                .fixedSize()
         }
         .padding(.init(top: 14, leading: 16, bottom: 14, trailing: 16))
         .frame(maxWidth: .infinity, alignment: .leading)

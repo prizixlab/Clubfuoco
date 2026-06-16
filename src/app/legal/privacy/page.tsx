@@ -21,8 +21,9 @@ const SECTIONS: LegalSection[] = [
       '• Usage data: clubs you view, save, or book; events you open; membership tier; and the survey and "taste profile" preferences you provide so we can personalise recommendations.',
       '• Social data: friends you add or accept, groups you create or join, and bookings you share with them.',
       '• Transaction data: records of bookings, tickets, and memberships. Card details are entered directly with our payment providers (Stripe or Apple) and are not stored by Club Fuoco.',
+      '• Attendance data: when you have an active booking, the App can record signals that help us tell whether you arrived at the venue — your in-app "I\'m here" check-in, the booking screen being opened near arrival time, and an optional "did you get in?" answer after the night. Where these signals include your device location, we store only your distance to the venue, never an ongoing location trail. These signals support partner settlement, fraud prevention, and user support.',
       '• Device and technical data: device type, operating system, and app version, used for service operation and basic diagnostics. We do not use third-party advertising identifiers and do not run analytics SDKs.',
-      'The App does not currently collect your device location or read your contacts, photos, microphone, or calendar. If you grant the App write-only calendar access to add a group night to your calendar, the App only creates the event you asked for — it cannot read your existing calendar.',
+      'The App does not read your contacts, photos, microphone, or full calendar. Location is requested only when you explicitly tap "I\'m here" on an active booking, or when you open the active booking screen near arrival time — never in the background. If you grant write-only calendar access to add a group night, the App only creates the event you asked for — it cannot read your existing calendar.',
     ],
   },
   {
@@ -34,7 +35,7 @@ const SECTIONS: LegalSection[] = [
   {
     heading: 'Legal bases (GDPR)',
     body: [
-      'We process personal data under the following legal bases: performance of our contract with you (providing the App, bookings, and memberships); your consent (optional notifications, optional calendar write access, and optional personalisation — which you can withdraw at any time); our legitimate interests (improving and securing the App); and compliance with legal obligations.',
+      'We process personal data under the following legal bases: performance of our contract with you (providing the App, bookings, and memberships, including verifying that you arrived at a venue you booked); your consent (optional notifications, optional calendar write access, optional location for attendance check-in, and optional personalisation — which you can withdraw at any time by denying or revoking the relevant device permission); our legitimate interests (improving and securing the App, preventing booking and settlement fraud); and compliance with legal obligations.',
     ],
   },
   {
@@ -60,6 +61,7 @@ const SECTIONS: LegalSection[] = [
     heading: 'How long we keep data',
     body: [
       'We keep your personal data for as long as your account is active. If you delete your account, we delete or anonymise your personal data within a reasonable period, except where we must retain certain records (for example, transaction records) to meet legal or accounting obligations.',
+      'Raw attendance signals (location-bearing check-ins, passive presence pings, post-entry answers) are retained for up to 12 months from the booking date and then deleted; the rolled-up attendance status on the booking itself is kept alongside the booking record so we can resolve disputes and partner settlement after the fact.',
     ],
   },
   {

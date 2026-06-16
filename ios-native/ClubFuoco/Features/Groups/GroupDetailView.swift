@@ -44,12 +44,6 @@ struct GroupDetailView: View {
         }
         .background(Theme.cream)
         .task { await model.load(groupId, api: api, queries: auth.queries) }
-        .confirmationDialog(locale.t("groups.cancelConfirm"), isPresented: $confirmCancel, titleVisibility: .visible) {
-            Button(locale.t("groups.cancelNight"), role: .destructive) {
-                model.cancelNight(api: api)
-            }
-            Button(locale.t("common.cancel"), role: .cancel) {}
-        }
         .alert(locale.t("groups.paymentNeeded"), isPresented: $showPaymentNote) {
             Button(locale.t("common.done"), role: .cancel) {}
         }
@@ -451,7 +445,7 @@ struct GroupDetailView: View {
             }
 
             ShareLink(
-                item: URL(string: "https://clubfuoco.com/groups/join?code=\(group.inviteCode)")!,
+                item: URL(string: "https://clubfuoco.com/join/\(group.inviteCode)")!,
                 message: Text(String(format: locale.t("groups.shareText"), group.clubName, formatDate(group.bookingDate)))
             ) {
                 HStack(spacing: 8) {
@@ -468,12 +462,47 @@ struct GroupDetailView: View {
 
             if group.status == "open" {
                 Button(role: .destructive) {
+                    Haptics.tap()
                     confirmCancel = true
                 } label: {
                     Text(locale.t("groups.cancelNight"))
                         .font(.cfSans(13))
                         .foregroundStyle(Theme.wine)
                         .padding(.vertical, 10)
+                }
+                .popover(isPresented: $confirmCancel) {
+                    VStack(spacing: 0) {
+                        Text(locale.t("groups.cancelConfirm"))
+                            .font(.cfSans(13, weight: .semibold))
+                            .foregroundStyle(Theme.ink)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 14)
+                        Divider()
+                        Button {
+                            // Dismiss first; the cancel closes the group and removes
+                            // this button, so acting while the popover is up orphans
+                            // its anchor and leaves a ghost.
+                            confirmCancel = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { model.cancelNight(api: api) }
+                        } label: {
+                            Text(locale.t("groups.cancelNight"))
+                                .font(.cfSans(14, weight: .semibold))
+                                .foregroundStyle(Theme.wine)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        }
+                        Divider()
+                        Button { confirmCancel = false } label: {
+                            Text(locale.t("bookings.keep"))
+                                .font(.cfSans(14))
+                                .foregroundStyle(Theme.stone)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        }
+                    }
+                    .frame(width: 250)
+                    .presentationCompactAdaptation(.popover)
                 }
             }
         }

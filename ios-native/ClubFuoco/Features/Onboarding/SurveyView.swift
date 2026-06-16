@@ -22,6 +22,21 @@ struct SurveyView: View {
     private var current: SurveyStep { Self.steps[step] }
     private var isLast: Bool { step == Self.steps.count - 1 }
 
+    /// Merge static genre options with anything the user typed in, so custom
+    /// additions appear as toggleable chips instead of vanishing into state.
+    private var musicOptionsWithCustom: [Opt] {
+        let presetValues = Set(Self.music.map(\.value))
+        let extras = prefs.music.filter { !presetValues.contains($0) }
+            .map { Opt(value: $0, label: $0) }
+        return Self.music + extras
+    }
+    private var vibesOptionsWithCustom: [Opt] {
+        let presetValues = Set(Self.vibes.map(\.value))
+        let extras = prefs.vibes.filter { !presetValues.contains($0) }
+            .map { Opt(value: $0, label: $0) }
+        return Self.vibes + extras
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -78,7 +93,7 @@ struct SurveyView: View {
         switch current.key {
         case .music:
             VStack(alignment: .leading, spacing: 18) {
-                FlowChips(options: current.options, isSelected: isSelected) { toggle($0) }
+                FlowChips(options: musicOptionsWithCustom, isSelected: isSelected) { toggle($0) }
                 CustomItemEntry(
                     placeholder: "Add another genre…",
                     canAdd: { !prefs.music.contains($0) }
@@ -88,7 +103,7 @@ struct SurveyView: View {
             }
         case .vibes:
             VStack(alignment: .leading, spacing: 18) {
-                FlowChips(options: current.options, isSelected: isSelected) { toggle($0) }
+                FlowChips(options: vibesOptionsWithCustom, isSelected: isSelected) { toggle($0) }
                 CustomItemEntry(
                     placeholder: "Add another vibe…",
                     canAdd: { !prefs.vibes.contains($0) && prefs.vibes.count < 3 }
@@ -395,9 +410,9 @@ private struct BudgetSlider: View {
             }
 
             VStack(spacing: 10) {
-                FlowLayout(spacing: 8) {
+                HStack(spacing: 6) {
                     ForEach(presets, id: \.self) { v in
-                        chip("€\(v)", selected: budget == v) { budget = v }
+                        chip("€\(v)", selected: budget == v, fillWidth: true) { budget = v }
                     }
                 }
                 HStack {
@@ -409,12 +424,15 @@ private struct BudgetSlider: View {
         }
     }
 
-    private func chip(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+    private func chip(_ label: String, selected: Bool, fillWidth: Bool = false, action: @escaping () -> Void) -> some View {
         Button { Haptics.tap(); action() } label: {
             Text(label)
                 .font(.cfSans(13, weight: selected ? .medium : .regular))
                 .foregroundStyle(selected ? Theme.cream : Theme.ink)
-                .padding(.horizontal, 16)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .padding(.horizontal, fillWidth ? 6 : 16)
+                .frame(maxWidth: fillWidth ? .infinity : nil)
                 .frame(height: 38)
                 .background(selected ? Theme.wine : Color.white, in: .capsule)
                 .overlay(Capsule().stroke(selected ? Color.clear : Theme.hairline))
@@ -518,17 +536,29 @@ private struct DrinkCategoryCard: View {
     var focusedKey: FocusState<String?>.Binding
     let onToggleExpand: () -> Void
 
+    /// Custom items typed by the user in this category card during this session.
+    /// We can't tell after the fact which category a custom drink belongs to,
+    /// so each card remembers its own additions.
+    @State private var customAdditions: [String] = []
+
     private var customItems: [String] {
-        guard cat.key == "other" else { return [] }
-        return drinks.filter { !ALL_PRESET_DRINK_ITEMS.contains($0) }
+        if cat.key == "other" {
+            return drinks.filter { !ALL_PRESET_DRINK_ITEMS.contains($0) }
+        }
+        return customAdditions
     }
     private var hasSelection: Bool {
         if cat.key == "other" { return !customItems.isEmpty }
-        return cat.items.contains(where: { drinks.contains($0) }) || drinks.contains(cat.key)
+        return cat.items.contains(where: { drinks.contains($0) })
+            || drinks.contains(cat.key)
+            || customAdditions.contains(where: { drinks.contains($0) })
     }
     private var isDontCare: Bool { drinks.contains(cat.key) }
     private var selCount: Int {
-        cat.key == "other" ? customItems.count : cat.items.filter { drinks.contains($0) }.count
+        if cat.key == "other" { return customItems.count }
+        let preset = cat.items.filter { drinks.contains($0) }.count
+        let extra = customAdditions.filter { drinks.contains($0) }.count
+        return preset + extra
     }
 
     var body: some View {
@@ -577,7 +607,7 @@ private struct DrinkCategoryCard: View {
                         }
                     }
 
-                    if cat.key == "other" && !customItems.isEmpty {
+                    if !customItems.isEmpty {
                         FlowLayout(spacing: 8) {
                             ForEach(customItems, id: \.self) { item in
                                 drinkPill(item)
@@ -672,6 +702,9 @@ private struct DrinkCategoryCard: View {
         if !drinks.contains(value) {
             Haptics.tap()
             drinks.append(value)
+        }
+        if cat.key != "other", !customAdditions.contains(value) {
+            customAdditions.append(value)
         }
         customInput = ""
         focusedKey.wrappedValue = nil

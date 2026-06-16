@@ -20,6 +20,7 @@ struct RumbalistOfferSheet: View {
     @Environment(PlanStore.self) private var plan
     @Environment(\.dismiss) private var dismiss
     @State private var model = RumbalistOfferModel()
+    @State private var calendarMessage: String?
 
     private static let ink = Color(hex: 0x141416)
     private static let textColor = Color(hex: 0xF5F5F7)
@@ -51,19 +52,23 @@ struct RumbalistOfferSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 // Kicker
-                HStack(spacing: 6) {
+                Group {
                     if offer.isVip {
-                        Label("Apple Pay", systemImage: "applelogo")
-                            .font(.cfSans(13, weight: .semibold))
-                            .foregroundStyle(Self.textColor)
+                        HStack(spacing: 6) {
+                            Label("Apple Pay", systemImage: "applelogo")
+                                .font(.cfSans(13, weight: .semibold))
+                                .foregroundStyle(Self.textColor)
+                            Spacer()
+                        }
                     } else {
+                        // Centered under the big RUMBA lockup; no mark here (it
+                        // sits right above, repeating it crowds the kicker).
                         Text(locale.t("rumbalist.titleFree").uppercased())
                             .font(.cfMono(10))
                             .kerning(2.2)
                             .foregroundStyle(Self.textColor.opacity(0.7))
-                        RumbalistMark(height: 13)
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
-                    Spacer()
                 }
                 .padding(.bottom, 18)
 
@@ -211,24 +216,89 @@ struct RumbalistOfferSheet: View {
     // ── Pass / confirmation ───────────────────────────────────────────────────
 
     private func passStep(_ booking: RumbalistBookingResult) -> some View {
-        VStack(spacing: 16) {
-            Spacer()
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 40))
-                .foregroundStyle(RumbalistMark.pink)
-            Text(offer.isVip ? locale.t("rumbalist.tableBooked") : locale.t("rumbalist.onDoorList"))
-                .font(.cfSerif(24, italic: true))
-                .foregroundStyle(Self.textColor)
-            if let token = booking.qrCodeToken {
-                QRCodeView(token: token)
-                    .frame(width: 200, height: 200)
-                    .padding(16)
-                    .background(Color.white, in: .rect(cornerRadius: 16))
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 16) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(RumbalistMark.pink)
+                        .padding(.top, 4)
+                    Text(offer.isVip ? locale.t("rumbalist.tableBooked") : locale.t("rumbalist.onDoorList"))
+                        .font(.cfSerif(24, italic: true))
+                        .foregroundStyle(Self.textColor)
+                        .multilineTextAlignment(.center)
+
+                    // Reassure them it isn't lost when they dismiss this sheet.
+                    HStack(spacing: 6) {
+                        Image(systemName: "ticket.fill")
+                            .font(.system(size: 11))
+                        Text(locale.t("rumbalist.savedToTickets"))
+                            .font(.cfSans(11))
+                            .multilineTextAlignment(.center)
+                    }
+                    .foregroundStyle(Self.textColor.opacity(0.6))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+                    .background(.white.opacity(0.06), in: .rect(cornerRadius: 10))
+
+                    if let token = booking.qrCodeToken {
+                        VStack(spacing: 10) {
+                            QRCodeView(token: token)
+                                .frame(width: 200, height: 200)
+                                .padding(16)
+                                .background(Color.white, in: .rect(cornerRadius: 16))
+                            Text(locale.t("rumbalist.atDoor"))
+                                .font(.cfSans(12))
+                                .foregroundStyle(Self.textColor.opacity(0.55))
+                        }
+                    }
+
+                    // Booking details
+                    VStack(spacing: 0) {
+                        detailRow(locale.t("rumbalist.venue")) { Text(venueName).foregroundStyle(Self.textColor) }
+                        detailRow(locale.t("rumbalist.address"), small: true) { Text(venueAddress).foregroundStyle(Self.textColor.opacity(0.7)) }
+                        divider
+                        detailRow(locale.t("rumbalist.date")) { Text(confirmedDateText).foregroundStyle(Self.textColor) }
+                        detailRow(locale.t("rumbalist.offer"), small: true) { Text(localizedTitle).foregroundStyle(Self.textColor.opacity(0.7)) }
+                        detailRow(locale.t("rumbalist.time"), small: true) { Text(timeText).foregroundStyle(Self.textColor.opacity(0.7)) }
+                        detailRow(locale.t("rumbalist.valid"), small: true) {
+                            Text(String(format: locale.t("rumbalist.validNight"), confirmedDateText)).foregroundStyle(Self.textColor.opacity(0.7))
+                        }
+                        detailRow(locale.t("rumbalist.dressCode"), small: true) { Text(offer.dressCode).foregroundStyle(Self.textColor.opacity(0.7)) }
+                        if let code = booking.qrCodeToken {
+                            divider
+                            detailRow(locale.t("rumbalist.reference"), small: true) {
+                                Text(code).font(.cfMono(11)).foregroundStyle(Self.textColor.opacity(0.7))
+                            }
+                        }
+                    }
+                    .padding(.init(top: 14, leading: 16, bottom: 14, trailing: 16))
+                    .background(.white.opacity(0.05), in: .rect(cornerRadius: 14))
+
+                    Text(locale.t("rumbalist.validNote"))
+                        .font(.cfSans(10))
+                        .foregroundStyle(Self.textColor.opacity(0.45))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+
+                    // Add to Wallet / Calendar
+                    VStack(spacing: 10) {
+                        WalletPassButton(passPath: "/api/bookings/\(booking.id.uuidString.lowercased())/wallet",
+                                         fullWidth: true, light: true)
+                        calendarButton
+                    }
+
+                    if let calendarMessage {
+                        Text(calendarMessage)
+                            .font(.cfSans(11))
+                            .foregroundStyle(Self.textColor.opacity(0.6))
+                    }
+                }
+                .padding(.horizontal, 22)
+                .padding(.bottom, 16)
             }
-            Text(locale.t("rumbalist.atDoor"))
-                .font(.cfSans(12))
-                .foregroundStyle(Self.textColor.opacity(0.55))
-            Spacer()
+
             Button {
                 dismiss()
             } label: {
@@ -239,9 +309,67 @@ struct RumbalistOfferSheet: View {
                     .frame(height: 50)
                     .background(Color(hex: 0xF3EEE0), in: .rect(cornerRadius: 12))
             }
+            .padding(.horizontal, 22)
+            .padding(.top, 8)
+            .padding(.bottom, 24)
         }
-        .padding(.horizontal, 22)
-        .padding(.bottom, 24)
+    }
+
+    private var calendarButton: some View {
+        Button {
+            Haptics.tap()
+            Task {
+                do {
+                    try await CalendarService.addNightEvent(
+                        title: String(format: locale.t("groups.calendarTitle"), venueName),
+                        dateString: plan.date,
+                        location: venueAddress.isEmpty ? venueName : venueAddress,
+                        notes: "\(localizedTitle) · \(offer.subtitle)"
+                    )
+                    Haptics.success()
+                    calendarMessage = locale.t("groups.calendarAdded")
+                } catch {
+                    Haptics.error()
+                    calendarMessage = locale.t("groups.calendarError")
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "calendar.badge.plus")
+                    .font(.system(size: 14))
+                Text(locale.t("groups.addToCalendar"))
+                    .font(.cfSans(14, weight: .medium))
+            }
+            .foregroundStyle(Self.textColor)
+            .frame(maxWidth: .infinity)
+            .frame(height: 46)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.18)))
+        }
+    }
+
+    /// The Rumbalist cutoff for the Time row: "Works until <deadline>", where
+    /// the deadline is pulled from the offer subtitle (e.g. "Free till 02:30
+    /// AM"). Falls back to the door window when there's no cutoff (VIP tables).
+    private var timeText: String {
+        if let range = offer.subtitle.range(of: "till ", options: .caseInsensitive) {
+            let deadline = offer.subtitle[range.upperBound...].trimmingCharacters(in: .whitespaces)
+            if !deadline.isEmpty {
+                return String(format: locale.t("rumbalist.worksUntil"), deadline)
+            }
+        }
+        return offer.timeWindow
+    }
+
+    /// The planned night, formatted as a full weekday + date for the pass.
+    private var confirmedDateText: String {
+        let parser = DateFormatter()
+        parser.dateFormat = "yyyy-MM-dd"
+        parser.timeZone = .current
+        guard let date = parser.date(from: plan.date) else { return plan.nightPhrase(locale: locale) }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: locale.locale == "es" ? "es_ES" : "en_GB")
+        formatter.setLocalizedDateFormatFromTemplate("EEEE d MMM")
+        return formatter.string(from: date)
     }
 
     private func confirm() {

@@ -150,6 +150,7 @@ export default function SignupPage() {
   const [firstName,    setFirstName]   = useState('')
   const [lastName,     setLastName]    = useState('')
   const [email,        setEmail]       = useState('')
+  const [phone,        setPhone]       = useState('')
   const [password,     setPassword]    = useState('')
   const [showPwd,      setShowPwd]     = useState(false)
   const [tosAccepted,  setTosAccepted] = useState(false)
@@ -187,6 +188,11 @@ export default function SignupPage() {
 
     if (!tosAccepted) {
       setError(t('signup.tosError'))
+      return
+    }
+
+    if (!phone.trim()) {
+      setError(t('signup.phoneError'))
       return
     }
 
@@ -260,7 +266,10 @@ export default function SignupPage() {
   async function afterVerified(uid?: string | null) {
     const id = uid ?? userId
     if (id) {
-      await (supabase as any).from('users').update({ account_type: accountType }).eq('id', id)
+      await (supabase as any).from('users').update({
+        account_type: accountType,
+        phone:        phone.trim(),
+      }).eq('id', id)
     }
     if (accountType === 'user') {
       setStep(3)
@@ -888,6 +897,15 @@ export default function SignupPage() {
                   type="email" value={email}
                   onChange={e => setEmail(e.target.value)}
                   required placeholder="you@fuoco.club" style={inputStyle}
+                />
+              </AuthField>
+
+              <AuthField label={t('settings.phone')} error={!!error && error.toLowerCase().includes('phone')}>
+                <input
+                  type="tel" value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  required placeholder="+34 612 345 678" style={inputStyle}
+                  autoComplete="tel"
                 />
               </AuthField>
 

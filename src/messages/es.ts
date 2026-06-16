@@ -53,6 +53,7 @@ export const es = {
   'signup.lastName':           'Apellido',
   'signup.passwordHint':       '8+ caracteres · un número · un símbolo',
   'signup.tosError':           'Por favor acepta los Términos de uso y la Política de privacidad para continuar.',
+  'signup.phoneError':         'Por favor introduce tu número de teléfono.',
   'signup.createAccount':      'Crear cuenta',
   'signup.tosPrefix':          'He leído y acepto los',
   'signup.termsOfUse':         'Términos de uso',

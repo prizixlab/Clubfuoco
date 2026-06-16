@@ -47,10 +47,7 @@ struct SettingsView: View {
                     Text(locale.t("settings.fullName"))
                 }
                 LabeledContent {
-                    TextField("+34 …", text: $phone)
-                        .multilineTextAlignment(.trailing)
-                        .textContentType(.telephoneNumber)
-                        .keyboardType(.phonePad)
+                    PhoneNumberField(phone: $phone, trailing: true)
                 } label: {
                     Text(locale.t("settings.phone"))
                 }

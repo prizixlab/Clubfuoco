@@ -72,6 +72,28 @@ final class Queries: @unchecked Sendable {
         return rows.map { $0.toPlace() }.filter { !$0.photos.isEmpty }
     }
 
+    /// Full club rows for a set of ids — used by the Saved (hearted) clubs page.
+    /// Unlike the feed, photoless venues are kept: the user explicitly saved them.
+    func clubsByIds(_ ids: [String]) async throws -> [Place] {
+        guard !ids.isEmpty else { return [] }
+        let rows: [NearbyClubRow] = try await supabase.client
+            .from("clubs")
+            .select("""
+                id, name, slug, address, neighborhood, \
+                lat, lng, cover_image_url, gallery_urls, photos, \
+                rating, ratings_total, music_genres, google_place_id, \
+                general_entry_price, vip_table_min_spend, opening_hours, \
+                is_featured, is_partner, \
+                live_status ( is_open, crowd_percentage, crowd_label, current_dj, queue_wait_minutes ), \
+                club_tags ( tag, category )
+                """)
+            .in("id", values: ids)
+            .order("rating", ascending: false, nullsFirst: false)
+            .execute()
+            .value
+        return rows.map { $0.toPlace() }
+    }
+
     /// The signed-in user's bookings, guest-list signups and ticket orders —
     /// native mirror of getMyBookings() in src/lib/supabase/queries.ts.
     ///

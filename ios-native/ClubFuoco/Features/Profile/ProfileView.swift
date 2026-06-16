@@ -232,10 +232,13 @@ struct ProfileView: View {
                         sub: model.nights.map { String(format: locale.t("profile.bookingsCount"), $0) } ?? "—")
             }
             menuRowDivider
-            menuRow(n: "02", icon: "heart.fill",
-                    label: locale.t("profile.savedClubs"),
-                    sub: model.savedCount.map { String(format: locale.t("profile.savedCount"), $0) } ?? "—",
-                    comingSoon: true)
+            NavigationLink {
+                SavedClubsView()
+            } label: {
+                menuRow(n: "02", icon: "heart.fill",
+                        label: locale.t("profile.savedClubs"),
+                        sub: model.savedCount.map { String(format: locale.t("profile.savedCount"), $0) } ?? "—")
+            }
             menuRowDivider
             NavigationLink {
                 FriendsView()
@@ -245,13 +248,10 @@ struct ProfileView: View {
                         sub: model.friendsSub ?? "—")
             }
             menuRowDivider
-            NavigationLink {
-                MembershipView()
-            } label: {
-                menuRow(n: "04", icon: "crown.fill",
-                        label: locale.t("profile.membership"),
-                        sub: "\(tier.label) · \(locale.t("profile.member"))")
-            }
+            menuRow(n: "04", icon: "crown.fill",
+                    label: locale.t("profile.membership"),
+                    sub: "\(tier.label) · \(locale.t("profile.member"))",
+                    comingSoon: true)
 
             Rectangle().fill(Color(hex: 0x221E1A).opacity(0.16)).frame(height: 1)
                 .padding(.vertical, 12)

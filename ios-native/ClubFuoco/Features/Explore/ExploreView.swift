@@ -16,30 +16,49 @@ struct ExploreView: View {
     #endif
 
     var body: some View {
-        ScrollView {
+        VStack(spacing: 0) {
+            // Pinned top bar — stays in place while the feed scrolls beneath it.
             VStack(alignment: .leading, spacing: 0) {
                 header
-                    .padding(.init(top: 8, leading: 20, bottom: 16, trailing: 20))
+                    .padding(.init(top: 8, leading: 20, bottom: model.showSearch ? 16 : 14, trailing: 20))
 
                 if model.showSearch {
                     searchField
                         .padding(.init(top: 0, leading: 20, bottom: 16, trailing: 20))
                 }
+            }
+            .background(Theme.cream)
+            // Hairline + soft shadow so the When planner (and feed) scroll away
+            // beneath the fixed header, reading as a separate layer rather than
+            // part of the card list.
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(Theme.hairline).frame(height: 1)
+            }
+            .shadow(color: Theme.ink.opacity(0.06), radius: 8, y: 4)
+            .zIndex(1)
 
-                switch model.state {
-                case .loading:
-                    skeleton
-                case .failed(let message):
-                    errorBanner(message)
-                case .loaded:
-                    if model.showSearch && !model.search.isEmpty {
-                        searchResults
-                    } else if model.showSaved {
-                        savedView
-                    } else {
-                        feed
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    switch model.state {
+                    case .loading:
+                        skeleton
+                    case .failed(let message):
+                        errorBanner(message)
+                    case .loaded:
+                        if model.showSearch && !model.search.isEmpty {
+                            searchResults
+                        } else if model.showSaved {
+                            savedView
+                        } else {
+                            feed
+                        }
                     }
                 }
+                .padding(.top, 16)
+            }
+            .refreshable {
+                await model.load()
+                model.rebuildShelves(planDate: plan.date) { locale.t($0) }
             }
         }
         .background(Theme.cream)
@@ -71,10 +90,6 @@ struct ExploreView: View {
             model.rebuildShelves(planDate: plan.date) { locale.t($0) }
         }
         .onChange(of: locale.locale) {
-            model.rebuildShelves(planDate: plan.date) { locale.t($0) }
-        }
-        .refreshable {
-            await model.load()
             model.rebuildShelves(planDate: plan.date) { locale.t($0) }
         }
         #if DEBUG
@@ -191,10 +206,13 @@ struct ExploreView: View {
                 ShelfRowView(shelf: first, index: 0, saved: model.saved, onSave: save)
             }
 
-            // Tonight's Rumbas — guest-list events strip. (The web feed
-            // currently hides this row in demo mode; native shows it because
-            // rumba signup lives here.)
-            if !model.rumbas.isEmpty {
+            // Guest-list events strip — HIDDEN. We have no booking agreements
+            // with the venues currently in the `rumbas` table, so the strip is
+            // suppressed in the feed to avoid offering guest lists we can't
+            // honor. Re-enable once real venue agreements exist (the rumba
+            // data + signup flow remain intact behind this gate).
+            let showGuestLists = false
+            if showGuestLists && !model.rumbas.isEmpty {
                 rumbaShelf
             }
 

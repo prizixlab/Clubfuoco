@@ -67,6 +67,7 @@ struct HeroCard: View {
     let isSaved: Bool
     let onSave: () -> Void
     @Environment(LocaleStore.self) private var locale
+    @Environment(PlanStore.self) private var plan
 
     var body: some View {
         NavigationLink(value: place) {
@@ -91,7 +92,7 @@ struct HeroCard: View {
                     }
                     .padding(12)
 
-                    if let rating = place.rating {
+                    if let rating = RumbaScore.score(clubId: place.placeId, realRating: place.rating).value {
                         VStack {
                             Spacer()
                             HStack {
@@ -115,12 +116,12 @@ struct HeroCard: View {
                 .frame(height: 220)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(locale.t("explore.featuredTonight").uppercased())
+                    Text("\(locale.t("explore.featured")) \(plan.nightPhrase(locale: locale))".uppercased())
                         .font(.cfSans(9))
                         .kerning(1.3)
                         .foregroundStyle(Theme.fadedSand)
 
-                    (Text("\(locale.t("explore.tonightPrefix")) ")
+                    (Text("\(plan.nightPhrase(locale: locale)): ")
                         + Text(place.name).italic().foregroundColor(Theme.wine))
                         .font(.cfSerif(30))
                         .foregroundStyle(Theme.ink)
@@ -292,6 +293,12 @@ struct ShelfRowView: View {
     let saved: Set<String>
     let onSave: (Place) -> Void
     @Environment(LocaleStore.self) private var locale
+    @Environment(PlanStore.self) private var plan
+
+    // The Rumbalist featured shelf is grouped inside a pink-bordered box so it
+    // reads as one distinct section; everything else flows edge-to-edge.
+    private var isRumba: Bool { shelf.id == "hero" }
+    private var hPad: CGFloat { isRumba ? 16 : 20 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -301,28 +308,36 @@ struct ShelfRowView: View {
                     .kerning(1.3)
                     .foregroundStyle(Theme.fadedSand)
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    if shelf.id == "hero" {
-                        // "Tonight with [Rumbalist]" — render the brand mark
-                        Text(locale.t("rumbalist.tonightWith"))
+                    if isRumba {
+                        // "<day> with [Rumbalist]" — tracks the When planner date.
+                        // Keep it on one line, shrinking to fit when the day label
+                        // is long (e.g. "Next Thursday with").
+                        Text("\(plan.nightPhrase(locale: locale)) \(locale.t("rumbalist.with"))")
                             .font(.cfSans(18, weight: .medium))
                             .foregroundStyle(Theme.ink)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                            .layoutPriority(1)
                         RumbalistMark(height: 15)
+                            .fixedSize()
                     } else {
                         Text(shelf.title)
                             .font(.cfSans(shelf.featured ? 18 : 16, weight: .medium))
                             .foregroundStyle(Theme.ink)
                     }
-                    Spacer()
+                    Spacer(minLength: 6)
                     Text(String(format: locale.t("explore.venuesArrow"), shelf.places.count))
                         .font(.cfSans(12))
                         .foregroundStyle(Theme.wine)
+                        .lineLimit(1)
+                        .fixedSize()
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, hPad)
 
             if shelf.featured, let lead = shelf.places.first {
                 HeroCard(place: lead, isSaved: saved.contains(lead.placeId)) { onSave(lead) }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, hPad)
 
                 if shelf.places.count > 1 {
                     cardScroller(Array(shelf.places.dropFirst()), landscape: false)
@@ -331,6 +346,18 @@ struct ShelfRowView: View {
                 cardScroller(shelf.places, landscape: index % 2 != 0)
             }
         }
+        .padding(.vertical, isRumba ? 18 : 0)
+        .background {
+            if isRumba {
+                RoundedRectangle(cornerRadius: 22)
+                    .fill(RumbalistMark.pink.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22)
+                            .strokeBorder(RumbalistMark.pink.opacity(0.35), lineWidth: 1.5)
+                    )
+            }
+        }
+        .padding(.horizontal, isRumba ? 12 : 0)
         .padding(.bottom, 32)
     }
 
@@ -345,7 +372,7 @@ struct ShelfRowView: View {
                     }
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, hPad)
         }
     }
 }

@@ -89,4 +89,28 @@ final class PlanStore {
     func formatted(locale: LocaleStore) -> String {
         Self.dayOptions(locale: locale).first { $0.value == date }?.label ?? date
     }
+
+    /// A natural-language phrase for headlines that read "<phrase> with Rumba"
+    /// or "<phrase>: Venue": "Tonight" / "Tomorrow" / "Saturday" / "Next Saturday".
+    @MainActor
+    func nightPhrase(locale: LocaleStore) -> String {
+        let cal = Calendar.current
+        let parse = DateFormatter()
+        parse.dateFormat = "yyyy-MM-dd"
+        parse.timeZone = .current
+        guard let picked = parse.date(from: date) else { return locale.t("plan.tonight") }
+        let start = cal.startOfDay(for: Date())
+        let offset = cal.dateComponents([.day], from: start, to: cal.startOfDay(for: picked)).day ?? 0
+        switch offset {
+        case ..<1: return locale.t("plan.tonight")
+        case 1:    return locale.t("plan.tomorrow")
+        default:
+            let weekday = DateFormatter()
+            weekday.locale = Locale(identifier: locale.locale == "es" ? "es_ES" : "en_GB")
+            weekday.setLocalizedDateFormatFromTemplate("EEEE")
+            var name = weekday.string(from: picked)
+            if offset >= 7 { name = "\(locale.t("plan.next")) \(name)" }
+            return name.prefix(1).uppercased() + name.dropFirst()
+        }
+    }
 }

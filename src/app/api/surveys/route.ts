@@ -83,15 +83,21 @@ export async function POST(req: NextRequest) {
   // silently blocked by an RLS policy on a native (cookie-less) request.
   const supabase = await createServiceClient()
 
-  // Verify the booking belongs to the user
-  const { data: booking } = await supabase
+  // Verify the booking belongs to the user. Split the lookup so the error
+  // message tells us why ("not in DB" vs "wrong user") — without this, native
+  // testing always reports the same 404 regardless of root cause.
+  const { data: booking, error: bookingErr } = await supabase
     .from('bookings')
-    .select('id')
+    .select('id, user_id')
     .eq('id', parsed.data.booking_id)
-    .eq('user_id', user!.id)
-    .single()
-
-  if (!booking) return err('Booking not found', 404)
+    .maybeSingle()
+  if (bookingErr) return err(bookingErr.message, 500)
+  if (!booking) {
+    return err(`Booking ${parsed.data.booking_id.slice(0, 8)} not found`, 404)
+  }
+  if (booking.user_id !== user!.id) {
+    return err('This booking belongs to a different account', 403)
+  }
 
   const { data, error } = await supabase
     .from('booking_surveys')

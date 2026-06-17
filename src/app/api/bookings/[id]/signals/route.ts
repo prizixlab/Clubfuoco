@@ -14,8 +14,9 @@ import { z } from 'zod'
 
 const CHECKIN_RADIUS_M = 250        // strictest gate: explicit "I'm here"
 const PASSIVE_RADIUS_M = 400        // looser gate for passive signals
-const ARRIVAL_WINDOW_HOURS_BEFORE = 2   // earliest you can check in
-const ARRIVAL_WINDOW_HOURS_AFTER  = 8   // latest a signal counts toward attendance
+const ARRIVAL_WINDOW_HOURS_BEFORE = 2          // earliest you can check in
+const PRESENCE_WINDOW_HOURS_AFTER = 8          // location signals: tight, "are you actually there"
+const POST_ENTRY_WINDOW_HOURS_AFTER = 14 * 24  // post-entry / review answers: up to 2 weeks later
 
 const userKinds = ['user_checkin','geo_presence','pass_viewed','post_entry_got_in','post_entry_issue'] as const
 type UserKind = typeof userKinds[number]
@@ -37,15 +38,22 @@ function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): num
   return 2 * R * Math.asin(Math.sqrt(a))
 }
 
-function bookingWindow(date: string, arrival?: string | null): { earliest: Date; latest: Date } {
+function bookingWindow(
+  date: string,
+  arrival: string | null | undefined,
+  kind: UserKind,
+): { earliest: Date; latest: Date } {
   // arrival_window like "23:00"; if missing, treat as 22:00 local-ish.
   const [hh, mm] = (arrival ?? '22:00').split(':').map(Number)
   // booking_date is a calendar date in the venue's TZ; without a per-club tz
   // we approximate with UTC. The buffer windows soak up the offset.
   const base = new Date(`${date}T${String(hh).padStart(2,'0')}:${String(mm||0).padStart(2,'0')}:00Z`)
+  const after = (kind === 'post_entry_got_in' || kind === 'post_entry_issue')
+    ? POST_ENTRY_WINDOW_HOURS_AFTER
+    : PRESENCE_WINDOW_HOURS_AFTER
   return {
     earliest: new Date(base.getTime() - ARRIVAL_WINDOW_HOURS_BEFORE * 3_600_000),
-    latest:   new Date(base.getTime() + ARRIVAL_WINDOW_HOURS_AFTER  * 3_600_000),
+    latest:   new Date(base.getTime() + after * 3_600_000),
   }
 }
 
@@ -76,7 +84,7 @@ export async function POST(
   if (bErr || !booking) return err('Booking not found', 404)
   if (booking.status === 'cancelled') return err('Booking cancelled', 409)
 
-  const { earliest, latest } = bookingWindow(booking.booking_date, booking.arrival_window)
+  const { earliest, latest } = bookingWindow(booking.booking_date, booking.arrival_window, body.kind)
   const now = new Date()
   if (now < earliest || now > latest) return err('Outside booking window', 409)
 

@@ -112,7 +112,8 @@ final class Queries: @unchecked Sendable {
             .select("""
                 id, booking_type, party_size, booking_date, arrival_window, \
                 status, total_amount, qr_code_token, created_at, \
-                clubs (id, name, cover_image_url, address, neighborhood)
+                attendance_status, attendance_confidence, checked_in_at, \
+                clubs (id, name, cover_image_url, address, neighborhood, lat, lng)
                 """)
             .eq("user_id", value: uid)
             .order("booking_date", ascending: false)

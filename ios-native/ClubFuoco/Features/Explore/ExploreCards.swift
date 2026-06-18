@@ -346,7 +346,13 @@ struct ShelfRowView: View {
                 cardScroller(shelf.places, landscape: index % 2 != 0)
             }
         }
-        .padding(.vertical, isRumba ? 18 : 0)
+        // Asymmetric padding inside the Rumbalist box — the bottom row of
+        // venue thumbnails has its address subtitle right at the card's lower
+        // edge, plus a soft shadow that extends another ~10pt below the card
+        // bounds. 18pt of bottom buffer pressed it all against the pink
+        // outline; 44pt gives an unambiguous breathing zone.
+        .padding(.top, isRumba ? 20 : 0)
+        .padding(.bottom, isRumba ? 44 : 0)
         .background {
             if isRumba {
                 RoundedRectangle(cornerRadius: 22)
@@ -358,7 +364,9 @@ struct ShelfRowView: View {
             }
         }
         .padding(.horizontal, isRumba ? 12 : 0)
-        .padding(.bottom, 32)
+        // Extra gap below the pink container so the next shelf header
+        // ("FOR THE 4/4 FAITHFUL" etc.) doesn't visually press into the box.
+        .padding(.bottom, isRumba ? 40 : 32)
     }
 
     private func cardScroller(_ places: [Place], landscape: Bool) -> some View {

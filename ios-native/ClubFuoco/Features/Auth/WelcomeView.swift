@@ -118,9 +118,19 @@ struct WelcomeView: View {
                             .padding(.top, 14)
                     }
 
-                    Kicker(locale.t("splash.termsNote"), color: Theme.parchment.opacity(0.4))
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 24)
+                    VStack(spacing: 8) {
+                        Kicker(locale.t("splash.termsNote"), color: Theme.parchment.opacity(0.4))
+                            .multilineTextAlignment(.center)
+                        HStack(spacing: 14) {
+                            Link(locale.t("signup.termsOfUse"), destination: LegalURLs.terms)
+                            Text("·").foregroundStyle(Theme.parchment.opacity(0.3))
+                            Link(locale.t("signup.privacyPolicy"), destination: LegalURLs.privacy)
+                        }
+                        .font(.cfSans(11, weight: .medium))
+                        .tint(Theme.parchment.opacity(0.75))
+                        .foregroundStyle(Theme.parchment.opacity(0.75))
+                    }
+                    .padding(.top, 24)
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)

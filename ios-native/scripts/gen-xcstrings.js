@@ -159,6 +159,10 @@ const NATIVE_KEYS = {
   'profile.helpSub': { en: 'FAQ · contact concierge', es: 'FAQ · contacta al concierge' },
   'profile.legal': { en: 'House Rules & Privacy', es: 'Normas y privacidad' },
   'profile.legalSub': { en: 'Terms · privacy · GDPR', es: 'Términos · privacidad · RGPD' },
+  'profile.terms': { en: 'Terms of Use', es: 'Términos de uso' },
+  'profile.termsSub': { en: 'House rules · memberships · liability', es: 'Normas · membresías · responsabilidad' },
+  'profile.privacy': { en: 'Privacy Policy', es: 'Política de privacidad' },
+  'profile.privacySub': { en: 'How we handle your data · GDPR rights', es: 'Cómo tratamos tus datos · derechos RGPD' },
   'profile.footerCompany': { en: 'FUOCO · A NIGHTLIFE COMPANY', es: 'FUOCO · A NIGHTLIFE COMPANY' },
   'profile.footerQuote': { en: '“La notte ci appartiene.”', es: '“La notte ci appartiene.”' },
 

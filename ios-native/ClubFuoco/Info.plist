@@ -37,6 +37,10 @@
 	<false/>
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
 	<string>Add your group nights to your calendar so you don't miss them.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Allowing "Always" lets Club Fuoco check you in automatically when you arrive at a venue you booked. We only run a geofence around your booked venue on the night of the booking — no continuous tracking, ever.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Confirm you arrived at the venue for your booking — used only when you tap "I'm here" or open an active pass near arrival time. Club Fuoco does not track your location in the background.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>InstrumentSerif-Regular.ttf</string>

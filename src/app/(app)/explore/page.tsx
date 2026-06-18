@@ -275,7 +275,7 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   const shuffle    = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5)
 
   // ── 1. CURATED TONIGHT — Rumbalist's partner clubs ───────────────────────
-  // Demo: the featured shelf is locked to the venues Rumbalist works with.
+  // The featured shelf is locked to the venues our Rumbalist partnership covers.
   const rumbalistIds = new Set(Object.keys(RUMBALIST_OFFERS))
   const forYou = curatedPool
     .filter(p => rumbalistIds.has(p.place_id))
@@ -1453,8 +1453,8 @@ export default function ExplorePage() {
               </div>
             )
             : shelves.slice(shelves[0]?.featured ? 1 : 0)
-                // Demo mode: rumbas are already shown in the Rumbalist hero above,
-                // so don't duplicate them as a regular shelf in the middle of the feed.
+                // Rumbas are already shown in the Rumbalist hero above, so
+                // don't duplicate them as a regular shelf in the middle of the feed.
                 .filter(s => s.id !== 'rumbas')
                 .map((shelf, i) => (
                   <ShelfRow key={shelf.id} shelf={shelf} saved={saved} onSave={handleSave} index={i + 1} />

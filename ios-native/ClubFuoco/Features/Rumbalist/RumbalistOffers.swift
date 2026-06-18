@@ -1,7 +1,7 @@
 import Foundation
 
 /// Rumbalist booking offers, keyed by clubs.id — native port of
-/// src/lib/rumbalist-offers.ts. Demo data scraped from rumbalist.com; the
+/// src/lib/rumbalist-offers.ts. Sourced from our Rumbalist partnership; the
 /// venue detail page shows the offers for the matching club.
 struct RumbalistOffer: Identifiable, Hashable {
     enum Kind { case freeGuestlist, vipTable }

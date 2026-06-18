@@ -13,9 +13,22 @@ struct BookingsView: View {
     @State private var qrBooking: Booking?
     @State private var detailBooking: Booking?
     @State private var openGroup: GroupListItem?
+    @State private var reviewBooking: Booking?
+    @State private var tab: TopTab = .tickets
     #if DEBUG
     @State private var debugGroup: GroupListItem?
     #endif
+
+    private enum TopTab: String, CaseIterable, Identifiable {
+        case tickets, reviews
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .tickets: "Tickets"
+            case .reviews: "Reviews"
+            }
+        }
+    }
 
     var body: some View {
         Group {
@@ -86,12 +99,43 @@ struct BookingsView: View {
                 onOpenGroup: { group in
                     detailBooking = nil
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { openGroup = group }
+                },
+                onAttendanceChanged: {
+                    Task { await model.load(api: api, queries: auth.queries) }
                 }
             )
         }
         .sheet(item: $openGroup) { group in
             NavigationStack { GroupDetailView(groupId: group.id, presentedModally: true) }
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $reviewBooking) { booking in
+            ReviewSurveySheet(
+                booking: booking,
+                onSubmitted: { id in
+                    // Drop it from pendingReviews instantly so the row
+                    // disappears the moment the sheet closes. Background fetch
+                    // then catches up the server-side attendance_status.
+                    model.markReviewSubmitted(id)
+                },
+                onDismiss: {
+                    Task { await model.load(api: api, queries: auth.queries) }
+                }
+            )
+            .presentationDragIndicator(.visible)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .cfMorningAfterTapped)) { notif in
+            // Notification tap → flip to the Reviews tab and present the sheet
+            // for the booking the notification was scheduled against. If the
+            // booking id can't be matched (test fire, account changed), open
+            // whatever is at the top of the pending list so something opens.
+            withAnimation { tab = .reviews }
+            let id = notif.userInfo?["bookingId"] as? UUID
+            if let id, let match = model.allBookings.first(where: { $0.id == id }) {
+                reviewBooking = match
+            } else {
+                reviewBooking = model.pendingReviews.first
+            }
         }
         .overlay(alignment: .bottom) {
             if let toast = model.toast {
@@ -121,6 +165,53 @@ struct BookingsView: View {
     }
 
     private var list: some View {
+        VStack(spacing: 0) {
+            topTabSlider
+            switch tab {
+            case .tickets: ticketsList
+            case .reviews: reviewsList
+            }
+        }
+    }
+
+    /// Segmented slider at the very top of Tickets. Reviews tab shows a small
+    /// badge with the pending count when there is one.
+    private var topTabSlider: some View {
+        HStack(spacing: 0) {
+            ForEach(TopTab.allCases) { t in
+                let active = tab == t
+                Button {
+                    Haptics.tap()
+                    withAnimation(.easeInOut(duration: 0.18)) { tab = t }
+                } label: {
+                    HStack(spacing: 8) {
+                        Text(t.label)
+                            .font(.cfSans(13, weight: active ? .semibold : .regular))
+                        if t == .reviews, !model.pendingReviews.isEmpty {
+                            Text("\(model.pendingReviews.count)")
+                                .font(.cfMono(10, weight: .semibold))
+                                .foregroundStyle(active ? Theme.wine : Theme.cream)
+                                .frame(minWidth: 18, minHeight: 18)
+                                .background(active ? Theme.cream : Theme.wine, in: .circle)
+                        }
+                    }
+                    .foregroundStyle(active ? Theme.cream : Theme.ink)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 38)
+                    .background(active ? Theme.wine : Color.clear, in: .capsule)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(Color.white.opacity(0.6), in: .capsule)
+        .overlay(Capsule().stroke(Theme.hairline))
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+    }
+
+    private var ticketsList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 if !model.tonight.isEmpty {
@@ -147,6 +238,86 @@ struct BookingsView: View {
             .padding(.vertical, 16)
         }
         .refreshable { await model.load(api: api, queries: auth.queries) }
+    }
+
+    @ViewBuilder private var reviewsList: some View {
+        if model.pendingReviews.isEmpty {
+            VStack(spacing: 8) {
+                Image(systemName: "star.bubble")
+                    .font(.system(size: 36))
+                    .foregroundStyle(Theme.sand)
+                Text("No reviews waiting")
+                    .font(.cfSans(14))
+                    .foregroundStyle(Theme.stone)
+                Text("After a night out, we'll ask you how it went.")
+                    .font(.cfSans(12))
+                    .foregroundStyle(Theme.fadedSand)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.top, 60)
+        } else {
+            List {
+                Section {
+                    ForEach(model.pendingReviews) { booking in
+                        reviewCard(booking)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    Haptics.tap()
+                                    withAnimation { model.dismissReview(booking.id, api: api) }
+                                } label: {
+                                    Label("Dismiss", systemImage: "trash")
+                                }
+                            }
+                    }
+                } header: {
+                    Kicker("Tell us how it went", color: Theme.wine)
+                        .textCase(nil)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                }
+                .listRowBackground(Color.clear)
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Theme.cream)
+            .refreshable { await model.load(api: api, queries: auth.queries) }
+        }
+    }
+
+    private func reviewCard(_ booking: Booking) -> some View {
+        Button {
+            Haptics.tap()
+            reviewBooking = booking
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "star.bubble")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Theme.wine)
+                    .frame(width: 36, height: 36)
+                    .background(Theme.wine.opacity(0.08), in: .rect(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(booking.club?.name ?? "Your night out")
+                        .font(.cfSerif(17, italic: true))
+                        .foregroundStyle(Theme.ink)
+                        .lineLimit(1)
+                    Text("Did you go? Review your night")
+                        .font(.cfSans(12))
+                        .foregroundStyle(Theme.stone)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.sand)
+            }
+            .padding(14)
+            .background(Color.white, in: .rect(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.wine.opacity(0.25)))
+        }
+        .buttonStyle(.plain)
     }
 
     private func section(_ title: String, items: [BookingsViewModel.Item], tonight: Bool) -> some View {
@@ -619,6 +790,12 @@ final class BookingsViewModel {
             state = .failed(error.localizedDescription)
         }
         groups = (await groupList ?? []).filter { $0.status != "cancelled" }
+        // Re-sync background geofences against the fresh booking list — picks
+        // up newly-booked nights and drops cancelled or past ones. No-op when
+        // the user hasn't granted Always.
+        await LocationService.shared.syncGeofences()
+        // Same reconciliation for the 10am-next-day "did you get in?" prompt.
+        await NotificationService.shared.syncMorningAfter(for: data?.bookings ?? [])
     }
 
     // ── Tonight / upcoming / past partitions (mirror the page logic) ─────────
@@ -654,6 +831,50 @@ final class BookingsViewModel {
     }
 
     var hasPast: Bool { !past.isEmpty }
+
+    /// All bookings the page currently knows about — used by the deep-link
+    /// listener so a notification tap can match the right booking.
+    var allBookings: [Booking] { data?.bookings ?? [] }
+
+    /// Booking IDs we've just submitted a survey for during this session.
+    /// Filtering on this gives an immediate UI dismiss without waiting for
+    /// the next server fetch to reflect the new attendance status.
+    private(set) var dismissedReviewIds: Set<UUID> = []
+
+    func markReviewSubmitted(_ bookingId: UUID) {
+        dismissedReviewIds.insert(bookingId)
+    }
+
+    /// Swipe-to-delete on a pending review — drops the card immediately and
+    /// calls `DELETE /api/surveys?booking_id=…` to persist the dismissal so the
+    /// booking won't reappear on next launch. The web survey endpoint already
+    /// stores this on `bookings.survey_dismissed_at`.
+    func dismissReview(_ bookingId: UUID, api: APIClient) {
+        dismissedReviewIds.insert(bookingId)
+        Task {
+            struct Resp: Decodable, Sendable { let dismissed: String? }
+            let path = "/api/surveys?booking_id=\(bookingId.uuidString.lowercased())"
+            let _: Resp? = try? await api.delete(path)
+        }
+    }
+
+    /// Bookings from yesterday to 7 days ago whose attendance status isn't yet
+    /// resolved one way or the other. Mirrors `/api/surveys` web window.
+    var pendingReviews: [Booking] {
+        guard let data else { return [] }
+        let cal = Calendar.current
+        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
+        guard let yesterday = cal.date(byAdding: .day, value: -1, to: Date()),
+              let weekAgo   = cal.date(byAdding: .day, value: -7, to: Date()) else { return [] }
+        let y = fmt.string(from: yesterday), w = fmt.string(from: weekAgo)
+        let resolved: Set<String> = ["verified_attended","likely_attended","user_claimed_attended","no_show","disputed"]
+        return data.bookings
+            .filter { $0.status != "cancelled" }
+            .filter { !resolved.contains($0.attendanceStatus ?? "") }
+            .filter { !dismissedReviewIds.contains($0.id) }
+            .filter { $0.bookingDate <= y && $0.bookingDate >= w }
+            .sorted { $0.bookingDate > $1.bookingDate }
+    }
 
     // ── Cancel (DELETE /api/bookings/{id}) ───────────────────────────────────
 

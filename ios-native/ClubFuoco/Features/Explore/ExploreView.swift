@@ -484,20 +484,30 @@ struct ExploreView: View {
 
     private var skeleton: some View {
         VStack(alignment: .leading, spacing: 28) {
-            RoundedRectangle(cornerRadius: 16).fill(Color.white).frame(height: 220)
+            // Hero card — visible structure inside (kicker + two title lines)
+            // so a slow venue image load doesn't look like a giant empty box.
+            ZStack(alignment: .bottomLeading) {
+                ShimmerBlock(corner: 16).frame(height: 220)
+                VStack(alignment: .leading, spacing: 10) {
+                    ShimmerBlock(corner: 4).frame(width: 80, height: 10)
+                    ShimmerBlock(corner: 4).frame(width: 220, height: 22)
+                    ShimmerBlock(corner: 4).frame(width: 160, height: 18)
+                }
+                .padding(16)
+            }
+            // Shelves
             ForEach(0..<2, id: \.self) { _ in
                 VStack(alignment: .leading, spacing: 14) {
-                    RoundedRectangle(cornerRadius: 6).fill(Color.white).frame(width: 140, height: 13)
+                    ShimmerBlock(corner: 4).frame(width: 140, height: 12)
                     HStack(spacing: 12) {
                         ForEach(0..<3, id: \.self) { _ in
-                            RoundedRectangle(cornerRadius: 14).fill(Color.white).frame(width: 160, height: 200)
+                            ShimmerBlock(corner: 14).frame(width: 160, height: 200)
                         }
                     }
                 }
             }
         }
         .padding(.horizontal, 20)
-        .opacity(0.7)
     }
 
     private func errorBanner(_ message: String) -> some View {

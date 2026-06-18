@@ -272,10 +272,16 @@ struct ProfileView: View {
                         sub: locale.t("profile.helpSub"))
             }
             menuRowDivider
-            Link(destination: URL(string: "https://clubfuoco.vercel.app/legal/terms")!) {
+            Link(destination: LegalURLs.terms) {
                 menuRow(n: "06", icon: "text.book.closed.fill",
-                        label: locale.t("profile.legal"),
-                        sub: locale.t("profile.legalSub"))
+                        label: locale.t("profile.terms"),
+                        sub: locale.t("profile.termsSub"))
+            }
+            menuRowDivider
+            Link(destination: LegalURLs.privacy) {
+                menuRow(n: "07", icon: "lock.shield.fill",
+                        label: locale.t("profile.privacy"),
+                        sub: locale.t("profile.privacySub"))
             }
 
             Rectangle().fill(Theme.hairline).frame(height: 1).padding(.vertical, 8)

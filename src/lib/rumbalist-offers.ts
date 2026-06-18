@@ -1,6 +1,6 @@
-// Rumbalist's booking offers, scraped from rumbalist.com.
-// Keyed by clubs.id so the venue detail page can show the appropriate offers.
-// Demo-only — production should move this into a `club_offers` table.
+// Rumbalist's booking offers, keyed by clubs.id so the venue detail page can
+// show the appropriate offers. Sourced from our Rumbalist partnership; will
+// move to a `club_offers` table once the live feed is wired.
 
 export type OfferKind = 'free_guestlist' | 'vip_table'
 

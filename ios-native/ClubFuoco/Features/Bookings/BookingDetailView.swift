@@ -13,6 +13,9 @@ struct BookingDetailView: View {
     /// parent dismisses this cover and performs the cancel.
     var onConfirmCancel: () -> Void = {}
     var onOpenGroup: (GroupListItem) -> Void = { _ in }
+    /// Called when an attendance signal lands so the parent can refresh the
+    /// booking and re-render the card in its new state.
+    var onAttendanceChanged: () -> Void = {}
 
     @Environment(\.api) private var api
     @Environment(LocaleStore.self) private var locale
@@ -30,6 +33,10 @@ struct BookingDetailView: View {
                     if !isCancelled, let token = booking.qrCodeToken {
                         qrBlock(token)
                         actions
+                    }
+                    if !isCancelled {
+                        AttendanceCheckInCard(booking: booking,
+                                              onSignalPosted: onAttendanceChanged)
                     }
                     if let group {
                         groupLink(group)
@@ -66,7 +73,26 @@ struct BookingDetailView: View {
                     }
                 }
             }
+            .task { await firePassViewedIfAppropriate() }
         }
+    }
+
+    /// Fire a passive `pass_viewed` signal so confidence can climb without the
+    /// user needing to tap. Silent: we never prompt for location here — only
+    /// piggy-back on an existing grant.
+    private func firePassViewedIfAppropriate() async {
+        guard !isCancelled,
+              LocationService.shared.authorizationStatus == .authorizedWhenInUse
+                || LocationService.shared.authorizationStatus == .authorizedAlways
+        else { return }
+        guard let loc = try? await LocationService.shared.currentLocation() else { return }
+
+        struct Body: Encodable { let kind: String; let lat: Double; let lng: Double }
+        struct Resp: Decodable, Sendable { let logged: String? }
+        let body = Body(kind: "pass_viewed", lat: loc.coordinate.latitude, lng: loc.coordinate.longitude)
+        let _: Resp? = try? await api.post(
+            "/api/bookings/\(booking.id.uuidString.lowercased())/signals", body: body
+        )
     }
 
     // ── Hero ──────────────────────────────────────────────────────────────────

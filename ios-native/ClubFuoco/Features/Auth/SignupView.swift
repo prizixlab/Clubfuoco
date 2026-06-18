@@ -231,13 +231,17 @@ struct SignupView: View {
                     .frame(width: 20, height: 20)
                 }
 
-                (Text(locale.t("signup.tosPrefix")) + Text(" ")
-                    + Text(locale.t("signup.termsOfUse")).underline().foregroundColor(Theme.wine)
-                    + Text(" \(locale.t("signup.and")) ")
-                    + Text(locale.t("signup.privacyPolicy")).underline().foregroundColor(Theme.wine)
-                    + Text("."))
+                // Markdown-formatted Text supports inline links — both pieces
+                // become tap targets that open the hosted legal pages.
+                Text(LocalizedStringKey(
+                    "\(locale.t("signup.tosPrefix")) " +
+                    "[\(locale.t("signup.termsOfUse"))](\(LegalURLs.terms.absoluteString))" +
+                    " \(locale.t("signup.and")) " +
+                    "[\(locale.t("signup.privacyPolicy"))](\(LegalURLs.privacy.absoluteString))."
+                ))
                     .font(.cfSans(12))
                     .foregroundStyle(Theme.fadedSand)
+                    .tint(Theme.wine)
             }
             .padding(.top, 4)
 

@@ -19,6 +19,11 @@ struct Booking: Decodable, Identifiable, Sendable {
     let qrCodeToken: String?
     let createdAt: String?
     let clubs: EmbeddedOne<ClubSummary>?
+    /// Rolled-up attendance status from booking_attendance_signals. Optional —
+    /// older API responses omit it; new fields default server-side.
+    var attendanceStatus: String? = nil
+    var attendanceConfidence: Int? = nil
+    var checkedInAt: String? = nil
 
     var club: ClubSummary? { clubs?.value }
 }
@@ -29,6 +34,10 @@ struct ClubSummary: Decodable, Sendable {
     let coverImageUrl: String?
     let address: String?
     let neighborhood: String?
+    /// Used to gate the "I'm here" button client-side before round-tripping
+    /// to the server (which is the authoritative distance check).
+    var lat: Double? = nil
+    var lng: Double? = nil
 }
 
 struct GuestSignup: Decodable, Identifiable, Sendable {

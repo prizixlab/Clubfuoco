@@ -51,6 +51,15 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         # Write-only Calendar access — used to add group nights to the user's calendar
         NSCalendarsWriteOnlyAccessUsageDescription: Add your group nights to your calendar so you don't miss them.
+        # Attendance verification only — never continuous tracking.
+        #   WhenInUse: single-shot read when the user taps "I'm here" or opens
+        #     the active booking screen near arrival time.
+        #   Always (optional, auto-upgrades after WhenInUse grant): registers a
+        #     ~150m geofence around each upcoming venue for the booking night so
+        #     iOS wakes the app and check-ins happen automatically. Users can
+        #     downgrade to WhenInUse at any time in Settings → Location.
+        NSLocationWhenInUseUsageDescription: Confirm you arrived at the venue for your booking — used only when you tap "I'm here" or open an active pass near arrival time. Club Fuoco does not track your location in the background.
+        NSLocationAlwaysAndWhenInUseUsageDescription: Allowing "Always" lets Club Fuoco check you in automatically when you arrive at a venue you booked. We only run a geofence around your booked venue on the night of the booking — no continuous tracking, ever.
         # Brand fonts (match the web app): Instrument Serif + Geist Sans/Mono
         UIAppFonts:
           - InstrumentSerif-Regular.ttf

@@ -106,9 +106,9 @@ export default function RumbalistBookSheet({
     window.addEventListener('touchcancel', end, { passive: true })
   }
 
-  // Paid VIP — real Apple Pay via @capacitor-community/stripe on iOS, with a
-  // visible fallback message on web (we don't ship a card-form fallback for
-  // VIP here; the demo flow is native-only).
+  // Paid VIP — real Apple Pay on iOS (native app), with a visible fallback
+  // message on web (we don't ship a card-form fallback for VIP here; the
+  // paid flow is native-only).
   //
   // We deliberately do NOT switch to the 'authenticating' step here — iOS's
   // own Apple Pay sheet (Face ID + amount + card picker) is the auth UI. A

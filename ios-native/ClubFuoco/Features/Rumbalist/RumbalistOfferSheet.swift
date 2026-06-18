@@ -160,32 +160,36 @@ struct RumbalistOfferSheet: View {
                     .padding(.top, 12)
 
                 // ── Going with friends — create a group for this offer ──────
-                Button {
-                    Haptics.tap()
-                    model.createGroup(offer: offer, clubId: clubId, planDate: plan.date, api: api) { groupId in
-                        onPlanWithFriends?(groupId)
-                        dismiss()
+                // VIP intentionally omits this: splitting a paid VIP table
+                // among friends isn't supported in the current payment flow.
+                if !offer.isVip {
+                    Button {
+                        Haptics.tap()
+                        model.createGroup(offer: offer, clubId: clubId, planDate: plan.date, api: api) { groupId in
+                            onPlanWithFriends?(groupId)
+                            dismiss()
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "person.2")
+                                .font(.system(size: 16))
+                            Text(locale.t("rumbalist.bringCrew"))
+                                .font(.cfSans(15, weight: .medium))
+                        }
+                        .foregroundStyle(Self.textColor)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.18)))
                     }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "person.2")
-                            .font(.system(size: 16))
-                        Text(locale.t(offer.isVip ? "rumbalist.splitFriends" : "rumbalist.bringCrew"))
-                            .font(.cfSans(15, weight: .medium))
-                    }
-                    .foregroundStyle(Self.textColor)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.18)))
-                }
-                .padding(.top, 14)
+                    .padding(.top, 14)
 
-                Text(locale.t(offer.isVip ? "rumbalist.splitFriendsNote" : "rumbalist.bringCrewNote"))
-                    .font(.cfSans(11))
-                    .foregroundStyle(Self.textColor.opacity(0.45))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 8)
+                    Text(locale.t("rumbalist.bringCrewNote"))
+                        .font(.cfSans(11))
+                        .foregroundStyle(Self.textColor.opacity(0.45))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 8)
+                }
             }
             .padding(.horizontal, 22)
             .padding(.bottom, 24)

@@ -43,6 +43,7 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     /// CLLocationManager.maximumRegionMonitoringDistance ceiling.
     private static let geofenceRadius: CLLocationDistance = 200
     private static let geofencePrefix = "cf.booking."
+    private static let inviteGeofencePrefix = "cf.invite."
     /// Hard limit per app, set by iOS.
     private static let maxRegions = 20
 
@@ -50,9 +51,15 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     /// the app sees new bookings or authorization flips to Always. Wired by
     /// `AppEnvironment.bootstrapLocation` so this file stays UI-/store-free.
     var bookingFenceProvider: (() async -> [GeofencedBooking])?
-    /// Called from `didEnterRegion`. Wired the same way — POSTs the signals
-    /// via APIClient so this service has no networking dependency itself.
+    /// Same shape, but for promoter-invite claims. Identifier prefix differs
+    /// so we can route enter events to the correct check-in endpoint.
+    var inviteFenceProvider: (() async -> [GeofencedBooking])?
+    /// Called from `didEnterRegion` for booking fences. Wired the same way
+    /// — POSTs the signals via APIClient so this service has no networking
+    /// dependency itself.
     var onRegionEntered: ((_ bookingId: UUID, _ at: Date) async -> Void)?
+    /// Called from `didEnterRegion` for promoter-invite fences.
+    var onInviteRegionEntered: ((_ guestId: UUID, _ at: Date) async -> Void)?
 
     override init() {
         super.init()
@@ -103,13 +110,18 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     // ── Background geofences ─────────────────────────────────────────────────
 
     struct GeofencedBooking: Sendable {
-        let bookingId: UUID
+        enum Kind: Sendable { case booking, invite }
+        var kind: Kind = .booking
+        let id: UUID
         let clubLat: Double
         let clubLng: Double
         /// Local-night cutoffs — fences are registered while `now` is between
         /// these, and dropped otherwise.
         let activeFrom: Date
         let activeUntil: Date
+        // Backwards-compatible accessor for existing call sites that still
+        // refer to `bookingId`.
+        var bookingId: UUID { id }
     }
 
     /// Sync the active fence list against the booking provider. Safe to call
@@ -121,29 +133,43 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
             return
         }
         guard CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) else { return }
-        guard let provider = bookingFenceProvider else { return }
 
         let now = Date()
-        let candidates = await provider()
+
+        // Bookings + invites share the same per-app limit. Bookings get
+        // priority — paid tickets > free guestlist invites.
+        async let bookings = (bookingFenceProvider?() ?? [])
+        async let invites = (inviteFenceProvider?() ?? [])
+        let booked = await bookings
             .filter { now < $0.activeUntil }
             .sorted { $0.activeFrom < $1.activeFrom }
-            .prefix(Self.maxRegions)
+        let invited = await invites
+            .filter { now < $0.activeUntil }
+            .sorted { $0.activeFrom < $1.activeFrom }
+        let allCandidates = (booked + invited).prefix(Self.maxRegions)
 
-        let desiredIds = Set(candidates.map { Self.geofencePrefix + $0.bookingId.uuidString.lowercased() })
+        let desiredIds = Set(allCandidates.map { c -> String in
+            (c.kind == .invite ? Self.inviteGeofencePrefix : Self.geofencePrefix)
+                + c.id.uuidString.lowercased()
+        })
 
-        // Drop fences we no longer want — only clear our own (geofencePrefix).
-        for region in manager.monitoredRegions where region.identifier.hasPrefix(Self.geofencePrefix) {
-            if !desiredIds.contains(region.identifier) {
-                manager.stopMonitoring(for: region)
+        // Drop fences we no longer want — only clear our own (either prefix).
+        for region in manager.monitoredRegions {
+            let id = region.identifier
+            if id.hasPrefix(Self.geofencePrefix) || id.hasPrefix(Self.inviteGeofencePrefix) {
+                if !desiredIds.contains(id) {
+                    manager.stopMonitoring(for: region)
+                }
             }
         }
 
         // Add new ones; re-add is idempotent (CL replaces by identifier).
-        for b in candidates where now >= b.activeFrom {
+        for c in allCandidates where now >= c.activeFrom {
+            let prefix = c.kind == .invite ? Self.inviteGeofencePrefix : Self.geofencePrefix
             let region = CLCircularRegion(
-                center: CLLocationCoordinate2D(latitude: b.clubLat, longitude: b.clubLng),
+                center: CLLocationCoordinate2D(latitude: c.clubLat, longitude: c.clubLng),
                 radius: Self.geofenceRadius,
-                identifier: Self.geofencePrefix + b.bookingId.uuidString.lowercased()
+                identifier: prefix + c.id.uuidString.lowercased()
             )
             region.notifyOnEntry = true
             region.notifyOnExit  = false
@@ -152,7 +178,9 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     }
 
     func clearAllFences() {
-        for region in manager.monitoredRegions where region.identifier.hasPrefix(Self.geofencePrefix) {
+        for region in manager.monitoredRegions
+            where region.identifier.hasPrefix(Self.geofencePrefix)
+               || region.identifier.hasPrefix(Self.inviteGeofencePrefix) {
             manager.stopMonitoring(for: region)
         }
     }
@@ -183,12 +211,16 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
-        guard region.identifier.hasPrefix(Self.geofencePrefix) else { return }
-        let raw = String(region.identifier.dropFirst(Self.geofencePrefix.count))
-        guard let bookingId = UUID(uuidString: raw) else { return }
+        let id = region.identifier
         let now = Date()
-        Task {
-            await self.onRegionEntered?(bookingId, now)
+        if id.hasPrefix(Self.geofencePrefix) {
+            let raw = String(id.dropFirst(Self.geofencePrefix.count))
+            guard let bookingId = UUID(uuidString: raw) else { return }
+            Task { await self.onRegionEntered?(bookingId, now) }
+        } else if id.hasPrefix(Self.inviteGeofencePrefix) {
+            let raw = String(id.dropFirst(Self.inviteGeofencePrefix.count))
+            guard let guestId = UUID(uuidString: raw) else { return }
+            Task { await self.onInviteRegionEntered?(guestId, now) }
         }
     }
 }

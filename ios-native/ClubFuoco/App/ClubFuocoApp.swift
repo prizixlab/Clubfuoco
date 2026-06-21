@@ -17,7 +17,15 @@ struct ClubFuocoApp: App {
                 .environment(env.planStore)
                 .environment(env.membershipStore)
                 .environment(\.api, env.api)
-                .onOpenURL { GIDSignIn.sharedInstance.handle($0) }
+                .onOpenURL { url in
+                    if InviteLinkRouter.shared.handle(url: url) { return }
+                    GIDSignIn.sharedInstance.handle(url)
+                }
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    if let url = activity.webpageURL {
+                        _ = InviteLinkRouter.shared.handle(url: url)
+                    }
+                }
                 .task { await env.authStore.start() }
             #if DEBUG
                 // Simulator-only hook so automated runs can exercise the real

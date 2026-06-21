@@ -2,19 +2,34 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AuthStore.self) private var auth
+    @State private var router = InviteLinkRouter.shared
 
     var body: some View {
-        // Note: if/else keeps AuthFlowView's identity stable while the signup
-        // wizard signs the user in mid-flow (signedOut → signedIn while
-        // onboardingInProgress) — a switch over state would reset the wizard.
-        if auth.state == .loading {
-            SplashView()
-        } else if auth.onboardingInProgress || (auth.state == .signedOut && !auth.guestMode) {
-            AuthFlowView()
-        } else {
-            MainTabView()
+        Group {
+            // Note: if/else keeps AuthFlowView's identity stable while the signup
+            // wizard signs the user in mid-flow (signedOut → signedIn while
+            // onboardingInProgress) — a switch over state would reset the wizard.
+            if auth.state == .loading {
+                SplashView()
+            } else if auth.onboardingInProgress || (auth.state == .signedOut && !auth.guestMode) {
+                AuthFlowView()
+            } else {
+                MainTabView()
+            }
+        }
+        .sheet(item: Binding(
+            get: { router.pendingToken.map(InviteToken.init) },
+            set: { if $0 == nil { router.pendingToken = nil } }
+        )) { wrapped in
+            InviteClaimView(token: wrapped.value)
+                .presentationDetents([.large])
         }
     }
+}
+
+private struct InviteToken: Identifiable {
+    let value: String
+    var id: String { value }
 }
 
 /// Boot skeleton — cream background + ghost cards mirroring the explore feed

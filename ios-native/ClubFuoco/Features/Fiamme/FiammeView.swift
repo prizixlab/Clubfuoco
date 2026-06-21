@@ -126,45 +126,61 @@ struct FiammeView: View {
     private var rewards: some View {
         VStack(alignment: .leading, spacing: 8) {
             Kicker(locale.t("fiamme.rewardsSection"), color: Theme.fadedSand, size: 9)
-            VStack(spacing: 10) {
-                ForEach(FiammeReward.all) { reward in
-                    let affordable = (model.data?.balance ?? 0) >= reward.cost
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(locale.t("fiamme.reward.\(reward.key)"))
-                                .font(.cfSerif(17))
-                                .foregroundStyle(Theme.ink)
-                            Text(locale.t("fiamme.reward.\(reward.key).desc"))
-                                .font(.cfSans(11.5))
-                                .foregroundStyle(Theme.fadedSand)
-                        }
-                        Spacer()
-                        Button {
-                            Haptics.tap()
-                            confirmReward = reward
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "flame.fill")
-                                    .font(.system(size: 10))
-                                Text("\(reward.cost)")
-                                    .font(.cfSans(12, weight: .semibold))
+            ZStack {
+                // Blurred placeholder reward rows (no real titles shown).
+                VStack(spacing: 10) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Capsule()
+                                    .fill(Theme.ink.opacity(0.25))
+                                    .frame(width: 160, height: 14)
+                                Capsule()
+                                    .fill(Theme.fadedSand.opacity(0.45))
+                                    .frame(width: 220, height: 10)
                             }
-                            .foregroundStyle(affordable ? Theme.cream : Theme.fadedSand)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(affordable ? Theme.wine : Color(hex: 0x221E1A).opacity(0.05), in: .capsule)
+                            Spacer()
+                            Capsule()
+                                .fill(Theme.wine.opacity(0.25))
+                                .frame(width: 56, height: 24)
                         }
-                        .disabled(!affordable || model.redeeming)
+                        .padding(14)
+                        .background(Color.white, in: .rect(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
                     }
-                    .padding(14)
-                    .background(Color.white, in: .rect(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
                 }
-            }
-            if let error = model.errorMessage {
-                FormError(message: error)
+                .blur(radius: 8)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+
+                // Coming-soon card centered on the blur.
+                VStack(spacing: 6) {
+                    Text(comingSoonLabel)
+                        .font(.cfSans(11, weight: .semibold))
+                        .tracking(1.6)
+                        .foregroundStyle(Theme.wine)
+                    Text(comingSoonSubtitle)
+                        .font(.cfSerif(15, italic: true))
+                        .foregroundStyle(Theme.ink.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 22)
+                .padding(.vertical, 16)
+                .background(Theme.cream, in: .rect(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.wine.opacity(0.25)))
+                .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
             }
         }
+    }
+
+    private var comingSoonLabel: String {
+        locale.locale == "es" ? "PRÓXIMAMENTE" : "COMING SOON"
+    }
+
+    private var comingSoonSubtitle: String {
+        locale.locale == "es"
+            ? "Las recompensas llegarán pronto."
+            : "Rewards are on the way."
     }
 
     // ── Earn ways ─────────────────────────────────────────────────────────────

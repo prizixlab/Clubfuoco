@@ -34,8 +34,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.clubfuoco.app
         PRODUCT_NAME: Club Fuoco
         # Continues from the last Capacitor release (1.0.2 build 16)
-        MARKETING_VERSION: "1.1.0"
-        CURRENT_PROJECT_VERSION: "17"
+        MARKETING_VERSION: "1.2.0"
+        CURRENT_PROJECT_VERSION: "21"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         DEVELOPMENT_TEAM: 4V87UVPTBW
         TARGETED_DEVICE_FAMILY: "1"
@@ -46,6 +46,8 @@ targets:
       path: ClubFuoco/Info.plist
       properties:
         CFBundleDisplayName: Club Fuoco
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
@@ -75,6 +77,12 @@ targets:
           - CFBundleTypeRole: Editor
             CFBundleURLSchemes:
               - com.googleusercontent.apps.170229454537-b4a62382bcnq7ugfckklvv75koih8heo
+          # Custom scheme for invite deep-links inside in-app browsers
+          # (Instagram/TikTok/etc don't honor Universal Links).
+          - CFBundleTypeRole: Viewer
+            CFBundleURLName: com.clubfuoco.app.invite
+            CFBundleURLSchemes:
+              - clubfuoco
 
 schemes:
   ClubFuoco:

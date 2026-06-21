@@ -31,6 +31,16 @@ const nextConfig: NextConfig = {
       }
       return config
     },
+    // Apple Universal Links: AASA must be served as application/json.
+    // File lives at public/.well-known/apple-app-site-association (no extension).
+    async headers() {
+      return [
+        {
+          source: '/.well-known/apple-app-site-association',
+          headers: [{ key: 'Content-Type', value: 'application/json' }],
+        },
+      ]
+    },
   }),
 }
 

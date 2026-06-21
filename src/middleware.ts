@@ -78,6 +78,7 @@ export async function middleware(request: NextRequest) {
     const WEB_ALLOWED = [
       '/about', '/partners', '/investors', '/press', '/legal',   // marketing
       '/join',                                                    // invite flow
+      '/i',                                                       // promoter invite links (/i/<token>)
       '/login', '/signup', '/complete-profile', '/auth',         // auth for joining
     ]
     const allowed =
@@ -104,6 +105,6 @@ export const config = {
     // Exclude Next internals and static public assets (images, scripts, styles,
     // fonts). Files like /motion.js and /glimmer.js live in public/ and must be
     // served directly — without this the auth guard redirects them to /login.
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|js|css|woff|woff2|ttf|ico|txt|json)$).*)',
+    '/((?!_next/static|_next/image|\\.well-known/|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|js|css|woff|woff2|ttf|ico|txt|json)$).*)',
   ],
 }

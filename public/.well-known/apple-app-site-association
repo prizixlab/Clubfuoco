@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["4V87UVPTBW.com.clubfuoco.app"],
+        "components": [
+          { "/": "/i/*", "comment": "Promoter invite links" }
+        ]
+      }
+    ]
+  }
+}

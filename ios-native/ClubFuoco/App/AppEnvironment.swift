@@ -46,9 +46,35 @@ final class AppEnvironment {
                       let lat = b.club?.lat, let lng = b.club?.lng
                 else { return nil }
                 let (from, until) = activeNightBounds(for: b)
-                return .init(bookingId: b.id, clubLat: lat, clubLng: lng,
+                return .init(kind: .booking, id: b.id,
+                             clubLat: lat, clubLng: lng,
                              activeFrom: from, activeUntil: until)
             }
+        }
+
+        // Promoter-invite geofences — claimed invites stored locally in
+        // InviteClaimsStore. We fetch each invite's night details lazily and
+        // register a region around the venue for the active window.
+        LocationService.shared.inviteFenceProvider = {
+            let claims = await InviteClaimsStore.shared.all()
+            var out: [LocationService.GeofencedBooking] = []
+            let now = Date()
+            for claim in claims {
+                struct R: Decodable, Sendable { let allocation: InviteDetail }
+                guard let resp: R = try? await api.get("/api/promoter-invites/\(claim.token)"),
+                      let lat = resp.allocation.night.club.lat,
+                      let lng = resp.allocation.night.club.lng
+                else { continue }
+                let (from, until) = activeNightBounds(forDate: resp.allocation.night.nightDate,
+                                                      openTime: resp.allocation.night.openTime)
+                guard now < until,
+                      let guestUUID = UUID(uuidString: claim.guestId)
+                else { continue }
+                out.append(.init(kind: .invite, id: guestUUID,
+                                 clubLat: lat, clubLng: lng,
+                                 activeFrom: from, activeUntil: until))
+            }
+            return out
         }
 
         LocationService.shared.onRegionEntered = { bookingId, at in
@@ -63,10 +89,30 @@ final class AppEnvironment {
             _ = at
         }
 
+        LocationService.shared.onInviteRegionEntered = { guestId, _ in
+            struct Empty: Encodable {}
+            struct Resp: Decodable, Sendable { let checkedInAt: String? }
+            let path = "/api/promoter-invites/guest/\(guestId.uuidString.lowercased())/checkin"
+            let _: Resp? = try? await api.post(path, body: Empty())
+        }
+
         // Cold-start sync — if the user already granted Always in an earlier
         // session, restore the fences before anyone touches the UI.
         Task { await LocationService.shared.syncGeofences() }
     }
+}
+
+/// Same 2h-before / 8h-after window, but for a promoter-invite's date string
+/// (yyyy-MM-dd) + optional opening time. Falls back to 22:00 (matches the
+/// nightlife default the bookings version uses).
+@MainActor
+private func activeNightBounds(forDate ymd: String, openTime: String?) -> (Date, Date) {
+    let fmt = DateFormatter()
+    fmt.dateFormat = "yyyy-MM-dd HH:mm"
+    fmt.timeZone = TimeZone(identifier: "Europe/Madrid") ?? .current
+    let hhmm = openTime.map { String($0.prefix(5)) } ?? "22:00"
+    let base = fmt.date(from: "\(ymd) \(hhmm)") ?? Date()
+    return (base.addingTimeInterval(-2 * 3600), base.addingTimeInterval(8 * 3600))
 }
 
 /// Local-night window for a booking — 2h before the arrival window through

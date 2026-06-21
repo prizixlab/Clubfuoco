@@ -1,0 +1,147 @@
+import { NextResponse } from 'next/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { PKPass } from 'passkit-generator'
+import path from 'path'
+import fs from 'fs'
+
+// Apple Wallet pass for a promoter-invite claim. Mirrors
+// /api/bookings/[id]/wallet — same cert envs — but the primary field is the
+// invited guest's NAME (per spec) instead of the venue.
+
+const CONFIGURED =
+  !!process.env.APPLE_PASS_TYPE_ID &&
+  !!process.env.APPLE_TEAM_ID &&
+  !!process.env.APPLE_WWDR_PEM &&
+  !!process.env.APPLE_SIGNER_CERT_PEM &&
+  !!process.env.APPLE_SIGNER_KEY_PEM
+
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ guestId: string }> }
+) {
+  const { guestId } = await params
+
+  if (!CONFIGURED) {
+    return NextResponse.json(
+      { error: 'Apple Wallet not configured yet' },
+      { status: 503 }
+    )
+  }
+
+  const sb = await createServiceClient()
+  const { data: guest, error } = await sb
+    .from('promoter_guests')
+    .select(`
+      id, full_name, plus_ones,
+      allocation:promoter_allocations (
+        id,
+        night:promoter_nights (
+          id, title, night_date, open_time, close_time,
+          club:clubs ( id, name, address )
+        )
+      )
+    `)
+    .eq('id', guestId)
+    .single()
+
+  const allocation = (guest as any)?.allocation
+  const night = Array.isArray(allocation) ? allocation[0]?.night : allocation?.night
+  const nightRow = Array.isArray(night) ? night[0] : night
+  if (error || !nightRow) {
+    return NextResponse.json({ error: 'Invite not found' }, { status: 404 })
+  }
+  const club = Array.isArray(nightRow.club) ? nightRow.club[0] : nightRow.club
+  const clubName = club?.name ?? 'Club Fuoco'
+  const address = club?.address ?? 'Barcelona'
+
+  const eventDate = new Date(nightRow.night_date + 'T00:00:00')
+  const dateStr = eventDate.toLocaleDateString('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  })
+  const partySize = 1 + (guest.plus_ones ?? 0)
+  const hoursStr =
+    nightRow.open_time && nightRow.close_time
+      ? `${nightRow.open_time.slice(0, 5)} – ${nightRow.close_time.slice(0, 5)}`
+      : null
+
+  const passJson = {
+    formatVersion:      1,
+    passTypeIdentifier: process.env.APPLE_PASS_TYPE_ID!,
+    serialNumber:       `invite-${guest.id}`,
+    teamIdentifier:     process.env.APPLE_TEAM_ID!,
+    organizationName:   'Club Fuoco',
+    description:        `${nightRow.title ?? clubName} guestlist`,
+    foregroundColor:    'rgb(255, 246, 229)',
+    backgroundColor:    'rgb(10, 8, 7)',
+    labelColor:         'rgb(232, 182, 91)',
+    logoText:           'Club Fuoco',
+    eventTicket: {
+      // Spec: invitee's NAME is the primary field — this is the
+      // single most useful piece of info for the bouncer + the invitee.
+      primaryFields: [
+        { key: 'guest', label: 'GUEST', value: guest.full_name },
+      ],
+      secondaryFields: [
+        { key: 'venue', label: 'VENUE', value: clubName },
+        { key: 'date',  label: 'DATE',  value: dateStr },
+      ],
+      auxiliaryFields: [
+        { key: 'party', label: partySize > 1 ? 'GUESTS' : 'GUEST', value: String(partySize) },
+        ...(hoursStr ? [{ key: 'hours', label: 'HOURS', value: hoursStr }] : []),
+      ],
+      backFields: [
+        { key: 'event',   label: 'NIGHT',    value: nightRow.title ?? clubName },
+        { key: 'address', label: 'LOCATION', value: address },
+        { key: 'list',    label: 'LIST',     value: 'Promoter guestlist · Comp entry' },
+        { key: 'terms',   label: 'TERMS',
+          value: 'Non-transferable. Present at door. Subject to capacity and venue policy.' },
+      ],
+    },
+    barcodes: [
+      {
+        message:         `fuoco-invite:${guest.id}`,
+        format:          'PKBarcodeFormatQR',
+        messageEncoding: 'iso-8859-1',
+      },
+    ],
+    barcode: {
+      message:         `fuoco-invite:${guest.id}`,
+      format:          'PKBarcodeFormatQR',
+      messageEncoding: 'iso-8859-1',
+    },
+  }
+
+  const assetsDir = path.join(process.cwd(), 'public', 'pass-assets')
+
+  try {
+    const pass = new PKPass(
+      {
+        'pass.json':   Buffer.from(JSON.stringify(passJson)),
+        'icon.png':    fs.readFileSync(path.join(assetsDir, 'icon.png')),
+        'icon@2x.png': fs.readFileSync(path.join(assetsDir, 'icon@2x.png')),
+        'icon@3x.png': fs.readFileSync(path.join(assetsDir, 'icon@3x.png')),
+        'logo.png':    fs.readFileSync(path.join(assetsDir, 'logo.png')),
+        'logo@2x.png': fs.readFileSync(path.join(assetsDir, 'logo@2x.png')),
+      },
+      {
+        wwdr:                Buffer.from(process.env.APPLE_WWDR_PEM!,        'base64'),
+        signerCert:          Buffer.from(process.env.APPLE_SIGNER_CERT_PEM!, 'base64'),
+        signerKey:           Buffer.from(process.env.APPLE_SIGNER_KEY_PEM!,  'base64'),
+        signerKeyPassphrase: process.env.APPLE_SIGNER_KEY_PASS!,
+      }
+    )
+
+    const buf = pass.getAsBuffer()
+    return new NextResponse(buf as unknown as BodyInit, {
+      status: 200,
+      headers: {
+        'Content-Type':        'application/vnd.apple.pkpass',
+        'Content-Disposition': `attachment; filename="fuoco-invite-${guest.id}.pkpass"`,
+        'Cache-Control':       'no-store',
+      },
+    })
+  } catch (err: any) {
+    console.error('[invite-wallet] pass generation failed:', err)
+    return NextResponse.json({ error: 'Failed to generate pass' }, { status: 500 })
+  }
+}

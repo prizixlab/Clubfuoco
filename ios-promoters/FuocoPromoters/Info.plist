@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Club Fuoco</string>
+	<string>Fuoco For Promoters</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -18,39 +18,10 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.170229454537-b4a62382bcnq7ugfckklvv75koih8heo</string>
-			</array>
-		</dict>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-			<key>CFBundleURLName</key>
-			<string>com.clubfuoco.app.invite</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>clubfuoco</string>
-			</array>
-		</dict>
-	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>GIDClientID</key>
-	<string>170229454537-b4a62382bcnq7ugfckklvv75koih8heo.apps.googleusercontent.com</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
-	<string>Add your group nights to your calendar so you don't miss them.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Allowing "Always" lets Club Fuoco check you in automatically when you arrive at a venue you booked. We only run a geofence around your booked venue on the night of the booking — no continuous tracking, ever.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Confirm you arrived at the venue for your booking — used only when you tap "I'm here" or open an active pass near arrival time. Club Fuoco does not track your location in the background.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>InstrumentSerif-Regular.ttf</string>
@@ -68,5 +39,7 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
 </dict>
 </plist>

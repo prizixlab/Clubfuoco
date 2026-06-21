@@ -5,6 +5,12 @@ import SwiftUI
 /// recipient's name from their Fuoco profile.
 struct InviteClaimView: View {
     let token: String
+    /// When set (e.g. opened from the "My Invites" row in Bookings), the
+    /// view skips the claim form and goes straight to the ticket — the user
+    /// has already claimed this invite.
+    var preclaimedGuestId: String? = nil
+    var preclaimedName: String? = nil
+
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthStore.self) private var auth
     @Environment(\.api) private var api
@@ -57,7 +63,11 @@ struct InviteClaimView: View {
         do {
             let resp: Resp = try await api.get("/api/promoter-invites/\(token)")
             self.detail = resp.allocation
-            if let full = auth.profile?.fullName, !full.isEmpty {
+            // Re-opening an already-claimed invite — jump to ticket.
+            if let id = preclaimedGuestId {
+                claimedGuestId = id
+                if let n = preclaimedName, !n.isEmpty { name = n }
+            } else if let full = auth.profile?.fullName, !full.isEmpty {
                 name = full
             }
         } catch {
@@ -255,16 +265,14 @@ struct InviteClaimView: View {
 
 // MARK: - Models
 
+// APIClient's decoder is configured with `convertFromSnakeCase`, so explicit
+// CodingKeys are intentionally omitted — the property names already match the
+// camelCase form the strategy produces.
 struct InviteDetail: Decodable, Sendable {
     let id: UUID
     let spots: Int
     let groupVisible: Bool
     let night: InviteNight
-    enum CodingKeys: String, CodingKey {
-        case id, spots
-        case groupVisible = "group_visible"
-        case night
-    }
 }
 struct InviteNight: Decodable, Sendable {
     let id: UUID
@@ -273,13 +281,6 @@ struct InviteNight: Decodable, Sendable {
     let openTime: String?
     let closeTime: String?
     let club: InviteClub
-    enum CodingKeys: String, CodingKey {
-        case id, title
-        case nightDate = "night_date"
-        case openTime = "open_time"
-        case closeTime = "close_time"
-        case club
-    }
 }
 struct InviteClub: Decodable, Sendable {
     let id: UUID
@@ -292,11 +293,6 @@ struct InviteGuest: Decodable, Sendable {
     let id: UUID
     let fullName: String
     let plusOnes: Int
-    enum CodingKeys: String, CodingKey {
-        case id
-        case fullName = "full_name"
-        case plusOnes = "plus_ones"
-    }
 }
 
 // MARK: - Local store of claimed invites (for geofence + revisit)

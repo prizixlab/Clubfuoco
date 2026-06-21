@@ -217,6 +217,7 @@ struct BookingsView: View {
                 if !model.tonight.isEmpty {
                     section(locale.t("bookings.tonight"), items: model.tonight, tonight: true)
                 }
+                MyInvitesSection()
                 if !model.upcoming.isEmpty {
                     section(locale.t("bookings.upcoming"), items: model.upcoming, tonight: false)
                 }

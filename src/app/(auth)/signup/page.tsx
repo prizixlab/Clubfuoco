@@ -157,6 +157,10 @@ export default function SignupPage() {
   const [bDay,         setBDay]        = useState(String(DAYS[16]))       // 17
   const [bMonth,       setBMonth]      = useState(String(5))              // May
   const [bYear,        setBYear]       = useState(String(currentYear - 25))
+  // Gender — required at signup (drives venue-side per-head commission;
+  // mirrors the iOS wizard). 'prefer_not_to_say' defaults to higher rate at
+  // settlement so opting out doesn't disadvantage the user.
+  const [gender,       setGender]      = useState<'' | 'male' | 'female' | 'prefer_not_to_say'>('')
   const [userId,       setUserId]      = useState<string | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<'free' | 'gold' | 'sapphire' | 'black'>('free')
   const [loading,      setLoading]     = useState(false)
@@ -280,6 +284,13 @@ export default function SignupPage() {
 
   // ── Step 3: Birthday — Club Fuoco is strictly 18+. ──────────────────────────
   async function handleBirthday(skip = false) {
+    // Gender is required regardless of whether birthday is skipped — it
+    // drives venue-side per-head settlement and matches the iOS flow.
+    if (!gender) {
+      setError(t('signup.genderError'))
+      return
+    }
+
     if (!skip && userId && bDay && bMonth && bYear) {
       const month = String(bMonth).padStart(2, '0')
       const day   = String(bDay).padStart(2, '0')
@@ -301,17 +312,20 @@ export default function SignupPage() {
 
       const { error: upErr } = await (supabase as any)
         .from('users')
-        .update({ birthday: `${bYear}-${month}-${day}` })
+        .update({ birthday: `${bYear}-${month}-${day}`, gender })
         .eq('id', userId)
 
       if (upErr) {
-        // Server-side 18+ trigger rejected it.
+        // Server-side 18+ trigger rejected it (or gender check constraint).
         setError(t('signup.underage'))
         try { await supabase.auth.signOut() } catch { /* ignore */ }
         setUserId(null)
         setStep(2)
         return
       }
+    } else if (skip && userId) {
+      // Skip path still saves gender so users.isComplete tracking is honest.
+      await (supabase as any).from('users').update({ gender }).eq('id', userId)
     }
     setStep(4)
   }
@@ -1049,6 +1063,53 @@ export default function SignupPage() {
             }}>
               {t('signup.birthdaySubtitle')}
             </p>
+
+            {/* Gender — required */}
+            <p style={{
+              fontFamily: 'var(--font-geist-mono), monospace',
+              fontSize: 9, color: C.sand, letterSpacing: '1.98px',
+              textTransform: 'uppercase', margin: '0 0 8px',
+            }}>
+              {t('signup.genderLabel')}
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+              {(['male', 'female'] as const).map(g => {
+                const selected = gender === g
+                return (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGender(g)}
+                    style={{
+                      height: 44, borderRadius: 11, cursor: 'pointer',
+                      fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+                      fontSize: 13, fontWeight: 500,
+                      background: selected ? C.red : '#fff',
+                      color: selected ? '#F8EFDC' : C.ink,
+                      border: `1px solid ${selected ? C.red : 'rgba(42,31,18,0.2)'}`,
+                    }}
+                  >
+                    {t(`signup.gender.${g}`)}
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ marginBottom: 28 }}>
+              <button
+                type="button"
+                onClick={() => setGender('prefer_not_to_say')}
+                style={{
+                  width: '100%', height: 44, borderRadius: 11, cursor: 'pointer',
+                  fontFamily: 'var(--font-geist-sans), Inter, sans-serif',
+                  fontSize: 13, fontWeight: 500,
+                  background: gender === 'prefer_not_to_say' ? C.red : '#fff',
+                  color: gender === 'prefer_not_to_say' ? '#F8EFDC' : C.ink,
+                  border: `1px solid ${gender === 'prefer_not_to_say' ? C.red : 'rgba(42,31,18,0.2)'}`,
+                }}
+              >
+                {t('signup.gender.prefer_not_to_say')}
+              </button>
+            </div>
 
             {/* Drum pickers */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 28 }}>

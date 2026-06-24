@@ -2,7 +2,7 @@ import SwiftUI
 import Supabase
 
 /// Native port of (auth)/signup — three-step wizard (details → birthday →
-/// membership) with the email-OTP verification overlay between details and
+/// profile) with the email-OTP verification overlay between details and
 /// birthday. Club/DJ accounts are "coming soon" (role chooser shows them
 /// disabled), matching the web wizard which starts at step 2 with
 /// accountType = user.
@@ -14,7 +14,7 @@ struct SignupView: View {
     @Environment(\.dismiss) private var dismiss
 
     private enum Step: Int {
-        case details = 2, birthday = 3, membership = 4
+        case details = 2, birthday = 3, profile = 4
     }
 
     @State private var step: Step = .details
@@ -39,6 +39,9 @@ struct SignupView: View {
     @State private var bDay = 17
     @State private var bMonth = 5
     @State private var bYear = currentYear - 25
+
+    // Gender — required (added 2026-06-22 for guest-list payout settlement).
+    @State private var gender: Gender?
 
     @State private var loading = false
     @State private var errorMessage: String?
@@ -87,7 +90,7 @@ struct SignupView: View {
                 switch step {
                 case .details: detailsStep
                 case .birthday: birthdayStep
-                case .membership: profileStep
+                case .profile: profileStep
                 }
             }
             .padding(.horizontal, 20)
@@ -100,7 +103,7 @@ struct SignupView: View {
         switch step {
         case .details: return "01"
         case .birthday: return "02"
-        case .membership: return "03"
+        case .profile: return "03"
         }
     }
 
@@ -108,7 +111,7 @@ struct SignupView: View {
         switch step {
         case .details: dismiss()
         case .birthday: step = .details
-        case .membership: step = .birthday
+        case .profile: step = .birthday
         }
     }
 
@@ -318,13 +321,23 @@ struct SignupView: View {
             errorMessage = locale.t("signup.tosError")
             return
         }
-        guard !phone.trimmingCharacters(in: .whitespaces).isEmpty else {
+        let trimmedPhone = phone.trimmingCharacters(in: .whitespaces)
+        guard !trimmedPhone.isEmpty else {
             errorMessage = locale.t("signup.phoneError")
             return
         }
         loading = true
         errorMessage = nil
         Task {
+            // Pre-flight phone check — fail fast before Supabase creates the
+            // auth user. (Email duplication is detected from Supabase's signUp
+            // response below, since it has authoritative knowledge there.)
+            if await auth.phoneIsTaken(trimmedPhone) {
+                Haptics.error()
+                errorMessage = locale.t("signup.phoneTakenError")
+                loading = false
+                return
+            }
             do {
                 let needsOTP = try await auth.signUp(
                     email: email, password: password,
@@ -336,6 +349,9 @@ struct SignupView: View {
                 } else {
                     step = .birthday
                 }
+            } catch SignupConflict.emailTaken {
+                Haptics.error()
+                errorMessage = locale.t("signup.emailTakenError")
             } catch {
                 Haptics.error()
                 errorMessage = error.localizedDescription
@@ -477,6 +493,12 @@ struct SignupView: View {
                 .foregroundStyle(Theme.stone)
                 .padding(.bottom, 8)
 
+            VStack(alignment: .leading, spacing: 8) {
+                Kicker(locale.t("signup.genderLabel"), color: Theme.fadedSand, size: 9)
+                GenderPicker(selection: $gender, locale: locale)
+            }
+            .padding(.bottom, 4)
+
             // Native wheels replace the hand-rolled DrumPicker
             HStack(spacing: 0) {
                 wheel(locale.t("signup.day"), selection: $bDay, values: Array(1...31)) { String($0) }
@@ -532,10 +554,24 @@ struct SignupView: View {
 
     private func submitBirthday(skip: Bool) {
         errorMessage = nil
-        if skip {
-            step = .membership
+        // Gender is required regardless of whether the user skips birthday —
+        // it drives guest-list payout settlement and the rest of the app gates
+        // on it via UserProfile.isComplete.
+        guard let gender else {
+            errorMessage = locale.t("signup.genderError")
             return
         }
+
+        if skip {
+            loading = true
+            Task {
+                try? await auth.updateProfile(["gender": .string(gender.rawValue)])
+                loading = false
+                step = .profile
+            }
+            return
+        }
+
         // 18+ check — the DB trigger enforces this too
         var age = Self.currentYear - bYear
         let now = Date()
@@ -551,8 +587,11 @@ struct SignupView: View {
         loading = true
         Task {
             do {
-                try await auth.updateProfile(["birthday": .string(birthday)])
-                step = .membership
+                try await auth.updateProfile([
+                    "birthday": .string(birthday),
+                    "gender": .string(gender.rawValue),
+                ])
+                step = .profile
             } catch {
                 // Server-side 18+ trigger rejected it
                 underageBail()

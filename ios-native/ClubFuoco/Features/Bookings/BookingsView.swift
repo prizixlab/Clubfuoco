@@ -1,5 +1,6 @@
 import SwiftUI
 import Observation
+import CoreLocation
 
 /// Native port of the bookings ("Tickets") page: tonight / upcoming / past
 /// sections across bookings, guest-list signups and ticket orders, QR
@@ -15,6 +16,26 @@ struct BookingsView: View {
     @State private var openGroup: GroupListItem?
     @State private var reviewBooking: Booking?
     @State private var tab: TopTab = .tickets
+    @State private var showArrivalLocationSheet = false
+    private static let arrivalPromptKey = "cf.arrivalPromptShownV2"
+
+    /// Arrival (Always) prompt — fires on the Tickets tab when there's at
+    /// least one upcoming booking and the user hasn't already granted Always.
+    /// Lives here, not in BookNightSheet, because BookNightSheet dismisses
+    /// the moment the user taps Done — any sheet attached to it tears down
+    /// with it. The Tickets tab is the stable parent that always exists by
+    /// the time a booking is on the books.
+    private func maybePromptArrival() {
+        guard !UserDefaults.standard.bool(forKey: Self.arrivalPromptKey) else { return }
+        guard !model.upcoming.isEmpty else { return }
+        let status = LocationService.shared.authorizationStatus
+        guard status != .authorizedAlways else { return }
+        UserDefaults.standard.set(true, forKey: Self.arrivalPromptKey)
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            showArrivalLocationSheet = true
+        }
+    }
     #if DEBUG
     @State private var debugGroup: GroupListItem?
     #endif
@@ -66,11 +87,20 @@ struct BookingsView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .task {
             await model.load(api: api, queries: auth.queries)
+            maybePromptArrival()
             #if DEBUG
             if ProcessInfo.processInfo.environment["CF_TEST_OPEN_FIRST_GROUP"] == "1" {
                 debugGroup = model.groups.first
             }
             #endif
+        }
+        .onChange(of: model.upcoming.count) { _, _ in
+            // A booking just landed (or a refresh added one) — re-evaluate
+            // without waiting for the next tab visit.
+            maybePromptArrival()
+        }
+        .sheet(isPresented: $showArrivalLocationSheet) {
+            LocationPermissionSheet(mode: .arrival)
         }
         .onAppear {
             // Refresh when returning to the tab (e.g. after booking in Explore).

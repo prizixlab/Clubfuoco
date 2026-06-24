@@ -10,6 +10,20 @@ import Supabase
 /// is true RootView keeps showing the auth flow even though a session already
 /// exists (the signup wizard signs the user in mid-flow, before birthday and
 /// membership steps — same as the web wizard, which routes manually).
+/// Signup pre-flight conflicts — surface these on the details step instead of
+/// letting the user sail through to the OTP screen.
+enum SignupConflict: LocalizedError {
+    case emailTaken
+    case phoneTaken
+
+    var errorDescription: String? {
+        switch self {
+        case .emailTaken: "This email is already registered. Try signing in instead."
+        case .phoneTaken: "This phone number is already linked to another account."
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class AuthStore {
@@ -44,7 +58,29 @@ final class AuthStore {
 
     /// Subscribe to auth changes. The stream replays the stored session first
     /// (.initialSession), so this also performs the cold-start hydration.
+    ///
+    /// A watchdog flips state to `.signedOut` if `.initialSession` doesn't
+    /// arrive within 6s — without it, a stalled Keychain read or an unreachable
+    /// auth endpoint (Apple's IPv6-only review network) leaves SplashView on
+    /// screen forever, which is the failure mode App Review flagged 2026-06-21.
     func start() async {
+        // Fresh-install detector. UserDefaults is wiped by uninstall but
+        // Keychain isn't — without this, a reinstalled app silently restores
+        // the previous session, which is confusing during testing and not
+        // what users expect after "delete the app and start over." Sign out
+        // before subscribing to authStateChanges so the first event we see
+        // is the post-signout .signedOut, not the stale .initialSession.
+        let sentinelKey = "cf.installSentinel"
+        if !UserDefaults.standard.bool(forKey: sentinelKey) {
+            UserDefaults.standard.set(true, forKey: sentinelKey)
+            try? await supabase.client.auth.signOut()
+        }
+
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            guard let self, self.state == .loading else { return }
+            self.state = .signedOut
+        }
         for await (event, session) in supabase.client.auth.authStateChanges {
             switch event {
             case .initialSession, .signedIn, .tokenRefreshed, .userUpdated:
@@ -69,6 +105,26 @@ final class AuthStore {
         }
     }
 
+    /// Hard ceiling on any auth network call so the UI can never get stuck on
+    /// an indefinite spinner — the URLSession-level timeouts are the primary
+    /// defense; this is a second layer in case a transport-level error is
+    /// swallowed somewhere below us.
+    private func withAuthTimeout<T: Sendable>(
+        _ seconds: UInt64 = 25,
+        _ op: @Sendable @escaping () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await op() }
+            group.addTask {
+                try await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+                throw URLError(.timedOut)
+            }
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
+        }
+    }
+
     /// Mirrors resolveAccountType() — any failure falls back to a plain user.
     func refreshProfile() async {
         profile = try? await queries.me()
@@ -77,36 +133,87 @@ final class AuthStore {
     // ── Email / password ──────────────────────────────────────────────────────
 
     func signIn(email: String, password: String) async throws {
-        try await supabase.client.auth.signIn(email: email, password: password)
+        // Transparent retry on transient transport failures (URLError: timeout,
+        // not-connected, DNS, cancelled). Auth-level errors — wrong password,
+        // unconfirmed email, rate-limited — surface immediately on the first
+        // attempt so the user sees the real reason. Three attempts total with
+        // 600ms / 1500ms backoff, so most flaky-network sign-ins succeed
+        // silently and the reviewer never sees an error banner.
+        let delays: [UInt64] = [600_000_000, 1_500_000_000]
+        var attempt = 0
+        while true {
+            do {
+                try await withAuthTimeout { [supabase] in
+                    try await supabase.client.auth.signIn(email: email, password: password)
+                }
+                return
+            } catch let error as URLError where attempt < delays.count {
+                _ = error
+                try? await Task.sleep(nanoseconds: delays[attempt])
+                attempt += 1
+            }
+        }
         // authStateChanges delivers .signedIn and updates published state.
     }
 
     /// Mirrors handleSignup: metadata mirrors the web payload so the DB
     /// trigger creates the same users row. Returns true when an email OTP
     /// verification step is required (no session yet).
+    ///
+    /// Throws `SignupConflict.emailTaken` if Supabase signals the email is
+    /// already registered. The confirmation-required signup response for an
+    /// existing email returns a faux user with `identities: []` (Supabase's
+    /// anti-enumeration design). We surface that as a real error instead of
+    /// sending the user to an OTP screen that will never receive a code.
     func signUp(email: String, password: String, firstName: String, lastName: String) async throws -> Bool {
         onboardingInProgress = true
         let fullName = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
-        let response = try await supabase.client.auth.signUp(
-            email: email,
-            password: password,
-            data: [
-                "full_name": .string(fullName),
-                "first_name": .string(firstName),
-                "last_name": .string(lastName),
-                "account_type": .string("user"),
-            ]
-        )
+        let response = try await withAuthTimeout { [supabase] in
+            try await supabase.client.auth.signUp(
+                email: email,
+                password: password,
+                data: [
+                    "full_name": .string(fullName),
+                    "first_name": .string(firstName),
+                    "last_name": .string(lastName),
+                    "account_type": .string("user"),
+                ]
+            )
+        }
+        if (response.user.identities ?? []).isEmpty {
+            onboardingInProgress = false
+            throw SignupConflict.emailTaken
+        }
         return response.session == nil
+    }
+
+    /// Pre-flight phone uniqueness check via the `check_phone_exists` RPC
+    /// (SECURITY DEFINER function — bypasses RLS without exposing the phone
+    /// column to anon reads). Fails open: if the RPC errors we let signup
+    /// proceed so a transient network issue doesn't block account creation.
+    func phoneIsTaken(_ phone: String) async -> Bool {
+        struct Params: Encodable { let p_phone: String }
+        do {
+            let exists: Bool = try await supabase.client
+                .rpc("check_phone_exists", params: Params(p_phone: phone))
+                .execute().value
+            return exists
+        } catch {
+            return false
+        }
     }
 
     /// Mirrors handleVerify (6–8 digit signup OTP).
     func verifySignupOTP(email: String, code: String) async throws {
-        try await supabase.client.auth.verifyOTP(email: email, token: code, type: .signup)
+        try await withAuthTimeout { [supabase] in
+            try await supabase.client.auth.verifyOTP(email: email, token: code, type: .signup)
+        }
     }
 
     func resendSignupOTP(email: String) async throws {
-        try await supabase.client.auth.resend(email: email, type: .signup)
+        try await withAuthTimeout { [supabase] in
+            try await supabase.client.auth.resend(email: email, type: .signup)
+        }
     }
 
     // ── Guest (Guideline 5.1.1(v)) ───────────────────────────────────────────
@@ -117,10 +224,13 @@ final class AuthStore {
     func signInAsGuest() async {
         guestMode = true
         do {
-            try await supabase.client.auth.signInAnonymously()
+            try await withAuthTimeout(10) { [supabase] in
+                try await supabase.client.auth.signInAnonymously()
+            }
         } catch {
             // Anonymous sign-up currently 500s in production — browse without
-            // a session, same net behavior as web.
+            // a session, same net behavior as web. Also intentionally swallows
+            // the timeout so guests aren't blocked on an unreachable auth host.
         }
     }
 
@@ -136,9 +246,11 @@ final class AuthStore {
     /// pushes the complete-profile screen).
     func signInWithIdToken(provider: OpenIDConnectCredentials.Provider, idToken: String, rawNonce: String?, providerName: String?) async throws -> Bool {
         onboardingInProgress = true
-        try await supabase.client.auth.signInWithIdToken(
-            credentials: .init(provider: provider, idToken: idToken, nonce: rawNonce)
-        )
+        try await withAuthTimeout { [supabase] in
+            try await supabase.client.auth.signInWithIdToken(
+                credentials: .init(provider: provider, idToken: idToken, nonce: rawNonce)
+            )
+        }
 
         // routeAfterOAuth(): Apple only supplies the name on first sign-in —
         // persist it now if the profile has none.
@@ -164,10 +276,14 @@ final class AuthStore {
     /// dashboard (Authentication → URL Configuration → Redirect URLs).
     func signInWithGoogleOAuth() async throws -> Bool {
         onboardingInProgress = true
-        let session = try await supabase.client.auth.signInWithOAuth(
-            provider: .google,
-            redirectTo: URL(string: "com.clubfuoco.app://login-callback")
-        )
+        // 90s ceiling: this includes the time the user spends in the
+        // ASWebAuthenticationSession sheet, not just network round-trips.
+        let session = try await withAuthTimeout(90) { [supabase] in
+            try await supabase.client.auth.signInWithOAuth(
+                provider: .google,
+                redirectTo: URL(string: "com.clubfuoco.app://login-callback")
+            )
+        }
 
         // OAuth carries the display name in user metadata — persist it if the
         // profile row has none (mirrors the providerName path above).

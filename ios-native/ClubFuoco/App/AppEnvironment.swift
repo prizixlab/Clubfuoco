@@ -12,7 +12,6 @@ final class AppEnvironment {
     let authStore: AuthStore
     let localeStore: LocaleStore
     let planStore: PlanStore
-    let membershipStore: MembershipStore
 
     init() {
         let supabase = SupabaseService()
@@ -22,7 +21,6 @@ final class AppEnvironment {
         self.authStore = AuthStore(supabase: supabase, queries: queries)
         self.localeStore = LocaleStore()
         self.planStore = PlanStore()
-        self.membershipStore = MembershipStore(api: api)
 
         UNUserNotificationCenter.current().delegate = NotificationForegroundDelegate.shared
         bootstrapLocation()

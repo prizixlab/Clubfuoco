@@ -42,6 +42,14 @@ const NATIVE_KEYS = {
   'signup.tagBook': { en: 'Book entry', es: 'Reserva entrada' },
   'signup.tagSave': { en: 'Save events', es: 'Guarda eventos' },
   'signup.trySigningIn': { en: 'Try signing in.', es: 'Prueba a iniciar sesión.' },
+  'signup.emailTakenError': {
+    en: 'This email is already registered. Try signing in instead.',
+    es: 'Este correo ya está registrado. Prueba a iniciar sesión.',
+  },
+  'signup.phoneTakenError': {
+    en: 'This phone number is already linked to another account.',
+    es: 'Este teléfono ya está vinculado a otra cuenta.',
+  },
 
   // Email verification (OTP) overlay
   'otp.title': { en: 'Check your', es: 'Revisa tu' },
@@ -68,6 +76,72 @@ const NATIVE_KEYS = {
   'completeProfile.phoneError': { en: 'Please enter your phone number.', es: 'Introduce tu número de teléfono.' },
   'completeProfile.saving': { en: 'Saving…', es: 'Guardando…' },
   'completeProfile.enter': { en: 'Enter Club Fuoco', es: 'Entra en Club Fuoco' },
+
+  // (signup.gender.* moved into src/messages/{en,es}.ts so web and iOS share)
+
+  // Location-permission pre-prompt sheet (shown once per install on Tickets tab).
+  // Copy goal: short + convincing + crystal-clear that we are NOT tracking them.
+  // Nearby (Explore first-launch) — single OS dialog, WhenInUse only.
+  'location.nearby.title': { en: 'Find the best clubs near you', es: 'Encuentra los mejores clubs cerca de ti' },
+  'location.nearby.body': {
+    en: "Allow location and we'll show the clubs closest to you tonight, sorted by how far they are from where you're standing. Used only while you have the app open — never in the background.",
+    es: 'Activa la ubicación y te mostraremos los clubs más cercanos esta noche, ordenados por la distancia desde donde estés. Solo se usa con la app abierta — nunca en segundo plano.',
+  },
+  'location.nearby.enable': { en: 'Show clubs near me', es: 'Mostrar clubs cerca de mí' },
+  // Single bold-highlighted instruction so the user knows exactly which OS
+  // button to tap when the system dialog pops up after they hit the CTA.
+  'location.nearby.tip': {
+    en: 'When iOS asks, tap **Allow While Using App**.',
+    es: 'Cuando iOS pregunte, toca **Permitir al usar la app**.',
+  },
+
+
+  'location.title': { en: 'Check you in automatically', es: 'Te registramos automáticamente' },
+  'location.body': {
+    en: 'On the night of your booking we draw a small circle around the venue. When you arrive, your pass updates — and nothing else. No background tracking, no map history, nothing between nights.',
+    es: 'La noche de tu reserva trazamos un pequeño círculo alrededor del local. Cuando llegas, tu pase se actualiza — y nada más. Sin rastreo en segundo plano, sin historial de mapa, nada entre noches.',
+  },
+  // Numbered steps — iOS shows two separate dialogs back-to-back. Markdown
+  // bold (**…**) is rendered via AttributedString so the button names pop.
+  'location.stepsHeader': { en: 'iOS will show two prompts:', es: 'iOS mostrará dos diálogos:' },
+  'location.step1': {
+    en: 'Tap **Allow While Using App**',
+    es: 'Toca **Permitir al usar la app**',
+  },
+  'location.step2': {
+    en: 'Then tap **Change to Always Allow**',
+    es: 'Después toca **Cambiar a Permitir siempre**',
+  },
+  'location.enable': { en: 'Enable arrival check-in', es: 'Activar check-in automático' },
+  'location.notNow': { en: 'Not now', es: 'Ahora no' },
+  'location.settingsTitle': { en: 'Almost — one more tap', es: 'Casi — un toque más' },
+  'location.settingsBody': {
+    en: "iOS didn't show the upgrade prompt. Switch Location to Always yourself:",
+    es: 'iOS no mostró el segundo diálogo. Cambia la Ubicación a Siempre tú mismo:',
+  },
+  'location.settingsStep1': { en: 'Tap **Open Settings** below', es: 'Toca **Abrir Ajustes** abajo' },
+  'location.settingsStep2': { en: 'Tap **Location**', es: 'Toca **Ubicación**' },
+  'location.settingsStep3': { en: 'Choose **Always**', es: 'Elige **Siempre**' },
+  'location.openSettings': { en: 'Open Settings', es: 'Abrir Ajustes' },
+
+  // Settings-page extras (native-only sections).
+  'settings.gender': { en: 'Gender', es: 'Género' },
+  'settings.arrivalCheckIn': { en: 'Arrival check-in', es: 'Check-in al llegar' },
+  'settings.arrivalStatus': { en: 'Status', es: 'Estado' },
+  'settings.arrivalOn': { en: 'On — automatic', es: 'Activado — automático' },
+  'settings.arrivalManualOnly': { en: 'Manual only', es: 'Solo manual' },
+  'settings.arrivalOff': { en: 'Off', es: 'Desactivado' },
+  'settings.arrivalNotSet': { en: 'Not set', es: 'Sin definir' },
+  'settings.arrivalFooter': {
+    en: 'Set Location to "Always" to check you in automatically the night of a booking. We only listen at the venue, only on the night.',
+    es: 'Pon Ubicación en "Siempre" para registrarte automáticamente la noche de una reserva. Solo escuchamos en el local, solo esa noche.',
+  },
+  'settings.notificationsFooter': {
+    en: 'Push notifications are managed in iOS Settings.',
+    es: 'Las notificaciones push se gestionan en Ajustes de iOS.',
+  },
+  'settings.openIOSSettings': { en: 'Open iOS Settings', es: 'Abrir Ajustes de iOS' },
+  'settings.upgradeToAlways': { en: 'Upgrade to Always', es: 'Cambiar a Siempre' },
 
   // Guest gating
   'gate.title': { en: 'Create an account to continue', es: 'Crea una cuenta para continuar' },

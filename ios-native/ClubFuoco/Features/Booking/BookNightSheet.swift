@@ -3,9 +3,9 @@ import PassKit
 import Observation
 
 /// Native booking purchase — port of clubs/[id]/book with the Apple Pay
-/// sheet replacing the web card form. Pricing mirrors calculateOrderTotal():
-/// membership discount applies only at partner clubs; the 12% platform fee
-/// is internal and never added on top of the charge.
+/// sheet replacing the web card form. Pricing is unit × party — the server is
+/// authoritative on the final amount (it runs its own calculateOrderTotal()
+/// and creates the PaymentIntent for the figure it computes).
 struct BookNightSheet: View {
     let detail: PlaceDetail
     @Environment(\.api) private var api
@@ -38,7 +38,7 @@ struct BookNightSheet: View {
         }
         .presentationDetents([.large])
         .onAppear {
-            model.configure(detail: detail, planDate: plan.date, tier: auth.profile?.membershipTier ?? "free")
+            model.configure(detail: detail, planDate: plan.date)
         }
     }
 
@@ -215,12 +215,10 @@ final class BookNightViewModel {
     var errorMessage: String?
 
     private var detail: PlaceDetail?
-    private var membershipTier = "free"
 
-    func configure(detail: PlaceDetail, planDate: String, tier: String) {
+    func configure(detail: PlaceDetail, planDate: String) {
         guard self.detail == nil else { return }
         self.detail = detail
-        self.membershipTier = tier
         self.date = PlanStore.isValid(planDate) ? planDate : PlanStore.today()
         if (detail.generalEntryPrice ?? 0) == 0, (detail.vipTableMinSpend ?? 0) > 0 {
             bookingType = "vip"
@@ -231,19 +229,9 @@ final class BookNightViewModel {
         bookingType == "vip" ? (detail?.vipTableMinSpend ?? 0) : (detail?.generalEntryPrice ?? 0)
     }
 
-    // Mirrors calculateOrderTotal() — discounts only at partner clubs
     var subtotal: Double { unitPrice * Double(partySize) }
-    var discount: Double {
-        guard detail?.isPartner == true else { return 0 }
-        let rate: Double = switch membershipTier {
-        case "black": 0.30
-        case "sapphire": 0.25
-        case "gold": 0.15
-        default: 0
-        }
-        return (subtotal * rate * 100).rounded() / 100
-    }
-    var total: Double { subtotal - discount }
+    var discount: Double { 0 }
+    var total: Double { subtotal }
 
     func payAndBook(api: APIClient, clubName: String) {
         guard let detail, total > 0 else { return }

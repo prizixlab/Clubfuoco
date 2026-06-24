@@ -169,7 +169,7 @@ enum Hours {
     /// "Monday: 6:00 PM – 3:00 AM" → [(open, close)] minutes. Handles multiple
     /// comma-separated ranges (e.g. "5:30 – 11:30 PM, 11:59 PM – 6:00 AM");
     /// empty when closed / unparseable.
-    private static func parseRanges(_ row: String?) -> [(open: Int, close: Int)] {
+    static func parseRanges(_ row: String?) -> [(open: Int, close: Int)] {
         guard let row else { return [] }
         let hrs: String
         if let colon = row.firstIndex(of: ":") {
@@ -212,6 +212,23 @@ enum Hours {
             if nowMin < y.close { return true }
         }
         return false
+    }
+
+    /// Opening→closing window for the NIGHT of `date`. Picks the first evening/
+    /// late range on that weekday. Falls back to 17:00 → 03:00 (next day) when
+    /// hours are unknown — these defaults bound the attendance check-in window.
+    static func nightWindow(for date: String, hours: [String]) -> (openMin: Int, closeMin: Int, closesNextDay: Bool) {
+        let fallback = (openMin: 17 * 60, closeMin: 3 * 60, closesNextDay: true)
+        guard hours.count >= 7 else { return fallback }
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        guard let d = fmt.date(from: date) else { return fallback }
+        let weekday = Calendar.current.component(.weekday, from: d)
+        let idx = (weekday + 5) % 7
+        let ranges = parseRanges(hours[idx])
+        guard let r = ranges.first(where: { $0.open >= 18 * 60 || $0.close < $0.open || $0.close >= 22 * 60 })
+              ?? ranges.first else { return fallback }
+        return (openMin: r.open, closeMin: r.close, closesNextDay: r.close < r.open)
     }
 
     /// Open for the NIGHT of `date` (YYYY-MM-DD): evening hours, cross-midnight,

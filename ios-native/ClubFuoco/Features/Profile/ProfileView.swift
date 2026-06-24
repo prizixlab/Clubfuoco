@@ -1,17 +1,15 @@
 import SwiftUI
 import Observation
 
-/// Native port of the profile page: CLUB FUOCO · ACCOUNT header, membership
-/// card with tier styling, stats strip, menu sections, sign out, footer.
-/// Friends / Saved / Membership destinations are Phase 2 — their rows show
-/// the same "coming soon" treatment the web uses for unreleased surfaces.
+/// Native profile page: CLUB FUOCO · ACCOUNT header, identity card (avatar +
+/// name + member-number), stats strip, menu sections, sign out, footer.
 struct ProfileView: View {
     @Environment(\.api) private var api
     @Environment(AuthStore.self) private var auth
     @Environment(LocaleStore.self) private var locale
     @State private var model = ProfileViewModel()
     #if DEBUG
-    // CF_TEST_PUSH=settings|friends|membership|notifications|fiamme
+    // CF_TEST_PUSH=settings|friends|notifications|fiamme
     // (CF_TEST_SETTINGS=1 kept as an alias)
     @State private var debugPush: String? = {
         let env = ProcessInfo.processInfo.environment
@@ -48,7 +46,7 @@ struct ProfileView: View {
                 }
                 .padding(.init(top: 8, leading: 20, bottom: 12, trailing: 20))
 
-                membershipCard
+                identityCard
                     .padding(.horizontal, 20)
                     .padding(.bottom, 20)
 
@@ -69,7 +67,6 @@ struct ProfileView: View {
         )) {
             switch debugPush {
             case "friends": FriendsView()
-            case "membership": MembershipView()
             case "notifications": NotificationsView()
             case "fiamme": FiammeView()
             default: SettingsView()
@@ -82,11 +79,7 @@ struct ProfileView: View {
         }
     }
 
-    // ── Membership card ───────────────────────────────────────────────────────
-
-    private var tier: TierStyle {
-        TierStyle.for(auth.profile?.membershipTier ?? "free")
-    }
+    // ── Identity card ─────────────────────────────────────────────────────────
 
     private var nameParts: (first: String, last: String, initials: String) {
         let parts = (auth.profile?.fullName ?? "").split(separator: " ").map(String.init)
@@ -108,82 +101,64 @@ struct ProfileView: View {
         return String(created.prefix(4))
     }
 
-    private var membershipCard: some View {
+    private var identityCard: some View {
         let parts = nameParts
+        let cream = Color(hex: 0xF8EFDC)
+        let muted = Color(hex: 0x2A1F12).opacity(0.55)
         return ZStack {
-            LinearGradient(colors: tier.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(
+                colors: [cream, Color(hex: 0xEFE0C3), Color(hex: 0xE5D2A8)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
 
-            // Corner labels
             VStack {
                 HStack {
-                    Kicker("N° \(memberNumber.prefix(2))", color: tier.faded, size: 8.5)
+                    Kicker("N° \(memberNumber.prefix(2))", color: muted, size: 8.5)
                     Spacer()
-                    Kicker("BARCELONA", color: tier.faded, size: 8.5)
+                    Kicker("BARCELONA", color: muted, size: 8.5)
                 }
                 Spacer()
                 HStack {
-                    Kicker("EST. \(memberYear)", color: tier.faded, size: 8.5)
+                    Kicker("EST. \(memberYear)", color: muted, size: 8.5)
                     Spacer()
-                    Kicker("N° \(memberNumber)", color: tier.faded, size: 8.5)
+                    Kicker("N° \(memberNumber)", color: muted, size: 8.5)
                 }
             }
             .padding(14)
 
             VStack(alignment: .leading, spacing: 10) {
-                // Avatar / initials
                 Circle()
-                    .fill(tier.avatarBg)
+                    .fill(Color.white.opacity(0.55))
                     .frame(width: 84, height: 84)
                     .overlay {
                         Text(parts.initials)
                             .font(.cfSerif(42, italic: true))
-                            .foregroundStyle(tier.accent)
+                            .foregroundStyle(Theme.darkRed)
                     }
 
-                Kicker("\(locale.t("profile.socio")) · \(locale.t("profile.member"))", color: tier.soft, size: 9.5)
-
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(parts.first.isEmpty ? locale.t("profile.member") : parts.first)
+                    Text(parts.first.isEmpty ? "—" : parts.first)
                         .font(.cfSerif(36))
-                        .foregroundStyle(tier.nameColor)
+                        .foregroundStyle(Theme.ink)
                     if !parts.last.isEmpty {
                         Text(parts.last)
                             .font(.cfSerif(36, italic: true))
-                            .foregroundStyle(tier.accent)
+                            .foregroundStyle(Theme.darkRed)
                     }
                 }
+                .padding(.top, 6)
 
                 Text(auth.profile?.email ?? auth.user?.email ?? "")
                     .font(.cfSans(10))
                     .kerning(1.2)
-                    .foregroundStyle(tier.soft)
+                    .foregroundStyle(muted)
                     .lineLimit(1)
-
-                HStack(spacing: 6) {
-                    Circle().fill(Theme.wine).frame(width: 6, height: 6)
-                    Text(tier.label)
-                        .font(.cfSerif(14, italic: true))
-                        .foregroundStyle(tier.accent)
-                    Text("/ \(locale.t("profile.member"))")
-                        .font(.cfSans(9.5))
-                        .kerning(1.7)
-                        .foregroundStyle(tier.soft)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(tier.badgeBg, in: .capsule)
-
-                // Wallet pass — paid tiers only, like the web card
-                if (auth.profile?.membershipTier ?? "free") != "free", let userId = auth.user?.id {
-                    WalletPassButton(passPath: "/api/membership/wallet/\(userId.uuidString.lowercased())", compact: true)
-                        .padding(.top, 4)
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.init(top: 36, leading: 20, bottom: 40, trailing: 20))
         }
         .clipShape(.rect(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(tier.border))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: 0x2A1F12).opacity(0.18)))
     }
 
     // ── Stats strip ───────────────────────────────────────────────────────────
@@ -247,11 +222,6 @@ struct ProfileView: View {
                         label: locale.t("profile.friends"),
                         sub: model.friendsSub ?? "—")
             }
-            menuRowDivider
-            menuRow(n: "04", icon: "crown.fill",
-                    label: locale.t("profile.membership"),
-                    sub: "\(tier.label) · \(locale.t("profile.member"))",
-                    comingSoon: true)
 
             Rectangle().fill(Color(hex: 0x221E1A).opacity(0.16)).frame(height: 1)
                 .padding(.vertical, 12)
@@ -318,7 +288,7 @@ struct ProfileView: View {
         Rectangle().fill(Theme.hairline).frame(height: 1)
     }
 
-    private func menuRow(n: String, icon: String, label: String, sub: String, comingSoon: Bool = false) -> some View {
+    private func menuRow(n: String, icon: String, label: String, sub: String) -> some View {
         HStack(spacing: 12) {
             Kicker(n, color: Theme.fadedSand, size: 9)
                 .frame(width: 18, alignment: .leading)
@@ -336,82 +306,12 @@ struct ProfileView: View {
                     .foregroundStyle(Theme.fadedSand)
             }
             Spacer()
-            if comingSoon {
-                Text(locale.t("signup.comingSoon").uppercased())
-                    .font(.cfMono(8))
-                    .kerning(1.2)
-                    .foregroundStyle(Theme.stone)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color(hex: 0x2A1F12).opacity(0.07), in: .capsule)
-            } else {
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.fadedSand)
-            }
+            Image(systemName: "arrow.right")
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.fadedSand)
         }
         .padding(.vertical, 14)
-        .opacity(comingSoon ? 0.6 : 1)
         .contentShape(.rect)
-    }
-}
-
-// ── Tier styling (mirrors TIERS in profile/page.tsx + signup gradients) ───────
-
-struct TierStyle {
-    let label: String
-    let gradient: [Color]
-    let border: Color
-    let accent: Color
-    let soft: Color
-    let faded: Color
-    let nameColor: Color
-    let avatarBg: Color
-    let badgeBg: Color
-
-    static func `for`(_ tier: String) -> TierStyle {
-        switch tier {
-        case "gold":
-            return TierStyle(
-                label: "Oro",
-                gradient: [Color(hex: 0x4A2C0E), Color(hex: 0x8C5A1E), Color(hex: 0xC28B3D)],
-                border: .white.opacity(0.25),
-                accent: Color(hex: 0xFFE8B5), soft: Color(hex: 0xFFF1D2).opacity(0.8),
-                faded: Color(hex: 0xFFE8B5).opacity(0.5),
-                nameColor: Color(hex: 0xFFF6E5),
-                avatarBg: .black.opacity(0.25), badgeBg: .white.opacity(0.14)
-            )
-        case "sapphire":
-            return TierStyle(
-                label: "Zaffiro",
-                gradient: [Color(hex: 0x0E1B4A), Color(hex: 0x1F3590), Color(hex: 0x4A6BC4)],
-                border: Color(hex: 0xC2D9FF).opacity(0.45),
-                accent: Color(hex: 0xDDE6FF), soft: Color(hex: 0xEAEEFB).opacity(0.8),
-                faded: Color(hex: 0xDDE6FF).opacity(0.5),
-                nameColor: .white,
-                avatarBg: .black.opacity(0.25), badgeBg: .white.opacity(0.14)
-            )
-        case "black":
-            return TierStyle(
-                label: "Nero",
-                gradient: [Color(hex: 0x050505), Color(hex: 0x1A1614), Color(hex: 0x2A1F12)],
-                border: Theme.flame.opacity(0.35),
-                accent: Theme.flame, soft: Theme.flame.opacity(0.7),
-                faded: Theme.flame.opacity(0.45),
-                nameColor: Theme.parchment,
-                avatarBg: .white.opacity(0.08), badgeBg: .white.opacity(0.1)
-            )
-        default:
-            return TierStyle(
-                label: "Libero",
-                gradient: [Color(hex: 0xF8EFDC), Color(hex: 0xEFE0C3), Color(hex: 0xE5D2A8)],
-                border: Color(hex: 0x2A1F12).opacity(0.18),
-                accent: Theme.darkRed, soft: Color(hex: 0x2A1F12).opacity(0.65),
-                faded: Color(hex: 0x2A1F12).opacity(0.4),
-                nameColor: Color(hex: 0x2A1F12),
-                avatarBg: .white.opacity(0.55), badgeBg: Color(hex: 0x2A1F12).opacity(0.07)
-            )
-        }
     }
 }
 

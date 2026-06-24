@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(AuthStore.self) private var auth
     @State private var router = InviteLinkRouter.shared
+    private static let notifPromptKey = "cf.notifPromptShown"
 
     var body: some View {
         Group {
@@ -11,6 +12,14 @@ struct RootView: View {
             // onboardingInProgress) — a switch over state would reset the wizard.
             if auth.state == .loading {
                 SplashView()
+            } else if auth.state == .signedIn
+                        && !auth.onboardingInProgress
+                        && !(auth.profile?.isComplete ?? false) {
+                // Existing user with a restored session whose profile is missing
+                // a required field (e.g. gender, added 2026-06-22). Block the
+                // app behind complete-profile until they fill it in. The signup
+                // wizard sets onboardingInProgress=true so it isn't caught here.
+                NavigationStack { CompleteProfileView() }
             } else if auth.onboardingInProgress || (auth.state == .signedOut && !auth.guestMode) {
                 AuthFlowView()
             } else {
@@ -24,6 +33,16 @@ struct RootView: View {
             InviteClaimView(token: wrapped.value)
                 .presentationDetents([.large])
         }
+        .task { await maybePromptNotifications() }
+    }
+
+    /// Fires the iOS notification permission dialog directly on app open —
+    /// no in-app explainer, just the system prompt. Once per install,
+    /// only when status is .notDetermined.
+    private func maybePromptNotifications() async {
+        guard !UserDefaults.standard.bool(forKey: Self.notifPromptKey) else { return }
+        UserDefaults.standard.set(true, forKey: Self.notifPromptKey)
+        _ = await NotificationService.shared.requestAuthorization()
     }
 }
 

@@ -19,11 +19,23 @@ final class SupabaseService: @unchecked Sendable {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
 
+        // URLSession.shared's defaults are 60s request / 7 days resource —
+        // a single stalled TCP connection (Apple's IPv6-only review network
+        // is the canonical trigger) leaves auth calls hanging forever and
+        // the "Sign in" button stuck on "Please wait…". Cap both so failures
+        // surface as an error instead of an infinite spinner.
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 20
+        config.timeoutIntervalForResource = 30
+        config.waitsForConnectivity = false
+        let session = URLSession(configuration: config)
+
         client = SupabaseClient(
             supabaseURL: Self.supabaseURL,
             supabaseKey: Self.anonKey,
             options: SupabaseClientOptions(
-                db: .init(encoder: encoder, decoder: decoder)
+                db: .init(encoder: encoder, decoder: decoder),
+                global: .init(session: session)
             )
         )
     }

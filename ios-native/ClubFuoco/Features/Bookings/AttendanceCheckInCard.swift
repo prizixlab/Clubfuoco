@@ -76,9 +76,9 @@ struct AttendanceCheckInCard: View {
         default: break
         }
         let now = Date()
-        let (earliest, base, postCutoff) = bookingTimes
+        let (earliest, checkInUntil, postCutoff) = bookingTimes
         if now < earliest { return .preWindow }
-        if now <= base.addingTimeInterval(2 * 3600) { return .checkInOpen }
+        if now <= checkInUntil { return .checkInOpen }
         if now <= postCutoff { return .postWindow }
         return .hidden
     }
@@ -192,18 +192,36 @@ struct AttendanceCheckInCard: View {
 
     // ── Time math ─────────────────────────────────────────────────────────────
 
-    private var bookingTimes: (earliest: Date, base: Date, postCutoff: Date) {
+    /// Attendance window anchored to the club's hours for that night:
+    ///   • `earliest`     = club opening (17:00 fallback when hours unknown)
+    ///   • `checkInUntil` = club closing, OR cutoff + 3h for time-boxed invites
+    ///                      like rumba list (`booking.cutoffTime`).
+    ///   • `postCutoff`   = `checkInUntil` + 2h — short tail for the post-entry
+    ///                      "did you get in?" prompt.
+    private var bookingTimes: (earliest: Date, checkInUntil: Date, postCutoff: Date) {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy-MM-dd HH:mm"
         fmt.timeZone = TimeZone(identifier: "Europe/Madrid") ?? .current
-        let hhmm = (booking.arrivalWindow?.split(separator: "-").first ?? "22:00")
-            .trimmingCharacters(in: .whitespaces)
-        let base = fmt.date(from: "\(booking.bookingDate) \(hhmm)") ?? Date()
-        return (
-            earliest:   base.addingTimeInterval(-2 * 3600),
-            base:       base,
-            postCutoff: base.addingTimeInterval(8 * 3600)
-        )
+
+        let hours = booking.club?.openingHours ?? []
+        let window = Hours.nightWindow(for: booking.bookingDate, hours: hours)
+
+        let openStr  = String(format: "%02d:%02d", window.openMin / 60,  window.openMin % 60)
+        let closeStr = String(format: "%02d:%02d", window.closeMin / 60, window.closeMin % 60)
+
+        let earliest = fmt.date(from: "\(booking.bookingDate) \(openStr)") ?? Date()
+        var checkInUntil = fmt.date(from: "\(booking.bookingDate) \(closeStr)") ?? earliest
+        if window.closesNextDay { checkInUntil = checkInUntil.addingTimeInterval(86_400) }
+
+        if let cutoff = booking.cutoffTime,
+           let cutoffDate = fmt.date(from: "\(booking.bookingDate) \(cutoff)") {
+            // Cutoffs almost always sit after midnight (e.g. 01:30) — push to
+            // the next day when they land before opening.
+            let adjusted = cutoffDate < earliest ? cutoffDate.addingTimeInterval(86_400) : cutoffDate
+            checkInUntil = adjusted.addingTimeInterval(3 * 3600)
+        }
+
+        return (earliest: earliest, checkInUntil: checkInUntil, postCutoff: checkInUntil.addingTimeInterval(2 * 3600))
     }
 
     // ── Submit ────────────────────────────────────────────────────────────────

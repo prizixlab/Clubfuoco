@@ -57,9 +57,21 @@ final class NotificationService {
     private static let prefix = "cf.morning-after."
     private static let venueTimeZone = TimeZone(identifier: "Europe/Madrid") ?? .current
 
-    /// Ask the OS for permission. Returns true if granted (now or earlier).
-    /// Silently no-ops if denied — caller stays unaware.
-    func ensureAuthorized() async -> Bool {
+    /// True if notifications are already authorised. Does NOT prompt — used
+    /// by background-scheduling code paths so they never accidentally race
+    /// the in-app pre-prompt sheet by firing the iOS dialog themselves.
+    func isAuthorized() async -> Bool {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral: return true
+        default: return false
+        }
+    }
+
+    /// Explicit ask — only called from `NotificationPermissionSheet` so the
+    /// iOS system dialog appears in a controlled, framed moment. Returns
+    /// true if granted (now or earlier), false on denial or error.
+    func requestAuthorization() async -> Bool {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
         switch settings.authorizationStatus {
@@ -75,7 +87,7 @@ final class NotificationService {
     /// safe to call after every `BookingsModel.load()` — duplicates collapse
     /// because we key by booking id.
     func syncMorningAfter(for bookings: [Booking]) async {
-        guard await ensureAuthorized() else { return }
+        guard await isAuthorized() else { return }
         let center = UNUserNotificationCenter.current()
         let pending = await center.pendingNotificationRequests()
         let pendingIds = Set(pending.map(\.identifier))
@@ -136,7 +148,7 @@ final class NotificationService {
     /// Fires a generic morning-after notification with no booking attached —
     /// the fallback path when the test launcher can't find one to use.
     func debugFireStatic(seconds: TimeInterval = 15) async {
-        guard await ensureAuthorized() else {
+        guard await isAuthorized() else {
             NSLog("CF_TEST static notification: permission not granted")
             return
         }
@@ -158,7 +170,7 @@ final class NotificationService {
     }
 
     func debugScheduleSoon(for booking: Booking, seconds: TimeInterval = 15) async {
-        guard await ensureAuthorized() else {
+        guard await isAuthorized() else {
             NSLog("CF_TEST notification permission not granted")
             return
         }

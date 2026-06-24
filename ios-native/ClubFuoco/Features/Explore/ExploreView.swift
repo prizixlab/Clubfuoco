@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 /// Native port of the explore feed: header with wordmark + search/saved
 /// toggles, WhenPlanner, filter chips, and the shelf feed. Cards navigate to
@@ -10,10 +11,29 @@ struct ExploreView: View {
     @Environment(PlanStore.self) private var plan
     @State private var model = ExploreViewModel()
     @State private var showGuestGate = false
+    @State private var showNearbyLocationSheet = false
+    private static let nearbyPromptKey = "cf.nearbyPromptShown"
     #if DEBUG
     @State private var debugDetailPlace: Place?
     @State private var debugDetailRumba: Rumba?
     #endif
+
+    /// First-launch ask: WhenInUse so we can show clubs closest to the user.
+    /// Skips guests (no booking story yet) and anyone who already decided.
+    /// The Always upgrade is a separate ask, surfaced after the user actually
+    /// books — see `BookNightSheet.confirmedView`.
+    private func maybePromptNearby() {
+        guard auth.state == .signedIn, !auth.guestMode else { return }
+        guard !UserDefaults.standard.bool(forKey: Self.nearbyPromptKey) else { return }
+        guard LocationService.shared.authorizationStatus == .notDetermined else { return }
+        UserDefaults.standard.set(true, forKey: Self.nearbyPromptKey)
+        // Tiny delay so the first frame of the feed lands before the sheet
+        // covers it — feels less like a permission-wall at app open.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            showNearbyLocationSheet = true
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -69,10 +89,14 @@ struct ExploreView: View {
         .navigationDestination(for: Rumba.self) { rumba in
             RumbaDetailView(rumba: rumba)
         }
+        .sheet(isPresented: $showNearbyLocationSheet) {
+            LocationPermissionSheet(mode: .nearby)
+        }
         .task {
             model.configure(queries: auth.queries, api: api)
             await model.load()
             model.rebuildShelves(planDate: plan.date) { locale.t($0) }
+            maybePromptNearby()
             #if DEBUG
             // Simulator automation: open the first venue / rumba detail
             if ProcessInfo.processInfo.environment["CF_TEST_OPEN_FIRST_CLUB"] == "1" {

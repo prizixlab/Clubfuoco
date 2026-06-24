@@ -24,6 +24,10 @@ struct Booking: Decodable, Identifiable, Sendable {
     var attendanceStatus: String? = nil
     var attendanceConfidence: Int? = nil
     var checkedInAt: String? = nil
+    /// HH:MM cutoff for time-boxed invitations (rumba list etc.). When set, the
+    /// attendance window ends at cutoff + 3h instead of club closing. Currently
+    /// always nil for paid bookings — reserved for guest-list-backed entries.
+    var cutoffTime: String? = nil
 
     var club: ClubSummary? { clubs?.value }
 }
@@ -38,6 +42,9 @@ struct ClubSummary: Decodable, Sendable {
     /// to the server (which is the authoritative distance check).
     var lat: Double? = nil
     var lng: Double? = nil
+    /// Weekday opening-hours strings (Mon→Sun). Feeds the attendance window —
+    /// check-in opens at the club's opening time and stays open until close.
+    var openingHours: [String]? = nil
 }
 
 struct GuestSignup: Decodable, Identifiable, Sendable {

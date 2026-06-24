@@ -54,8 +54,13 @@ actor APIClient {
         self.tokenProvider = tokenProvider
         self.baseURL = baseURL
 
+        // Hard caps so a stalled TCP connection (Apple App Review uses an
+        // IPv6-only NAT64 network — a single unreachable edge is the canonical
+        // trigger) surfaces as an error in seconds instead of hanging the UI.
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForRequest = 20
+        config.timeoutIntervalForResource = 30
+        config.waitsForConnectivity = false
         self.session = URLSession(configuration: config)
 
         let decoder = JSONDecoder()

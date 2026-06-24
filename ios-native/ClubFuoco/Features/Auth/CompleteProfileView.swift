@@ -10,8 +10,8 @@ struct CompleteProfileView: View {
     @Environment(LocaleStore.self) private var locale
 
     private struct Missing {
-        var name = false, email = false, phone = false, birthday = false
-        var any: Bool { name || email || phone || birthday }
+        var name = false, email = false, phone = false, birthday = false, gender = false
+        var any: Bool { name || email || phone || birthday || gender }
     }
 
     @State private var ready = false
@@ -21,6 +21,7 @@ struct CompleteProfileView: View {
     @State private var lastName = ""
     @State private var email = ""
     @State private var phone = ""
+    @State private var gender: Gender?
 
     private static let currentYear = Calendar.current.component(.year, from: Date())
     private static let monthsIT = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
@@ -94,6 +95,13 @@ struct CompleteProfileView: View {
                     }
                 }
 
+                if missing.gender {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Kicker(locale.t("signup.genderLabel"), color: Theme.fadedSand, size: 9)
+                        GenderPicker(selection: $gender, locale: locale)
+                    }
+                }
+
                 if missing.birthday {
                     VStack(alignment: .leading, spacing: 8) {
                         Kicker(locale.t("completeProfile.birthdayLabel"), color: Theme.fadedSand, size: 9)
@@ -159,6 +167,7 @@ struct CompleteProfileView: View {
         m.email = (row?.email ?? "").isEmpty
         m.phone = (row?.phone ?? "").isEmpty
         m.birthday = (row?.birthday ?? "").isEmpty
+        m.gender = (row?.gender ?? "").isEmpty
 
         if !m.any {
             auth.finishOnboarding()
@@ -192,6 +201,10 @@ struct CompleteProfileView: View {
             let trimmed = phone.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { errorMessage = locale.t("completeProfile.phoneError"); return }
             updates["phone"] = .string(trimmed)
+        }
+        if missing.gender {
+            guard let gender else { errorMessage = locale.t("signup.genderError"); return }
+            updates["gender"] = .string(gender.rawValue)
         }
         if missing.birthday {
             var age = Self.currentYear - bYear

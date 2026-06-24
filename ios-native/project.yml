@@ -35,7 +35,7 @@ targets:
         PRODUCT_NAME: Club Fuoco
         # Continues from the last Capacitor release (1.0.2 build 16)
         MARKETING_VERSION: "1.2.0"
-        CURRENT_PROJECT_VERSION: "21"
+        CURRENT_PROJECT_VERSION: "25"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         DEVELOPMENT_TEAM: 4V87UVPTBW
         TARGETED_DEVICE_FAMILY: "1"
@@ -60,7 +60,7 @@ targets:
         #     ~150m geofence around each upcoming venue for the booking night so
         #     iOS wakes the app and check-ins happen automatically. Users can
         #     downgrade to WhenInUse at any time in Settings → Location.
-        NSLocationWhenInUseUsageDescription: Confirm you arrived at the venue for your booking — used only when you tap "I'm here" or open an active pass near arrival time. Club Fuoco does not track your location in the background.
+        NSLocationWhenInUseUsageDescription: See the clubs closest to you tonight, and confirm you arrived for a booking. Used only while the app is open — Club Fuoco does not track your location in the background.
         NSLocationAlwaysAndWhenInUseUsageDescription: Allowing "Always" lets Club Fuoco check you in automatically when you arrive at a venue you booked. We only run a geofence around your booked venue on the night of the booking — no continuous tracking, ever.
         # Brand fonts (match the web app): Instrument Serif + Geist Sans/Mono
         UIAppFonts:
@@ -91,8 +91,5 @@ schemes:
         ClubFuoco: all
     run:
       config: Debug
-      # Local StoreKit testing for membership subscriptions (Xcode runs only;
-      # server-side verification still rejects local test signatures by design)
-      storeKitConfiguration: ClubFuoco/ClubFuoco.storekit
     archive:
       config: Release

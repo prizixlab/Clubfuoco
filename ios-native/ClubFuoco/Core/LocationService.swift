@@ -107,6 +107,13 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         manager.requestAlwaysAuthorization()
     }
 
+    /// Bring up the first-time WhenInUse OS dialog without also requesting
+    /// a location read. Used by `LocationPermissionSheet` to walk the user
+    /// up the permission ladder one step at a time.
+    func requestWhenInUseAuthorization() {
+        manager.requestWhenInUseAuthorization()
+    }
+
     // ── Background geofences ─────────────────────────────────────────────────
 
     struct GeofencedBooking: Sendable {

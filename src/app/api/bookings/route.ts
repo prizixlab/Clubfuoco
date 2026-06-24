@@ -41,7 +41,7 @@ export async function GET() {
       .select(`
         id, booking_type, party_size, booking_date, arrival_window,
         status, total_amount, qr_code_token, created_at,
-        clubs (id, name, cover_image_url, address, neighborhood)
+        clubs (id, name, cover_image_url, address, neighborhood, opening_hours)
       `)
       .eq('user_id', user!.id)
       .order('booking_date', { ascending: false }),

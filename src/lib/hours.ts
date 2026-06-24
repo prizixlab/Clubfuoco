@@ -107,3 +107,31 @@ export function isOpenOnDate(
   const closesLate = close >= 22 * 60         // still open at/after 22:00
   return opensEvening || crossesMidnight || closesLate
 }
+
+/**
+ * The open→close window for the NIGHT of `date`. Picks the evening/late range
+ * from that weekday row. Falls back to 17:00 open / 03:00 close-next-day when
+ * the hours are unknown or unparseable — these defaults bound the attendance
+ * check-in window on the iOS booking pass.
+ *
+ * `closesNextDay` is true when the close clock-time lands on the calendar day
+ * after `date` (cross-midnight ranges and the default fallback).
+ */
+export function nightWindowFor(
+  rows: string[] | null | undefined,
+  date: string,
+): { openMin: number; closeMin: number; closesNextDay: boolean } {
+  const fallback = { openMin: 17 * 60, closeMin: 3 * 60, closesNextDay: true }
+  const m = date.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m || !rows || rows.length < 7) return fallback
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  const idx = (d.getDay() + 6) % 7
+  const range = parseRow(rows[idx])
+  if (!range) return fallback
+  const [open, close] = range
+  // Only treat as a night range if it qualifies; otherwise (daytime-only spot)
+  // fall back so we don't bound check-in to 09:00-17:00 nonsense.
+  const isNight = open >= 18 * 60 || close < open || close >= 22 * 60
+  if (!isNight) return fallback
+  return { openMin: open, closeMin: close, closesNextDay: close < open }
+}

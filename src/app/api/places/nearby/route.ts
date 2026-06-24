@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 
+// Edge runtime: pure-read, no Node-only APIs. Halves cold-start latency.
+export const runtime = 'edge'
+
 // Barcelona city centre — fallback when no GPS given
 const BCN_LAT = 41.385
 const BCN_LNG = 2.173
@@ -113,5 +116,13 @@ export async function GET(request: NextRequest) {
     }
   })
 
-  return NextResponse.json({ data: results })
+  return NextResponse.json({ data: results }, {
+    headers: {
+      // Public reference data — clubs change rarely outside of nightly cron.
+      // Edge cache 5min, serve stale up to 10min while revalidating.
+      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      // Vary by query so different (lat,lng,radius) tuples cache separately.
+      'Vary': 'Accept-Encoding',
+    },
+  })
 }

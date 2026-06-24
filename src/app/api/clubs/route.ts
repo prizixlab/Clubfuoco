@@ -2,6 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { NextRequest } from 'next/server'
 import { ok, err } from '@/lib/utils'
 
+// Edge runtime: pure-read, no Node-only APIs, no auth — eligible for
+// Vercel's edge network. Halves cold-start latency on infrequent hits.
+export const runtime = 'edge'
+
 // GET /api/clubs
 // Query params: genre, open_now, featured, limit
 export async function GET(request: NextRequest) {

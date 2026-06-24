@@ -38,7 +38,10 @@ export async function GET() {
     signup_count: countMap[r.id] ?? 0,
   }))
 
-  return ok(withCounts)
+  // Active rumbas + live signup counts. Counts move minute-to-minute when
+  // people are signing up, so use short (60s) cache — stale rows for ~a
+  // minute are fine; the actual signup endpoint hits the DB directly.
+  return ok(withCounts, 200, 'short')
 }
 
 // POST /api/rumbas — staff/admin only — create a rumba

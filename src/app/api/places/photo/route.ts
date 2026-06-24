@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const KEY = process.env.GOOGLE_PLACES_API_KEY!
 
+// Edge runtime + 302 redirect. The old implementation downloaded the full
+// image into Node memory and re-emitted the bytes — fine at low traffic,
+// but it burned Vercel function duration + memory + bandwidth on every
+// photo load (20+ per Explore feed × 10k nightly users = ~200k proxied
+// images). Now: ask Google for the resolved CDN URL with redirect:
+// 'manual', then 302 the client straight at it. The API key still never
+// reaches the client, but the bytes flow direct from googleusercontent →
+// device.
+export const runtime = 'edge'
+
 // GET /api/places/photo?ref=PHOTO_REFERENCE&maxwidth=800
-// Proxies Google Places photo so the API key never reaches the client.
-// Google returns a redirect to the actual image — we follow it and stream back.
 export async function GET(request: NextRequest) {
   const ref      = request.nextUrl.searchParams.get('ref')
   const maxwidth = request.nextUrl.searchParams.get('maxwidth') ?? '800'
@@ -13,17 +21,22 @@ export async function GET(request: NextRequest) {
 
   const url = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxwidth}&photo_reference=${ref}&key=${KEY}`
 
-  // fetch follows redirects by default
-  const res = await fetch(url)
-  if (!res.ok) return NextResponse.json({ error: 'photo fetch failed' }, { status: 502 })
+  // Don't follow the redirect — we want the resolved URL to hand back to
+  // the client, not the image bytes.
+  const res = await fetch(url, { redirect: 'manual' })
+  const target = res.headers.get('location')
+  if (!target) {
+    return NextResponse.json({ error: 'photo redirect missing' }, { status: 502 })
+  }
 
-  const contentType = res.headers.get('content-type') ?? 'image/jpeg'
-  const buffer = await res.arrayBuffer()
-
-  return new NextResponse(buffer, {
+  return NextResponse.redirect(target, {
+    status: 302,
     headers: {
-      'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=86400', // cache 24h — photo refs don't change often
+      // Browsers/clients cache the 302 itself for 24h; subsequent hits to
+      // our proxy URL get served from their own cache without ever
+      // touching the function. The googleusercontent CDN cache is
+      // separate and longer-lived.
+      'Cache-Control': 'public, max-age=86400, s-maxage=86400',
     },
   })
 }

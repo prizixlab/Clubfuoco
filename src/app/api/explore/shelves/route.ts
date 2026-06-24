@@ -15,5 +15,8 @@ export async function GET() {
     .order('position', { ascending: true })
 
   if (error) return err(error.message)
-  return ok(data ?? [])
+  // Admin-curated; identical for every authenticated user. Short edge
+  // cache absorbs the per-app-open hit on a busy night. Vercel may bypass
+  // for Bearer-authenticated requests — header is honest about intent.
+  return ok(data ?? [], 200, 'short')
 }

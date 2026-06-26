@@ -76,3 +76,27 @@ struct NewGuest: Encodable {
     let plusOnes: Int
     let note: String?
 }
+
+struct PromoterSeries: Codable, Identifiable, Equatable, Hashable {
+    let id: UUID
+    let clubId: UUID
+    let title: String?
+    let weekdays: [Int]        // 1=Sun … 7=Sat
+    let openTime: String?
+    let closeTime: String?
+    let spots: Int
+    let payoutPerGuest: Decimal
+    let groupVisible: Bool
+    let inviteToken: String
+    let isActive: Bool
+    var club: Club?
+
+    /// "Every Fri", "Every Fri & Sat", etc.
+    var weekdayLabel: String {
+        let names = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        let picked = weekdays.sorted().compactMap { (1...7).contains($0) ? names[$0] : nil }
+        if picked.isEmpty { return "Recurring" }
+        return "Every " + picked.joined(separator: " & ")
+    }
+    var displayTitle: String { title ?? club?.name ?? "Recurring night" }
+}

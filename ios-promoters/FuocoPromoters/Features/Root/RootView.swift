@@ -55,8 +55,10 @@ struct GuestlistTabRoot: View {
     @StateObject private var model = TonightModel()
     @State private var showCreate = false
     @State private var navigateTo: PromoterAllocation?
+    @State private var seriesOccurrence: SeriesOccurrence?
     @State private var pendingDelete: PromoterAllocation?
     @State private var deleting = false
+    @State private var opening = false
 
     var body: some View {
         ScrollView {
@@ -83,14 +85,29 @@ struct GuestlistTabRoot: View {
                     }
                 }
 
+                if !model.series.isEmpty {
+                    Kicker("Permanent links").padding(.top, 4)
+                    VStack(spacing: 10) {
+                        ForEach(model.series) { s in
+                            Button { Haptics.tap(); Task { await openSeries(s) } } label: {
+                                SeriesRow(series: s)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    if !model.allocations.isEmpty {
+                        Kicker("One-off nights").padding(.top, 12)
+                    }
+                }
+
                 if model.loading {
                     ProgressView().tint(Theme.parchment).padding(.top, 40)
-                } else if model.allocations.isEmpty {
+                } else if model.allocations.isEmpty && model.series.isEmpty {
                     Text("No nights assigned yet.")
                         .font(.cfSans(14))
                         .foregroundStyle(Theme.parchmentDim)
                         .padding(.top, 24)
-                } else {
+                } else if !model.allocations.isEmpty {
                     Text("Swipe a night left to delete.")
                         .font(.cfMono(10))
                         .kerning(1.5)
@@ -153,7 +170,7 @@ struct GuestlistTabRoot: View {
             GuestlistView(allocation: a)
         }
         .overlay {
-            if deleting {
+            if deleting || opening {
                 ZStack {
                     Color.black.opacity(0.4).ignoresSafeArea()
                     ProgressView().tint(Theme.parchment)
@@ -162,15 +179,29 @@ struct GuestlistTabRoot: View {
         }
         .sheet(isPresented: $showCreate) {
             if case .signedIn(let p) = auth.state {
-                CreateGuestlistSheet(promoterId: p.id) { newAlloc in
+                CreateGuestlistSheet(promoterId: p.id) { result in
                     showCreate = false
                     Task {
                         await model.load()
-                        navigateTo = newAlloc
+                        switch result {
+                        case .allocation(let a): navigateTo = a
+                        case .series(let s): await openSeries(s)
+                        }
                     }
                 }
                 .presentationBackground(Theme.night)
             }
+        }
+        .navigationDestination(item: $seriesOccurrence) { occ in
+            GuestlistView(allocation: occ.allocation, shareTokenOverride: occ.token)
+        }
+    }
+
+    private func openSeries(_ s: PromoterSeries) async {
+        opening = true
+        defer { opening = false }
+        if let alloc = try? await PromoterRepo().currentAllocation(forSeries: s.id) {
+            seriesOccurrence = SeriesOccurrence(allocation: alloc, token: s.inviteToken)
         }
     }
 
@@ -184,6 +215,47 @@ struct GuestlistTabRoot: View {
         } catch {
             Haptics.error()
         }
+    }
+}
+
+struct SeriesOccurrence: Identifiable, Hashable {
+    let allocation: PromoterAllocation
+    let token: String
+    var id: UUID { allocation.id }
+}
+
+private struct SeriesRow: View {
+    let series: PromoterSeries
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12).fill(Theme.ember.opacity(0.15))
+                    .frame(width: 48, height: 48)
+                Image(systemName: "repeat")
+                    .font(.system(size: 18))
+                    .foregroundStyle(Theme.ember)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(series.displayTitle)
+                    .font(.cfSerif(20))
+                    .foregroundStyle(Theme.parchment)
+                HStack(spacing: 6) {
+                    Text(series.weekdayLabel)
+                        .font(.cfMono(10, weight: .medium)).kerning(1)
+                        .foregroundStyle(Theme.flame)
+                    Text("· permanent")
+                        .font(.cfMono(10)).foregroundStyle(Theme.parchmentDim)
+                }
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13))
+                .foregroundStyle(Theme.parchmentDim)
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.nightLift))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
+        .contentShape(Rectangle())
     }
 }
 

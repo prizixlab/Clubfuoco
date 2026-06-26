@@ -1,11 +1,12 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { resolveTokenToAllocation } from '@/lib/promoter-series'
 import { ok, err } from '@/lib/utils'
 
 /**
  * Public JSON description of a promoter invite — used by the native iOS
  * consumer app when it opens a /i/<token> Universal Link, mirroring the data
- * rendered by the web page at `/i/[token]`. Envelope-wrapped to match
- * the rest of the API contract that APIClient consumes.
+ * rendered by the web page at `/i/[token]`. Handles both one-off allocation
+ * tokens and permanent series tokens (which resolve to the next live night).
  */
 export async function GET(
   _req: Request,
@@ -13,6 +14,10 @@ export async function GET(
 ) {
   const { token } = await params
   const sb = await createServiceClient()
+
+  const resolved = await resolveTokenToAllocation(sb, token)
+  if (!resolved) return err('Invite not found', 404)
+
   const { data: alloc, error } = await sb
     .from('promoter_allocations')
     .select(`
@@ -23,7 +28,7 @@ export async function GET(
       ),
       promoter:users!promoter_allocations_promoter_id_fkey ( id, full_name )
     `)
-    .eq('invite_token', token)
+    .eq('id', resolved.allocationId)
     .single()
 
   if (error || !alloc?.night) return err('Invite not found', 404)
@@ -38,5 +43,7 @@ export async function GET(
     guests = data ?? []
   }
 
-  return ok({ allocation: alloc, guests })
+  // Surface the permanent token to the client so it keeps showing the same
+  // link even though the underlying night rolls week to week.
+  return ok({ allocation: { ...alloc, invite_token: resolved.seriesToken ?? alloc.invite_token }, guests })
 }

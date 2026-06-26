@@ -77,9 +77,13 @@ struct GuestlistView: View {
     @State private var showAdd = false
     @State private var confirmDelete = false
     @State private var deleting = false
+    /// For series occurrences: the permanent series token to show in the share
+    /// card instead of this week's per-night allocation token.
+    let shareTokenOverride: String?
 
-    init(allocation: PromoterAllocation) {
+    init(allocation: PromoterAllocation, shareTokenOverride: String? = nil) {
         _model = StateObject(wrappedValue: GuestlistModel(allocation: allocation))
+        self.shareTokenOverride = shareTokenOverride
     }
 
     var body: some View {
@@ -93,7 +97,7 @@ struct GuestlistView: View {
                         statCard("Checked-in", "\(model.checkedIn)")
                     }
 
-                    InviteShareCard(allocation: model.allocation)
+                    InviteShareCard(allocation: model.allocation, tokenOverride: shareTokenOverride)
 
                     TextField("", text: $model.query,
                               prompt: Text("Search guests…").foregroundStyle(Theme.parchmentDim))

@@ -39,11 +39,16 @@ final class CreateGuestlistModel: ObservableObject {
 
     let repo = PromoterRepo()
     let promoterId: UUID
-    let onCreated: (PromoterAllocation) -> Void
+    let onResult: (CreateResult) -> Void
 
-    init(promoterId: UUID, onCreated: @escaping (PromoterAllocation) -> Void) {
+    enum CreateResult {
+        case allocation(PromoterAllocation)  // one-off / multi-day
+        case series(PromoterSeries)          // permanent recurring link
+    }
+
+    init(promoterId: UUID, onResult: @escaping (CreateResult) -> Void) {
         self.promoterId = promoterId
-        self.onCreated = onCreated
+        self.onResult = onResult
     }
 
     var payoutPerGuestDecimal: Decimal {
@@ -100,6 +105,10 @@ final class CreateGuestlistModel: ObservableObject {
     }
 
     var generationSummary: String {
+        if mode == .recurring {
+            return weekdays.isEmpty ? "Pick at least one weekday"
+                                    : "One permanent link — always opens the next date"
+        }
         let count = generatedDates.count
         if count == 0 { return "Pick at least one day" }
         if count == 1 { return "Creates 1 night" }
@@ -108,26 +117,39 @@ final class CreateGuestlistModel: ObservableObject {
 
     func create() async {
         guard let club = selected else { return }
-        let dates = generatedDates
-        guard !dates.isEmpty else {
-            error = "Pick at least one day."
-            return
-        }
         submitting = true; error = nil
         let timeFormatter = DateFormatter(); timeFormatter.dateFormat = "HH:mm:ss"
+        let openStr = setOpenClose ? timeFormatter.string(from: openTime) : nil
+        let closeStr = setOpenClose ? timeFormatter.string(from: closeTime) : nil
+        let payout = trackPayouts ? payoutPerGuestDecimal : 0
+
         do {
-            let alloc = try await repo.createSelfGuestlist(
-                clubId: club.id,
-                title: title.isEmpty ? nil : title,
-                dates: dates,
-                openTime: setOpenClose ? timeFormatter.string(from: openTime) : nil,
-                closeTime: setOpenClose ? timeFormatter.string(from: closeTime) : nil,
-                spots: spots,
-                payoutPerGuest: trackPayouts ? payoutPerGuestDecimal : 0,
-                groupVisible: groupVisible,
-                promoterId: promoterId)
-            Haptics.success()
-            onCreated(alloc)
+            if mode == .recurring {
+                // Permanent link: one series row, no pre-generated nights.
+                guard !weekdays.isEmpty else {
+                    error = "Pick at least one weekday."; submitting = false; return
+                }
+                let series = try await repo.createSeries(.init(
+                    promoterId: promoterId, clubId: club.id,
+                    title: title.isEmpty ? nil : title,
+                    weekdays: Array(weekdays).sorted(),
+                    openTime: openStr, closeTime: closeStr,
+                    spots: spots, payoutPerGuest: payout, groupVisible: groupVisible))
+                Haptics.success()
+                onResult(.series(series))
+            } else {
+                let dates = generatedDates
+                guard !dates.isEmpty else { error = "Pick at least one day."; submitting = false; return }
+                let alloc = try await repo.createSelfGuestlist(
+                    clubId: club.id,
+                    title: title.isEmpty ? nil : title,
+                    dates: dates,
+                    openTime: openStr, closeTime: closeStr,
+                    spots: spots, payoutPerGuest: payout,
+                    groupVisible: groupVisible, promoterId: promoterId)
+                Haptics.success()
+                onResult(.allocation(alloc))
+            }
         } catch {
             self.error = "Couldn't create guestlist. Ask an admin to enable promoter inserts."
             Haptics.error()
@@ -147,8 +169,8 @@ struct CreateGuestlistSheet: View {
     @FocusState private var focused: Field?
     enum Field: Hashable { case search, title, payout }
 
-    init(promoterId: UUID, onCreated: @escaping (PromoterAllocation) -> Void) {
-        _model = StateObject(wrappedValue: CreateGuestlistModel(promoterId: promoterId, onCreated: onCreated))
+    init(promoterId: UUID, onResult: @escaping (CreateGuestlistModel.CreateResult) -> Void) {
+        _model = StateObject(wrappedValue: CreateGuestlistModel(promoterId: promoterId, onResult: onResult))
     }
 
     var body: some View {
@@ -340,36 +362,9 @@ struct CreateGuestlistSheet: View {
                     Text("Repeat on")
                         .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
                     weekdayPicker
-                    dateRow("Starting", binding: $model.startDate)
-
-                    HStack {
-                        Text("Until").font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
-                        Spacer()
-                        Button {
-                            Haptics.tap()
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                model.recurringIndefinite.toggle()
-                            }
-                        } label: {
-                            Text("Indefinite")
-                                .font(.cfMono(10, weight: .medium)).kerning(1.2)
-                                .foregroundStyle(model.recurringIndefinite ? Theme.emberCream : Theme.parchmentDim)
-                                .padding(.horizontal, 10).padding(.vertical, 6)
-                                .background(Capsule().fill(model.recurringIndefinite ? Theme.ember : Color.clear))
-                                .overlay(Capsule().stroke(model.recurringIndefinite ? Color.clear : Theme.parchmentFaint))
-                        }
-                    }
-                    if !model.recurringIndefinite {
-                        DatePicker("", selection: $model.recurringUntil, in: Date()..., displayedComponents: .date)
-                            .datePickerStyle(.compact)
-                            .labelsHidden()
-                            .tint(Theme.ember)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                    } else {
-                        Text("Generates the next \(CreateGuestlistModel.indefiniteHorizonMonths) months — re-create later to extend.")
-                            .font(.cfSans(11))
-                            .foregroundStyle(Theme.parchmentDim)
-                    }
+                    Text("Creates a permanent link you can post anywhere. It always opens the next upcoming date — no end date, no re-sharing.")
+                        .font(.cfSans(11))
+                        .foregroundStyle(Theme.parchmentDim)
                 }
             }
 

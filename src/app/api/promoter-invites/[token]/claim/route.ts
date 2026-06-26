@@ -1,4 +1,5 @@
 import { createServiceClient, createClient } from '@/lib/supabase/server'
+import { resolveTokenToAllocation } from '@/lib/promoter-series'
 import { ok, err } from '@/lib/utils'
 
 /**
@@ -37,10 +38,14 @@ export async function POST(
     claimedByUser = user?.id ?? null
   }
 
+  // Resolve one-off OR permanent series token → the concrete night's allocation.
+  const resolved = await resolveTokenToAllocation(sb, token)
+  if (!resolved) return err('Invite not found', 404)
+
   const { data: alloc, error: allocErr } = await sb
     .from('promoter_allocations')
     .select('id, spots, promoter_guests(id, full_name, plus_ones, claimed_by_user)')
-    .eq('invite_token', token)
+    .eq('id', resolved.allocationId)
     .single()
 
   if (allocErr || !alloc) return err('Invite not found', 404)

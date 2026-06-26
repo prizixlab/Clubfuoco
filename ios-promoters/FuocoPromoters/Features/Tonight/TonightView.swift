@@ -3,6 +3,7 @@ import SwiftUI
 @MainActor
 final class TonightModel: ObservableObject {
     @Published var allocations: [PromoterAllocation] = []
+    @Published var series: [PromoterSeries] = []
     @Published var loading = true
     @Published var error: String?
 
@@ -11,7 +12,10 @@ final class TonightModel: ObservableObject {
     func load() async {
         loading = true; error = nil
         do {
-            allocations = try await repo.myAllocations()
+            async let a = repo.myAllocations()
+            async let s = repo.mySeries()
+            allocations = try await a
+            series = (try? await s) ?? []
         } catch {
             self.error = "Couldn't load your nights."
         }

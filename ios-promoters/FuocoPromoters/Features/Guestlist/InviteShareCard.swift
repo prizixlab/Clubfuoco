@@ -7,29 +7,41 @@ import UIKit
 /// without leaking the guestlist).
 struct InviteShareCard: View {
     let allocation: PromoterAllocation
+    let tokenOverride: String?
     @State private var visible: Bool
     @State private var copied = false
     @State private var saving = false
     @State private var showShare = false
 
-    init(allocation: PromoterAllocation) {
+    init(allocation: PromoterAllocation, tokenOverride: String? = nil) {
         self.allocation = allocation
+        self.tokenOverride = tokenOverride
         _visible = State(initialValue: allocation.groupVisible ?? true)
     }
 
     private static let baseURL = "https://clubfuoco.com/i/"
 
+    /// Permanent series token wins over the per-night allocation token.
+    private var token: String? { tokenOverride ?? allocation.inviteToken }
+
     private var inviteURL: URL? {
-        guard let token = allocation.inviteToken else { return nil }
+        guard let token else { return nil }
         return URL(string: Self.baseURL + token)
     }
+
+    private var isPermanent: Bool { tokenOverride != nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Kicker("Open invite link")
+                Kicker(isPermanent ? "Permanent invite link" : "Open invite link")
                 Spacer()
                 if saving { ProgressView().tint(Theme.parchmentDim).scaleEffect(0.7) }
+            }
+            if isPermanent {
+                Text("Same link every week — always opens the next date.")
+                    .font(.cfSans(11))
+                    .foregroundStyle(Theme.parchmentDim)
             }
 
             if let url = inviteURL {

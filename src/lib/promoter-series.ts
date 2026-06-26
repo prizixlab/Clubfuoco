@@ -111,37 +111,39 @@ export async function ensureOccurrence(
   series: PromoterSeries,
   date: string
 ): Promise<string | null> {
-  // Upsert the night.
-  const { data: night } = await sb
+  // Insert the night. NB: the (series_id, night_date) uniqueness is enforced
+  // by a PARTIAL index, which Postgres can't use as an ON CONFLICT target
+  // (error 42P10) — so we insert and fall back to a read on unique-violation
+  // instead of upserting.
+  const { data: night, error: nightErr } = await sb
     .from('promoter_nights')
-    .upsert(
-      {
-        series_id: series.id,
-        club_id: series.club_id,
-        title: series.title,
-        night_date: date,
-        open_time: series.open_time,
-        close_time: series.close_time,
-        total_capacity: Math.max(series.spots, 50),
-        is_published: true,
-      },
-      { onConflict: 'series_id,night_date', ignoreDuplicates: false }
-    )
+    .insert({
+      series_id: series.id,
+      club_id: series.club_id,
+      title: series.title,
+      night_date: date,
+      open_time: series.open_time,
+      close_time: series.close_time,
+      total_capacity: Math.max(series.spots, 50),
+      is_published: true,
+    })
     .select('id')
     .single()
 
-  if (!night) {
-    // Race or conflict — read it back.
+  let nightId = night?.id as string | undefined
+  if (!nightId) {
+    // 23505 = unique_violation (this week already materialized, or a race).
+    if (nightErr && nightErr.code !== '23505') return null
     const { data: existing } = await sb
       .from('promoter_nights')
       .select('id')
       .eq('series_id', series.id)
       .eq('night_date', date)
       .single()
-    if (!existing) return null
-    return ensureAllocation(sb, existing.id, series)
+    nightId = existing?.id
   }
-  return ensureAllocation(sb, night.id, series)
+  if (!nightId) return null
+  return ensureAllocation(sb, nightId, series)
 }
 
 async function ensureAllocation(

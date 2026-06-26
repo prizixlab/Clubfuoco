@@ -31,6 +31,14 @@ struct InviteShareCard: View {
 
     private var isPermanent: Bool { tokenOverride != nil }
 
+    private var shareMessage: String {
+        let name = allocation.night?.displayTitle ?? "my night"
+        // Permanent links shouldn't name a specific date — they roll weekly.
+        return isPermanent
+            ? "Join my list for \(name):"
+            : "Join my list for \(name) on \(allocation.night?.nightDate ?? ""):"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -103,11 +111,8 @@ struct InviteShareCard: View {
         .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
         .sheet(isPresented: $showShare) {
             if let url = inviteURL {
-                ShareSheet(items: [
-                    "Join my list for \(allocation.night?.displayTitle ?? "the night") on \(allocation.night?.nightDate ?? ""):",
-                    url
-                ])
-                .presentationDetents([.medium, .large])
+                ShareSheet(items: [shareMessage, url])
+                    .presentationDetents([.medium, .large])
             }
         }
     }
@@ -115,7 +120,14 @@ struct InviteShareCard: View {
     private func save(_ newVal: Bool) async {
         saving = true
         defer { saving = false }
-        try? await PromoterRepo().setGroupVisible(allocationId: allocation.id, visible: newVal)
+        let repo = PromoterRepo()
+        // Always update this week's night so the change is immediate.
+        try? await repo.setGroupVisible(allocationId: allocation.id, visible: newVal)
+        // For a series occurrence, also update the series default so every
+        // future week inherits it.
+        if let seriesToken = tokenOverride {
+            try? await repo.setSeriesGroupVisible(token: seriesToken, visible: newVal)
+        }
     }
 }
 

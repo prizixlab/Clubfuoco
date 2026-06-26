@@ -36,6 +36,7 @@
   ],
   "exclude": [
     "node_modules",
-    "ios-native"
+    "ios-native",
+    "ios-promoters"
   ]
 }

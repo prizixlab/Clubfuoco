@@ -124,6 +124,16 @@ final class PromoterRepo: ObservableObject {
             .value
     }
 
+    /// Update a series' default visibility (applies to all future occurrences).
+    func setSeriesGroupVisible(token: String, visible: Bool) async throws {
+        struct Patch: Encodable { let groupVisible: Bool }
+        try await sb.client
+            .from("promoter_series")
+            .update(Patch(groupVisible: visible))
+            .eq("invite_token", value: token)
+            .execute()
+    }
+
     func deleteSeries(seriesId: UUID) async throws {
         try await sb.client
             .from("promoter_series")

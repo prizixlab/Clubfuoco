@@ -167,23 +167,23 @@ struct InviteClaimView: View {
         submitting = true
         Task {
             defer { submitting = false }
+            // claimed_by_user is derived server-side from the Bearer token —
+            // we deliberately don't send it (the server ignores body-supplied
+            // ids to prevent claim spoofing).
             struct Body: Encodable, Sendable {
                 let fullName: String
                 let plusOnes: Int
-                let claimedByUser: UUID?
                 enum CodingKeys: String, CodingKey {
                     case fullName = "full_name"
                     case plusOnes = "plus_ones"
-                    case claimedByUser = "claimed_by_user"
                 }
             }
             struct ClaimedGuest: Decodable, Sendable { let id: String }
             struct Resp: Decodable, Sendable { let guest: ClaimedGuest }
-            let uid: UUID? = auth.user?.id
             do {
                 let resp: Resp = try await api.post(
                     "/api/promoter-invites/\(token)/claim",
-                    body: Body(fullName: trimmed, plusOnes: plusOnes, claimedByUser: uid))
+                    body: Body(fullName: trimmed, plusOnes: plusOnes))
                 claimedGuestId = resp.guest.id
                 Haptics.success()
                 InviteClaimsStore.shared.add(token: token, guestId: resp.guest.id)

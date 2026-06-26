@@ -73,7 +73,14 @@ struct TonightView: View {
             .padding(.top, 16)
         }
         .background(Theme.night)
-        .task { await model.load() }
+        .task {
+            await model.load()
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                if Task.isCancelled { break }
+                await model.load()
+            }
+        }
         .refreshable { await model.load() }
         .navigationDestination(for: PromoterAllocation.self) { a in
             GuestlistView(allocation: a)

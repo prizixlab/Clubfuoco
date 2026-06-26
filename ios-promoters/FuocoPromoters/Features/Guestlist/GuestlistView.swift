@@ -18,6 +18,20 @@ final class GuestlistModel: ObservableObject {
         loading = false
     }
 
+    /// Silent poll — same data load, no spinner; used by the 15s refresh loop.
+    /// Detects newly-arrived guests vs. the previous snapshot so the view can
+    /// fire a haptic when an attendee crosses the geofence.
+    func pollAndNotifyArrivals() async -> [PromoterGuest] {
+        let prevArrived = Set(guests.filter(\.isCheckedIn).map(\.id))
+        guard let fresh = try? await repo.guests(allocationId: allocation.id) else {
+            return []
+        }
+        let nowArrived = Set(fresh.filter(\.isCheckedIn).map(\.id))
+        let newArrivals = nowArrived.subtracting(prevArrived)
+        guests = fresh
+        return fresh.filter { newArrivals.contains($0.id) }
+    }
+
     var filtered: [PromoterGuest] {
         guard !query.isEmpty else { return guests }
         return guests.filter { $0.fullName.localizedCaseInsensitiveContains(query) }
@@ -146,7 +160,17 @@ struct GuestlistView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.night, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .task { await model.load() }
+        .task {
+            // Initial load, then poll every 15s while visible. Cancels when
+            // SwiftUI tears the view down on dismiss.
+            await model.load()
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                if Task.isCancelled { break }
+                let arrivals = await model.pollAndNotifyArrivals()
+                if !arrivals.isEmpty { Haptics.success() }
+            }
+        }
         .refreshable { await model.load() }
         .sheet(isPresented: $showAdd) {
             AddGuestSheet { name, plus, note in

@@ -136,7 +136,14 @@ struct GuestlistTabRoot: View {
                 Text("\(p.night?.displayTitle ?? "This night") on \(p.night?.nightDate ?? "") will be removed along with all guests on the list. This can't be undone.")
             }
         }
-        .task { await model.load() }
+        .task {
+            await model.load()
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                if Task.isCancelled { break }
+                await model.load()
+            }
+        }
         .onAppear { Task { await model.load() } }
         .refreshable { await model.load() }
         .navigationDestination(for: PromoterAllocation.self) { a in

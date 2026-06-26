@@ -186,7 +186,14 @@ struct InviteClaimView: View {
                     body: Body(fullName: trimmed, plusOnes: plusOnes))
                 claimedGuestId = resp.guest.id
                 Haptics.success()
-                InviteClaimsStore.shared.add(token: token, guestId: resp.guest.id)
+                // Pin the resolved night so the geofence stays attached to the
+                // exact occurrence (series tokens re-resolve weekly).
+                if let n = detail?.night {
+                    InviteClaimsStore.shared.add(
+                        token: token, guestId: resp.guest.id,
+                        nightDate: n.nightDate, lat: n.club.lat, lng: n.club.lng,
+                        openTime: n.openTime)
+                }
                 Task { await LocationService.shared.syncGeofences() }
             } catch {
                 self.error = "Couldn't add you to the list."
@@ -300,11 +307,19 @@ struct InviteGuest: Decodable, Sendable {
 @MainActor
 final class InviteClaimsStore {
     static let shared = InviteClaimsStore()
-    private let key = "cf.invite_claims.v1"
+    // v2: claims now pin the resolved night (date + venue coords) so geofences
+    // are built from local data — no per-sync network, and a series claim
+    // stays attached to the exact week it was claimed for (the series token
+    // re-resolves weekly, so we must NOT re-derive the night from the token).
+    private let key = "cf.invite_claims.v2"
 
     struct Claim: Codable, Identifiable, Hashable {
         let token: String
         let guestId: String
+        let nightDate: String      // yyyy-MM-dd of the claimed occurrence
+        let lat: Double?
+        let lng: Double?
+        let openTime: String?      // "HH:mm:ss" for the geofence window
         let claimedAt: Date
         var id: String { guestId }
     }
@@ -313,12 +328,21 @@ final class InviteClaimsStore {
         guard let data = UserDefaults.standard.data(forKey: key),
               let v = try? JSONDecoder().decode([Claim].self, from: data)
         else { return [] }
-        return v
+        // Prune claims whose night is more than a day in the past.
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        let cutoff = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+        let live = v.filter { (f.date(from: $0.nightDate) ?? .distantFuture) >= cutoff }
+        if live.count != v.count, let data = try? JSONEncoder().encode(live) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+        return live
     }
 
-    func add(token: String, guestId: String) {
+    func add(token: String, guestId: String, nightDate: String,
+             lat: Double?, lng: Double?, openTime: String?) {
         var v = all().filter { $0.guestId != guestId }
-        v.append(.init(token: token, guestId: guestId, claimedAt: Date()))
+        v.append(.init(token: token, guestId: guestId, nightDate: nightDate,
+                       lat: lat, lng: lng, openTime: openTime, claimedAt: Date()))
         if let data = try? JSONEncoder().encode(v) {
             UserDefaults.standard.set(data, forKey: key)
         }

@@ -54,25 +54,21 @@ final class AppEnvironment {
         // InviteClaimsStore. We fetch each invite's night details lazily and
         // register a region around the venue for the active window.
         LocationService.shared.inviteFenceProvider = {
+            // Built entirely from locally-pinned claim data — no network, so a
+            // background launch (or offline) still restores fences, and a
+            // series claim stays bound to the exact occurrence it was made for.
             let claims = await InviteClaimsStore.shared.all()
-            var out: [LocationService.GeofencedBooking] = []
             let now = Date()
-            for claim in claims {
-                struct R: Decodable, Sendable { let allocation: InviteDetail }
-                guard let resp: R = try? await api.get("/api/promoter-invites/\(claim.token)"),
-                      let lat = resp.allocation.night.club.lat,
-                      let lng = resp.allocation.night.club.lng
-                else { continue }
-                let (from, until) = activeNightBounds(forDate: resp.allocation.night.nightDate,
-                                                      openTime: resp.allocation.night.openTime)
-                guard now < until,
-                      let guestUUID = UUID(uuidString: claim.guestId)
-                else { continue }
-                out.append(.init(kind: .invite, id: guestUUID,
-                                 clubLat: lat, clubLng: lng,
-                                 activeFrom: from, activeUntil: until))
+            return claims.compactMap { claim -> LocationService.GeofencedBooking? in
+                guard let lat = claim.lat, let lng = claim.lng,
+                      let guestUUID = UUID(uuidString: claim.guestId) else { return nil }
+                let (from, until) = activeNightBounds(forDate: claim.nightDate,
+                                                      openTime: claim.openTime)
+                guard now < until else { return nil }
+                return .init(kind: .invite, id: guestUUID,
+                             clubLat: lat, clubLng: lng,
+                             activeFrom: from, activeUntil: until)
             }
-            return out
         }
 
         LocationService.shared.onRegionEntered = { bookingId, at in

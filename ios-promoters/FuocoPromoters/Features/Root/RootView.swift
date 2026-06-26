@@ -13,8 +13,13 @@ struct RootView: View {
                 }
             case .signedOut:
                 SignInView()
-            case .signedIn:
-                MainTabs()
+            case .signedIn(let profile):
+                if profile.isPromoter {
+                    MainTabs()
+                } else {
+                    // Signed in but not a promoter → application flow.
+                    PromoterApplicationView()
+                }
             }
         }
         .environmentObject(auth)

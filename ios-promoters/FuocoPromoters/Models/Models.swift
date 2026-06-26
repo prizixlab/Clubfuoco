@@ -77,6 +77,16 @@ struct NewGuest: Encodable {
     let note: String?
 }
 
+struct PromoterApplication: Codable, Identifiable, Equatable, Hashable {
+    let id: UUID
+    let userId: UUID
+    let instagram: String?
+    let clubs: String?
+    let experience: String?
+    let status: String        // pending | approved | rejected
+    let createdAt: Date?
+}
+
 struct PromoterSeries: Codable, Identifiable, Equatable, Hashable {
     let id: UUID
     let clubId: UUID

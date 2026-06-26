@@ -85,6 +85,10 @@ export async function POST(
       .single()
     if (winner) return ok({ guest: winner, alreadyClaimed: true })
   }
+  // 23514 = check_violation raised by the capacity trigger (lost the race for
+  // the last spot). The app-level check above is the friendly path; this is
+  // the atomic backstop.
+  if (insertErr?.code === '23514') return err('Not enough spots left', 409)
   if (insertErr || !guest) return err('Couldn\'t add you to the list', 500)
   return ok({ guest })
 }

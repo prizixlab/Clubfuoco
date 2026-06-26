@@ -35,6 +35,14 @@ final class AuthStore: ObservableObject {
         }
     }
 
+    /// Re-fetch the profile (e.g. after a promoter application is approved in
+    /// Studio) without bouncing through the loading state.
+    func refresh() async {
+        if let uid = try? await sb.client.auth.session.user.id {
+            await loadProfile(userId: uid)
+        }
+    }
+
     func signOut() async {
         try? await sb.client.auth.signOut()
         state = .signedOut

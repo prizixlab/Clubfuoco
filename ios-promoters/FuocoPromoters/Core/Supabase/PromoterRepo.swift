@@ -80,6 +80,38 @@ final class PromoterRepo: ObservableObject {
             .execute()
     }
 
+    // MARK: - Promoter applications
+
+    func myApplication() async throws -> PromoterApplication? {
+        let rows: [PromoterApplication] = try await sb.client
+            .from("promoter_applications")
+            .select("id,user_id,instagram,clubs,experience,status,created_at")
+            .eq("user_id", value: try await sb.client.auth.session.user.id)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first
+    }
+
+    struct NewApplication: Encodable {
+        let userId: UUID
+        let instagram: String?
+        let clubs: String?
+        let experience: String?
+    }
+
+    func submitApplication(_ a: NewApplication) async throws -> PromoterApplication {
+        // upsert on the unique user_id so re-submitting (after a rejection or
+        // an edit) replaces the prior row.
+        try await sb.client
+            .from("promoter_applications")
+            .upsert(a, onConflict: "user_id")
+            .select("id,user_id,instagram,clubs,experience,status,created_at")
+            .single()
+            .execute()
+            .value
+    }
+
     // MARK: - Series (permanent recurring links)
 
     private static let webBase = "https://clubfuoco.com"

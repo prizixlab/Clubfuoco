@@ -68,6 +68,7 @@ final class CreateGuestlistModel: ObservableObject {
     @Published var themeTranslate = false
     @Published var photoURLs: [String] = []
     @Published var uploadingPhotos = false
+    @Published var featured = false   // paid front-page promotion
 
     @Published var trackPayouts = false
     @Published var payoutPerGuestText = "10.00"
@@ -208,7 +209,8 @@ final class CreateGuestlistModel: ObservableObject {
                     lat: loc.lat, lng: loc.lng, autoCheckin: autoCheckin,
                     description: desc.isEmpty ? nil : desc,
                     theme: themeVal.isEmpty ? nil : themeVal,
-                    themeTranslate: translateVal, photoUrls: photoURLs))
+                    themeTranslate: translateVal, photoUrls: photoURLs,
+                    featured: featured))
                 Haptics.success()
                 onResult(.series(series))
             } else {
@@ -224,7 +226,7 @@ final class CreateGuestlistModel: ObservableObject {
                     description: desc.isEmpty ? nil : desc,
                     theme: themeVal.isEmpty ? nil : themeVal,
                     themeTranslate: translateVal, photoUrls: photoURLs,
-                    promoterId: promoterId)
+                    featured: featured, promoterId: promoterId)
                 Haptics.success()
                 onResult(.allocation(alloc))
             }
@@ -414,6 +416,7 @@ struct CreateGuestlistSheet: View {
                 descriptionField
                 themeCard
                 photosCard
+                featuredCard
                 scheduleCard
                 hoursCard
                 spotsCard
@@ -545,6 +548,37 @@ struct CreateGuestlistSheet: View {
             }
             .onChange(of: photoItems) { _, items in
                 Task { await model.uploadPhotos(items); photoItems = [] }
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
+    }
+
+    private var featuredCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles").font(.system(size: 13)).foregroundStyle(Theme.flame)
+                Kicker("Front-page promotion", color: Theme.flame)
+            }
+            Toggle(isOn: $model.featured.animation()) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Feature on the Fuoco home screen")
+                        .font(.cfSans(14, weight: .medium))
+                        .foregroundStyle(Theme.parchment)
+                    Text("Put this night in front of every Fuoco member when they open the app.")
+                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                }
+            }
+            .tint(Theme.ember)
+
+            if model.featured {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "eurosign.circle").font(.system(size: 13)).foregroundStyle(Theme.flame)
+                    Text("**€0.30 per guest who accepts**, billed one week after midnight of the event. You only pay for people who actually join — nothing upfront.")
+                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Theme.flame.opacity(0.08)))
             }
         }
         .padding(14)

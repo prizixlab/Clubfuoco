@@ -16,7 +16,7 @@ final class PromoterRepo: ObservableObject {
                     id, club_id, title, night_date, doors_at, open_time, close_time,
                     total_capacity, is_published,
                     location_name, address, lat, lng, auto_checkin,
-                    description, theme, photo_urls,
+                    description, theme, photo_urls, featured,
                     club:clubs ( id, name )
                 )
             """)
@@ -137,6 +137,7 @@ final class PromoterRepo: ObservableObject {
         let theme: String?
         let themeTranslate: Bool
         let photoUrls: [String]
+        let featured: Bool
     }
 
     /// Upload a JPEG to the public event-photos bucket, return its public URL.
@@ -155,7 +156,7 @@ final class PromoterRepo: ObservableObject {
                 id, club_id, title, weekdays, open_time, close_time, spots,
                 payout_per_guest, group_visible, invite_token, is_active,
                 location_name, address, lat, lng, auto_checkin,
-                description, theme, photo_urls,
+                description, theme, photo_urls, featured,
                 club:clubs ( id, name )
             """)
             .single()
@@ -170,7 +171,7 @@ final class PromoterRepo: ObservableObject {
                 id, club_id, title, weekdays, open_time, close_time, spots,
                 payout_per_guest, group_visible, invite_token, is_active,
                 location_name, address, lat, lng, auto_checkin,
-                description, theme, photo_urls,
+                description, theme, photo_urls, featured,
                 club:clubs ( id, name )
             """)
             .eq("is_active", value: true)
@@ -230,7 +231,7 @@ final class PromoterRepo: ObservableObject {
                     id, club_id, title, night_date, doors_at, open_time, close_time,
                     total_capacity, is_published,
                     location_name, address, lat, lng, auto_checkin,
-                    description, theme, photo_urls,
+                    description, theme, photo_urls, featured,
                     club:clubs ( id, name )
                 )
             """)
@@ -267,6 +268,7 @@ final class PromoterRepo: ObservableObject {
         let theme: String?
         let themeTranslate: Bool
         let photoUrls: [String]
+        let featured: Bool
     }
     struct NewAllocation: Encodable {
         let nightId: UUID
@@ -294,7 +296,7 @@ final class PromoterRepo: ObservableObject {
         spots: Int, payoutPerGuest: Decimal,
         groupVisible: Bool, autoCheckin: Bool,
         description: String?, theme: String?, themeTranslate: Bool, photoUrls: [String],
-        promoterId: UUID
+        featured: Bool, promoterId: UUID
     ) async throws -> PromoterAllocation {
         let nightPayload = dates.map {
             NewNight(clubId: location.clubId, title: title, nightDate: $0,
@@ -303,12 +305,12 @@ final class PromoterRepo: ObservableObject {
                      locationName: location.name, address: location.address,
                      lat: location.lat, lng: location.lng, autoCheckin: autoCheckin,
                      description: description, theme: theme,
-                     themeTranslate: themeTranslate, photoUrls: photoUrls)
+                     themeTranslate: themeTranslate, photoUrls: photoUrls, featured: featured)
         }
         let nights: [PromoterNight] = try await sb.client
             .from("promoter_nights")
             .insert(nightPayload)
-            .select("id,club_id,title,night_date,doors_at,open_time,close_time,total_capacity,is_published,location_name,address,lat,lng,auto_checkin,description,theme,photo_urls")
+            .select("id,club_id,title,night_date,doors_at,open_time,close_time,total_capacity,is_published,location_name,address,lat,lng,auto_checkin,description,theme,photo_urls,featured")
             .execute()
             .value
 
@@ -328,7 +330,7 @@ final class PromoterRepo: ObservableObject {
                     id, club_id, title, night_date, doors_at, open_time, close_time,
                     total_capacity, is_published,
                     location_name, address, lat, lng, auto_checkin,
-                    description, theme, photo_urls,
+                    description, theme, photo_urls, featured,
                     club:clubs ( id, name )
                 )
             """)

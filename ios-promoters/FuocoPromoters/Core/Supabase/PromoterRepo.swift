@@ -140,6 +140,40 @@ final class PromoterRepo: ObservableObject {
         let featured: Bool
     }
 
+    // MARK: - Promoter brand profile
+
+    func getProfile() async throws -> PromoterProfileRow? {
+        let uid = try await sb.client.auth.session.user.id
+        let rows: [PromoterProfileRow] = try await sb.client
+            .from("promoter_profiles")
+            .select("user_id,brand_name,logo_url,bio,instagram")
+            .eq("user_id", value: uid)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first
+    }
+
+    struct ProfilePatch: Encodable {
+        let userId: UUID
+        let brandName: String?
+        let logoUrl: String?
+        let bio: String?
+        let instagram: String?
+        let updatedAt: String
+    }
+
+    func saveProfile(brandName: String?, logoUrl: String?, bio: String?, instagram: String?) async throws {
+        let uid = try await sb.client.auth.session.user.id
+        let f = ISO8601DateFormatter()
+        try await sb.client
+            .from("promoter_profiles")
+            .upsert(ProfilePatch(userId: uid, brandName: brandName, logoUrl: logoUrl,
+                                 bio: bio, instagram: instagram, updatedAt: f.string(from: Date())),
+                    onConflict: "user_id")
+            .execute()
+    }
+
     // MARK: - Billing (front-page promotion card on file)
 
     struct BillingStatus: Decodable, Sendable {
@@ -175,6 +209,12 @@ final class PromoterRepo: ObservableObject {
         guard let s = (try JSONDecoder().decode(Env.self, from: data)).data?.url,
               let url = URL(string: s) else { throw NSError(domain: "Billing", code: 2) }
         return url
+    }
+
+    /// Upload a logo JPEG using the signed-in promoter's id for the path.
+    func uploadLogo(_ jpeg: Data) async throws -> String {
+        let uid = try await sb.client.auth.session.user.id
+        return try await uploadEventPhoto(jpeg, promoterId: uid)
     }
 
     /// Upload a JPEG to the public event-photos bucket, return its public URL.

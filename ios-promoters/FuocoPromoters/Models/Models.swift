@@ -97,6 +97,14 @@ struct NewGuest: Encodable {
     let note: String?
 }
 
+struct PromoterProfileRow: Codable, Equatable, Hashable, Sendable {
+    let userId: UUID
+    let brandName: String?
+    let logoUrl: String?
+    let bio: String?
+    let instagram: String?
+}
+
 struct PromoterApplication: Codable, Identifiable, Equatable, Hashable {
     let id: UUID
     let userId: UUID

@@ -16,6 +16,7 @@ final class PromoterRepo: ObservableObject {
                     id, club_id, title, night_date, doors_at, open_time, close_time,
                     total_capacity, is_published,
                     location_name, address, lat, lng, auto_checkin,
+                    description, theme, photo_urls,
                     club:clubs ( id, name )
                 )
             """)
@@ -132,6 +133,18 @@ final class PromoterRepo: ObservableObject {
         let lat: Double?
         let lng: Double?
         let autoCheckin: Bool
+        let description: String?
+        let theme: String?
+        let themeTranslate: Bool
+        let photoUrls: [String]
+    }
+
+    /// Upload a JPEG to the public event-photos bucket, return its public URL.
+    func uploadEventPhoto(_ jpeg: Data, promoterId: UUID) async throws -> String {
+        let path = "\(promoterId.uuidString.lowercased())/\(UUID().uuidString).jpg"
+        try await sb.client.storage.from("event-photos")
+            .upload(path, data: jpeg, options: FileOptions(contentType: "image/jpeg"))
+        return try sb.client.storage.from("event-photos").getPublicURL(path: path).absoluteString
     }
 
     func createSeries(_ s: NewSeries) async throws -> PromoterSeries {
@@ -142,6 +155,7 @@ final class PromoterRepo: ObservableObject {
                 id, club_id, title, weekdays, open_time, close_time, spots,
                 payout_per_guest, group_visible, invite_token, is_active,
                 location_name, address, lat, lng, auto_checkin,
+                description, theme, photo_urls,
                 club:clubs ( id, name )
             """)
             .single()
@@ -156,6 +170,7 @@ final class PromoterRepo: ObservableObject {
                 id, club_id, title, weekdays, open_time, close_time, spots,
                 payout_per_guest, group_visible, invite_token, is_active,
                 location_name, address, lat, lng, auto_checkin,
+                description, theme, photo_urls,
                 club:clubs ( id, name )
             """)
             .eq("is_active", value: true)
@@ -215,6 +230,7 @@ final class PromoterRepo: ObservableObject {
                     id, club_id, title, night_date, doors_at, open_time, close_time,
                     total_capacity, is_published,
                     location_name, address, lat, lng, auto_checkin,
+                    description, theme, photo_urls,
                     club:clubs ( id, name )
                 )
             """)
@@ -247,6 +263,10 @@ final class PromoterRepo: ObservableObject {
         let lat: Double?
         let lng: Double?
         let autoCheckin: Bool
+        let description: String?
+        let theme: String?
+        let themeTranslate: Bool
+        let photoUrls: [String]
     }
     struct NewAllocation: Encodable {
         let nightId: UUID
@@ -272,19 +292,23 @@ final class PromoterRepo: ObservableObject {
         location: EventLocation, title: String?, dates: [String],
         openTime: String?, closeTime: String?,
         spots: Int, payoutPerGuest: Decimal,
-        groupVisible: Bool, autoCheckin: Bool, promoterId: UUID
+        groupVisible: Bool, autoCheckin: Bool,
+        description: String?, theme: String?, themeTranslate: Bool, photoUrls: [String],
+        promoterId: UUID
     ) async throws -> PromoterAllocation {
         let nightPayload = dates.map {
             NewNight(clubId: location.clubId, title: title, nightDate: $0,
                      openTime: openTime, closeTime: closeTime,
                      totalCapacity: max(spots, 50),
                      locationName: location.name, address: location.address,
-                     lat: location.lat, lng: location.lng, autoCheckin: autoCheckin)
+                     lat: location.lat, lng: location.lng, autoCheckin: autoCheckin,
+                     description: description, theme: theme,
+                     themeTranslate: themeTranslate, photoUrls: photoUrls)
         }
         let nights: [PromoterNight] = try await sb.client
             .from("promoter_nights")
             .insert(nightPayload)
-            .select("id,club_id,title,night_date,doors_at,open_time,close_time,total_capacity,is_published,location_name,address,lat,lng,auto_checkin")
+            .select("id,club_id,title,night_date,doors_at,open_time,close_time,total_capacity,is_published,location_name,address,lat,lng,auto_checkin,description,theme,photo_urls")
             .execute()
             .value
 
@@ -304,6 +328,7 @@ final class PromoterRepo: ObservableObject {
                     id, club_id, title, night_date, doors_at, open_time, close_time,
                     total_capacity, is_published,
                     location_name, address, lat, lng, auto_checkin,
+                    description, theme, photo_urls,
                     club:clubs ( id, name )
                 )
             """)

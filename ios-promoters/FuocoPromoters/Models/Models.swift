@@ -32,6 +32,9 @@ struct PromoterNight: Codable, Identifiable, Equatable, Hashable {
     let lat: Double?
     let lng: Double?
     let autoCheckin: Bool?
+    let description: String?
+    let theme: String?
+    let photoUrls: [String]?
     var club: Club?
 
     /// Venue label — club name for partner clubs, custom name otherwise.
@@ -121,6 +124,9 @@ struct PromoterSeries: Codable, Identifiable, Equatable, Hashable {
     let lat: Double?
     let lng: Double?
     let autoCheckin: Bool?
+    let description: String?
+    let theme: String?
+    let photoUrls: [String]?
     var club: Club?
 
     /// "Every Fri", "Every Fri & Sat", etc.

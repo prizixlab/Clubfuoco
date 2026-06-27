@@ -42,6 +42,9 @@ type Night = {
   close_time: string | null
   location_name: string | null
   address: string | null
+  description: string | null
+  theme: string | null
+  photo_urls: string[] | null
   club: { id: string; name: string; address: string | null; cover_image_url: string | null } | null
 }
 
@@ -154,7 +157,35 @@ export default function InviteClaimClient({
           {night.open_time && ` · ${shortTime(night.open_time)}`}
           {night.close_time && ` – ${shortTime(night.close_time)}`}
         </div>
+        {night.theme && (
+          <div style={{
+            display: 'inline-block', marginTop: 12, padding: '6px 12px', borderRadius: 999,
+            background: 'rgba(232,182,91,0.12)', color: '#E8B65B',
+            fontFamily: 'var(--font-geist-mono, monospace)', fontSize: 11,
+            letterSpacing: 1.5, textTransform: 'uppercase',
+          }}>
+            {night.theme}
+          </div>
+        )}
+        {night.description && (
+          <p style={{ marginTop: 14, fontSize: 14, lineHeight: 1.5, color: 'rgba(244,236,221,0.80)' }}>
+            {night.description}
+          </p>
+        )}
       </div>
+
+      {/* Event photos */}
+      {night.photo_urls && night.photo_urls.length > 0 && (
+        <div style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '4px 24px 0' }}>
+          {night.photo_urls.map((u, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={i} src={u} alt="" style={{
+              width: night.photo_urls!.length === 1 ? '100%' : 220,
+              height: 240, objectFit: 'cover', borderRadius: 16, flexShrink: 0,
+            }} />
+          ))}
+        </div>
+      )}
 
       {/* Ticket OR form */}
       <div style={{ padding: 24 }}>

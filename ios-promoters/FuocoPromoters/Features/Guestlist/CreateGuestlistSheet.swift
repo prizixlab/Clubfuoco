@@ -1,5 +1,7 @@
 import SwiftUI
 import CoreLocation
+import PhotosUI
+import UIKit
 
 enum ScheduleMode: String, CaseIterable, Identifiable {
     case once = "One night"
@@ -59,6 +61,14 @@ final class CreateGuestlistModel: ObservableObject {
 
     @Published var spots = 25
     @Published var unlimitedSpots = false
+
+    // Description / theme / photos
+    @Published var eventDescription = ""
+    @Published var theme = ""
+    @Published var themeTranslate = false
+    @Published var photoURLs: [String] = []
+    @Published var uploadingPhotos = false
+
     @Published var trackPayouts = false
     @Published var payoutPerGuestText = "10.00"
     @Published var groupVisible = true
@@ -83,6 +93,31 @@ final class CreateGuestlistModel: ObservableObject {
     var payoutPerGuestDecimal: Decimal {
         let normalized = payoutPerGuestText.replacingOccurrences(of: ",", with: ".")
         return Decimal(string: normalized) ?? 0
+    }
+
+    /// Load picked photos, downscale to JPEG, upload to storage, store URLs.
+    func uploadPhotos(_ items: [PhotosPickerItem]) async {
+        guard !items.isEmpty else { return }
+        uploadingPhotos = true
+        defer { uploadingPhotos = false }
+        for item in items {
+            guard photoURLs.count < 6,
+                  let data = try? await item.loadTransferable(type: Data.self),
+                  let jpeg = Self.downscaledJPEG(data) else { continue }
+            if let url = try? await repo.uploadEventPhoto(jpeg, promoterId: promoterId) {
+                photoURLs.append(url)
+            }
+        }
+    }
+
+    static func downscaledJPEG(_ data: Data, maxDimension: CGFloat = 1600, quality: CGFloat = 0.8) -> Data? {
+        guard let img = UIImage(data: data) else { return nil }
+        let scale = min(1, maxDimension / max(img.size.width, img.size.height))
+        if scale >= 1 { return img.jpegData(compressionQuality: quality) }
+        let size = CGSize(width: img.size.width * scale, height: img.size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let resized = renderer.image { _ in img.draw(in: CGRect(origin: .zero, size: size)) }
+        return resized.jpegData(compressionQuality: quality)
     }
 
     func loadClubs() async {
@@ -153,6 +188,9 @@ final class CreateGuestlistModel: ObservableObject {
         let payout = trackPayouts ? payoutPerGuestDecimal : 0
         let loc = resolvedLocation
         let spotsValue = unlimitedSpots ? SpotsLimit.unlimited : spots
+        let desc = eventDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let themeVal = theme.trimmingCharacters(in: .whitespaces)
+        let translateVal = !themeVal.isEmpty && themeTranslate
 
         do {
             if mode == .recurring {
@@ -167,7 +205,10 @@ final class CreateGuestlistModel: ObservableObject {
                     openTime: openStr, closeTime: closeStr,
                     spots: spotsValue, payoutPerGuest: payout, groupVisible: groupVisible,
                     locationName: loc.name, address: loc.address,
-                    lat: loc.lat, lng: loc.lng, autoCheckin: autoCheckin))
+                    lat: loc.lat, lng: loc.lng, autoCheckin: autoCheckin,
+                    description: desc.isEmpty ? nil : desc,
+                    theme: themeVal.isEmpty ? nil : themeVal,
+                    themeTranslate: translateVal, photoUrls: photoURLs))
                 Haptics.success()
                 onResult(.series(series))
             } else {
@@ -180,6 +221,9 @@ final class CreateGuestlistModel: ObservableObject {
                     openTime: openStr, closeTime: closeStr,
                     spots: spotsValue, payoutPerGuest: payout,
                     groupVisible: groupVisible, autoCheckin: autoCheckin,
+                    description: desc.isEmpty ? nil : desc,
+                    theme: themeVal.isEmpty ? nil : themeVal,
+                    themeTranslate: translateVal, photoUrls: photoURLs,
                     promoterId: promoterId)
                 Haptics.success()
                 onResult(.allocation(alloc))
@@ -201,7 +245,8 @@ struct CreateGuestlistSheet: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var model: CreateGuestlistModel
     @FocusState private var focused: Field?
-    enum Field: Hashable { case search, title, payout }
+    enum Field: Hashable { case search, title, payout, theme, description }
+    @State private var photoItems: [PhotosPickerItem] = []
 
     init(promoterId: UUID, onResult: @escaping (CreateGuestlistModel.CreateResult) -> Void) {
         _model = StateObject(wrappedValue: CreateGuestlistModel(promoterId: promoterId, onResult: onResult))
@@ -366,6 +411,9 @@ struct CreateGuestlistSheet: View {
             VStack(alignment: .leading, spacing: 22) {
                 clubHeader
                 titleField
+                descriptionField
+                themeCard
+                photosCard
                 scheduleCard
                 hoursCard
                 spotsCard
@@ -400,6 +448,107 @@ struct CreateGuestlistSheet: View {
                     .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
             }
         }
+    }
+
+    private var descriptionField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Kicker("Description (optional)")
+            TextField("", text: $model.eventDescription,
+                      prompt: Text("What the night is about — the vibe, the music, the crowd.")
+                        .foregroundStyle(Theme.parchmentDim),
+                      axis: .vertical)
+                .lineLimit(3...6)
+                .font(.cfSans(15)).foregroundStyle(Theme.parchment)
+                .focused($focused, equals: .description)
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: Theme.radiusField).fill(Theme.parchment.opacity(0.06)))
+                .overlay(RoundedRectangle(cornerRadius: Theme.radiusField).stroke(Theme.hairline))
+        }
+    }
+
+    private var themeCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Kicker("Theme (optional)")
+            TextField("", text: $model.theme,
+                      prompt: Text("e.g. Masquerade, All-white, 90s house")
+                        .foregroundStyle(Theme.parchmentDim))
+                .font(.cfSans(16)).foregroundStyle(Theme.parchment)
+                .focused($focused, equals: .theme)
+                .padding(.vertical, 10)
+                .overlay(alignment: .bottom) { Rectangle().fill(Theme.parchmentFaint).frame(height: 1) }
+
+            if !model.theme.trimmingCharacters(in: .whitespaces).isEmpty {
+                Toggle(isOn: $model.themeTranslate.animation()) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Translate the theme for guests")
+                            .font(.cfSans(14, weight: .medium))
+                            .foregroundStyle(Theme.parchment)
+                        Text("Show it in each guest's language (EN / ES).")
+                            .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                    }
+                }
+                .tint(Theme.ember)
+                .padding(.top, 4)
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
+    }
+
+    private var photosCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Kicker("Event photos (optional)")
+            Text("Use real shots of the space, crowd, or theme — **not promo flyers**. Authentic photos get more people through the door.")
+                .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+
+            if !model.photoURLs.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(Array(model.photoURLs.enumerated()), id: \.offset) { idx, url in
+                            ZStack(alignment: .topTrailing) {
+                                AsyncImage(url: URL(string: url)) { img in
+                                    img.resizable().scaledToFill()
+                                } placeholder: {
+                                    Rectangle().fill(Theme.night)
+                                }
+                                .frame(width: 96, height: 96)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                Button {
+                                    model.photoURLs.remove(at: idx)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.white, .black.opacity(0.5))
+                                        .font(.system(size: 18))
+                                }
+                                .padding(4)
+                            }
+                        }
+                    }
+                }
+            }
+
+            PhotosPicker(selection: $photoItems, maxSelectionCount: 6,
+                         matching: .images, photoLibrary: .shared()) {
+                HStack(spacing: 8) {
+                    if model.uploadingPhotos {
+                        ProgressView().tint(Theme.parchment).scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "photo.badge.plus")
+                    }
+                    Text(model.uploadingPhotos ? "Uploading…" : "Add photos")
+                        .font(.cfSans(14, weight: .medium))
+                }
+                .foregroundStyle(Theme.parchment)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .overlay(RoundedRectangle(cornerRadius: Theme.radiusPill).stroke(Theme.parchmentFaint))
+            }
+            .onChange(of: photoItems) { _, items in
+                Task { await model.uploadPhotos(items); photoItems = [] }
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
     }
 
     private var autoCheckinCard: some View {

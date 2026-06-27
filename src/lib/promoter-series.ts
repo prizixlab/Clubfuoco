@@ -28,6 +28,10 @@ export interface PromoterSeries {
   lat: number | null
   lng: number | null
   auto_checkin: boolean
+  description: string | null
+  theme: string | null
+  theme_translate: boolean
+  photo_urls: string[]
 }
 
 const MADRID = 'Europe/Madrid'
@@ -136,6 +140,10 @@ export async function ensureOccurrence(
       lat: series.lat,
       lng: series.lng,
       auto_checkin: series.auto_checkin,
+      description: series.description,
+      theme: series.theme,
+      theme_translate: series.theme_translate,
+      photo_urls: series.photo_urls,
     })
     .select('id')
     .single()

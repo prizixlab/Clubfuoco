@@ -93,7 +93,7 @@ struct GuestlistView: View {
                     header
 
                     HStack(spacing: 16) {
-                        statCard("Used", "\(model.used) / \(model.allocation.spots)")
+                        statCard("Used", model.allocation.isUnlimited ? "\(model.used) / ∞" : "\(model.used) / \(model.allocation.spots)")
                         statCard("Checked-in", "\(model.checkedIn)")
                     }
 

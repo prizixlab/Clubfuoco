@@ -16,6 +16,9 @@ struct CustomLocationView: View {
                            span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)))
     @State private var centerCoord = CLLocationCoordinate2D(latitude: 41.3874, longitude: 2.1686)
     @State private var geocoding = false
+    @State private var candidates: [CLPlacemark] = []
+    @State private var showCandidates = false
+    @State private var geoError: String?
 
     var body: some View {
         ScrollView {
@@ -75,6 +78,10 @@ struct CustomLocationView: View {
                 }
                 .overlay(RoundedRectangle(cornerRadius: Theme.radiusCard).stroke(Theme.hairline))
 
+                if let geoError {
+                    Text(geoError).font(.cfSans(12)).foregroundStyle(Theme.wine)
+                }
+
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 12)).foregroundStyle(Theme.flame)
@@ -85,18 +92,9 @@ struct CustomLocationView: View {
                 .background(RoundedRectangle(cornerRadius: 12).fill(Theme.flame.opacity(0.08)))
 
                 EmberPillButton(title: "Use this location") {
-                    model.customCoord = centerCoord
-                    model.customConfirmed = true
+                    confirmLocation()
                 }
                 .padding(.top, 4)
-                .disabled(model.customName.trimmingCharacters(in: .whitespaces).isEmpty)
-                .opacity(model.customName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
-
-                if model.customName.trimmingCharacters(in: .whitespaces).isEmpty {
-                    Text("Add a location name to continue.")
-                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
-                        .frame(maxWidth: .infinity)
-                }
 
                 Spacer(minLength: 40)
             }
@@ -109,21 +107,116 @@ struct CustomLocationView: View {
                 Spacer()
             }
         }
+        .sheet(isPresented: $showCandidates) {
+            candidatePicker
+                .presentationDetents([.medium, .large])
+                .presentationBackground(Theme.night)
+        }
     }
 
-    private func geocode() {
-        let q = model.customAddress.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return }
-        focused = nil; geocoding = true
-        CLGeocoder().geocodeAddressString(q) { marks, _ in
-            geocoding = false
-            guard let c = marks?.first?.location?.coordinate else { return }
-            centerCoord = c
-            withAnimation {
-                camera = .region(MKCoordinateRegion(center: c,
-                    span: MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008)))
+    private var candidatePicker: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Which one?")
+                .font(.cfSerif(28)).foregroundStyle(Theme.parchment)
+                .padding(.horizontal, 24).padding(.top, 24).padding(.bottom, 4)
+            Text("We found a few matches near Barcelona — pick the right one.")
+                .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
+                .padding(.horizontal, 24).padding(.bottom, 12)
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(Array(candidates.enumerated()), id: \.offset) { _, m in
+                        Button {
+                            Haptics.tap(); apply(m); showCandidates = false
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "mappin.circle.fill")
+                                    .foregroundStyle(Theme.ember).font(.system(size: 20))
+                                Text(describe(m))
+                                    .font(.cfSans(15)).foregroundStyle(Theme.parchment)
+                                    .multilineTextAlignment(.leading)
+                                Spacer()
+                            }
+                            .padding(.vertical, 16).padding(.horizontal, 24)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        Divider().background(Theme.hairline).padding(.horizontal, 24)
+                    }
+                }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // All custom pins are assumed within 20 miles of Barcelona.
+    private static let barcelona = CLLocation(latitude: 41.3874, longitude: 2.1686)
+    private static let radiusMeters: CLLocationDistance = 32_187 // 20 miles
+
+    private func geocode() {
+        let raw = model.customAddress.trimmingCharacters(in: .whitespaces)
+        guard !raw.isEmpty else { return }
+        // Spain uses 5-digit postcodes (Barcelona starts 08…). Without one,
+        // a street name is ambiguous, so we always ask the promoter to confirm.
+        let hasPostcode = raw.range(of: #"\b\d{5}\b"#, options: .regularExpression) != nil
+        var q = raw
+        if !q.lowercased().contains("barcelona") { q += ", Barcelona, Spain" }
+        focused = nil; geocoding = true; geoError = nil
+        let region = CLCircularRegion(center: Self.barcelona.coordinate,
+                                      radius: Self.radiusMeters, identifier: "bcn")
+        CLGeocoder().geocodeAddressString(q, in: region) { marks, _ in
+            geocoding = false
+            // Keep only results within 20 miles of Barcelona, nearest first.
+            let near = (marks ?? [])
+                .filter { ($0.location?.distance(from: Self.barcelona) ?? .greatestFiniteMagnitude) <= Self.radiusMeters }
+                .sorted { ($0.location?.distance(from: Self.barcelona) ?? 0) < ($1.location?.distance(from: Self.barcelona) ?? 0) }
+            if near.isEmpty {
+                geoError = "Couldn't find that address near Barcelona. Drop the pin manually."
+            } else if near.count == 1 && hasPostcode {
+                apply(near[0])                          // precise → trust it
+            } else {
+                candidates = near; showCandidates = true // ambiguous → confirm
+            }
+        }
+    }
+
+    /// Confirm the dropped pin. If no name was typed, reverse-geocode the pin
+    /// to label it (and fill the address if blank), so a manual drag still
+    /// produces a readable location.
+    private func confirmLocation() {
+        model.customCoord = centerCoord
+        if model.customName.trimmingCharacters(in: .whitespaces).isEmpty {
+            CLGeocoder().reverseGeocodeLocation(
+                CLLocation(latitude: centerCoord.latitude, longitude: centerCoord.longitude)
+            ) { marks, _ in
+                if let m = marks?.first {
+                    model.customName = [m.name, m.thoroughfare].compactMap { $0 }.first ?? "Custom location"
+                    if model.customAddress.trimmingCharacters(in: .whitespaces).isEmpty {
+                        model.customAddress = describe(m)
+                    }
+                } else {
+                    model.customName = "Custom location"
+                }
+            }
+        }
+        model.customConfirmed = true
+    }
+
+    private func apply(_ mark: CLPlacemark) {
+        guard let c = mark.location?.coordinate else { return }
+        centerCoord = c
+        withAnimation {
+            camera = .region(MKCoordinateRegion(center: c,
+                span: MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008)))
+        }
+    }
+
+    /// One-line readable address for a candidate.
+    private func describe(_ m: CLPlacemark) -> String {
+        [ [m.subThoroughfare, m.thoroughfare].compactMap { $0 }.joined(separator: " "),
+          m.locality, m.postalCode ]
+            .compactMap { $0?.isEmpty == false ? $0 : nil }
+            .joined(separator: ", ")
+            .ifEmpty(m.name ?? "Unknown location")
     }
 
     @ViewBuilder
@@ -135,4 +228,8 @@ struct CustomLocationView: View {
                 .overlay(alignment: .bottom) { Rectangle().fill(Theme.parchmentFaint).frame(height: 1) }
         }
     }
+}
+
+private extension String {
+    func ifEmpty(_ fallback: String) -> String { isEmpty ? fallback : self }
 }

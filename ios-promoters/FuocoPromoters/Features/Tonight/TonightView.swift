@@ -143,7 +143,7 @@ struct TonightView: View {
                             Capsule().fill(Theme.ember)
                                 .frame(width: 120, height: 32)
                                 .overlay(
-                                    Text("\(a.guestCount) / \(a.spots) used")
+                                    Text("\(a.usedLabel) used")
                                         .font(.cfMono(11, weight: .medium))
                                         .foregroundStyle(Theme.emberCream))
                         }
@@ -169,7 +169,7 @@ struct TonightView: View {
                     .foregroundStyle(Theme.parchmentDim)
             }
             Spacer()
-            Text("\(a.guestCount) / \(a.spots)")
+            Text(a.usedLabel)
                 .font(.cfMono(10))
                 .kerning(1.5)
                 .foregroundStyle(Theme.flame)

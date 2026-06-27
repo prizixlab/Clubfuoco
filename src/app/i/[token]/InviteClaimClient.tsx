@@ -85,6 +85,7 @@ export default function InviteClaimClient({
   const [guests, setGuests] = useState<Guest[]>(initialGuests)
 
   const totalUsed = guests.reduce((s, g) => s + 1 + g.plus_ones, 0)
+  const unlimited = allocation.spots >= 100000
   const slotsLeft = Math.max(0, allocation.spots - totalUsed)
 
   async function claim() {
@@ -166,7 +167,7 @@ export default function InviteClaimClient({
           }}>
             <Kicker>Reserve your spot</Kicker>
             <div style={{ fontSize: 12, color: 'rgba(244,236,221,0.60)', marginBottom: 16 }}>
-              {slotsLeft} of {allocation.spots} spots left
+              {unlimited ? `${totalUsed} on the list` : `${slotsLeft} of ${allocation.spots} spots left`}
             </div>
 
             <label style={{ display: 'block', marginBottom: 14 }}>

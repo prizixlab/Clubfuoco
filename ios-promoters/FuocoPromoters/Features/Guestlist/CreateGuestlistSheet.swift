@@ -58,6 +58,7 @@ final class CreateGuestlistModel: ObservableObject {
     @Published var closeTime: Date = CreateGuestlistModel.defaultTime(hour: 3, minute: 0)
 
     @Published var spots = 25
+    @Published var unlimitedSpots = false
     @Published var trackPayouts = false
     @Published var payoutPerGuestText = "10.00"
     @Published var groupVisible = true
@@ -151,6 +152,7 @@ final class CreateGuestlistModel: ObservableObject {
         let closeStr = setOpenClose ? timeFormatter.string(from: closeTime) : nil
         let payout = trackPayouts ? payoutPerGuestDecimal : 0
         let loc = resolvedLocation
+        let spotsValue = unlimitedSpots ? SpotsLimit.unlimited : spots
 
         do {
             if mode == .recurring {
@@ -163,7 +165,7 @@ final class CreateGuestlistModel: ObservableObject {
                     title: title.isEmpty ? nil : title,
                     weekdays: Array(weekdays).sorted(),
                     openTime: openStr, closeTime: closeStr,
-                    spots: spots, payoutPerGuest: payout, groupVisible: groupVisible,
+                    spots: spotsValue, payoutPerGuest: payout, groupVisible: groupVisible,
                     locationName: loc.name, address: loc.address,
                     lat: loc.lat, lng: loc.lng, autoCheckin: autoCheckin))
                 Haptics.success()
@@ -176,7 +178,7 @@ final class CreateGuestlistModel: ObservableObject {
                     title: title.isEmpty ? nil : title,
                     dates: dates,
                     openTime: openStr, closeTime: closeStr,
-                    spots: spots, payoutPerGuest: payout,
+                    spots: spotsValue, payoutPerGuest: payout,
                     groupVisible: groupVisible, autoCheckin: autoCheckin,
                     promoterId: promoterId)
                 Haptics.success()
@@ -270,8 +272,8 @@ struct CreateGuestlistSheet: View {
     private var locationChooser: some View {
         VStack(spacing: 16) {
             Spacer()
-            chooserCard(icon: "building.2", title: "Partner club",
-                        sub: "Pick from Fuoco's Barcelona venues") {
+            chooserCard(icon: "building.2", title: "Club",
+                        sub: "Pick from Barcelona venues") {
                 model.locationMode = .club
             }
             chooserCard(icon: "mappin.and.ellipse", title: "Custom location",
@@ -542,7 +544,9 @@ struct CreateGuestlistSheet: View {
                     Text("Set open & close times")
                         .font(.cfSans(14, weight: .medium))
                         .foregroundStyle(Theme.parchment)
-                    Text("Optional — what time the night runs.")
+                    Text(model.setOpenClose
+                         ? "What time the night runs."
+                         : "Off — we assume 10 PM to 4 AM for auto check-in timing.")
                         .font(.cfSans(12))
                         .foregroundStyle(Theme.parchmentDim)
                 }
@@ -581,18 +585,42 @@ struct CreateGuestlistSheet: View {
 
     private var spotsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Kicker("Spots")
+            HStack {
+                Kicker("Spots")
+                Spacer()
+                Button {
+                    Haptics.tap()
+                    withAnimation { model.unlimitedSpots.toggle() }
+                } label: {
+                    Text("Unlimited")
+                        .font(.cfMono(9, weight: .medium)).kerning(1.2)
+                        .foregroundStyle(model.unlimitedSpots ? Theme.emberCream : Theme.parchmentDim)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Capsule().fill(model.unlimitedSpots ? Theme.ember : Color.clear))
+                        .overlay(Capsule().stroke(model.unlimitedSpots ? Color.clear : Theme.parchmentFaint))
+                }
+            }
             Text("How many guests can you bring per night?")
                 .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
-            HStack(spacing: 8) {
-                stepButton(label: "−5") { adjustSpots(-5) }
-                stepButton(label: "−1") { adjustSpots(-1) }
-                Text("\(model.spots)")
-                    .font(.cfSerif(28))
-                    .foregroundStyle(Theme.parchment)
-                    .frame(maxWidth: .infinity)
-                stepButton(label: "+1", filled: true) { adjustSpots(+1) }
-                stepButton(label: "+5", filled: true) { adjustSpots(+5) }
+            if model.unlimitedSpots {
+                HStack {
+                    Text("∞").font(.cfSerif(34)).foregroundStyle(Theme.ember)
+                    Text("No cap on this guestlist")
+                        .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+            } else {
+                HStack(spacing: 8) {
+                    stepButton(label: "−5") { adjustSpots(-5) }
+                    stepButton(label: "−1") { adjustSpots(-1) }
+                    Text("\(model.spots)")
+                        .font(.cfSerif(28))
+                        .foregroundStyle(Theme.parchment)
+                        .frame(maxWidth: .infinity)
+                    stepButton(label: "+1", filled: true) { adjustSpots(+1) }
+                    stepButton(label: "+5", filled: true) { adjustSpots(+5) }
+                }
             }
         }
         .padding(14)

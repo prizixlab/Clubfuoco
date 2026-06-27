@@ -39,6 +39,13 @@ struct PromoterNight: Codable, Identifiable, Equatable, Hashable {
     var displayTitle: String { title ?? venueName }
 }
 
+/// Sentinel capacity meaning "unlimited" — stored in spots since the column
+/// is a non-null int. Anything at/above the threshold reads as unlimited.
+enum SpotsLimit {
+    static let unlimited = 1_000_000
+    static let threshold = 100_000
+}
+
 struct GuestCountRow: Codable, Equatable, Hashable {
     let id: UUID
     let plusOnes: Int
@@ -62,6 +69,9 @@ struct PromoterAllocation: Codable, Identifiable, Equatable, Hashable {
         (guests ?? []).filter { $0.checkedInAt != nil }.reduce(0) { $0 + 1 + $1.plusOnes }
     }
     var earnings: Decimal { payoutPerGuest * Decimal(guestCount) }
+    var isUnlimited: Bool { spots >= SpotsLimit.threshold }
+    /// "12 / 25" or "12 / ∞" for the used-capacity displays.
+    var usedLabel: String { "\(guestCount) / \(isUnlimited ? "∞" : "\(spots)")" }
 }
 
 struct PromoterGuest: Codable, Identifiable, Equatable, Hashable {

@@ -119,7 +119,7 @@ struct EarningsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(a.night?.club?.name ?? a.night?.displayTitle ?? "Night")
                     .font(.cfSerif(24)).foregroundStyle(Theme.parchment)
-                Text("\(a.guestCount) / \(a.spots) guests")
+                Text("\(a.usedLabel) guests")
                     .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
             }
             Spacer()

@@ -69,6 +69,14 @@ final class CreateGuestlistModel: ObservableObject {
     @Published var photoURLs: [String] = []
     @Published var uploadingPhotos = false
     @Published var featured = false   // paid front-page promotion
+    @Published var billing: PromoterRepo.BillingStatus?
+    @Published var checkingCard = false
+
+    func refreshBilling() async {
+        billing = try? await repo.billingStatus()
+    }
+
+    var cardOnFile: Bool { billing?.cardVerified == true }
 
     @Published var trackPayouts = false
     @Published var payoutPerGuestText = "10.00"
@@ -182,6 +190,11 @@ final class CreateGuestlistModel: ObservableObject {
 
     func create() async {
         guard locationChosen else { return }
+        // Front-page promotion requires a verified card on file.
+        if featured && !cardOnFile {
+            error = "Add a payment method to feature this event on the home screen."
+            return
+        }
         submitting = true; error = nil
         let timeFormatter = DateFormatter(); timeFormatter.dateFormat = "HH:mm:ss"
         let openStr = setOpenClose ? timeFormatter.string(from: openTime) : nil
@@ -249,6 +262,8 @@ struct CreateGuestlistSheet: View {
     @FocusState private var focused: Field?
     enum Field: Hashable { case search, title, payout, theme, description }
     @State private var photoItems: [PhotosPickerItem] = []
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
     init(promoterId: UUID, onResult: @escaping (CreateGuestlistModel.CreateResult) -> Void) {
         _model = StateObject(wrappedValue: CreateGuestlistModel(promoterId: promoterId, onResult: onResult))
@@ -290,7 +305,11 @@ struct CreateGuestlistSheet: View {
                 }
             }
         }
-        .task { await model.loadClubs() }
+        .task { await model.loadClubs(); await model.refreshBilling() }
+        .onChange(of: scenePhase) { _, phase in
+            // Re-check card status when returning from the Stripe browser flow.
+            if phase == .active { Task { await model.refreshBilling() } }
+        }
     }
 
     private var navTitle: String {
@@ -579,6 +598,34 @@ struct CreateGuestlistSheet: View {
                 }
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: 12).fill(Theme.flame.opacity(0.08)))
+
+                // Card-on-file requirement.
+                if let b = model.billing, b.cardVerified {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.seal.fill").foregroundStyle(Theme.gold).font(.system(size: 13))
+                        Text("\(b.cardBrand?.capitalized ?? "Card") ending \(b.cardLast4 ?? "••••") on file")
+                            .font(.cfSans(12)).foregroundStyle(Theme.parchment)
+                    }
+                } else {
+                    Button {
+                        Task {
+                            model.checkingCard = true
+                            if let url = try? await model.repo.billingSetupURL() { openURL(url) }
+                            model.checkingCard = false
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            if model.checkingCard { ProgressView().tint(Theme.parchment).scaleEffect(0.8) }
+                            else { Image(systemName: "creditcard") }
+                            Text("Add a payment method to enable")
+                                .font(.cfSans(13, weight: .medium))
+                        }
+                        .foregroundStyle(Theme.parchment)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .overlay(RoundedRectangle(cornerRadius: Theme.radiusPill).stroke(Theme.parchmentFaint))
+                    }
+                }
             }
         }
         .padding(14)

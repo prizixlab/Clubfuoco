@@ -140,6 +140,43 @@ final class PromoterRepo: ObservableObject {
         let featured: Bool
     }
 
+    // MARK: - Billing (front-page promotion card on file)
+
+    struct BillingStatus: Decodable, Sendable {
+        let cardVerified: Bool
+        let cardBrand: String?
+        let cardLast4: String?
+        let balanceCents: Int
+        let status: String   // active | past_due | blocked
+    }
+
+    func billingStatus() async throws -> BillingStatus {
+        let token = try await sb.client.auth.session.accessToken
+        var req = URLRequest(url: URL(string: "\(Self.webBase)/api/promoter-billing/status")!)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, _) = try await URLSession.shared.data(for: req)
+        struct Env: Decodable { let data: BillingStatus? }
+        let dec = JSONDecoder()
+        guard let s = (try dec.decode(Env.self, from: data)).data else {
+            throw NSError(domain: "Billing", code: 1)
+        }
+        return s
+    }
+
+    /// Returns the Stripe-hosted card-setup URL to open in a browser.
+    func billingSetupURL() async throws -> URL {
+        let token = try await sb.client.auth.session.accessToken
+        var req = URLRequest(url: URL(string: "\(Self.webBase)/api/promoter-billing/setup")!)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, _) = try await URLSession.shared.data(for: req)
+        struct Env: Decodable { let data: Payload? }
+        struct Payload: Decodable { let url: String }
+        guard let s = (try JSONDecoder().decode(Env.self, from: data)).data?.url,
+              let url = URL(string: s) else { throw NSError(domain: "Billing", code: 2) }
+        return url
+    }
+
     /// Upload a JPEG to the public event-photos bucket, return its public URL.
     func uploadEventPhoto(_ jpeg: Data, promoterId: UUID) async throws -> String {
         let path = "\(promoterId.uuidString.lowercased())/\(UUID().uuidString).jpg"

@@ -79,6 +79,7 @@ export async function middleware(request: NextRequest) {
       '/about', '/partners', '/investors', '/press', '/legal',   // marketing
       '/join',                                                    // invite flow
       '/i',                                                       // promoter invite links (/i/<token>)
+      '/billing',                                                 // Stripe card-setup return page
       '/login', '/signup', '/complete-profile', '/auth',         // auth for joining
     ]
     const allowed =

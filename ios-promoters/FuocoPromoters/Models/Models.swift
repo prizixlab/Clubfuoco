@@ -19,7 +19,7 @@ struct Club: Codable, Identifiable, Equatable, Hashable {
 
 struct PromoterNight: Codable, Identifiable, Equatable, Hashable {
     let id: UUID
-    let clubId: UUID
+    let clubId: UUID?
     let title: String?
     let nightDate: String   // yyyy-MM-dd
     let doorsAt: Date?
@@ -27,9 +27,16 @@ struct PromoterNight: Codable, Identifiable, Equatable, Hashable {
     let closeTime: String?  // "HH:mm:ss"
     let totalCapacity: Int
     let isPublished: Bool
+    let locationName: String?
+    let address: String?
+    let lat: Double?
+    let lng: Double?
+    let autoCheckin: Bool?
     var club: Club?
 
-    var displayTitle: String { title ?? club?.name ?? "Night" }
+    /// Venue label — club name for partner clubs, custom name otherwise.
+    var venueName: String { club?.name ?? locationName ?? "Custom location" }
+    var displayTitle: String { title ?? venueName }
 }
 
 struct GuestCountRow: Codable, Equatable, Hashable {
@@ -89,7 +96,7 @@ struct PromoterApplication: Codable, Identifiable, Equatable, Hashable {
 
 struct PromoterSeries: Codable, Identifiable, Equatable, Hashable {
     let id: UUID
-    let clubId: UUID
+    let clubId: UUID?
     let title: String?
     let weekdays: [Int]        // 1=Sun … 7=Sat
     let openTime: String?
@@ -99,6 +106,11 @@ struct PromoterSeries: Codable, Identifiable, Equatable, Hashable {
     let groupVisible: Bool
     let inviteToken: String
     let isActive: Bool
+    let locationName: String?
+    let address: String?
+    let lat: Double?
+    let lng: Double?
+    let autoCheckin: Bool?
     var club: Club?
 
     /// "Every Fri", "Every Fri & Sat", etc.
@@ -108,5 +120,6 @@ struct PromoterSeries: Codable, Identifiable, Equatable, Hashable {
         if picked.isEmpty { return "Recurring" }
         return "Every " + picked.joined(separator: " & ")
     }
-    var displayTitle: String { title ?? club?.name ?? "Recurring night" }
+    var venueName: String { club?.name ?? locationName ?? "Custom location" }
+    var displayTitle: String { title ?? venueName }
 }

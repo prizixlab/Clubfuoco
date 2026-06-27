@@ -24,6 +24,7 @@ export default async function InvitePage({
       id, spots, group_visible, invite_token,
       night:promoter_nights (
         id, title, night_date, open_time, close_time,
+        location_name, address, lat, lng, auto_checkin,
         club:clubs ( id, name, address, cover_image_url )
       ),
       promoter:users!promoter_allocations_promoter_id_fkey ( id, full_name )

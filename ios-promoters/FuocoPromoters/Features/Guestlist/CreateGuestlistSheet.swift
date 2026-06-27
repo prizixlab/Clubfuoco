@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 enum ScheduleMode: String, CaseIterable, Identifiable {
     case once = "One night"
@@ -7,6 +8,8 @@ enum ScheduleMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum LocationMode { case none, club, custom }
+
 @MainActor
 final class CreateGuestlistModel: ObservableObject {
     @Published var clubs: [Club] = []
@@ -14,6 +17,31 @@ final class CreateGuestlistModel: ObservableObject {
     @Published var query = ""
     @Published var selected: Club?
     @Published var title = ""
+
+    // Location
+    @Published var locationMode: LocationMode = .none
+    @Published var customName = ""
+    @Published var customAddress = ""
+    @Published var customCoord: CLLocationCoordinate2D?
+    @Published var customConfirmed = false
+    @Published var autoCheckin = true   // mandatory geo check-in, on by default
+
+    /// True once the promoter has picked a club or confirmed a custom pin.
+    var locationChosen: Bool { selected != nil || customConfirmed }
+
+    var venueLabel: String {
+        if let c = selected { return c.name }
+        if customConfirmed { return customName.isEmpty ? "Custom location" : customName }
+        return ""
+    }
+
+    var resolvedLocation: PromoterRepo.EventLocation {
+        if let c = selected { return .init(clubId: c.id) }
+        return .init(clubId: nil,
+                     name: customName.isEmpty ? "Custom location" : customName,
+                     address: customAddress.isEmpty ? nil : customAddress,
+                     lat: customCoord?.latitude, lng: customCoord?.longitude)
+    }
 
     // Schedule
     @Published var mode: ScheduleMode = .once
@@ -116,12 +144,13 @@ final class CreateGuestlistModel: ObservableObject {
     }
 
     func create() async {
-        guard let club = selected else { return }
+        guard locationChosen else { return }
         submitting = true; error = nil
         let timeFormatter = DateFormatter(); timeFormatter.dateFormat = "HH:mm:ss"
         let openStr = setOpenClose ? timeFormatter.string(from: openTime) : nil
         let closeStr = setOpenClose ? timeFormatter.string(from: closeTime) : nil
         let payout = trackPayouts ? payoutPerGuestDecimal : 0
+        let loc = resolvedLocation
 
         do {
             if mode == .recurring {
@@ -130,23 +159,26 @@ final class CreateGuestlistModel: ObservableObject {
                     error = "Pick at least one weekday."; submitting = false; return
                 }
                 let series = try await repo.createSeries(.init(
-                    promoterId: promoterId, clubId: club.id,
+                    promoterId: promoterId, clubId: loc.clubId,
                     title: title.isEmpty ? nil : title,
                     weekdays: Array(weekdays).sorted(),
                     openTime: openStr, closeTime: closeStr,
-                    spots: spots, payoutPerGuest: payout, groupVisible: groupVisible))
+                    spots: spots, payoutPerGuest: payout, groupVisible: groupVisible,
+                    locationName: loc.name, address: loc.address,
+                    lat: loc.lat, lng: loc.lng, autoCheckin: autoCheckin))
                 Haptics.success()
                 onResult(.series(series))
             } else {
                 let dates = generatedDates
                 guard !dates.isEmpty else { error = "Pick at least one day."; submitting = false; return }
                 let alloc = try await repo.createSelfGuestlist(
-                    clubId: club.id,
+                    location: loc,
                     title: title.isEmpty ? nil : title,
                     dates: dates,
                     openTime: openStr, closeTime: closeStr,
                     spots: spots, payoutPerGuest: payout,
-                    groupVisible: groupVisible, promoterId: promoterId)
+                    groupVisible: groupVisible, autoCheckin: autoCheckin,
+                    promoterId: promoterId)
                 Haptics.success()
                 onResult(.allocation(alloc))
             }
@@ -177,23 +209,26 @@ struct CreateGuestlistSheet: View {
         NavigationStack {
             ZStack {
                 Theme.night.ignoresSafeArea()
-                if model.selected == nil { clubPicker } else { detailsForm }
+                if model.locationChosen {
+                    detailsForm
+                } else {
+                    switch model.locationMode {
+                    case .none:   locationChooser
+                    case .club:   clubPicker
+                    case .custom: CustomLocationView(model: model)
+                    }
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Theme.night, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    if model.selected != nil {
-                        Button("Back") { model.selected = nil }
-                            .foregroundStyle(Theme.parchmentDim)
-                    } else {
-                        Button("Cancel") { dismiss() }
-                            .foregroundStyle(Theme.parchmentDim)
-                    }
+                    Button(backLabel) { goBack() }
+                        .foregroundStyle(Theme.parchmentDim)
                 }
                 ToolbarItem(placement: .principal) {
-                    Text(model.selected == nil ? "Pick a Club" : "New Night")
+                    Text(navTitle)
                         .font(.cfMono(11, weight: .medium))
                         .kerning(2)
                         .foregroundStyle(Theme.flame)
@@ -207,6 +242,67 @@ struct CreateGuestlistSheet: View {
             }
         }
         .task { await model.loadClubs() }
+    }
+
+    private var navTitle: String {
+        if model.locationChosen { return "New Night" }
+        switch model.locationMode {
+        case .none: return "Where's the night?"
+        case .club: return "Pick a Club"
+        case .custom: return "Custom Location"
+        }
+    }
+    private var backLabel: String { (model.locationChosen || model.locationMode != .none) ? "Back" : "Cancel" }
+    private func goBack() {
+        if model.locationChosen {
+            // back to location choice
+            model.selected = nil
+            model.customConfirmed = false
+        } else if model.locationMode != .none {
+            model.locationMode = .none
+        } else {
+            dismiss()
+        }
+    }
+
+    // MARK: - Location chooser
+
+    private var locationChooser: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            chooserCard(icon: "building.2", title: "Partner club",
+                        sub: "Pick from Fuoco's Barcelona venues") {
+                model.locationMode = .club
+            }
+            chooserCard(icon: "mappin.and.ellipse", title: "Custom location",
+                        sub: "Drop a pin for a villa, rooftop, or party") {
+                model.locationMode = .custom
+            }
+            Spacer()
+        }
+        .padding(24)
+    }
+
+    private func chooserCard(icon: String, title: String, sub: String, action: @escaping () -> Void) -> some View {
+        Button { Haptics.tap(); action() } label: {
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12).fill(Theme.ember.opacity(0.15)).frame(width: 52, height: 52)
+                    Image(systemName: icon).font(.system(size: 22)).foregroundStyle(Theme.ember)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(.cfSerif(22)).foregroundStyle(Theme.parchment)
+                    Text(sub).font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(Theme.parchmentDim)
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 18).fill(Theme.nightLift))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.hairline))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Club picker
@@ -271,6 +367,7 @@ struct CreateGuestlistSheet: View {
                 scheduleCard
                 hoursCard
                 spotsCard
+                autoCheckinCard
                 visibilityCard
                 payoutCard
 
@@ -292,11 +389,36 @@ struct CreateGuestlistSheet: View {
 
     private var clubHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Kicker("Club")
-            Text(model.selected?.name ?? "")
+            Kicker(model.selected != nil ? "Club" : "Location")
+            Text(model.venueLabel)
                 .font(.cfSerif(32))
                 .foregroundStyle(Theme.parchment)
+            if model.selected == nil, !model.customAddress.isEmpty {
+                Text(model.customAddress)
+                    .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+            }
         }
+    }
+
+    private var autoCheckinCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Kicker("Auto check-in")
+            Toggle(isOn: $model.autoCheckin.animation()) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Auto check-in guests by location")
+                        .font(.cfSans(14, weight: .medium))
+                        .foregroundStyle(Theme.parchment)
+                    Text(model.autoCheckin
+                         ? "Guests are marked arrived automatically when they reach the pin."
+                         : "Guests must be checked in manually at the door.")
+                        .font(.cfSans(12))
+                        .foregroundStyle(Theme.parchmentDim)
+                }
+            }
+            .tint(Theme.ember)
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
     }
 
     private var titleField: some View {

@@ -72,6 +72,7 @@ enum Haptics {
 struct EmberPillButton: View {
     let title: String
     var loading: Bool = false
+    var trailingIcon: String? = nil
     let action: () -> Void
     var body: some View {
         Button(action: { Haptics.tap(); action() }) {
@@ -80,12 +81,18 @@ struct EmberPillButton: View {
                 if loading {
                     ProgressView().tint(Theme.emberCream)
                 } else {
-                    Text(title)
-                        .font(.cfSans(15, weight: .semibold))
-                        .foregroundStyle(Theme.emberCream)
+                    HStack(spacing: 8) {
+                        Text(title)
+                            .font(.cfSans(15, weight: .semibold))
+                            .tracking(0.5)
+                        if let trailingIcon {
+                            Image(systemName: trailingIcon).font(.system(size: 13, weight: .semibold))
+                        }
+                    }
+                    .foregroundStyle(Theme.emberCream)
                 }
             }
-            .frame(height: 52)
+            .frame(height: 54)
         }
         .disabled(loading)
     }

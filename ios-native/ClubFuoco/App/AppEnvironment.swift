@@ -60,7 +60,9 @@ final class AppEnvironment {
             let claims = await InviteClaimsStore.shared.all()
             let now = Date()
             return claims.compactMap { claim -> LocationService.GeofencedBooking? in
-                guard let lat = claim.lat, let lng = claim.lng,
+                // Honor the event's auto check-in setting — no fence when off.
+                guard claim.autoCheckin,
+                      let lat = claim.lat, let lng = claim.lng,
                       let guestUUID = UUID(uuidString: claim.guestId) else { return nil }
                 let (from, until) = activeNightBounds(forDate: claim.nightDate,
                                                       openTime: claim.openTime)

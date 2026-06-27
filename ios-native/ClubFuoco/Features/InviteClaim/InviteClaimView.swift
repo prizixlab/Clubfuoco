@@ -152,10 +152,10 @@ struct InviteClaimView: View {
             Text("YOU'RE INVITED")
                 .font(.cfMono(11)).kerning(2)
                 .foregroundStyle(Theme.flame)
-            Text(night.title ?? night.club.name)
+            Text(night.title ?? night.venueName)
                 .font(.cfSerif(40))
                 .foregroundStyle(Theme.parchment)
-            Text("\(night.club.name) · \(Self.formatDate(night.nightDate))")
+            Text("\(night.venueName) · \(Self.formatDate(night.nightDate))")
                 .font(.cfSans(13))
                 .foregroundStyle(Theme.parchment.opacity(0.7))
         }
@@ -191,8 +191,8 @@ struct InviteClaimView: View {
                 if let n = detail?.night {
                     InviteClaimsStore.shared.add(
                         token: token, guestId: resp.guest.id,
-                        nightDate: n.nightDate, lat: n.club.lat, lng: n.club.lng,
-                        openTime: n.openTime)
+                        nightDate: n.nightDate, lat: n.venueLat, lng: n.venueLng,
+                        openTime: n.openTime, autoCheckin: n.autoCheckin ?? true)
                 }
                 Task { await LocationService.shared.syncGeofences() }
             } catch {
@@ -214,7 +214,7 @@ struct InviteClaimView: View {
                 Text(name)
                     .font(.cfSerif(34))
                     .foregroundStyle(Theme.parchment)
-                Text("\(night.title ?? night.club.name) · \(Self.formatDate(night.nightDate))")
+                Text("\(night.title ?? night.venueName) · \(Self.formatDate(night.nightDate))")
                     .font(.cfSans(13))
                     .foregroundStyle(Theme.parchment.opacity(0.7))
 
@@ -287,7 +287,18 @@ struct InviteNight: Decodable, Sendable {
     let nightDate: String
     let openTime: String?
     let closeTime: String?
-    let club: InviteClub
+    let locationName: String?
+    let address: String?
+    let lat: Double?
+    let lng: Double?
+    let autoCheckin: Bool?
+    let club: InviteClub?
+
+    /// Venue label — club name for partner clubs, custom name otherwise.
+    var venueName: String { club?.name ?? locationName ?? "Location TBA" }
+    /// Geofence coordinate — club coords, else the custom pin.
+    var venueLat: Double? { club?.lat ?? lat }
+    var venueLng: Double? { club?.lng ?? lng }
 }
 struct InviteClub: Decodable, Sendable {
     let id: UUID
@@ -311,7 +322,7 @@ final class InviteClaimsStore {
     // are built from local data — no per-sync network, and a series claim
     // stays attached to the exact week it was claimed for (the series token
     // re-resolves weekly, so we must NOT re-derive the night from the token).
-    private let key = "cf.invite_claims.v2"
+    private let key = "cf.invite_claims.v3"
 
     struct Claim: Codable, Identifiable, Hashable {
         let token: String
@@ -320,6 +331,7 @@ final class InviteClaimsStore {
         let lat: Double?
         let lng: Double?
         let openTime: String?      // "HH:mm:ss" for the geofence window
+        var autoCheckin: Bool = true   // event-level: register a geofence?
         let claimedAt: Date
         var id: String { guestId }
     }
@@ -339,10 +351,11 @@ final class InviteClaimsStore {
     }
 
     func add(token: String, guestId: String, nightDate: String,
-             lat: Double?, lng: Double?, openTime: String?) {
+             lat: Double?, lng: Double?, openTime: String?, autoCheckin: Bool) {
         var v = all().filter { $0.guestId != guestId }
         v.append(.init(token: token, guestId: guestId, nightDate: nightDate,
-                       lat: lat, lng: lng, openTime: openTime, claimedAt: Date()))
+                       lat: lat, lng: lng, openTime: openTime,
+                       autoCheckin: autoCheckin, claimedAt: Date()))
         if let data = try? JSONEncoder().encode(v) {
             UserDefaults.standard.set(data, forKey: key)
         }

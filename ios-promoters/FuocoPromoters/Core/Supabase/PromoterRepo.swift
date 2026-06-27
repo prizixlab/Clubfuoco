@@ -15,6 +15,7 @@ final class PromoterRepo: ObservableObject {
                 night:promoter_nights (
                     id, club_id, title, night_date, doors_at, open_time, close_time,
                     total_capacity, is_published,
+                    location_name, address, lat, lng, auto_checkin,
                     club:clubs ( id, name )
                 )
             """)
@@ -118,7 +119,7 @@ final class PromoterRepo: ObservableObject {
 
     struct NewSeries: Encodable {
         let promoterId: UUID
-        let clubId: UUID
+        let clubId: UUID?
         let title: String?
         let weekdays: [Int]
         let openTime: String?
@@ -126,6 +127,11 @@ final class PromoterRepo: ObservableObject {
         let spots: Int
         let payoutPerGuest: Decimal
         let groupVisible: Bool
+        let locationName: String?
+        let address: String?
+        let lat: Double?
+        let lng: Double?
+        let autoCheckin: Bool
     }
 
     func createSeries(_ s: NewSeries) async throws -> PromoterSeries {
@@ -135,6 +141,7 @@ final class PromoterRepo: ObservableObject {
             .select("""
                 id, club_id, title, weekdays, open_time, close_time, spots,
                 payout_per_guest, group_visible, invite_token, is_active,
+                location_name, address, lat, lng, auto_checkin,
                 club:clubs ( id, name )
             """)
             .single()
@@ -148,6 +155,7 @@ final class PromoterRepo: ObservableObject {
             .select("""
                 id, club_id, title, weekdays, open_time, close_time, spots,
                 payout_per_guest, group_visible, invite_token, is_active,
+                location_name, address, lat, lng, auto_checkin,
                 club:clubs ( id, name )
             """)
             .eq("is_active", value: true)
@@ -206,6 +214,7 @@ final class PromoterRepo: ObservableObject {
                 night:promoter_nights (
                     id, club_id, title, night_date, doors_at, open_time, close_time,
                     total_capacity, is_published,
+                    location_name, address, lat, lng, auto_checkin,
                     club:clubs ( id, name )
                 )
             """)
@@ -227,12 +236,17 @@ final class PromoterRepo: ObservableObject {
     }
 
     struct NewNight: Encodable {
-        let clubId: UUID
+        let clubId: UUID?
         let title: String?
         let nightDate: String   // yyyy-MM-dd
         let openTime: String?   // "HH:mm:ss"
         let closeTime: String?  // "HH:mm:ss"
         let totalCapacity: Int
+        let locationName: String?
+        let address: String?
+        let lat: Double?
+        let lng: Double?
+        let autoCheckin: Bool
     }
     struct NewAllocation: Encodable {
         let nightId: UUID
@@ -242,24 +256,35 @@ final class PromoterRepo: ObservableObject {
         let groupVisible: Bool
     }
 
+    /// A resolved event location — a partner club OR a custom pin.
+    struct EventLocation {
+        var clubId: UUID? = nil
+        var name: String? = nil
+        var address: String? = nil
+        var lat: Double? = nil
+        var lng: Double? = nil
+    }
+
     /// Creates one night + self-allocation per date in `dates`.
     /// Returns the first allocation (so the caller can navigate into the
     /// earliest one).
     func createSelfGuestlist(
-        clubId: UUID, title: String?, dates: [String],
+        location: EventLocation, title: String?, dates: [String],
         openTime: String?, closeTime: String?,
         spots: Int, payoutPerGuest: Decimal,
-        groupVisible: Bool, promoterId: UUID
+        groupVisible: Bool, autoCheckin: Bool, promoterId: UUID
     ) async throws -> PromoterAllocation {
         let nightPayload = dates.map {
-            NewNight(clubId: clubId, title: title, nightDate: $0,
+            NewNight(clubId: location.clubId, title: title, nightDate: $0,
                      openTime: openTime, closeTime: closeTime,
-                     totalCapacity: max(spots, 50))
+                     totalCapacity: max(spots, 50),
+                     locationName: location.name, address: location.address,
+                     lat: location.lat, lng: location.lng, autoCheckin: autoCheckin)
         }
         let nights: [PromoterNight] = try await sb.client
             .from("promoter_nights")
             .insert(nightPayload)
-            .select("id,club_id,title,night_date,doors_at,open_time,close_time,total_capacity,is_published")
+            .select("id,club_id,title,night_date,doors_at,open_time,close_time,total_capacity,is_published,location_name,address,lat,lng,auto_checkin")
             .execute()
             .value
 
@@ -278,6 +303,7 @@ final class PromoterRepo: ObservableObject {
                 night:promoter_nights (
                     id, club_id, title, night_date, doors_at, open_time, close_time,
                     total_capacity, is_published,
+                    location_name, address, lat, lng, auto_checkin,
                     club:clubs ( id, name )
                 )
             """)

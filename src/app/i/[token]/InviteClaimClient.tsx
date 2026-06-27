@@ -40,7 +40,14 @@ type Night = {
   night_date: string
   open_time: string | null
   close_time: string | null
-  club: { id: string; name: string; address: string | null; cover_image_url: string | null }
+  location_name: string | null
+  address: string | null
+  club: { id: string; name: string; address: string | null; cover_image_url: string | null } | null
+}
+
+/** Venue label: partner club name, else the custom location name. */
+function venueName(n: Night): string {
+  return n.club?.name ?? n.location_name ?? 'Location TBA'
 }
 
 type Allocation = {
@@ -139,10 +146,10 @@ export default function InviteClaimClient({
           {promoterName ? `${promoterName} invited you` : 'You\'re invited'}
         </div>
         <h1 style={{ fontFamily: 'var(--font-instrument-serif, Georgia, serif)', fontSize: 44, lineHeight: 1.05, margin: '6px 0 0' }}>
-          {night.title ?? night.club.name}
+          {night.title ?? venueName(night)}
         </h1>
         <div style={{ marginTop: 8, fontSize: 14, color: 'rgba(244,236,221,0.70)' }}>
-          {night.club.name} · {formatDate(night.night_date)}
+          {venueName(night)} · {formatDate(night.night_date)}
           {night.open_time && ` · ${shortTime(night.open_time)}`}
           {night.close_time && ` – ${shortTime(night.close_time)}`}
         </div>
@@ -243,7 +250,7 @@ function TicketView({ guestId, name, night }: { guestId: string; name: string; n
         {name}
       </div>
       <div style={{ fontSize: 13, color: 'rgba(244,236,221,0.70)' }}>
-        {night.title ?? night.club.name} · {formatDate(night.night_date)}
+        {night.title ?? venueName(night)} · {formatDate(night.night_date)}
       </div>
 
       <div style={{ margin: '28px auto 16px', width: 220, height: 220, padding: 12, background: '#FFF6E5', borderRadius: 16 }}>

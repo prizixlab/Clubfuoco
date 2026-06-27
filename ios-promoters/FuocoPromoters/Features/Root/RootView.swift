@@ -66,6 +66,8 @@ struct GuestlistTabRoot: View {
     @State private var opening = false
 
     var body: some View {
+        VStack(spacing: 0) {
+        FuocoHeader(initials: headerInitials)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top) {
@@ -73,7 +75,7 @@ struct GuestlistTabRoot: View {
                         Text("Guestlist")
                             .font(.cfSerif(40))
                             .foregroundStyle(Theme.parchment)
-                        Text("Pick a night, or create a new one.")
+                        Text("Pick a night, or create a new one")
                             .font(.cfSans(13))
                             .foregroundStyle(Theme.parchmentDim)
                     }
@@ -83,16 +85,17 @@ struct GuestlistTabRoot: View {
                         showCreate = true
                     } label: {
                         Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(Theme.emberCream)
-                            .frame(width: 44, height: 44)
+                            .frame(width: 52, height: 52)
                             .background(Circle().fill(Theme.ember))
                     }
                 }
+                .padding(.top, 8)
 
                 if !model.series.isEmpty {
-                    Kicker("Permanent links").padding(.top, 4)
-                    VStack(spacing: 10) {
+                    Kicker("Permanent links", color: Theme.parchmentDim).padding(.top, 8)
+                    VStack(spacing: 14) {
                         ForEach(model.series) { s in
                             Button { Haptics.tap(); Task { await openSeries(s) } } label: {
                                 SeriesRow(series: s)
@@ -101,7 +104,13 @@ struct GuestlistTabRoot: View {
                         }
                     }
                     if !model.allocations.isEmpty {
-                        Kicker("One-off nights").padding(.top, 12)
+                        HStack {
+                            Kicker("One-off nights", color: Theme.parchmentDim)
+                            Spacer()
+                            Text("Slide to manage")
+                                .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                        }
+                        .padding(.top, 16)
                     }
                 }
 
@@ -200,6 +209,15 @@ struct GuestlistTabRoot: View {
         .navigationDestination(item: $seriesOccurrence) { occ in
             GuestlistView(allocation: occ.allocation, shareTokenOverride: occ.token)
         }
+        }
+        .background(Theme.night.ignoresSafeArea())
+    }
+
+    private var headerInitials: String {
+        if case .signedIn(let p) = auth.state {
+            return String(p.displayName.prefix(1)).uppercased()
+        }
+        return ""
     }
 
     private func openSeries(_ s: PromoterSeries) async {
@@ -232,34 +250,38 @@ struct SeriesOccurrence: Identifiable, Hashable {
 private struct SeriesRow: View {
     let series: PromoterSeries
     var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12).fill(Theme.ember.opacity(0.15))
-                    .frame(width: 48, height: 48)
-                Image(systemName: "repeat")
-                    .font(.system(size: 18))
-                    .foregroundStyle(Theme.ember)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12).fill(Theme.ember.opacity(0.15))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "repeat")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(Theme.ember)
+                }
+                Spacer()
+                Text("ACTIVE")
+                    .font(.cfMono(9, weight: .medium)).kerning(1.5)
+                    .foregroundStyle(Theme.emberCream)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Capsule().fill(Theme.ember))
             }
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(series.displayTitle)
-                    .font(.cfSerif(20))
+                    .font(.cfSerif(24))
                     .foregroundStyle(Theme.parchment)
                 HStack(spacing: 6) {
-                    Text(series.weekdayLabel)
-                        .font(.cfMono(10, weight: .medium)).kerning(1)
+                    Image(systemName: "flame.fill").font(.system(size: 9)).foregroundStyle(Theme.ember)
+                    Text(series.weekdayLabel.uppercased() + " · PERMANENT")
+                        .font(.cfMono(10, weight: .medium)).kerning(1.2)
                         .foregroundStyle(Theme.flame)
-                    Text("· permanent")
-                        .font(.cfMono(10)).foregroundStyle(Theme.parchmentDim)
                 }
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13))
-                .foregroundStyle(Theme.parchmentDim)
         }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.nightLift))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 18).fill(Theme.nightLift))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.hairline))
         .contentShape(Rectangle())
     }
 }

@@ -37,6 +37,7 @@ export async function GET(
         id,
         night:promoter_nights (
           id, title, night_date, open_time, close_time,
+          location_name, address,
           club:clubs ( id, name, address )
         )
       )
@@ -51,8 +52,8 @@ export async function GET(
     return NextResponse.json({ error: 'Invite not found' }, { status: 404 })
   }
   const club = Array.isArray(nightRow.club) ? nightRow.club[0] : nightRow.club
-  const clubName = club?.name ?? 'Club Fuoco'
-  const address = club?.address ?? 'Barcelona'
+  const clubName = club?.name ?? nightRow.location_name ?? 'Club Fuoco'
+  const address = club?.address ?? nightRow.address ?? 'Barcelona'
 
   const eventDate = new Date(nightRow.night_date + 'T00:00:00')
   const dateStr = eventDate.toLocaleDateString('en-GB', {

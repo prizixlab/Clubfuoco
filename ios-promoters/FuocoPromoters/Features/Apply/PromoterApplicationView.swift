@@ -69,35 +69,63 @@ struct PromoterApplicationView: View {
     // ── Pending state ─────────────────────────────────────────────────────────
 
     private var pending: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 20) {
             Spacer()
-            Image(systemName: "hourglass")
-                .font(.system(size: 40))
-                .foregroundStyle(Theme.flame)
-            Text("Application received")
+            ZStack {
+                Circle()
+                    .fill(RadialGradient(colors: [Theme.ember.opacity(0.25), .clear],
+                                         center: .center, startRadius: 4, endRadius: 90))
+                    .frame(width: 180, height: 180)
+                Circle().stroke(Theme.ember.opacity(0.4), lineWidth: 1).frame(width: 110, height: 110)
+                Image(systemName: "hourglass")
+                    .font(.system(size: 44, weight: .light))
+                    .foregroundStyle(Theme.flame)
+            }
+
+            Text("Application received.")
                 .font(.cfSerif(34))
                 .foregroundStyle(Theme.parchment)
-            Text("We're reviewing it. You'll get access here the moment you're approved.")
+            Text("We're reviewing it. You'll get access the moment you're approved — we onboard every promoter by hand.")
                 .font(.cfSans(14))
                 .foregroundStyle(Theme.parchmentDim)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                .lineSpacing(3)
+                .padding(.horizontal, 36)
 
             Button {
                 Haptics.tap()
                 Task { await auth.refresh() }
             } label: {
                 Text("Check status")
-                    .font(.cfSans(14, weight: .semibold))
+                    .font(.cfMono(12, weight: .medium)).kerning(2)
                     .foregroundStyle(Theme.parchment)
-                    .padding(.horizontal, 24).padding(.vertical, 12)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
                     .overlay(Capsule().stroke(Theme.parchmentFaint))
             }
-            .padding(.top, 8)
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+
+            HStack(spacing: 10) {
+                infoChip(icon: "hand.raised", "Curated by hand")
+                infoChip(icon: "clock", "~48h review")
+            }
+            .padding(.top, 4)
+
             Spacer()
             signOutButton
         }
         .padding(24)
+    }
+
+    private func infoChip(icon: String, _ text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon).font(.system(size: 11))
+            Text(text.uppercased()).font(.cfMono(9)).kerning(1.2)
+        }
+        .foregroundStyle(Theme.parchmentDim)
+        .padding(.horizontal, 14).padding(.vertical, 9)
+        .background(Capsule().fill(Theme.nightLift))
     }
 
     // ── Application form ──────────────────────────────────────────────────────

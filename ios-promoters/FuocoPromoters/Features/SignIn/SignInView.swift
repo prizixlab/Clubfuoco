@@ -13,16 +13,14 @@ struct SignInView: View {
             VStack(spacing: 32) {
                 Spacer()
 
-                VStack(spacing: 14) {
+                VStack(spacing: 16) {
                     Text("Fuoco")
-                        .font(.cfSerif(64))
+                        .font(.cfSerif(52))
                         .foregroundStyle(Theme.parchment)
 
-                    HStack {
-                        Capsule().stroke(Theme.flame.opacity(0.6), lineWidth: 1)
-                            .frame(width: 168, height: 32)
-                            .overlay(Kicker("For Promoters", color: Theme.flame))
-                    }
+                    Capsule().stroke(Theme.ember.opacity(0.7), lineWidth: 1)
+                        .frame(width: 176, height: 34)
+                        .overlay(Kicker("For Promoters", color: Theme.ember))
                 }
 
                 VStack(alignment: .leading, spacing: 18) {
@@ -51,7 +49,7 @@ struct SignInView: View {
                 }
                 .padding(.horizontal, 28)
 
-                EmberPillButton(title: "Sign in", loading: submitting) {
+                EmberPillButton(title: "Sign in", loading: submitting, trailingIcon: "chevron.right") {
                     submit()
                 }
                 .padding(.horizontal, 28)

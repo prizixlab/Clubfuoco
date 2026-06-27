@@ -13,7 +13,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export interface PromoterSeries {
   id: string
   promoter_id: string
-  club_id: string
+  club_id: string | null
   title: string | null
   weekdays: number[] // 1=Sun … 7=Sat (Swift Calendar.weekday convention)
   open_time: string | null // "HH:MM:SS"
@@ -23,6 +23,11 @@ export interface PromoterSeries {
   group_visible: boolean
   invite_token: string
   is_active: boolean
+  location_name: string | null
+  address: string | null
+  lat: number | null
+  lng: number | null
+  auto_checkin: boolean
 }
 
 const MADRID = 'Europe/Madrid'
@@ -126,6 +131,11 @@ export async function ensureOccurrence(
       close_time: series.close_time,
       total_capacity: Math.max(series.spots, 50),
       is_published: true,
+      location_name: series.location_name,
+      address: series.address,
+      lat: series.lat,
+      lng: series.lng,
+      auto_checkin: series.auto_checkin,
     })
     .select('id')
     .single()

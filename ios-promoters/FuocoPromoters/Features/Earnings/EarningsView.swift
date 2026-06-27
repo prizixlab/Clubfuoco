@@ -24,6 +24,21 @@ final class EarningsModel: ObservableObject {
         allocations.reduce(Decimal(0)) { $0 + $1.earnings }
     }
 
+    var lastMonthTotal: Decimal {
+        let last = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        let prefix = Self.monthPrefix.string(from: last)
+        return allocations.filter { ($0.night?.nightDate ?? "").hasPrefix(prefix) }
+            .reduce(Decimal(0)) { $0 + $1.earnings }
+    }
+
+    /// Month-over-month % change, nil when there's no prior-month baseline.
+    var deltaPercent: Int? {
+        let prev = lastMonthTotal
+        guard prev > 0 else { return nil }
+        let change = (thisMonthTotal - prev) / prev * 100
+        return NSDecimalNumber(decimal: change).intValue
+    }
+
     static let monthPrefix: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM"; return f
     }()
@@ -36,18 +51,29 @@ struct EarningsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Text("Earnings.")
-                    .font(.cfSerif(48))
+                    .font(.cfSerif(52))
                     .foregroundStyle(Theme.parchment)
+                    .padding(.top, 4)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Kicker("This month")
+                VStack(alignment: .leading, spacing: 14) {
+                    Kicker("This month", color: Theme.parchmentDim)
                     Text(format(model.thisMonthTotal))
-                        .font(.cfSerif(40))
+                        .font(.cfSerif(56))
                         .foregroundStyle(Theme.ember)
+                    if let d = model.deltaPercent {
+                        HStack(spacing: 6) {
+                            Image(systemName: d >= 0 ? "arrow.up.right" : "arrow.down.right")
+                                .font(.system(size: 11, weight: .bold))
+                            Text("\(d >= 0 ? "+" : "")\(d)% FROM LAST MONTH")
+                                .font(.cfMono(10, weight: .medium)).kerning(1)
+                        }
+                        .foregroundStyle(Theme.flame)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(20)
+                .padding(22)
                 .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
+                .overlay(RoundedRectangle(cornerRadius: Theme.radiusCard).stroke(Theme.hairline))
 
                 HStack(spacing: 16) {
                     miniStat("Total Nights", "\(model.nightsCount)")
@@ -55,7 +81,13 @@ struct EarningsView: View {
                              : format(model.thisMonthTotal / Decimal(model.nightsCount)))
                 }
 
-                Kicker("Recent activity").padding(.top, 8)
+                HStack {
+                    Kicker("Recent activity", color: Theme.parchmentDim)
+                    Spacer()
+                    Text("VIEW ALL").font(.cfMono(10, weight: .medium)).kerning(1.5)
+                        .foregroundStyle(Theme.ember)
+                }
+                .padding(.top, 8)
 
                 if model.loading {
                     ProgressView().tint(Theme.parchment).frame(maxWidth: .infinity)
@@ -82,27 +114,26 @@ struct EarningsView: View {
 
     private func row(_ a: PromoterAllocation) -> some View {
         let total = a.earnings
-        return HStack {
+        let paid = a.payoutStatus == "paid"
+        return HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(a.night?.club?.name ?? a.night?.displayTitle ?? "Night")
-                    .font(.cfSerif(18)).foregroundStyle(Theme.parchment)
+                    .font(.cfSerif(24)).foregroundStyle(Theme.parchment)
                 Text("\(a.guestCount) / \(a.spots) guests")
                     .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
             }
             Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
+            VStack(alignment: .trailing, spacing: 6) {
                 Text(format(total))
-                    .font(.cfSerif(20)).foregroundStyle(Theme.flame)
-                Capsule()
-                    .fill(a.payoutStatus == "paid" ? Theme.gold.opacity(0.25) : Theme.parchment.opacity(0.08))
-                    .frame(width: 70, height: 22)
-                    .overlay(Text(a.payoutStatus.uppercased())
-                        .font(.cfMono(9, weight: .medium))
-                        .kerning(1.5)
-                        .foregroundStyle(a.payoutStatus == "paid" ? Theme.gold : Theme.parchmentDim))
+                    .font(.cfSerif(26)).foregroundStyle(Theme.ember)
+                Text(a.payoutStatus.uppercased())
+                    .font(.cfMono(9, weight: .medium)).kerning(1.5)
+                    .foregroundStyle(paid ? Theme.gold : Theme.parchmentDim)
+                    .padding(.horizontal, 12).padding(.vertical, 5)
+                    .overlay(Capsule().stroke(paid ? Theme.gold.opacity(0.6) : Theme.parchmentFaint))
             }
         }
-        .padding(.vertical, 14)
+        .padding(.vertical, 18)
     }
 
     private func miniStat(_ label: String, _ value: String) -> some View {

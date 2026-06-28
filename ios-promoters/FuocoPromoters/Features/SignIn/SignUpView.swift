@@ -3,16 +3,17 @@ import SwiftUI
 struct SignUpView: View {
     @EnvironmentObject var auth: AuthStore
     @Environment(\.dismiss) private var dismiss
-    @FocusState private var focused: Bool
+    @FocusState private var focused: Field?
+    enum Field { case name, email, password, instagram, clubs, bio, code }
 
-    enum Step { case details, otp }
-    @State private var step: Step = .details
+    enum Step: Int, CaseIterable { case account, pitch, otp }
+    @State private var step: Step = .account
 
     // Account
     @State private var fullName = ""
     @State private var email = ""
     @State private var password = ""
-    // Pitch (promoter application)
+    // Pitch
     @State private var instagram = ""
     @State private var clubs = ""
     @State private var experience = ""
@@ -27,78 +28,158 @@ struct SignUpView: View {
     var body: some View {
         ZStack {
             Theme.night.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    header
-                    if step == .details { detailsForm } else { otpForm }
-                    if let error {
-                        Text(error).font(.cfSans(13)).foregroundStyle(Theme.wine)
+            VStack(spacing: 0) {
+                topBar
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        header
+                        switch step {
+                        case .account: accountPage
+                        case .pitch:   pitchPage
+                        case .otp:     otpPage
+                        }
+                        if let error {
+                            Text(error).font(.cfSans(13)).foregroundStyle(Theme.wine)
+                        }
+                        Spacer(minLength: 40)
                     }
-                    Button("Already have an account? Sign in") { dismiss() }
-                        .font(.cfMono(11)).kerning(1.2)
-                        .foregroundStyle(Theme.parchmentDim)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 8)
-                    Spacer(minLength: 40)
+                    .padding(24)
                 }
-                .padding(24)
             }
         }
         .scrollDismissesKeyboard(.interactively)
         .toolbar { ToolbarItemGroup(placement: .keyboard) {
-            Button("Done") { focused = false }.foregroundStyle(Theme.ember); Spacer() } }
+            Button("Done") { focused = nil }.foregroundStyle(Theme.ember); Spacer() } }
+    }
+
+    // MARK: Chrome
+
+    private var topBar: some View {
+        HStack {
+            Button { back() } label: {
+                Image(systemName: "chevron.left").foregroundStyle(Theme.parchment)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(Theme.nightLift))
+            }
+            Spacer()
+            // Step dots
+            HStack(spacing: 6) {
+                ForEach(Step.allCases, id: \.rawValue) { s in
+                    Circle()
+                        .fill(s.rawValue <= step.rawValue ? Theme.ember : Theme.parchmentFaint)
+                        .frame(width: 7, height: 7)
+                }
+            }
+            Spacer()
+            // Balance the back button
+            Color.clear.frame(width: 40, height: 40)
+        }
+        .padding(.horizontal, 16).padding(.top, 8)
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Kicker("Fuoco for Promoters", color: Theme.ember)
-            Text(step == .details ? "Create your account" : "Verify your email")
-                .font(.cfSerif(38))
-                .foregroundStyle(Theme.parchment)
-            Text(step == .details
-                 ? "Tell us who you are and about your nights — we onboard promoters by hand."
-                 : "Enter the 6-digit code we just emailed to \(email).")
-                .font(.cfSans(14)).foregroundStyle(Theme.parchmentDim)
+            Kicker("Step \(step.rawValue + 1) of 3", color: Theme.flame)
+            Text(title).font(.cfSerif(38)).foregroundStyle(Theme.parchment)
+            Text(subtitle).font(.cfSans(14)).foregroundStyle(Theme.parchmentDim)
         }
     }
 
-    // MARK: Details
+    private var title: String {
+        switch step {
+        case .account: return "Create your account"
+        case .pitch:   return "About your nights"
+        case .otp:     return "Verify your email"
+        }
+    }
+    private var subtitle: String {
+        switch step {
+        case .account: return "Start with the basics."
+        case .pitch:   return "We onboard promoters by hand — tell us who you are."
+        case .otp:     return "Enter the 6-digit code we emailed to \(email)."
+        }
+    }
 
-    private var detailsForm: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            field("Full name", text: $fullName, placeholder: "Your name")
-            field("Email", text: $email, placeholder: "you@email.com", lower: true, email: true)
+    // MARK: Pages
+
+    private var accountPage: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            field("Full name", text: $fullName, placeholder: "Your name", focus: .name)
+            field("Email", text: $email, placeholder: "you@email.com", focus: .email, lower: true, email: true)
             secureField("Password", text: $password)
+            EmberPillButton(title: "Continue", trailingIcon: "chevron.right") { continueFromAccount() }
+                .padding(.top, 4)
+            signInLink
+        }
+    }
 
-            Divider().background(Theme.hairline).padding(.vertical, 4)
-            Kicker("About you")
-            field("Instagram (required)", text: $instagram, placeholder: "@yourhandle", lower: true)
+    private var pitchPage: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            field("Instagram (required)", text: $instagram, placeholder: "@yourhandle",
+                  focus: .instagram, lower: true)
             Text("We verify promoters by Instagram — 5,000+ followers required.")
                 .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
-            field("Clubs / scenes you work", text: $clubs, placeholder: "e.g. Opium, techno nights")
+            field("Clubs / scenes you work", text: $clubs, placeholder: "e.g. Opium, techno nights", focus: .clubs)
             VStack(alignment: .leading, spacing: 6) {
                 Kicker("A bit about you (optional)")
                 TextField("", text: $experience,
                           prompt: Text("Crowd size, who you work with…").foregroundStyle(Theme.parchmentDim),
                           axis: .vertical)
                     .lineLimit(2...4)
-                    .font(.cfSans(15)).foregroundStyle(Theme.parchment).focused($focused)
+                    .font(.cfSans(15)).foregroundStyle(Theme.parchment).focused($focused, equals: .bio)
                     .padding(12)
                     .background(RoundedRectangle(cornerRadius: Theme.radiusField).fill(Theme.parchment.opacity(0.06)))
                     .overlay(RoundedRectangle(cornerRadius: Theme.radiusField).stroke(Theme.hairline))
             }
-
             EmberPillButton(title: "Create account", loading: submitting) { Task { await createAccount() } }
                 .padding(.top, 4)
         }
     }
 
-    private func createAccount() async {
+    private var otpPage: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            TextField("", text: $code, prompt: Text("123456").foregroundStyle(Theme.parchmentFaint))
+                .keyboardType(.numberPad)
+                .font(.cfSerif(52)).foregroundStyle(Theme.parchment).kerning(12)
+                .multilineTextAlignment(.center)
+                .focused($focused, equals: .code)
+                .padding(.vertical, 18).frame(maxWidth: .infinity)
+                .overlay(alignment: .bottom) { Rectangle().fill(Theme.parchmentFaint).frame(height: 1) }
+            EmberPillButton(title: "Verify & apply", loading: submitting) { Task { await verify() } }
+            Button("Resend code") { Task { try? await auth.resendSignupOTP(email: email) } }
+                .font(.cfMono(11)).kerning(1.2).foregroundStyle(Theme.ember)
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var signInLink: some View {
+        Button("Already have an account? Sign in") { dismiss() }
+            .font(.cfMono(11)).kerning(1.2).foregroundStyle(Theme.parchmentDim)
+            .frame(maxWidth: .infinity).padding(.top, 8)
+    }
+
+    // MARK: Navigation / actions
+
+    private func back() {
+        error = nil
+        switch step {
+        case .account: dismiss()
+        case .pitch:   withAnimation { step = .account }
+        case .otp:     withAnimation { step = .pitch }
+        }
+    }
+
+    private func continueFromAccount() {
         let name = fullName.trimmingCharacters(in: .whitespaces)
         let mail = email.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty, !mail.isEmpty, password.count >= 6 else {
             error = "Enter your name, email, and a password (6+ characters)."; return
         }
+        error = nil
+        withAnimation { step = .pitch }
+    }
+
+    private func createAccount() async {
         guard !instagram.trimmingCharacters(in: .whitespaces).isEmpty else {
             error = "Add your Instagram handle — we verify promoters by Instagram."; return
         }
@@ -107,9 +188,11 @@ struct SignUpView: View {
         }
         submitting = true; error = nil
         do {
-            let needsOTP = try await auth.signUp(email: mail, password: password, fullName: name)
+            let needsOTP = try await auth.signUp(
+                email: email.trimmingCharacters(in: .whitespaces), password: password,
+                fullName: fullName.trimmingCharacters(in: .whitespaces))
             Haptics.success()
-            if needsOTP { step = .otp } else { await fileApplication() }
+            if needsOTP { withAnimation { step = .otp } } else { await finalize() }
         } catch AuthStore.SignUpError.emailTaken {
             error = "That email already has an account — sign in instead."
         } catch {
@@ -118,49 +201,23 @@ struct SignUpView: View {
         submitting = false
     }
 
-    // MARK: OTP
-
-    private var otpForm: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            TextField("", text: $code, prompt: Text("123456").foregroundStyle(Theme.parchmentFaint))
-                .keyboardType(.numberPad)
-                .font(.cfSerif(52)).foregroundStyle(Theme.parchment)
-                .kerning(12)
-                .multilineTextAlignment(.center)
-                .focused($focused)
-                .padding(.vertical, 18)
-                .frame(maxWidth: .infinity)
-                .overlay(alignment: .bottom) { Rectangle().fill(Theme.parchmentFaint).frame(height: 1) }
-
-            EmberPillButton(title: "Verify & apply", loading: submitting) { Task { await verify() } }
-
-            Button("Resend code") { Task { try? await auth.resendSignupOTP(email: email) } }
-                .font(.cfMono(11)).kerning(1.2).foregroundStyle(Theme.ember)
-                .frame(maxWidth: .infinity)
-        }
-    }
-
     private func verify() async {
         let c = code.trimmingCharacters(in: .whitespaces)
         guard c.count >= 6 else { error = "Enter the 6-digit code."; return }
         submitting = true; error = nil
         do {
             try await auth.verifySignupOTP(email: email, code: c)
-            await fileApplication()
+            await finalize()
         } catch {
             self.error = "That code didn't work. Check your email and try again."
         }
         submitting = false
     }
 
-    /// Once the email is verified, finalize: mark this a promoter account,
-    /// generate the IG verification code, file the application. RootView then
-    /// shows the locked verification screen.
-    private func fileApplication() async {
+    /// Mark this a promoter account, generate the IG code, file the application.
+    private func finalize() async {
         _ = try? await repo.finalizePromoterSignup(
             instagram: instagram, clubs: clubs, experience: experience)
-        // Re-resolve the profile so account_kind = 'promoter' takes effect and
-        // RootView routes to verification.
         await auth.refresh()
         dismiss()
     }
@@ -169,11 +226,11 @@ struct SignUpView: View {
 
     @ViewBuilder
     private func field(_ label: String, text: Binding<String>, placeholder: String,
-                       lower: Bool = false, email: Bool = false) -> some View {
+                       focus: Field, lower: Bool = false, email: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Kicker(label)
             TextField("", text: text, prompt: Text(placeholder).foregroundStyle(Theme.parchmentDim))
-                .font(.cfSans(16)).foregroundStyle(Theme.parchment).focused($focused)
+                .font(.cfSans(16)).foregroundStyle(Theme.parchment).focused($focused, equals: focus)
                 .textInputAutocapitalization(lower ? .never : .words)
                 .autocorrectionDisabled(lower)
                 .keyboardType(email ? .emailAddress : .default)
@@ -186,7 +243,7 @@ struct SignUpView: View {
         VStack(alignment: .leading, spacing: 6) {
             Kicker(label)
             SecureField("", text: text, prompt: Text("6+ characters").foregroundStyle(Theme.parchmentDim))
-                .font(.cfSans(16)).foregroundStyle(Theme.parchment).focused($focused)
+                .font(.cfSans(16)).foregroundStyle(Theme.parchment).focused($focused, equals: .password)
                 .textContentType(.newPassword)
                 .padding(.vertical, 8)
                 .overlay(alignment: .bottom) { Rectangle().fill(Theme.parchmentFaint).frame(height: 1) }

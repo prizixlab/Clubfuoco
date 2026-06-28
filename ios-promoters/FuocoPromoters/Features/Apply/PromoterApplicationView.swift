@@ -61,8 +61,11 @@ struct PromoterApplicationView: View {
                     .foregroundStyle(approved ? Theme.gold : Theme.flame)
             }
             Text(title).font(.cfSerif(30)).foregroundStyle(Theme.parchment)
+                .multilineTextAlignment(.center)
             Text(body).font(.cfSans(14)).foregroundStyle(Theme.parchmentDim)
-                .multilineTextAlignment(.center).lineSpacing(3).padding(.horizontal, 32)
+                .multilineTextAlignment(.center).lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 24)
             Spacer()
             EmberPillButton(title: approved ? "Let's go" : "Got it") {
                 showStatusSheet = false
@@ -73,7 +76,7 @@ struct PromoterApplicationView: View {
         .padding(24)
         .frame(maxWidth: .infinity)
         .background(Theme.night)
-        .presentationDetents([.medium])
+        .presentationDetents([.height(440)])
         .presentationBackground(Theme.night)
     }
 

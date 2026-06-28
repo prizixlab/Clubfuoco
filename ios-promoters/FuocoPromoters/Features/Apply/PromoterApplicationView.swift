@@ -22,7 +22,7 @@ struct PromoterApplicationView: View {
     @StateObject private var model = ApplicationModel()
 
     /// The Instagram account promoters DM their code to.
-    private static let fuocoIG = "@fuoco.promoters"
+    private static let fuocoIG = "@club_fuoco"
 
     var body: some View {
         ZStack {

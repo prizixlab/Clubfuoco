@@ -5,6 +5,7 @@ struct SignInView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var submitting = false
+    @State private var showSignUp = false
 
     var body: some View {
         ZStack {
@@ -64,12 +65,19 @@ struct SignInView: View {
 
                 Spacer()
 
-                Text("Not a promoter? Apply →")
-                    .font(.cfMono(11))
-                    .kerning(1.5)
-                    .foregroundStyle(Theme.parchmentDim)
-                    .padding(.bottom, 12)
+                Button {
+                    Haptics.tap(); showSignUp = true
+                } label: {
+                    Text("Not a promoter? Apply →")
+                        .font(.cfMono(11))
+                        .kerning(1.5)
+                        .foregroundStyle(Theme.ember)
+                }
+                .padding(.bottom, 12)
             }
+        }
+        .sheet(isPresented: $showSignUp) {
+            SignUpView().presentationBackground(Theme.night)
         }
     }
 

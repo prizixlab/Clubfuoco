@@ -15,8 +15,22 @@ struct SignUpView: View {
     @State private var password = ""
     // Pitch
     @State private var instagram = ""
-    @State private var clubs = ""
     @State private var experience = ""
+    // Clubs (multi-select + Other)
+    @State private var allClubs: [Club] = []
+    @State private var selectedClubIds: Set<UUID> = []
+    @State private var otherClubs = ""
+    @State private var showClubPicker = false
+
+    private var selectedClubNames: [String] {
+        allClubs.filter { selectedClubIds.contains($0.id) }.map(\.name)
+    }
+    private var clubsValue: String {
+        var parts = selectedClubNames
+        let other = otherClubs.trimmingCharacters(in: .whitespaces)
+        if !other.isEmpty { parts.append(other) }
+        return parts.joined(separator: ", ")
+    }
     // OTP
     @State private var code = ""
 
@@ -50,6 +64,11 @@ struct SignUpView: View {
         .scrollDismissesKeyboard(.interactively)
         .toolbar { ToolbarItemGroup(placement: .keyboard) {
             Button("Done") { focused = nil }.foregroundStyle(Theme.ember); Spacer() } }
+        .task { if allClubs.isEmpty { allClubs = (try? await repo.barcelonaClubs()) ?? [] } }
+        .sheet(isPresented: $showClubPicker) {
+            ClubMultiSelectSheet(clubs: allClubs, selected: $selectedClubIds, other: $otherClubs)
+                .presentationBackground(Theme.night)
+        }
     }
 
     // MARK: Chrome
@@ -119,7 +138,24 @@ struct SignUpView: View {
                   focus: .instagram, lower: true)
             Text("We verify promoters by Instagram — 5,000+ followers required.")
                 .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
-            field("Clubs / scenes you work", text: $clubs, placeholder: "e.g. Opium, techno nights", focus: .clubs)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Kicker("Clubs / scenes you work")
+                Button {
+                    Haptics.tap(); focused = nil; showClubPicker = true
+                } label: {
+                    HStack {
+                        Text(clubsValue.isEmpty ? "Select clubs" : clubsValue)
+                            .font(.cfSans(16))
+                            .foregroundStyle(clubsValue.isEmpty ? Theme.parchmentDim : Theme.parchment)
+                            .lineLimit(2).multilineTextAlignment(.leading)
+                        Spacer()
+                        Image(systemName: "chevron.down").font(.system(size: 13)).foregroundStyle(Theme.parchmentDim)
+                    }
+                    .padding(.vertical, 10)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Theme.parchmentFaint).frame(height: 1) }
+                }
+            }
             VStack(alignment: .leading, spacing: 6) {
                 Kicker("A bit about you (optional)")
                 TextField("", text: $experience,
@@ -183,8 +219,8 @@ struct SignUpView: View {
         guard !instagram.trimmingCharacters(in: .whitespaces).isEmpty else {
             error = "Add your Instagram handle — we verify promoters by Instagram."; return
         }
-        guard !clubs.trimmingCharacters(in: .whitespaces).isEmpty else {
-            error = "Tell us which clubs or scenes you work."; return
+        guard !clubsValue.isEmpty else {
+            error = "Select at least one club, or add your own under Other."; return
         }
         submitting = true; error = nil
         do {

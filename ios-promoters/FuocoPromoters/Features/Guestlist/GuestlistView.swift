@@ -40,6 +40,14 @@ final class GuestlistModel: ObservableObject {
         Haptics.success()
     }
 
+    func removeGuest(_ g: PromoterGuest) async {
+        do {
+            try await repo.deleteGuest(guestId: g.id)
+            guests.removeAll { $0.id == g.id }
+            Haptics.success()
+        } catch { Haptics.error() }
+    }
+
     /// Silent poll — same data load, no spinner; used by the 15s refresh loop.
     /// Detects newly-arrived guests vs. the previous snapshot so the view can
     /// fire a haptic when an attendee crosses the geofence.
@@ -99,6 +107,7 @@ struct GuestlistView: View {
     @State private var showAdd = false
     @State private var confirmDelete = false
     @State private var deleting = false
+    @State private var pendingRemove: PromoterGuest?
     /// For series occurrences: the permanent series token to show in the share
     /// card instead of this week's per-night allocation token.
     let shareTokenOverride: String?
@@ -148,7 +157,17 @@ struct GuestlistView: View {
                     } else {
                         VStack(spacing: 0) {
                             ForEach(model.filtered) { g in
-                                guestRow(g).onTapGesture { Task { await model.toggle(g) } }
+                                guestRow(g)
+                                    .onTapGesture { Task { await model.toggle(g) } }
+                                    .contextMenu {
+                                        Button { Task { await model.toggle(g) } } label: {
+                                            Label(g.isCheckedIn ? "Mark not arrived" : "Mark arrived",
+                                                  systemImage: g.isCheckedIn ? "xmark.circle" : "checkmark.circle")
+                                        }
+                                        Button(role: .destructive) { pendingRemove = g } label: {
+                                            Label("Remove from list", systemImage: "trash")
+                                        }
+                                    }
                                 Divider().background(Theme.hairline)
                             }
                         }
@@ -213,6 +232,17 @@ struct GuestlistView: View {
             }
             .presentationDetents([.fraction(0.55)])
             .presentationBackground(Theme.nightLift)
+        }
+        .alert("Remove \(pendingRemove?.fullName ?? "guest")?",
+               isPresented: Binding(get: { pendingRemove != nil },
+                                    set: { if !$0 { pendingRemove = nil } })) {
+            Button("Cancel", role: .cancel) { pendingRemove = nil }
+            Button("Remove", role: .destructive) {
+                if let g = pendingRemove { Task { await model.removeGuest(g) } }
+                pendingRemove = nil
+            }
+        } message: {
+            Text("They'll be taken off this guestlist. This can't be undone.")
         }
         .alert("Cancel this guestlist?", isPresented: $confirmDelete) {
             Button("Keep it", role: .cancel) {}

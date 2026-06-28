@@ -193,13 +193,10 @@ struct BookingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var list: some View {
-        VStack(spacing: 0) {
-            topTabSlider
-            switch tab {
-            case .tickets: ticketsList
-            case .reviews: reviewsList
-            }
+    @ViewBuilder private var list: some View {
+        switch tab {
+        case .tickets: ticketsList
+        case .reviews: reviewsList
         }
     }
 
@@ -243,6 +240,7 @@ struct BookingsView: View {
     private var ticketsList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                topTabSlider
                 if !model.tonight.isEmpty {
                     section(locale.t("bookings.tonight"), items: model.tonight, tonight: true)
                 }
@@ -273,9 +271,11 @@ struct BookingsView: View {
     @ViewBuilder private var reviewsList: some View {
         if model.pendingReviews.isEmpty {
             VStack(spacing: 8) {
+                topTabSlider
                 Image(systemName: "star.bubble")
                     .font(.system(size: 36))
                     .foregroundStyle(Theme.sand)
+                    .padding(.top, 40)
                 Text("No reviews waiting")
                     .font(.cfSans(14))
                     .foregroundStyle(Theme.stone)
@@ -284,9 +284,9 @@ struct BookingsView: View {
                     .foregroundStyle(Theme.fadedSand)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
+                Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.top, 60)
         } else {
             List {
                 Section {

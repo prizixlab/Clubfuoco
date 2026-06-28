@@ -253,7 +253,7 @@ struct SignUpView: View {
     /// Mark this a promoter account, generate the IG code, file the application.
     private func finalize() async {
         _ = try? await repo.finalizePromoterSignup(
-            instagram: instagram, clubs: clubs, experience: experience)
+            instagram: instagram, clubs: clubsValue, experience: experience)
         await auth.refresh()
         dismiss()
     }

@@ -12,6 +12,7 @@ struct StaffLinksCard: View {
     @State private var adding = false
     @State private var newName = ""
     @State private var shareURL: ShareURL?
+    @State private var blockedRemoval = false
 
     private static let base = "https://clubfuoco.com/i/"
 
@@ -37,10 +38,11 @@ struct StaffLinksCard: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(model.referrals) { r in
+                        let brought = model.count(forReferral: r.id)
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(r.label).font(.cfSerif(18)).foregroundStyle(Theme.parchment)
-                                Text("\(model.count(forReferral: r.id)) brought")
+                                Text("\(brought) brought")
                                     .font(.cfMono(10)).kerning(1).foregroundStyle(Theme.flame)
                             }
                             Spacer()
@@ -60,6 +62,19 @@ struct StaffLinksCard: View {
                                     .foregroundStyle(Theme.emberCream)
                                     .frame(width: 30, height: 30)
                                     .background(Circle().fill(Theme.ember))
+                            }
+                            // Remove — only allowed if they've brought nobody.
+                            Button {
+                                if brought == 0 {
+                                    Task { await model.removeReferral(r) }
+                                } else {
+                                    Haptics.error(); blockedRemoval = true
+                                }
+                            } label: {
+                                Image(systemName: "trash").font(.system(size: 13))
+                                    .foregroundStyle(brought == 0 ? Theme.wine : Theme.parchmentFaint)
+                                    .frame(width: 30, height: 30)
+                                    .background(Circle().stroke(Theme.parchmentFaint))
                             }
                         }
                         .padding(.vertical, 12)
@@ -85,6 +100,11 @@ struct StaffLinksCard: View {
         .sheet(item: $shareURL) { wrapped in
             ShareSheet(items: ["Your Fuoco guestlist link:", wrapped.url])
                 .presentationDetents([.medium])
+        }
+        .alert("Can't remove this link", isPresented: $blockedRemoval) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("For fairness, we keep every staff link that has brought guests so their work stays tracked. You can only remove links that brought nobody.")
         }
     }
 }

@@ -34,6 +34,12 @@ final class GuestlistModel: ObservableObject {
         }
     }
 
+    func removeReferral(_ r: PromoterReferral) async {
+        try? await repo.deleteReferral(id: r.id)
+        referrals.removeAll { $0.id == r.id }
+        Haptics.success()
+    }
+
     /// Silent poll — same data load, no spinner; used by the 15s refresh loop.
     /// Detects newly-arrived guests vs. the previous snapshot so the view can
     /// fire a haptic when an attendee crosses the geofence.

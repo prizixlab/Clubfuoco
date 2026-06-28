@@ -72,11 +72,10 @@ struct BookingsView: View {
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded:
-                if model.isEmpty {
-                    emptyState
-                } else {
-                    list
-                }
+                // Always render the list — it contains the promoter-invite
+                // ("Guestlists") section, which loads independently of bookings.
+                // A user whose only tickets are invites must still see them.
+                list
             }
         }
         .background(Theme.cream, ignoresSafeAreaEdges: .all)

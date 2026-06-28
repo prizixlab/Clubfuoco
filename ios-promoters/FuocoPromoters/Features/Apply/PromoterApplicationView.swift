@@ -66,17 +66,18 @@ struct PromoterApplicationView: View {
                 .multilineTextAlignment(.center).lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 24)
-            Spacer()
+            Spacer(minLength: 24)
             EmberPillButton(title: approved ? "Let's go" : "Got it") {
                 showStatusSheet = false
                 if approved { Task { await auth.refresh() } }   // RootView opens the app
             }
             .padding(.horizontal, 24)
+            .padding(.bottom, 24)
         }
-        .padding(24)
+        .padding(.top, 24)
         .frame(maxWidth: .infinity)
         .background(Theme.night)
-        .presentationDetents([.height(440)])
+        .presentationDetents([.height(480)])
         .presentationBackground(Theme.night)
     }
 

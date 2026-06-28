@@ -207,7 +207,7 @@ struct GuestlistTabRoot: View {
             }
         }
         .navigationDestination(item: $seriesOccurrence) { occ in
-            GuestlistView(allocation: occ.allocation, shareTokenOverride: occ.token)
+            GuestlistView(allocation: occ.allocation, shareTokenOverride: occ.token, seriesId: occ.seriesId)
         }
         }
         .background(Theme.night.ignoresSafeArea())
@@ -224,7 +224,7 @@ struct GuestlistTabRoot: View {
         opening = true
         defer { opening = false }
         if let alloc = try? await PromoterRepo().currentAllocation(forSeries: s.id) {
-            seriesOccurrence = SeriesOccurrence(allocation: alloc, token: s.inviteToken)
+            seriesOccurrence = SeriesOccurrence(allocation: alloc, token: s.inviteToken, seriesId: s.id)
         }
     }
 
@@ -244,6 +244,7 @@ struct GuestlistTabRoot: View {
 struct SeriesOccurrence: Identifiable, Hashable {
     let allocation: PromoterAllocation
     let token: String
+    let seriesId: UUID
     var id: UUID { allocation.id }
 }
 

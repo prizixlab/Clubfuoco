@@ -207,14 +207,14 @@ async function ensureAllocation(
 export async function resolveTokenToAllocation(
   sb: SupabaseClient,
   token: string
-): Promise<{ allocationId: string; seriesToken: string | null } | null> {
+): Promise<{ allocationId: string; seriesToken: string | null; referralId: string | null } | null> {
   // 1. One-off allocation token.
   const { data: oneOff } = await sb
     .from('promoter_allocations')
     .select('id')
     .eq('invite_token', token)
     .maybeSingle()
-  if (oneOff) return { allocationId: oneOff.id, seriesToken: null }
+  if (oneOff) return { allocationId: oneOff.id, seriesToken: null, referralId: null }
 
   // 2. Series token → resolve + materialize.
   const { data: series } = await sb
@@ -223,11 +223,35 @@ export async function resolveTokenToAllocation(
     .eq('invite_token', token)
     .eq('is_active', true)
     .maybeSingle()
-  if (!series) return null
+  if (series) {
+    const date = resolveOccurrenceDate(series as PromoterSeries)
+    if (!date) return null
+    const allocationId = await ensureOccurrence(sb, series as PromoterSeries, date)
+    if (!allocationId) return null
+    return { allocationId, seriesToken: token, referralId: null }
+  }
 
-  const date = resolveOccurrenceDate(series as PromoterSeries)
-  if (!date) return null
-  const allocationId = await ensureOccurrence(sb, series as PromoterSeries, date)
-  if (!allocationId) return null
-  return { allocationId, seriesToken: token }
+  // 3. Staff referral token → resolve its allocation or series, tag attribution.
+  const { data: ref } = await sb
+    .from('promoter_referrals')
+    .select('id, allocation_id, series_id')
+    .eq('token', token)
+    .maybeSingle()
+  if (!ref) return null
+
+  if (ref.allocation_id) {
+    return { allocationId: ref.allocation_id, seriesToken: null, referralId: ref.id }
+  }
+  if (ref.series_id) {
+    const { data: refSeries } = await sb
+      .from('promoter_series').select('*').eq('id', ref.series_id).eq('is_active', true).maybeSingle()
+    if (!refSeries) return null
+    const date = resolveOccurrenceDate(refSeries as PromoterSeries)
+    if (!date) return null
+    const allocationId = await ensureOccurrence(sb, refSeries as PromoterSeries, date)
+    if (!allocationId) return null
+    // Keep showing the staff token as the permanent link.
+    return { allocationId, seriesToken: token, referralId: ref.id }
+  }
+  return null
 }

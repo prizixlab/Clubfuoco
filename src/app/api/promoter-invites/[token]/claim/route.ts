@@ -70,6 +70,7 @@ export async function POST(
       plus_ones: plusOnes,
       created_via_invite: true,
       claimed_by_user: claimedByUser,
+      referral_id: resolved.referralId,   // tag the staff member who brought them
     })
     .select('id, full_name, plus_ones')
     .single()

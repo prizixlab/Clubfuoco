@@ -6,6 +6,7 @@ final class GuestlistModel: ObservableObject {
     @Published var loading = true
     @Published var query = ""
     @Published var error: String?
+    @Published var referrals: [PromoterReferral] = []
     let repo = PromoterRepo()
     let allocation: PromoterAllocation
 
@@ -16,6 +17,21 @@ final class GuestlistModel: ObservableObject {
         do { guests = try await repo.guests(allocationId: allocation.id) }
         catch { self.error = "Couldn't load guests." }
         loading = false
+    }
+
+    func loadReferrals(allocationId: UUID?, seriesId: UUID?) async {
+        referrals = (try? await repo.referrals(allocationId: allocationId, seriesId: seriesId)) ?? []
+    }
+
+    /// Headcount brought via a given staff referral (within this night's list).
+    func count(forReferral id: UUID) -> Int {
+        guests.filter { $0.referralId == id }.reduce(0) { $0 + $1.totalCount }
+    }
+
+    func addReferral(label: String, allocationId: UUID?, seriesId: UUID?) async {
+        if let r = try? await repo.createReferral(label: label, allocationId: allocationId, seriesId: seriesId) {
+            referrals.append(r); Haptics.success()
+        }
     }
 
     /// Silent poll — same data load, no spinner; used by the 15s refresh loop.
@@ -64,7 +80,7 @@ final class GuestlistModel: ObservableObject {
                     id: g.id, allocationId: g.allocationId, fullName: g.fullName,
                     plusOnes: g.plusOnes, note: g.note,
                     checkedInAt: willCheckIn ? Date() : nil,
-                    createdAt: g.createdAt)
+                    createdAt: g.createdAt, referralId: g.referralId)
             }
             Haptics.tap()
         } catch {}
@@ -80,10 +96,14 @@ struct GuestlistView: View {
     /// For series occurrences: the permanent series token to show in the share
     /// card instead of this week's per-night allocation token.
     let shareTokenOverride: String?
+    /// When this is a series occurrence, staff links attach to the series (so
+    /// they're permanent); otherwise to this allocation.
+    let seriesId: UUID?
 
-    init(allocation: PromoterAllocation, shareTokenOverride: String? = nil) {
+    init(allocation: PromoterAllocation, shareTokenOverride: String? = nil, seriesId: UUID? = nil) {
         _model = StateObject(wrappedValue: GuestlistModel(allocation: allocation))
         self.shareTokenOverride = shareTokenOverride
+        self.seriesId = seriesId
     }
 
     var body: some View {
@@ -98,6 +118,10 @@ struct GuestlistView: View {
                     }
 
                     InviteShareCard(allocation: model.allocation, tokenOverride: shareTokenOverride)
+
+                    StaffLinksCard(model: model,
+                                   allocationId: seriesId == nil ? model.allocation.id : nil,
+                                   seriesId: seriesId)
 
                     TextField("", text: $model.query,
                               prompt: Text("Search guests…").foregroundStyle(Theme.parchmentDim))
@@ -168,6 +192,7 @@ struct GuestlistView: View {
             // Initial load, then poll every 15s while visible. Cancels when
             // SwiftUI tears the view down on dismiss.
             await model.load()
+            await model.loadReferrals(allocationId: seriesId == nil ? model.allocation.id : nil, seriesId: seriesId)
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 15_000_000_000)
                 if Task.isCancelled { break }

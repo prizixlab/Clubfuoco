@@ -447,10 +447,19 @@ struct CreateGuestlistSheet: View {
                     Text(err).font(.cfSans(13)).foregroundStyle(Theme.wine)
                 }
 
+                let needsCard = model.featured && !model.cardOnFile
                 EmberPillButton(title: "Create guestlist", loading: model.submitting) {
                     Task { await model.create() }
                 }
                 .padding(.top, 8)
+                .disabled(needsCard)
+                .opacity(needsCard ? 0.4 : 1)
+
+                if needsCard {
+                    Text("Add a payment method above to feature this event.")
+                        .font(.cfSans(12)).foregroundStyle(Theme.flame)
+                        .frame(maxWidth: .infinity)
+                }
 
                 Spacer(minLength: 60)
             }
@@ -520,8 +529,6 @@ struct CreateGuestlistSheet: View {
     private var photosCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Kicker("Event photos (optional)")
-            Text("Use real shots of the space, crowd, or theme — **not promo flyers**. Authentic photos get more people through the door.")
-                .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
 
             if !model.photoURLs.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {

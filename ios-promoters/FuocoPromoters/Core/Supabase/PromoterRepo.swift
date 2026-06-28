@@ -140,6 +140,39 @@ final class PromoterRepo: ObservableObject {
         let featured: Bool
     }
 
+    // MARK: - Staff referral links
+
+    func referrals(allocationId: UUID?, seriesId: UUID?) async throws -> [PromoterReferral] {
+        var q = sb.client.from("promoter_referrals").select("id,label,token")
+        if let seriesId { q = q.eq("series_id", value: seriesId) }
+        else if let allocationId { q = q.eq("allocation_id", value: allocationId) }
+        return try await q.order("created_at", ascending: true).execute().value
+    }
+
+    struct NewReferral: Encodable {
+        let promoterId: UUID
+        let label: String
+        let allocationId: UUID?
+        let seriesId: UUID?
+    }
+
+    func createReferral(label: String, allocationId: UUID?, seriesId: UUID?) async throws -> PromoterReferral {
+        let uid = try await sb.client.auth.session.user.id
+        return try await sb.client
+            .from("promoter_referrals")
+            .insert(NewReferral(promoterId: uid, label: label,
+                                allocationId: seriesId == nil ? allocationId : nil,
+                                seriesId: seriesId))
+            .select("id,label,token")
+            .single()
+            .execute()
+            .value
+    }
+
+    func deleteReferral(id: UUID) async throws {
+        try await sb.client.from("promoter_referrals").delete().eq("id", value: id).execute()
+    }
+
     // MARK: - Promoter brand profile
 
     func getProfile() async throws -> PromoterProfileRow? {

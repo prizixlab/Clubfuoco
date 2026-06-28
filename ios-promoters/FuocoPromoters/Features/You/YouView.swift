@@ -53,7 +53,6 @@ final class ProfileModel: ObservableObject {
 struct YouView: View {
     @EnvironmentObject var auth: AuthStore
     @StateObject private var model: ProfileModel
-    @State private var showShare = false
     @State private var logoItem: PhotosPickerItem?
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
@@ -63,7 +62,6 @@ struct YouView: View {
         _model = StateObject(wrappedValue: ProfileModel())
     }
 
-    private var appURL: URL { URL(string: "https://apps.apple.com/app/fuoco-for-promoters/id0000000000")! }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -75,7 +73,6 @@ struct YouView: View {
                         pastDueBanner(b)
                     }
                     paymentSection
-                    inviteSection
                     accountSection
                     legalRow
                     signOutButton
@@ -94,10 +91,6 @@ struct YouView: View {
         .onChange(of: logoItem) { _, item in Task { await model.uploadLogo(item) } }
         .toolbar { ToolbarItemGroup(placement: .keyboard) {
             Button("Done") { focused = false }.foregroundStyle(Theme.ember); Spacer() } }
-        .sheet(isPresented: $showShare) {
-            ShareSheet(items: ["Join me on Fuoco For Promoters:", appURL])
-                .presentationDetents([.medium])
-        }
     }
 
     private func reloadForCurrentUser() async {
@@ -212,23 +205,6 @@ struct YouView: View {
     }
 
     // MARK: Invite / Account / Legal
-
-    private var inviteSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Kicker("Bring someone in", color: Theme.parchmentDim)
-            Button { showShare = true } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "person.badge.plus")
-                    Text("Invite a colleague").font(.cfSans(14, weight: .medium))
-                    Spacer()
-                    Image(systemName: "square.and.arrow.up").font(.system(size: 13))
-                }
-                .foregroundStyle(Theme.parchment)
-            }
-        }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
-    }
 
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 6) {

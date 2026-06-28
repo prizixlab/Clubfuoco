@@ -85,9 +85,16 @@ struct PromoterGuest: Codable, Identifiable, Equatable, Hashable {
     let note: String?
     let checkedInAt: Date?
     let createdAt: Date?
+    let referralId: UUID?
 
     var totalCount: Int { 1 + plusOnes }
     var isCheckedIn: Bool { checkedInAt != nil }
+}
+
+struct PromoterReferral: Codable, Identifiable, Equatable, Hashable, Sendable {
+    let id: UUID
+    let label: String
+    let token: String
 }
 
 struct NewGuest: Encodable {

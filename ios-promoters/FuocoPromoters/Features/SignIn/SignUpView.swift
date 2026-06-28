@@ -1,18 +1,24 @@
 import SwiftUI
+import PhotosUI
 
 struct SignUpView: View {
     @EnvironmentObject var auth: AuthStore
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focused: Field?
-    enum Field { case name, email, password, instagram, clubs, bio, code }
+    enum Field { case name, brand, email, password, instagram, clubs, bio, code }
 
     enum Step: Int, CaseIterable { case account, pitch, otp }
     @State private var step: Step = .account
 
     // Account
     @State private var fullName = ""
+    @State private var brandName = ""
     @State private var email = ""
     @State private var password = ""
+    // Brand logo (held in memory until the account exists, then uploaded)
+    @State private var logoItem: PhotosPickerItem?
+    @State private var logoData: Data?
+    @State private var animateLogo = true
     // Pitch
     @State private var instagram = ""
     @State private var experience = ""
@@ -124,6 +130,8 @@ struct SignUpView: View {
     private var accountPage: some View {
         VStack(alignment: .leading, spacing: 20) {
             field("Full name", text: $fullName, placeholder: "Your name", focus: .name)
+            field("Brand / promotional name", text: $brandName,
+                  placeholder: "e.g. Noir Collective", focus: .brand)
             field("Email", text: $email, placeholder: "you@email.com", focus: .email, lower: true, email: true)
             secureField("Password", text: $password)
             EmberPillButton(title: "Continue", trailingIcon: "chevron.right") { continueFromAccount() }
@@ -167,6 +175,9 @@ struct SignUpView: View {
                     .background(RoundedRectangle(cornerRadius: Theme.radiusField).fill(Theme.parchment.opacity(0.06)))
                     .overlay(RoundedRectangle(cornerRadius: Theme.radiusField).stroke(Theme.hairline))
             }
+
+            logoCard
+
             EmberPillButton(title: "Create account", loading: submitting) { Task { await createAccount() } }
                 .padding(.top, 4)
         }
@@ -186,6 +197,50 @@ struct SignUpView: View {
                 .font(.cfMono(11)).kerning(1.2).foregroundStyle(Theme.ember)
                 .frame(maxWidth: .infinity)
         }
+    }
+
+    private var logoCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Kicker("Brand logo (optional)")
+            HStack(spacing: 14) {
+                PhotosPicker(selection: $logoItem, matching: .images) {
+                    ZStack {
+                        Circle().fill(Theme.night).frame(width: 64, height: 64)
+                            .overlay(Circle().stroke(Theme.hairline))
+                        if let data = logoData, let img = UIImage(data: data) {
+                            Image(uiImage: img).resizable().scaledToFill()
+                                .frame(width: 64, height: 64).clipShape(Circle())
+                        } else {
+                            Image(systemName: "camera").foregroundStyle(Theme.flame)
+                        }
+                    }
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(logoData == nil ? "Add your logo" : "Logo added")
+                        .font(.cfSans(14, weight: .medium)).foregroundStyle(Theme.parchment)
+                    Text("Shown on your invites and front-page promotion.")
+                        .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
+                }
+                Spacer()
+            }
+            .onChange(of: logoItem) { _, item in
+                Task { logoData = try? await item?.loadTransferable(type: Data.self) }
+            }
+
+            if logoData != nil {
+                Toggle(isOn: $animateLogo) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Let Fuoco animate your logo")
+                            .font(.cfSans(14, weight: .medium)).foregroundStyle(Theme.parchment)
+                        Text("We may add a subtle motion when you're featured. Optional.")
+                            .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
+                    }
+                }
+                .tint(Theme.ember)
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
     }
 
     private var signInLink: some View {
@@ -210,6 +265,9 @@ struct SignUpView: View {
         let mail = email.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty, !mail.isEmpty, password.count >= 6 else {
             error = "Enter your name, email, and a password (6+ characters)."; return
+        }
+        guard !brandName.trimmingCharacters(in: .whitespaces).isEmpty else {
+            error = "Add your brand or promotional name."; return
         }
         error = nil
         withAnimation { step = .pitch }
@@ -250,10 +308,22 @@ struct SignUpView: View {
         submitting = false
     }
 
-    /// Mark this a promoter account, generate the IG code, file the application.
+    /// Mark this a promoter account, generate the IG code, file the application,
+    /// then save the brand profile (logo upload needs the new session).
     private func finalize() async {
         _ = try? await repo.finalizePromoterSignup(
             instagram: instagram, clubs: clubsValue, experience: experience)
+        // Upload the logo (now that a session exists) + save the brand profile.
+        var logoURL: String?
+        if let data = logoData, let jpeg = CreateGuestlistModel.downscaledJPEG(data, maxDimension: 800) {
+            logoURL = try? await repo.uploadLogo(jpeg)
+        }
+        try? await repo.saveProfile(
+            brandName: brandName.trimmingCharacters(in: .whitespaces),
+            logoUrl: logoURL,
+            bio: experience.isEmpty ? nil : experience,
+            instagram: instagram.isEmpty ? nil : instagram,
+            animateLogo: logoData != nil && animateLogo)
         await auth.refresh()
         dismiss()
     }

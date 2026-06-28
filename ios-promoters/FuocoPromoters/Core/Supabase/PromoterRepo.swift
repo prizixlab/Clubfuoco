@@ -212,16 +212,19 @@ final class PromoterRepo: ObservableObject {
         let logoUrl: String?
         let bio: String?
         let instagram: String?
+        let animateLogo: Bool
         let updatedAt: String
     }
 
-    func saveProfile(brandName: String?, logoUrl: String?, bio: String?, instagram: String?) async throws {
+    func saveProfile(brandName: String?, logoUrl: String?, bio: String?, instagram: String?,
+                     animateLogo: Bool = false) async throws {
         let uid = try await sb.client.auth.session.user.id
         let f = ISO8601DateFormatter()
         try await sb.client
             .from("promoter_profiles")
             .upsert(ProfilePatch(userId: uid, brandName: brandName, logoUrl: logoUrl,
-                                 bio: bio, instagram: instagram, updatedAt: f.string(from: Date())),
+                                 bio: bio, instagram: instagram, animateLogo: animateLogo,
+                                 updatedAt: f.string(from: Date())),
                     onConflict: "user_id")
             .execute()
     }

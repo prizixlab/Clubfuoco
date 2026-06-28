@@ -26,7 +26,7 @@ struct PromoterApplicationView: View {
     private static let fuocoHandle = "club_fuoco"   // copied form (no @, pastes cleanly into IG search)
     @State private var copiedHandle = false
     @State private var checking = false
-    @State private var statusNote: String?
+    @State private var showStatusSheet = false
 
     var body: some View {
         ZStack {
@@ -38,6 +38,43 @@ struct PromoterApplicationView: View {
             }
         }
         .task { await model.load() }
+        .sheet(isPresented: $showStatusSheet) { statusSheet }
+    }
+
+    private var statusSheet: some View {
+        let approved = model.application?.status == "approved"
+        let igOK = model.application?.igVerified == true
+        let icon = approved ? "checkmark.seal.fill" : (igOK ? "hourglass" : "hourglass")
+        let title = approved ? "You're approved!" : (igOK ? "In final review" : "Still under review")
+        let body = approved
+            ? "Welcome in — close this to start using Fuoco."
+            : igOK
+                ? "Your Instagram is verified. We're doing a final review and you'll be unlocked shortly."
+                : "We haven't confirmed your Instagram DM yet. Make sure you've sent the code to \(Self.fuocoIG) from the account you signed up with."
+        return VStack(spacing: 18) {
+            Spacer()
+            ZStack {
+                Circle().fill(RadialGradient(colors: [Theme.ember.opacity(0.25), .clear],
+                                             center: .center, startRadius: 4, endRadius: 80))
+                    .frame(width: 150, height: 150)
+                Image(systemName: icon).font(.system(size: 40, weight: .light))
+                    .foregroundStyle(approved ? Theme.gold : Theme.flame)
+            }
+            Text(title).font(.cfSerif(30)).foregroundStyle(Theme.parchment)
+            Text(body).font(.cfSans(14)).foregroundStyle(Theme.parchmentDim)
+                .multilineTextAlignment(.center).lineSpacing(3).padding(.horizontal, 32)
+            Spacer()
+            EmberPillButton(title: approved ? "Let's go" : "Got it") {
+                showStatusSheet = false
+                if approved { Task { await auth.refresh() } }   // RootView opens the app
+            }
+            .padding(.horizontal, 24)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity)
+        .background(Theme.night)
+        .presentationDetents([.medium])
+        .presentationBackground(Theme.night)
     }
 
     private var content: some View {
@@ -58,22 +95,6 @@ struct PromoterApplicationView: View {
                     statusRow(done: true, title: "Email verified", sub: auth.email ?? "")
                     // Instagram stage — the actionable DM card.
                     instagramCard
-                    statusRow(done: model.application?.status == "approved",
-                              title: model.application?.status == "approved" ? "Approved" : "Final review",
-                              sub: model.application?.status == "approved"
-                                   ? "You're in — opening the app…"
-                                   : "We review every promoter by hand.")
-                }
-
-                if let note = statusNote {
-                    HStack(spacing: 8) {
-                        Image(systemName: "info.circle").foregroundStyle(Theme.flame)
-                        Text(note).font(.cfSans(13)).foregroundStyle(Theme.parchment)
-                    }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 12).fill(Theme.flame.opacity(0.1)))
-                    .transition(.opacity)
                 }
 
                 Button {
@@ -184,18 +205,11 @@ struct PromoterApplicationView: View {
 
     private func reloadStatus() async {
         checking = true
-        defer { checking = false }
         await model.load()
-        await auth.refresh()   // updates is_promoter → RootView opens the app if approved
-        withAnimation {
-            if model.application?.status == "approved" {
-                statusNote = "Approved! Opening the app…"
-            } else if model.application?.igVerified == true {
-                statusNote = "Instagram verified — you're in final review. Hang tight."
-            } else {
-                statusNote = "Still under review. We'll unlock you the moment your Instagram DM is confirmed."
-            }
-        }
+        checking = false
+        // Show the status popup. (If approved, refreshing auth from the sheet's
+        // button transitions RootView into the app.)
+        showStatusSheet = true
     }
 
     private func statusRow(done: Bool, title: String, sub: String) -> some View {

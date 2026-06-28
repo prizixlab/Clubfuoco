@@ -45,6 +45,7 @@ type Night = {
   description: string | null
   theme: string | null
   photo_urls: string[] | null
+  max_plus_ones: number | null
   club: { id: string; name: string; address: string | null; cover_image_url: string | null } | null
 }
 
@@ -217,7 +218,7 @@ export default function InviteClaimClient({
                 <button onClick={() => setPlusOnes(Math.max(0, plusOnes - 1))}
                   style={pillBtn}>−</button>
                 <div style={{ fontFamily: 'var(--font-instrument-serif, Georgia, serif)', fontSize: 22, minWidth: 30, textAlign: 'center' }}>{plusOnes}</div>
-                <button onClick={() => setPlusOnes(Math.min(4, plusOnes + 1))}
+                <button onClick={() => setPlusOnes(Math.min(night.max_plus_ones ?? 20, plusOnes + 1))}
                   style={pillBtnEmber}>+</button>
               </div>
             </label>

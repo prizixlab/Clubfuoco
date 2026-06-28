@@ -44,11 +44,16 @@ export async function POST(
 
   const { data: alloc, error: allocErr } = await sb
     .from('promoter_allocations')
-    .select('id, spots, promoter_guests(id, full_name, plus_ones, claimed_by_user)')
+    .select('id, spots, night:promoter_nights(max_plus_ones), promoter_guests(id, full_name, plus_ones, claimed_by_user)')
     .eq('id', resolved.allocationId)
     .single()
 
   if (allocErr || !alloc) return err('Invite not found', 404)
+
+  // Enforce the per-guest plus-one cap (null = no limit).
+  const nightRow = Array.isArray(alloc.night) ? alloc.night[0] : alloc.night
+  const maxPlus = (nightRow as { max_plus_ones: number | null } | null)?.max_plus_ones
+  const cappedPlusOnes = maxPlus == null ? plusOnes : Math.min(plusOnes, maxPlus)
 
   // Dedupe: a logged-in user who re-taps their link gets their existing row
   // back instead of a second claim (which would double-count capacity).
@@ -60,14 +65,14 @@ export async function POST(
 
   const used = (alloc.promoter_guests ?? []).reduce(
     (s: number, g: { plus_ones: number }) => s + 1 + g.plus_ones, 0)
-  if (used + 1 + plusOnes > alloc.spots) return err('Not enough spots left', 409)
+  if (used + 1 + cappedPlusOnes > alloc.spots) return err('Not enough spots left', 409)
 
   const { data: guest, error: insertErr } = await sb
     .from('promoter_guests')
     .insert({
       allocation_id: alloc.id,
       full_name: fullName,
-      plus_ones: plusOnes,
+      plus_ones: cappedPlusOnes,
       created_via_invite: true,
       claimed_by_user: claimedByUser,
       referral_id: resolved.referralId,   // tag the staff member who brought them

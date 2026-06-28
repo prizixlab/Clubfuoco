@@ -109,7 +109,7 @@ struct InviteClaimView: View {
                                 .background(Circle().stroke(Theme.parchment.opacity(0.2)))
                         }
                         Text("\(plusOnes)").font(.cfSerif(22)).foregroundStyle(Theme.parchment).frame(minWidth: 30)
-                        Button { if plusOnes < 4 { plusOnes += 1 } } label: {
+                        Button { if plusOnes < (detail.night.maxPlusOnes ?? 20) { plusOnes += 1 } } label: {
                             Image(systemName: "plus").foregroundStyle(Color(hex: 0xFFF6E5))
                                 .frame(width: 32, height: 32)
                                 .background(Circle().fill(Theme.ember))
@@ -292,6 +292,7 @@ struct InviteNight: Decodable, Sendable {
     let lat: Double?
     let lng: Double?
     let autoCheckin: Bool?
+    let maxPlusOnes: Int?
     let club: InviteClub?
 
     /// Venue label — club name for partner clubs, custom name otherwise.

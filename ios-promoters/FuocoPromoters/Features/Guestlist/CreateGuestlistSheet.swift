@@ -61,6 +61,8 @@ final class CreateGuestlistModel: ObservableObject {
 
     @Published var spots = 25
     @Published var unlimitedSpots = false
+    @Published var maxPlusOnes = 2
+    @Published var unlimitedPlusOnes = false
 
     // Description / theme / photos
     @Published var eventDescription = ""
@@ -202,6 +204,7 @@ final class CreateGuestlistModel: ObservableObject {
         let payout = trackPayouts ? payoutPerGuestDecimal : 0
         let loc = resolvedLocation
         let spotsValue = unlimitedSpots ? SpotsLimit.unlimited : spots
+        let maxPlus: Int? = unlimitedPlusOnes ? nil : maxPlusOnes
         let desc = eventDescription.trimmingCharacters(in: .whitespacesAndNewlines)
         let themeVal = theme.trimmingCharacters(in: .whitespaces)
         let translateVal = !themeVal.isEmpty && themeTranslate
@@ -223,7 +226,7 @@ final class CreateGuestlistModel: ObservableObject {
                     description: desc.isEmpty ? nil : desc,
                     theme: themeVal.isEmpty ? nil : themeVal,
                     themeTranslate: translateVal, photoUrls: photoURLs,
-                    featured: featured))
+                    featured: featured, maxPlusOnes: maxPlus))
                 Haptics.success()
                 onResult(.series(series))
             } else {
@@ -239,7 +242,7 @@ final class CreateGuestlistModel: ObservableObject {
                     description: desc.isEmpty ? nil : desc,
                     theme: themeVal.isEmpty ? nil : themeVal,
                     themeTranslate: translateVal, photoUrls: photoURLs,
-                    featured: featured, promoterId: promoterId)
+                    featured: featured, maxPlusOnes: maxPlus, promoterId: promoterId)
                 Haptics.success()
                 onResult(.allocation(alloc))
             }
@@ -439,6 +442,7 @@ struct CreateGuestlistSheet: View {
                 scheduleCard
                 hoursCard
                 spotsCard
+                plusOnesCard
                 autoCheckinCard
                 visibilityCard
                 payoutCard
@@ -632,6 +636,46 @@ struct CreateGuestlistSheet: View {
                         .padding(.vertical, 12)
                         .overlay(RoundedRectangle(cornerRadius: Theme.radiusPill).stroke(Theme.parchmentFaint))
                     }
+                }
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
+    }
+
+    private var plusOnesCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Kicker("Plus-ones per guest")
+                Spacer()
+                Button {
+                    Haptics.tap()
+                    withAnimation { model.unlimitedPlusOnes.toggle() }
+                } label: {
+                    Text("No limit")
+                        .font(.cfMono(9, weight: .medium)).kerning(1.2)
+                        .foregroundStyle(model.unlimitedPlusOnes ? Theme.emberCream : Theme.parchmentDim)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Capsule().fill(model.unlimitedPlusOnes ? Theme.ember : Color.clear))
+                        .overlay(Capsule().stroke(model.unlimitedPlusOnes ? Color.clear : Theme.parchmentFaint))
+                }
+            }
+            Text("How many extra people each guest can add when they claim.")
+                .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+            if model.unlimitedPlusOnes {
+                HStack {
+                    Text("∞").font(.cfSerif(34)).foregroundStyle(Theme.ember)
+                    Text("Guests can bring as many as they like")
+                        .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+            } else {
+                HStack {
+                    Text(model.maxPlusOnes == 0 ? "No plus-ones allowed" : "Up to +\(model.maxPlusOnes) each")
+                        .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
+                    Spacer()
+                    stepper(value: $model.maxPlusOnes, min: 0, max: 20, step: 1)
                 }
             }
         }

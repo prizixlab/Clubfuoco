@@ -33,6 +33,7 @@ export interface PromoterSeries {
   theme_translate: boolean
   photo_urls: string[]
   featured: boolean
+  max_plus_ones: number | null
 }
 
 const MADRID = 'Europe/Madrid'
@@ -146,6 +147,7 @@ export async function ensureOccurrence(
       theme_translate: series.theme_translate,
       photo_urls: series.photo_urls,
       featured: series.featured,
+      max_plus_ones: series.max_plus_ones,
     })
     .select('id')
     .single()

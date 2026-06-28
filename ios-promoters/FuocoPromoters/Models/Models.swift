@@ -35,6 +35,7 @@ struct PromoterNight: Codable, Identifiable, Equatable, Hashable {
     let description: String?
     let theme: String?
     let photoUrls: [String]?
+    let maxPlusOnes: Int?
     var club: Club?
 
     /// Venue label — club name for partner clubs, custom name otherwise.
@@ -142,6 +143,7 @@ struct PromoterSeries: Codable, Identifiable, Equatable, Hashable {
     let description: String?
     let theme: String?
     let photoUrls: [String]?
+    let maxPlusOnes: Int?
     var club: Club?
 
     /// "Every Fri", "Every Fri & Sat", etc.

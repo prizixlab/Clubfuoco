@@ -1,227 +1,138 @@
 import SwiftUI
+import UIKit
 
 @MainActor
 final class ApplicationModel: ObservableObject {
     @Published var loading = true
     @Published var application: PromoterApplication?
-    @Published var instagram = ""
-    @Published var clubs = ""
-    @Published var experience = ""
-    @Published var submitting = false
-    @Published var error: String?
-
     let repo = PromoterRepo()
 
     func load() async {
         loading = true
         application = try? await repo.myApplication()
-        if let a = application {
-            instagram = a.instagram ?? ""
-            clubs = a.clubs ?? ""
-            experience = a.experience ?? ""
-        }
         loading = false
-    }
-
-    var isPending: Bool { application?.status == "pending" }
-    var wasRejected: Bool { application?.status == "rejected" }
-
-    func submit(userId: UUID) async {
-        guard !clubs.trimmingCharacters(in: .whitespaces).isEmpty else {
-            error = "Tell us which clubs or scenes you work."
-            return
-        }
-        submitting = true; error = nil
-        do {
-            application = try await repo.submitApplication(.init(
-                userId: userId,
-                instagram: instagram.isEmpty ? nil : instagram,
-                clubs: clubs,
-                experience: experience.isEmpty ? nil : experience))
-            Haptics.success()
-        } catch {
-            self.error = "Couldn't submit — try again."
-            Haptics.error()
-        }
-        submitting = false
     }
 }
 
+/// Locked verification screen for a promoter account that isn't approved yet.
+/// Email is verified (they signed up via OTP); Instagram is pending a DM'd code
+/// + manual 5k-follower review.
 struct PromoterApplicationView: View {
     @EnvironmentObject var auth: AuthStore
     @StateObject private var model = ApplicationModel()
-    @FocusState private var focused: Bool
+
+    /// The Instagram account promoters DM their code to.
+    private static let fuocoIG = "@fuoco.promoters"
 
     var body: some View {
         ZStack {
             Theme.night.ignoresSafeArea()
             if model.loading {
                 ProgressView().tint(Theme.parchment)
-            } else if model.isPending {
-                pending
             } else {
-                form
+                content
             }
         }
         .task { await model.load() }
     }
 
-    // ── Pending state ─────────────────────────────────────────────────────────
-
-    private var pending: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            ZStack {
-                Circle()
-                    .fill(RadialGradient(colors: [Theme.ember.opacity(0.25), .clear],
-                                         center: .center, startRadius: 4, endRadius: 90))
-                    .frame(width: 180, height: 180)
-                Circle().stroke(Theme.ember.opacity(0.4), lineWidth: 1).frame(width: 110, height: 110)
-                Image(systemName: "hourglass")
-                    .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(Theme.flame)
-            }
-
-            Text("Application received.")
-                .font(.cfSerif(34))
-                .foregroundStyle(Theme.parchment)
-            Text("We're reviewing it. You'll get access the moment you're approved — we onboard every promoter by hand.")
-                .font(.cfSans(14))
-                .foregroundStyle(Theme.parchmentDim)
-                .multilineTextAlignment(.center)
-                .lineSpacing(3)
-                .padding(.horizontal, 36)
-
-            Button {
-                Haptics.tap()
-                Task { await auth.refresh() }
-            } label: {
-                Text("Check status")
-                    .font(.cfMono(12, weight: .medium)).kerning(2)
-                    .foregroundStyle(Theme.parchment)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .overlay(Capsule().stroke(Theme.parchmentFaint))
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 12)
-
-            HStack(spacing: 10) {
-                infoChip(icon: "hand.raised", "Curated by hand")
-                infoChip(icon: "clock", "~48h review")
-            }
-            .padding(.top, 4)
-
-            Spacer()
-            signOutButton
-        }
-        .padding(24)
-    }
-
-    private func infoChip(icon: String, _ text: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon).font(.system(size: 11))
-            Text(text.uppercased()).font(.cfMono(9)).kerning(1.2)
-        }
-        .foregroundStyle(Theme.parchmentDim)
-        .padding(.horizontal, 14).padding(.vertical, 9)
-        .background(Capsule().fill(Theme.nightLift))
-    }
-
-    // ── Application form ──────────────────────────────────────────────────────
-
-    private var form: some View {
+    private var content: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Kicker("Fuoco for Promoters")
-                    Text("Apply to promote")
-                        .font(.cfSerif(40))
+                    Kicker("Verification", color: Theme.ember)
+                    Text("You're almost in.")
+                        .font(.cfSerif(40)).foregroundStyle(Theme.parchment)
+                    Text("We verify every promoter by email and Instagram before unlocking the app.")
+                        .font(.cfSans(14)).foregroundStyle(Theme.parchmentDim)
+                }
+                .padding(.top, 12)
+
+                // Email — already verified via signup OTP.
+                statusRow(icon: "checkmark.seal.fill", color: Theme.gold,
+                          title: "Email verified",
+                          sub: auth.email ?? "")
+
+                // Instagram — pending DM verification.
+                instagramCard
+
+                Button {
+                    Haptics.tap(); Task { await auth.refresh() }
+                } label: {
+                    Text("Check status")
+                        .font(.cfMono(12, weight: .medium)).kerning(2)
                         .foregroundStyle(Theme.parchment)
-                    Text(model.wasRejected
-                         ? "Your last application wasn't approved — you can update and re-apply."
-                         : "Tell us about your nights. We onboard promoters by hand.")
-                        .font(.cfSans(14))
-                        .foregroundStyle(Theme.parchmentDim)
+                        .frame(maxWidth: .infinity).padding(.vertical, 16)
+                        .overlay(Capsule().stroke(Theme.parchmentFaint))
                 }
 
-                field("Instagram (optional)") {
-                    TextField("", text: $model.instagram,
-                              prompt: Text("@yourhandle").foregroundStyle(Theme.parchmentDim))
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .font(.cfSans(16)).foregroundStyle(Theme.parchment)
-                        .focused($focused)
+                Button { Task { await auth.signOut() } } label: {
+                    Text("Sign out").font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
                 }
+                .frame(maxWidth: .infinity)
 
-                field("Clubs / scenes you work") {
-                    TextField("", text: $model.clubs,
-                              prompt: Text("e.g. Opium, Pacha, techno nights")
-                                .foregroundStyle(Theme.parchmentDim))
-                        .font(.cfSans(16)).foregroundStyle(Theme.parchment)
-                        .focused($focused)
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Kicker("A bit about you (optional)")
-                    TextField("", text: $model.experience,
-                              prompt: Text("How many people you bring, who you work with…")
-                                .foregroundStyle(Theme.parchmentDim),
-                              axis: .vertical)
-                        .lineLimit(3...6)
-                        .font(.cfSans(15)).foregroundStyle(Theme.parchment)
-                        .focused($focused)
-                        .padding(12)
-                        .background(RoundedRectangle(cornerRadius: Theme.radiusField).fill(Theme.parchment.opacity(0.06)))
-                        .overlay(RoundedRectangle(cornerRadius: Theme.radiusField).stroke(Theme.hairline))
-                }
-
-                if let err = model.error {
-                    Text(err).font(.cfSans(13)).foregroundStyle(Theme.wine)
-                }
-
-                EmberPillButton(title: model.wasRejected ? "Re-apply" : "Submit application",
-                                loading: model.submitting) {
-                    if case .signedIn(let p) = auth.state {
-                        Task { await model.submit(userId: p.id) }
-                    }
-                }
-
-                signOutButton
                 Spacer(minLength: 40)
             }
             .padding(24)
         }
-        .scrollDismissesKeyboard(.interactively)
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Button("Done") { focused = false }
-                    .foregroundStyle(Theme.ember)
+    }
+
+    private var instagramCard: some View {
+        let handle = model.application?.instagram ?? ""
+        let code = model.application?.igCode ?? "—"
+        let verified = model.application?.igVerified == true
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: verified ? "checkmark.seal.fill" : "hourglass")
+                    .foregroundStyle(verified ? Theme.gold : Theme.flame)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verified ? "Instagram verified" : "Instagram — pending")
+                        .font(.cfSans(15, weight: .medium)).foregroundStyle(Theme.parchment)
+                    if !handle.isEmpty {
+                        Text(handle).font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                    }
+                }
                 Spacer()
             }
-        }
-    }
 
-    private var signOutButton: some View {
-        Button {
-            Task { await auth.signOut() }
-        } label: {
-            Text("Sign out")
-                .font(.cfSans(13))
-                .foregroundStyle(Theme.parchmentDim)
-        }
-        .frame(maxWidth: .infinity)
-    }
+            if !verified {
+                Divider().background(Theme.hairline)
+                Text("DM this code to **\(Self.fuocoIG)** from your Instagram. We'll confirm it's you and that you have **5,000+ followers**, then unlock your account.")
+                    .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
 
-    @ViewBuilder
-    private func field<C: View>(_ label: String, @ViewBuilder content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Kicker(label)
-            content()
-                .padding(.vertical, 10)
-                .overlay(alignment: .bottom) {
-                    Rectangle().fill(Theme.parchmentFaint).frame(height: 1)
+                HStack {
+                    Text(code)
+                        .font(.cfMono(20, weight: .medium)).kerning(2)
+                        .foregroundStyle(Theme.ember)
+                    Spacer()
+                    Button {
+                        UIPasteboard.general.string = code; Haptics.success()
+                    } label: {
+                        Image(systemName: "doc.on.doc").foregroundStyle(Theme.parchment)
+                            .frame(width: 36, height: 36)
+                            .background(Circle().stroke(Theme.parchmentFaint))
+                    }
                 }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Theme.night))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
+            }
         }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
+        .overlay(RoundedRectangle(cornerRadius: Theme.radiusCard).stroke(Theme.hairline))
+    }
+
+    private func statusRow(icon: String, color: Color, title: String, sub: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon).foregroundStyle(color)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.cfSans(15, weight: .medium)).foregroundStyle(Theme.parchment)
+                if !sub.isEmpty { Text(sub).font(.cfSans(12)).foregroundStyle(Theme.parchmentDim) }
+            }
+            Spacer()
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
     }
 }

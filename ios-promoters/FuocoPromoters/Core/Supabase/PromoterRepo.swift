@@ -87,12 +87,30 @@ final class PromoterRepo: ObservableObject {
     func myApplication() async throws -> PromoterApplication? {
         let rows: [PromoterApplication] = try await sb.client
             .from("promoter_applications")
-            .select("id,user_id,instagram,clubs,experience,status,created_at")
+            .select("id,user_id,instagram,clubs,experience,status,ig_code,ig_verified,created_at")
             .eq("user_id", value: try await sb.client.auth.session.user.id)
             .limit(1)
             .execute()
             .value
         return rows.first
+    }
+
+    /// Finalize a promoter signup: mark the account a promoter kind, generate
+    /// the Instagram verification code, file the application. Returns the code.
+    func finalizePromoterSignup(instagram: String, clubs: String, experience: String) async throws -> String {
+        let token = try await sb.client.auth.session.accessToken
+        struct Body: Encodable { let instagram: String; let clubs: String; let experience: String }
+        var req = URLRequest(url: URL(string: "\(Self.webBase)/api/promoter-signup/finalize")!)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONEncoder().encode(Body(instagram: instagram, clubs: clubs, experience: experience))
+        let (data, _) = try await URLSession.shared.data(for: req)
+        struct Env: Decodable { let data: Payload?; let error: String? }
+        struct Payload: Decodable { let igCode: String }
+        let env = try JSONDecoder().decode(Env.self, from: data)
+        guard let code = env.data?.igCode else { throw NSError(domain: "Signup", code: 1) }
+        return code
     }
 
     struct NewApplication: Encodable {

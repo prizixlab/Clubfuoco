@@ -128,6 +128,12 @@ final class AuthStore {
     /// Mirrors resolveAccountType() — any failure falls back to a plain user.
     func refreshProfile() async {
         profile = try? await queries.me()
+        // Separate identities: a promoter account can't use the consumer app.
+        if profile?.accountKind == "promoter" {
+            try? await supabase.client.auth.signOut()
+            user = nil; profile = nil; onboardingInProgress = false
+            state = .signedOut
+        }
     }
 
     // ── Email / password ──────────────────────────────────────────────────────

@@ -72,7 +72,9 @@ struct SignUpView: View {
 
             Divider().background(Theme.hairline).padding(.vertical, 4)
             Kicker("About you")
-            field("Instagram (optional)", text: $instagram, placeholder: "@yourhandle", lower: true)
+            field("Instagram (required)", text: $instagram, placeholder: "@yourhandle", lower: true)
+            Text("We verify promoters by Instagram — 5,000+ followers required.")
+                .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
             field("Clubs / scenes you work", text: $clubs, placeholder: "e.g. Opium, techno nights")
             VStack(alignment: .leading, spacing: 6) {
                 Kicker("A bit about you (optional)")
@@ -96,6 +98,9 @@ struct SignUpView: View {
         let mail = email.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty, !mail.isEmpty, password.count >= 6 else {
             error = "Enter your name, email, and a password (6+ characters)."; return
+        }
+        guard !instagram.trimmingCharacters(in: .whitespaces).isEmpty else {
+            error = "Add your Instagram handle — we verify promoters by Instagram."; return
         }
         guard !clubs.trimmingCharacters(in: .whitespaces).isEmpty else {
             error = "Tell us which clubs or scenes you work."; return
@@ -146,18 +151,15 @@ struct SignUpView: View {
         submitting = false
     }
 
-    /// Once signed in, file the promoter application from the pitch fields.
-    /// RootView then shows the "Application received" pending screen.
+    /// Once the email is verified, finalize: mark this a promoter account,
+    /// generate the IG verification code, file the application. RootView then
+    /// shows the locked verification screen.
     private func fileApplication() async {
-        if case .signedIn(let p) = auth.state {
-            _ = try? await repo.submitApplication(.init(
-                userId: p.id,
-                instagram: instagram.isEmpty ? nil : instagram,
-                clubs: clubs.isEmpty ? nil : clubs,
-                experience: experience.isEmpty ? nil : experience))
-        }
-        // Auth state is now signedIn(non-promoter); RootView shows the pending
-        // application screen automatically.
+        _ = try? await repo.finalizePromoterSignup(
+            instagram: instagram, clubs: clubs, experience: experience)
+        // Re-resolve the profile so account_kind = 'promoter' takes effect and
+        // RootView routes to verification.
+        await auth.refresh()
         dismiss()
     }
 

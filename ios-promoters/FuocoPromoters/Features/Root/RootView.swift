@@ -14,15 +14,43 @@ struct RootView: View {
             case .signedOut:
                 SignInView()
             case .signedIn(let profile):
-                if profile.isPromoter {
-                    MainTabs()
+                if profile.accountKind != "promoter" {
+                    WrongAccountView()           // a consumer account on the promoter app
+                } else if profile.isPromoter {
+                    MainTabs()                   // approved + verified
                 } else {
-                    // Signed in but not a promoter → application flow.
-                    PromoterApplicationView()
+                    PromoterApplicationView()    // locked: pending verification
                 }
             }
         }
         .environmentObject(auth)
+    }
+}
+
+/// Shown if a non-promoter (consumer) account somehow signs in here.
+struct WrongAccountView: View {
+    @EnvironmentObject var auth: AuthStore
+    var body: some View {
+        ZStack {
+            Theme.night.ignoresSafeArea()
+            VStack(spacing: 16) {
+                Image(systemName: "person.crop.circle.badge.xmark")
+                    .font(.system(size: 40)).foregroundStyle(Theme.flame)
+                Text("Not a promoter account")
+                    .font(.cfSerif(28)).foregroundStyle(Theme.parchment)
+                Text("This is a Club Fuoco account. Use the Club Fuoco app, or sign up here to apply as a promoter.")
+                    .font(.cfSans(14)).foregroundStyle(Theme.parchmentDim)
+                    .multilineTextAlignment(.center).padding(.horizontal, 40)
+                Button { Task { await auth.signOut() } } label: {
+                    Text("Sign out").font(.cfMono(11, weight: .medium)).kerning(2)
+                        .foregroundStyle(Theme.ember)
+                        .padding(.horizontal, 28).padding(.vertical, 13)
+                        .overlay(Capsule().stroke(Theme.ember.opacity(0.6)))
+                }
+                .padding(.top, 8)
+            }
+            .padding(24)
+        }
     }
 }
 

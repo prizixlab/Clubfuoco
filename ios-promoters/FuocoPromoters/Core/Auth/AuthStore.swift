@@ -8,6 +8,8 @@ final class AuthStore: ObservableObject {
     @Published private(set) var state: State = .loading
     @Published var errorMessage: String?
 
+    var email: String? { if case .signedIn(let p) = state { return p.email }; return nil }
+
     private let sb = SupabaseService.shared
 
     init() {
@@ -29,6 +31,12 @@ final class AuthStore: ObservableObject {
         do {
             let session = try await sb.client.auth.signIn(email: email, password: password)
             await loadProfile(userId: session.user.id)
+            // Separate identities: only promoter accounts may use this app.
+            if case .signedIn(let p) = state, p.accountKind != "promoter" {
+                try? await sb.client.auth.signOut()
+                state = .signedOut
+                errorMessage = "This is a Club Fuoco account, not a promoter account. Use the Club Fuoco app, or apply to promote."
+            }
         } catch {
             errorMessage = "Couldn't sign in — check your email & password."
             state = .signedOut
@@ -81,11 +89,12 @@ final class AuthStore: ObservableObject {
             let email: String?
             let fullName: String?
             let isPromoter: Bool?
+            let accountKind: String?
         }
         do {
             let row: Row = try await sb.client
                 .from("users")
-                .select("id,email,full_name,is_promoter")
+                .select("id,email,full_name,is_promoter,account_kind")
                 .eq("id", value: userId)
                 .single()
                 .execute()
@@ -94,11 +103,12 @@ final class AuthStore: ObservableObject {
                 id: row.id,
                 email: row.email,
                 fullName: row.fullName,
-                isPromoter: row.isPromoter ?? false
+                isPromoter: row.isPromoter ?? false,
+                accountKind: row.accountKind ?? "user"
             ))
         } catch {
             state = .signedIn(PromoterProfile(
-                id: userId, email: nil, fullName: nil, isPromoter: false
+                id: userId, email: nil, fullName: nil, isPromoter: false, accountKind: "user"
             ))
         }
     }

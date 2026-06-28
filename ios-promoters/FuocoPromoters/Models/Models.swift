@@ -5,6 +5,7 @@ struct PromoterProfile: Codable, Equatable {
     let email: String?
     let fullName: String?
     let isPromoter: Bool
+    var accountKind: String = "user"   // 'user' | 'promoter'
 
     var displayName: String {
         if let n = fullName?.split(separator: " ").first, !n.isEmpty { return String(n) }
@@ -120,6 +121,8 @@ struct PromoterApplication: Codable, Identifiable, Equatable, Hashable {
     let clubs: String?
     let experience: String?
     let status: String        // pending | approved | rejected
+    let igCode: String?
+    let igVerified: Bool?
     let createdAt: Date?
 }
 

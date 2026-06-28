@@ -34,6 +34,7 @@ struct UserProfile: Decodable, Sendable {
     let birthday: String?
     let gender: String?
     let accountType: AccountType?
+    let accountKind: String?      // 'user' | 'promoter' — promoters can't use this app
     let role: String?
     let stripeCustomerId: String?
     let createdAt: String?

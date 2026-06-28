@@ -23,6 +23,8 @@ struct PromoterApplicationView: View {
 
     /// The Instagram account promoters DM their code to.
     private static let fuocoIG = "@club_fuoco"
+    private static let fuocoHandle = "club_fuoco"   // copied form (no @, pastes cleanly into IG search)
+    @State private var copiedHandle = false
 
     var body: some View {
         ZStack {
@@ -97,9 +99,35 @@ struct PromoterApplicationView: View {
 
             if !verified {
                 Divider().background(Theme.hairline)
-                Text("DM this code to **\(Self.fuocoIG)** from your Instagram. We'll confirm it's you and that you have **5,000+ followers**, then unlock your account.")
-                    .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
 
+                // Step 1 — the account to DM (tap to copy the handle).
+                Text("1. DM us on Instagram")
+                    .font(.cfMono(10, weight: .medium)).kerning(1.5).foregroundStyle(Theme.flame)
+                Button {
+                    UIPasteboard.general.string = Self.fuocoHandle
+                    Haptics.success()
+                    withAnimation { copiedHandle = true }
+                    Task { try? await Task.sleep(nanoseconds: 1_500_000_000); withAnimation { copiedHandle = false } }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "camera.circle.fill").font(.system(size: 26)).foregroundStyle(Theme.ember)
+                        Text(Self.fuocoIG)
+                            .font(.cfSerif(26)).foregroundStyle(Theme.parchment)
+                        Spacer()
+                        Image(systemName: copiedHandle ? "checkmark" : "doc.on.doc")
+                            .foregroundStyle(copiedHandle ? Theme.flame : Theme.parchmentDim)
+                    }
+                    .padding(14)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Theme.ember.opacity(0.12)))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.ember.opacity(0.4)))
+                }
+                Text(copiedHandle ? "Copied — paste it into Instagram search." : "Tap to copy the handle.")
+                    .font(.cfSans(11)).foregroundStyle(copiedHandle ? Theme.flame : Theme.parchmentDim)
+
+                // Step 2 — the code to send.
+                Text("2. Send this code")
+                    .font(.cfMono(10, weight: .medium)).kerning(1.5).foregroundStyle(Theme.flame)
+                    .padding(.top, 4)
                 HStack {
                     Text(code)
                         .font(.cfMono(20, weight: .medium)).kerning(2)
@@ -116,6 +144,9 @@ struct PromoterApplicationView: View {
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: 12).fill(Theme.night))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
+
+                Text("We'll confirm it's you and that you have **5,000+ followers**, then unlock your account.")
+                    .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
             }
         }
         .padding(16)

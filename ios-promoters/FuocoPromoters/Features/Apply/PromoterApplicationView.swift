@@ -25,6 +25,8 @@ struct PromoterApplicationView: View {
     private static let fuocoIG = "@club_fuoco"
     private static let fuocoHandle = "club_fuoco"   // copied form (no @, pastes cleanly into IG search)
     @State private var copiedHandle = false
+    @State private var checking = false
+    @State private var statusNote: String?
 
     var body: some View {
         ZStack {
@@ -42,31 +44,51 @@ struct PromoterApplicationView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Kicker("Verification", color: Theme.ember)
-                    Text("You're almost in.")
+                    Kicker("Verification status", color: Theme.ember)
+                    Text(headline)
                         .font(.cfSerif(40)).foregroundStyle(Theme.parchment)
                     Text("We verify every promoter by email and Instagram before unlocking the app.")
                         .font(.cfSans(14)).foregroundStyle(Theme.parchmentDim)
                 }
                 .padding(.top, 12)
 
-                // Email — already verified via signup OTP.
-                statusRow(icon: "checkmark.seal.fill", color: Theme.gold,
-                          title: "Email verified",
-                          sub: auth.email ?? "")
+                // Stage timeline.
+                VStack(spacing: 12) {
+                    statusRow(done: true, title: "Account created", sub: "Welcome to Fuoco")
+                    statusRow(done: true, title: "Email verified", sub: auth.email ?? "")
+                    // Instagram stage — the actionable DM card.
+                    instagramCard
+                    statusRow(done: model.application?.status == "approved",
+                              title: model.application?.status == "approved" ? "Approved" : "Final review",
+                              sub: model.application?.status == "approved"
+                                   ? "You're in — opening the app…"
+                                   : "We review every promoter by hand.")
+                }
 
-                // Instagram — pending DM verification.
-                instagramCard
+                if let note = statusNote {
+                    HStack(spacing: 8) {
+                        Image(systemName: "info.circle").foregroundStyle(Theme.flame)
+                        Text(note).font(.cfSans(13)).foregroundStyle(Theme.parchment)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Theme.flame.opacity(0.1)))
+                    .transition(.opacity)
+                }
 
                 Button {
-                    Haptics.tap(); Task { await auth.refresh() }
+                    Haptics.tap(); Task { await reloadStatus() }
                 } label: {
-                    Text("Check status")
-                        .font(.cfMono(12, weight: .medium)).kerning(2)
-                        .foregroundStyle(Theme.parchment)
-                        .frame(maxWidth: .infinity).padding(.vertical, 16)
-                        .overlay(Capsule().stroke(Theme.parchmentFaint))
+                    HStack(spacing: 8) {
+                        if checking { ProgressView().tint(Theme.parchment).scaleEffect(0.8) }
+                        Text(checking ? "Checking…" : "Check status")
+                            .font(.cfMono(12, weight: .medium)).kerning(2)
+                    }
+                    .foregroundStyle(Theme.parchment)
+                    .frame(maxWidth: .infinity).padding(.vertical, 16)
+                    .overlay(Capsule().stroke(Theme.parchmentFaint))
                 }
+                .disabled(checking)
 
                 Button { Task { await auth.signOut() } } label: {
                     Text("Sign out").font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
@@ -154,9 +176,32 @@ struct PromoterApplicationView: View {
         .overlay(RoundedRectangle(cornerRadius: Theme.radiusCard).stroke(Theme.hairline))
     }
 
-    private func statusRow(icon: String, color: Color, title: String, sub: String) -> some View {
+    private var headline: String {
+        if model.application?.status == "approved" { return "You're verified." }
+        if model.application?.igVerified == true { return "Final review." }
+        return "You're almost in."
+    }
+
+    private func reloadStatus() async {
+        checking = true
+        defer { checking = false }
+        await model.load()
+        await auth.refresh()   // updates is_promoter → RootView opens the app if approved
+        withAnimation {
+            if model.application?.status == "approved" {
+                statusNote = "Approved! Opening the app…"
+            } else if model.application?.igVerified == true {
+                statusNote = "Instagram verified — you're in final review. Hang tight."
+            } else {
+                statusNote = "Still under review. We'll unlock you the moment your Instagram DM is confirmed."
+            }
+        }
+    }
+
+    private func statusRow(done: Bool, title: String, sub: String) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: icon).foregroundStyle(color)
+            Image(systemName: done ? "checkmark.seal.fill" : "hourglass")
+                .foregroundStyle(done ? Theme.gold : Theme.flame)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.cfSans(15, weight: .medium)).foregroundStyle(Theme.parchment)
                 if !sub.isEmpty { Text(sub).font(.cfSans(12)).foregroundStyle(Theme.parchmentDim) }

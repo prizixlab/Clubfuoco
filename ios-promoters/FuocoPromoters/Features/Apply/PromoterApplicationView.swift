@@ -72,13 +72,13 @@ struct PromoterApplicationView: View {
                 if approved { Task { await auth.refresh() } }   // RootView opens the app
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 24)
         }
         .padding(.top, 24)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.night)
-        .presentationDetents([.height(480)])
+        .presentationDetents([.height(440)])
         .presentationBackground(Theme.night)
+        .ignoresSafeArea(edges: .bottom)
     }
 
     private var content: some View {

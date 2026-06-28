@@ -36,28 +36,38 @@ struct PromoterApplicationView: View {
             } else {
                 content
             }
+            if showStatusSheet { statusModal }
         }
         .task { await model.load() }
-        .sheet(isPresented: $showStatusSheet) { statusSheet }
+        .animation(.spring(duration: 0.3), value: showStatusSheet)
     }
 
-    private var statusSheet: some View {
+    private var statusModal: some View {
+        ZStack(alignment: .bottom) {
+            Color.black.opacity(0.6).ignoresSafeArea()
+                .onTapGesture { showStatusSheet = false }
+            statusCard.transition(.move(edge: .bottom))
+        }
+        .ignoresSafeArea()
+    }
+
+    private var statusCard: some View {
         let approved = model.application?.status == "approved"
         let igOK = model.application?.igVerified == true
-        let icon = approved ? "checkmark.seal.fill" : (igOK ? "hourglass" : "hourglass")
         let title = approved ? "You're approved!" : (igOK ? "In final review" : "Still under review")
         let body = approved
-            ? "Welcome in — close this to start using Fuoco."
+            ? "Welcome in — tap below to start using Fuoco."
             : igOK
                 ? "Your Instagram is verified. We're doing a final review and you'll be unlocked shortly."
                 : "We haven't confirmed your Instagram DM yet. Make sure you've sent the code to \(Self.fuocoIG) from the account you signed up with."
-        return VStack(spacing: 18) {
-            Spacer()
+        return VStack(spacing: 16) {
+            Capsule().fill(Theme.parchmentFaint).frame(width: 40, height: 5).padding(.top, 10)
             ZStack {
                 Circle().fill(RadialGradient(colors: [Theme.ember.opacity(0.25), .clear],
                                              center: .center, startRadius: 4, endRadius: 80))
                     .frame(width: 150, height: 150)
-                Image(systemName: icon).font(.system(size: 40, weight: .light))
+                Image(systemName: approved ? "checkmark.seal.fill" : "hourglass")
+                    .font(.system(size: 40, weight: .light))
                     .foregroundStyle(approved ? Theme.gold : Theme.flame)
             }
             Text(title).font(.cfSerif(30)).foregroundStyle(Theme.parchment)
@@ -66,19 +76,16 @@ struct PromoterApplicationView: View {
                 .multilineTextAlignment(.center).lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 24)
-            Spacer(minLength: 24)
             EmberPillButton(title: approved ? "Let's go" : "Got it") {
                 showStatusSheet = false
-                if approved { Task { await auth.refresh() } }   // RootView opens the app
+                if approved { Task { await auth.refresh() } }
             }
             .padding(.horizontal, 24)
+            .padding(.top, 4)
         }
-        .padding(.top, 24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.night)
-        .presentationDetents([.height(440)])
-        .presentationBackground(Theme.night)
-        .ignoresSafeArea(edges: .bottom)
+        .padding(.bottom, 44)   // clears the home indicator; card fills to the very bottom
+        .frame(maxWidth: .infinity)
+        .background(Theme.nightLift, in: .rect(topLeadingRadius: 28, topTrailingRadius: 28))
     }
 
     private var content: some View {

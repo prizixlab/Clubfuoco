@@ -41,13 +41,19 @@ struct WrongAccountView: View {
                 Text("This is a Club Fuoco account. Use the Club Fuoco app, or sign up here to apply as a promoter.")
                     .font(.cfSans(14)).foregroundStyle(Theme.parchmentDim)
                     .multilineTextAlignment(.center).padding(.horizontal, 40)
+
+                // Sign out lands them on the sign-in screen, where "Apply" opens
+                // the promoter signup.
+                EmberPillButton(title: "Apply as promoter", trailingIcon: "arrow.right") {
+                    Task { await auth.signOut() }
+                }
+                .padding(.horizontal, 40)
+                .padding(.top, 8)
+
                 Button { Task { await auth.signOut() } } label: {
                     Text("Sign out").font(.cfMono(11, weight: .medium)).kerning(2)
-                        .foregroundStyle(Theme.ember)
-                        .padding(.horizontal, 28).padding(.vertical, 13)
-                        .overlay(Capsule().stroke(Theme.ember.opacity(0.6)))
+                        .foregroundStyle(Theme.parchmentDim)
                 }
-                .padding(.top, 8)
             }
             .padding(24)
         }

@@ -122,12 +122,14 @@ struct SignUpView: View {
 
     private var otpForm: some View {
         VStack(alignment: .leading, spacing: 18) {
-            TextField("", text: $code, prompt: Text("123456").foregroundStyle(Theme.parchmentDim))
+            TextField("", text: $code, prompt: Text("123456").foregroundStyle(Theme.parchmentFaint))
                 .keyboardType(.numberPad)
-                .font(.cfSerif(34)).foregroundStyle(Theme.parchment)
-                .kerning(8)
+                .font(.cfSerif(52)).foregroundStyle(Theme.parchment)
+                .kerning(12)
+                .multilineTextAlignment(.center)
                 .focused($focused)
-                .padding(.vertical, 10)
+                .padding(.vertical, 18)
+                .frame(maxWidth: .infinity)
                 .overlay(alignment: .bottom) { Rectangle().fill(Theme.parchmentFaint).frame(height: 1) }
 
             EmberPillButton(title: "Verify & apply", loading: submitting) { Task { await verify() } }

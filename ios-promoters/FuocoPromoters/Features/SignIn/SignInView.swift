@@ -6,10 +6,14 @@ struct SignInView: View {
     @State private var password = ""
     @State private var submitting = false
     @State private var showSignUp = false
+    @FocusState private var focused: Field?
+    enum Field { case email, password }
 
     var body: some View {
         ZStack {
             Theme.night.ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { focused = nil }   // tap anywhere to drop the keyboard
 
             VStack(spacing: 32) {
                 Spacer()
@@ -33,6 +37,9 @@ struct SignInView: View {
                         .autocorrectionDisabled()
                         .foregroundStyle(Theme.parchment)
                         .font(.cfSans(17))
+                        .focused($focused, equals: .email)
+                        .submitLabel(.next)
+                        .onSubmit { focused = .password }
                         .padding(.vertical, 14)
                         .overlay(alignment: .bottom) {
                             Rectangle().fill(Theme.parchmentFaint).frame(height: 1)
@@ -43,6 +50,9 @@ struct SignInView: View {
                         .textContentType(.password)
                         .foregroundStyle(Theme.parchment)
                         .font(.cfSans(17))
+                        .focused($focused, equals: .password)
+                        .submitLabel(.go)
+                        .onSubmit { focused = nil; submit() }
                         .padding(.vertical, 14)
                         .overlay(alignment: .bottom) {
                             Rectangle().fill(Theme.parchmentFaint).frame(height: 1)
@@ -74,6 +84,13 @@ struct SignInView: View {
                         .foregroundStyle(Theme.ember)
                 }
                 .padding(.bottom, 12)
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { focused = nil }
+                    .foregroundStyle(Theme.ember).font(.cfSans(15, weight: .semibold))
             }
         }
         .sheet(isPresented: $showSignUp) {

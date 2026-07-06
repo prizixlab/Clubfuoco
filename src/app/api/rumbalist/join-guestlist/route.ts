@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
-import { ok, err } from '@/lib/utils'
+import { ok, err, resolveBookingDate } from '@/lib/utils'
 import { generateReferenceCode } from '@/lib/rumbalist-reference'
 
 // Add the authenticated user to a Rumbalist free guestlist for a club.
@@ -17,8 +17,12 @@ export async function POST(req: Request) {
   const venueName   = body.venue_name ? String(body.venue_name) : null
   const productName = body.product_name ? String(body.product_name) : 'Free Guestlist'
 
+  // Native sends the night picked in the When planner; when absent (web),
+  // keep the legacy default of tomorrow.
+  const bookingDate = resolveBookingDate(body.booking_date)
+  if (!bookingDate) return err('booking_date must be today or within the next 14 days')
+
   const supabase = await createServiceClient()
-  const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10)
 
   // 1. Booking row — retry on the (vanishingly rare) reference-code collision.
   //    Postgres unique violation = code 23505. Five attempts is plenty since
@@ -34,7 +38,7 @@ export async function POST(req: Request) {
         club_id:        clubId,
         booking_type:   'general',  // 'free_guestlist' violates the bookings CHECK constraint
         party_size:     1,
-        booking_date:   tomorrow,
+        booking_date:   bookingDate,
         status:         'confirmed',
         unit_price:     0,
         total_amount:   0,
@@ -68,7 +72,7 @@ export async function POST(req: Request) {
       product_name:      productName,
       product_kind:      'free_guestlist',
       price_eur:         0,
-      event_date:        tomorrow,
+      event_date:        bookingDate,
       booking_id:        booking.id,
     })
   } catch (auditErr) {

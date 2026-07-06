@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { stripe } from '@/lib/stripe'
-import { ok, err } from '@/lib/utils'
+import { ok, err, resolveBookingDate } from '@/lib/utils'
 import { generateReferenceCode } from '@/lib/rumbalist-reference'
 import { z } from 'zod'
 
@@ -13,6 +13,7 @@ const schema = z.object({
   club_id:           z.string().min(1),
   venue_name:        z.string().optional(),
   product_name:      z.string().optional(),
+  booking_date:      z.string().optional(),
 })
 
 export async function POST(req: Request) {
@@ -48,7 +49,9 @@ export async function POST(req: Request) {
 
   // 3. Insert booking row — retry on reference-code collision (Postgres unique
   //    violation = 23505). Five attempts is overkill at 1/2.8-trillion odds.
-  const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10)
+  // Native sends the planner-selected night; web keeps the tomorrow default.
+  const bookingDate = resolveBookingDate(parsed.data.booking_date)
+  if (!bookingDate) return err('booking_date must be today or within the next 14 days')
   const total = intent.amount / 100   // cents → euros
   let booking: any = null
   let insertErr: any = null
@@ -61,7 +64,7 @@ export async function POST(req: Request) {
         club_id:                   parsed.data.club_id,
         booking_type:              'vip',
         party_size:                1,
-        booking_date:               tomorrow,
+        booking_date:               bookingDate,
         status:                    'confirmed',
         unit_price:                total,
         total_amount:              total,
@@ -96,7 +99,7 @@ export async function POST(req: Request) {
       product_name:             parsed.data.product_name ?? 'VIP Table',
       product_kind:             'vip_table',
       price_eur:                total,
-      event_date:               tomorrow,
+      event_date:               bookingDate,
       stripe_payment_intent_id: intent.id,
       booking_id:               booking.id,
     })

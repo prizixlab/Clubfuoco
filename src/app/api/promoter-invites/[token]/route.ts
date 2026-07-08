@@ -35,11 +35,14 @@ export async function GET(
 
   if (error || !alloc?.night) return err('Invite not found', 404)
 
-  let guests: { id: string; full_name: string; plus_ones: number }[] = []
+  let guests: {
+    id: string; full_name: string; plus_ones: number
+    claimed_by_user: string | null; checked_in_at: string | null
+  }[] = []
   if (alloc.group_visible) {
     const { data } = await sb
       .from('promoter_guests')
-      .select('id, full_name, plus_ones')
+      .select('id, full_name, plus_ones, claimed_by_user, checked_in_at')
       .eq('allocation_id', alloc.id)
       .order('created_at', { ascending: true })
     guests = data ?? []

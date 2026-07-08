@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth'
 import { notify } from '@/lib/notify'
 import { ok, err, generateQRToken } from '@/lib/utils'
 import { stripe, calculateOrderTotal } from '@/lib/stripe'
+import { getRumbalistOffers } from '@/lib/rumbalist-offers'
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { data: profile } = await sb
     .from('users')
-    .select('membership_tier, stripe_customer_id, full_name')
+    .select('membership_tier, stripe_customer_id, full_name, email, phone')
     .eq('id', me)
     .maybeSingle()
 
@@ -157,6 +158,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       group_id: groupId, user_id: me, role: 'member', rsvp: 'going',
       payment_required: willCharge, paid: willCharge, booking_id: booking.id,
     })
+  }
+
+  // Rumbalist partner club → register this joiner on the Rumbalist guestlist
+  // too (the audit feed handed back to Rumbalist), mirroring the direct
+  // /api/rumbalist/join-guestlist flow. Without this, friends who join a
+  // Rumbalist night via a group invite were invisible to the partner.
+  // Non-fatal: a failure here must not undo a confirmed booking/charge.
+  if (getRumbalistOffers(group.club_id).length > 0) {
+    const isVip = group.booking_type === 'vip'
+    try {
+      await sb.from('rumbalist_purchases').insert({
+        user_id:      me,
+        full_name:    profile?.full_name ?? null,
+        email:        profile?.email ?? null,
+        phone:        profile?.phone ?? null,
+        venue_id:     group.club_id,
+        venue_name:   club?.name ?? 'Unknown venue',
+        product_name: isVip ? 'VIP Table' : 'Free Guestlist',
+        product_kind: isVip ? 'vip_table' : 'free_guestlist',
+        price_eur:    total,
+        event_date:   group.booking_date,
+        booking_id:   booking.id,
+      })
+    } catch (auditErr) {
+      console.error('rumbalist_purchases insert failed on group join (non-fatal):', auditErr)
+    }
   }
 
   // Tell the organizer someone joined

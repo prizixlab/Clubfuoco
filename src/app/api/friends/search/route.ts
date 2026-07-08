@@ -25,6 +25,10 @@ export async function GET(request: NextRequest) {
     .select('id, full_name, avatar_url')
     .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
     .neq('id', me)
+    // Promoter accounts (Fuoco For Promoters identities) are not consumers and
+    // must not surface in friend search. Null-safe so ordinary users whose
+    // account_kind was never set still appear.
+    .or('account_kind.is.null,account_kind.neq.promoter')
     .limit(15)
 
   const results = matches ?? []

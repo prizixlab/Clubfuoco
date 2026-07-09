@@ -19,7 +19,7 @@ const PASSIVE_RADIUS_M = 400        // looser gate for passive signals
 // time-boxed invitations like rumba list). Computed per-booking below.
 const POST_ENTRY_WINDOW_HOURS_AFTER = 14 * 24  // post-entry / review answers: up to 2 weeks later
 
-const userKinds = ['user_checkin','geo_presence','pass_viewed','post_entry_got_in','post_entry_issue'] as const
+const userKinds = ['user_checkin','geo_presence','pass_viewed','post_entry_got_in','post_entry_issue','morning_after_opened'] as const
 type UserKind = typeof userKinds[number]
 
 const bodySchema = z.object({
@@ -69,7 +69,9 @@ function bookingWindow(
   } else {
     endOfPresence = minsToISO(date, closeMin, closesNextDay)
   }
-  if (kind === 'post_entry_got_in' || kind === 'post_entry_issue') {
+  // Post-entry answers AND the morning-after prompt land after the night —
+  // keep the window open for up to two weeks.
+  if (kind === 'post_entry_got_in' || kind === 'post_entry_issue' || kind === 'morning_after_opened') {
     return {
       earliest,
       latest: new Date(endOfPresence.getTime() + (POST_ENTRY_WINDOW_HOURS_AFTER - 0) * 3_600_000),

@@ -4,6 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { C, caps, font, serif } from './_ui'
 
+const TABS = [
+  { href: '/portal',       label: 'Suppliers', match: (p: string) => p === '/portal' || p.startsWith('/portal/brands') },
+  { href: '/portal/clubs', label: 'Clubs',     match: (p: string) => p.startsWith('/portal/clubs') },
+]
+
 export default function PortalHeader() {
   const pathname = usePathname()
   const onLogin = pathname === '/portal/login'
@@ -23,7 +28,7 @@ export default function PortalHeader() {
       position: 'sticky', top: 0, zIndex: 100,
     }}>
       <div style={{
-        maxWidth: 1180, margin: '0 auto', padding: '15px 24px',
+        maxWidth: 1180, margin: '0 auto', padding: '15px 24px 0',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
       }}>
         <Link href="/portal" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'baseline', gap: 12 }}>
@@ -38,6 +43,24 @@ export default function PortalHeader() {
           Log out
         </button>
       </div>
+
+      {/* Tab nav — underline marks the active section */}
+      <nav style={{ maxWidth: 1180, margin: '0 auto', padding: '10px 24px 0', display: 'flex', gap: 4 }}>
+        {TABS.map(t => {
+          const active = t.match(pathname)
+          return (
+            <Link key={t.href} href={t.href} style={{
+              ...caps, textDecoration: 'none', letterSpacing: '0.14em',
+              color: active ? C.goldHi : C.dim,
+              padding: '8px 12px 12px',
+              borderBottom: `2px solid ${active ? C.gold : 'transparent'}`,
+              marginBottom: -1,
+            }}>
+              {t.label}
+            </Link>
+          )
+        })}
+      </nav>
     </header>
   )
 }

@@ -86,6 +86,13 @@ export default function BrandsPage() {
               )}
             </div>
 
+            <div style={{ margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <p style={{ ...caps, fontSize: 10, color: C.faint, margin: 0 }}>Login</p>
+              {b.login_email
+                ? <span style={{ fontFamily: mono, fontSize: 12, color: C.dim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={b.login_email}>{b.login_email}</span>
+                : <span style={{ fontSize: 12, color: C.faint, fontFamily: font, fontStyle: 'italic' }}>not set</span>}
+            </div>
+
             <div style={{ display: 'flex', gap: 10, marginTop: 'auto' }}>
               <Link href={`/portal/brands/${b.id}`} style={{ textDecoration: 'none', flex: 1, display: 'flex' }}>
                 <Btn wide>Edit</Btn>

@@ -24,6 +24,8 @@ const PatchBrand = z.object({
   logo_url:             z.string().url().nullable().optional(),
   attribution_required: z.boolean().optional(),
   attribution_label:    z.string().trim().min(1).max(40).nullable().optional(),
+  // Supplier's login email for the FuocoPromoters app. Empty → null.
+  login_email:          z.string().trim().email('Enter a valid email').max(160).nullable().optional(),
 }).strict()   // rejects `key` — the slug is immutable after create
 
 // PATCH /api/portal/brands/:id — edit identity + attribution. Never `key`.

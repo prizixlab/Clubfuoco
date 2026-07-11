@@ -118,6 +118,10 @@ export interface BrandRow extends PartnerBrand {
   is_active:   boolean
   created_at:  string
   offer_count: number
+  // The supplier's own login email for the FuocoPromoters app. Operator-only —
+  // deliberately NOT part of the consumer-facing PartnerBrand, and the public
+  // /api/partner never emits it.
+  login_email: string | null
 }
 
 // offer_count counts ACTIVE offers only — it drives the "activating an empty
@@ -138,6 +142,7 @@ export async function listBrands(sb: SB): Promise<BrandRow[]> {
     is_active:   (r as { is_active: boolean }).is_active,
     created_at:  (r as { created_at: string }).created_at,
     offer_count: counts[(r as { id: string }).id] ?? 0,
+    login_email: ((r as { login_email?: string | null }).login_email) ?? null,
   }))
 }
 
@@ -150,6 +155,7 @@ export async function getBrand(sb: SB, id: string): Promise<BrandRow | null> {
     is_active:   (data as { is_active: boolean }).is_active,
     created_at:  (data as { created_at: string }).created_at,
     offer_count: (offers ?? []).filter(isActiveOffer).length,
+    login_email: ((data as { login_email?: string | null }).login_email) ?? null,
   }
 }
 
@@ -163,14 +169,15 @@ export async function createBrand(
     .select('*')
     .single()
   if (error) throw new Error(error.message)
-  return { ...toBrand(data), is_active: false, created_at: (data as { created_at: string }).created_at, offer_count: 0 }
+  return { ...toBrand(data), is_active: false, created_at: (data as { created_at: string }).created_at, offer_count: 0, login_email: null }
 }
 
 // `key` is deliberately not updatable — it's the stable slug / storage path.
 export async function updateBrand(
   sb: SB,
   id: string,
-  patch: Partial<Pick<PartnerBrand, 'name' | 'color' | 'logo_url' | 'attribution_required' | 'attribution_label'>>,
+  patch: Partial<Pick<PartnerBrand, 'name' | 'color' | 'logo_url' | 'attribution_required' | 'attribution_label'>>
+    & { login_email?: string | null },
 ): Promise<void> {
   const { error } = await sb.from('partner_brands').update(patch).eq('id', id)
   if (error) throw new Error(error.message)

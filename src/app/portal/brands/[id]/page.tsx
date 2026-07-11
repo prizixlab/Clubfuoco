@@ -76,12 +76,15 @@ function IdentityCard({ brand, onSaved, onDraft }: {
   const [color, setColor] = useState(brand.color.toUpperCase())
   const [required, setRequired] = useState(brand.attribution_required)
   const [label, setLabel] = useState(brand.attribution_label ?? 'Guestlist by')
+  const [loginEmail, setLoginEmail] = useState(brand.login_email ?? '')
   const [busy, setBusy]   = useState<'save' | 'logo' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const customLabel = !LABEL_PRESETS.includes(label)
+  // Empty is allowed (no login yet); a non-empty value must look like an email.
+  const emailValid = loginEmail.trim() === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(loginEmail.trim())
 
   // Mirror attribution edits up so the preview card tracks them live.
   useEffect(() => {
@@ -102,6 +105,7 @@ function IdentityCard({ brand, onSaved, onDraft }: {
       // null label falls back to "Guestlist by" everywhere, so only a real
       // change (not the untouched default) counts as an edit.
       if ((label.trim() || null) !== (brand.attribution_label ?? 'Guestlist by')) patch.attribution_label = label.trim() || null
+      if ((loginEmail.trim() || null) !== (brand.login_email ?? null)) patch.login_email = loginEmail.trim() || null
       if (Object.keys(patch).length > 0) {
         await api(`/api/portal/brands/${brand.id}`, { method: 'PATCH', body: JSON.stringify(patch) })
       }
@@ -201,9 +205,21 @@ function IdentityCard({ brand, onSaved, onDraft }: {
         </Field>
       )}
 
+      <div style={{ borderTop: `1px solid ${C.line}`, margin: '4px 0 16px' }} />
+      <SectionLabel>Supplier access</SectionLabel>
+      <p style={{ margin: '-8px 0 14px', fontSize: 12.5, color: C.faint, lineHeight: 1.55, fontFamily: font }}>
+        The email this supplier uses to sign in to the FuocoPromoters app and
+        monitor their own offers. Passwordless — they receive a one-time code at
+        this address.
+      </p>
+      <Field label="Login email" hint="Leave blank if no login has been set up yet.">
+        <TextInput type="email" value={loginEmail} maxLength={160} placeholder="team@rumba.com"
+          autoComplete="off" onChange={e => setLoginEmail(e.target.value)} />
+      </Field>
+
       <ErrorLine error={error} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 16 }}>
-        <Btn kind="primary" onClick={save} disabled={busy === 'save' || !name.trim() || !/^#[0-9A-F]{6}$/i.test(color)}>
+        <Btn kind="primary" onClick={save} disabled={busy === 'save' || !name.trim() || !/^#[0-9A-F]{6}$/i.test(color) || !emailValid}>
           {busy === 'save' ? 'Saving…' : 'Publish changes'}
         </Btn>
         {saved && <span style={{ ...caps, fontSize: 10.5, color: C.green }}>● Saved</span>}

@@ -16,6 +16,7 @@ export const OfferSchema = z.object({
   dress_code:  z.string().trim().min(1).max(200),
   music:       z.string().trim().min(1).max(200),
   sort_order:  z.number().int().min(0).max(1000).optional(),
+  is_active:   z.boolean().optional(),   // false = archived (kept, not shown)
 }).superRefine((o, ctx) => {
   if (o.kind === 'vip_table' && o.price_eur == null) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price_eur'], message: 'VIP tables need a price' })
@@ -39,4 +40,5 @@ export const OfferPatchSchema = z.object({
   dress_code:  z.string().trim().min(1).max(200).optional(),
   music:       z.string().trim().min(1).max(200).optional(),
   sort_order:  z.number().int().min(0).max(1000).optional(),
+  is_active:   z.boolean().optional(),   // false = archived (kept, not shown)
 }).strict()

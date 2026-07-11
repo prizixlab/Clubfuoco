@@ -33,8 +33,10 @@ export interface PartnerOffer {
   music:       string
 }
 
-const OFFER_COLS =
-  'club_id, kind, title, subtitle, price_eur, party_size, time_window, valid_days, dress_code, music'
+// Archived offers (20260711_partner_offer_archive.sql) keep their data but
+// leave the front page. Missing column (pre-migration) reads as active, so
+// public endpoints never break on drift — same select('*') trick as brands.
+const isActiveOffer = (r: Record<string, unknown>) => r.is_active !== false
 
 function toOffer(r: Record<string, unknown>): PartnerOffer {
   return {
@@ -80,12 +82,15 @@ export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, Par
   if (!brand) return {}
   const { data } = await sb
     .from('partner_offers')
-    .select(OFFER_COLS)
+    .select('*')
     .eq('brand_id', brand.id)
     .order('club_id', { ascending: true })
     .order('sort_order', { ascending: true })
   const map: Record<string, PartnerOffer[]> = {}
-  for (const r of data ?? []) (map[(r as { club_id: string }).club_id] ??= []).push(toOffer(r))
+  for (const r of data ?? []) {
+    if (!isActiveOffer(r)) continue
+    (map[(r as { club_id: string }).club_id] ??= []).push(toOffer(r))
+  }
   return map
 }
 
@@ -96,11 +101,11 @@ export async function getPartnerOffers(sb: SB, clubId: string | null | undefined
   if (!brand) return []
   const { data } = await sb
     .from('partner_offers')
-    .select(OFFER_COLS)
+    .select('*')
     .eq('brand_id', brand.id)
     .eq('club_id', clubId)
     .order('sort_order', { ascending: true })
-  return (data ?? []).map(toOffer)
+  return (data ?? []).filter(isActiveOffer).map(toOffer)
 }
 
 // ── Portal write helpers ─────────────────────────────────────────────────────
@@ -115,14 +120,19 @@ export interface BrandRow extends PartnerBrand {
   offer_count: number
 }
 
+// offer_count counts ACTIVE offers only — it drives the "activating an empty
+// brand blanks the shelf" warning, and archived offers don't fill the shelf.
 export async function listBrands(sb: SB): Promise<BrandRow[]> {
   const [{ data: brands, error }, { data: offers }] = await Promise.all([
     sb.from('partner_brands').select('*').order('created_at', { ascending: true }),
-    sb.from('partner_offers').select('brand_id'),
+    sb.from('partner_offers').select('*'),
   ])
   if (error) throw new Error(error.message)
   const counts: Record<string, number> = {}
-  for (const o of offers ?? []) counts[(o as { brand_id: string }).brand_id] = (counts[(o as { brand_id: string }).brand_id] ?? 0) + 1
+  for (const o of offers ?? []) {
+    if (!isActiveOffer(o)) continue
+    counts[(o as { brand_id: string }).brand_id] = (counts[(o as { brand_id: string }).brand_id] ?? 0) + 1
+  }
   return (brands ?? []).map(r => ({
     ...toBrand(r),
     is_active:   (r as { is_active: boolean }).is_active,
@@ -134,12 +144,12 @@ export async function listBrands(sb: SB): Promise<BrandRow[]> {
 export async function getBrand(sb: SB, id: string): Promise<BrandRow | null> {
   const { data } = await sb.from('partner_brands').select('*').eq('id', id).maybeSingle()
   if (!data) return null
-  const { count } = await sb.from('partner_offers').select('id', { count: 'exact', head: true }).eq('brand_id', id)
+  const { data: offers } = await sb.from('partner_offers').select('*').eq('brand_id', id)
   return {
     ...toBrand(data),
     is_active:   (data as { is_active: boolean }).is_active,
     created_at:  (data as { created_at: string }).created_at,
-    offer_count: count ?? 0,
+    offer_count: (offers ?? []).filter(isActiveOffer).length,
   }
 }
 
@@ -188,9 +198,8 @@ export interface OfferRow extends PartnerOffer {
   brand_id:   string
   club_id:    string
   sort_order: number
+  is_active:  boolean   // false = archived: data kept, hidden from the front page
 }
-
-const OFFER_ROW_COLS = `id, brand_id, sort_order, ${OFFER_COLS}`
 
 function toOfferRow(r: Record<string, unknown>): OfferRow {
   return {
@@ -199,13 +208,15 @@ function toOfferRow(r: Record<string, unknown>): OfferRow {
     brand_id:   r.brand_id as string,
     club_id:    r.club_id as string,
     sort_order: Number(r.sort_order ?? 0),
+    is_active:  isActiveOffer(r),
   }
 }
 
+// Portal view — includes archived offers (the whole point is seeing them).
 export async function listBrandOffers(sb: SB, brandId: string): Promise<OfferRow[]> {
   const { data, error } = await sb
     .from('partner_offers')
-    .select(OFFER_ROW_COLS)
+    .select('*')
     .eq('brand_id', brandId)
     .order('club_id', { ascending: true })
     .order('sort_order', { ascending: true })
@@ -213,13 +224,13 @@ export async function listBrandOffers(sb: SB, brandId: string): Promise<OfferRow
   return (data ?? []).map(toOfferRow)
 }
 
-export type OfferInput = PartnerOffer & { club_id: string; sort_order?: number }
+export type OfferInput = PartnerOffer & { club_id: string; sort_order?: number; is_active?: boolean }
 
 export async function createOffer(sb: SB, brandId: string, input: OfferInput): Promise<OfferRow> {
   const { data, error } = await sb
     .from('partner_offers')
     .insert({ ...input, brand_id: brandId })
-    .select(OFFER_ROW_COLS)
+    .select('*')
     .single()
   if (error) throw new Error(error.message)
   return toOfferRow(data)

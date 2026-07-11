@@ -20,9 +20,11 @@ export async function PATCH(
   if (Object.keys(parsed.data).length === 0) return err('Nothing to update')
 
   const sb = await createServiceClient()
+  // select('*') so the merge sees every column that exists (incl. is_active
+  // once the archive migration lands) — zod strips the extras (id, brand_id…).
   const { data: existing } = await sb
     .from('partner_offers')
-    .select('club_id, kind, title, subtitle, price_eur, party_size, time_window, valid_days, dress_code, music, sort_order')
+    .select('*')
     .eq('id', offerId)
     .maybeSingle()
   if (!existing) return err('Offer not found', 404)

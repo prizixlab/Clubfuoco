@@ -65,7 +65,7 @@ export default function BrandsPage() {
                   <span style={{ width: 11, height: 11, borderRadius: 3, background: b.color, border: `1px solid ${C.line}`, display: 'inline-block' }} />
                   <span style={{ fontFamily: mono }}>{b.color}</span>
                 </span>
-                <span>{b.offer_count} offer{b.offer_count === 1 ? '' : 's'}</span>
+                <span>{b.offer_count} live offer{b.offer_count === 1 ? '' : 's'}</span>
               </div>
             </div>
 

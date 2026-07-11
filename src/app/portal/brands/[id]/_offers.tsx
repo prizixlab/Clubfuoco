@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { BrandRow, OfferRow } from '@/lib/partner'
-import { Btn, Card, ErrorLine, Field, TextInput, inputStyle, api, C, font, mono } from '../../_ui'
+import { Badge, Btn, Card, ErrorLine, Field, TextInput, inputStyle, api, C, font, mono } from '../../_ui'
 
 interface Club { id: string; name: string }
 
@@ -58,7 +58,11 @@ export default function OffersEditor({ brand, onOffersChanged }: {
     <section style={{ marginTop: 28 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, fontFamily: font }}>
-          Offers <span style={{ color: C.faint, fontWeight: 400 }}>· {offers?.length ?? '…'}</span>
+          Offers{' '}
+          <span style={{ color: C.faint, fontWeight: 400 }}>
+            · {offers ? offers.filter(o => o.is_active).length : '…'} live
+            {offers && offers.some(o => !o.is_active) && ` · ${offers.filter(o => !o.is_active).length} inactive`}
+          </span>
         </h2>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {otherBrands.length > 0 && <DuplicateFrom brandId={brand.id} sources={otherBrands} onDone={changed} />}
@@ -233,13 +237,27 @@ function OfferItem({ offer, onChanged }: { offer: OfferRow; onChanged: () => voi
   const isVip = offer.kind === 'vip_table'
 
   async function remove() {
-    if (!confirm(`Delete "${offer.title}"?`)) return
+    if (!confirm(`Delete "${offer.title}" permanently? (Deactivate keeps the data.)`)) return
     setBusy(true)
     try {
       await api(`/api/portal/offers/${offer.id}`, { method: 'DELETE' })
       onChanged()
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Delete failed')
+      setBusy(false)
+    }
+  }
+
+  // Archive toggle — the data-preserving alternative to Delete. Inactive
+  // offers vanish from /api/partner but stay editable here.
+  async function setActive(active: boolean) {
+    setBusy(true)
+    try {
+      await api(`/api/portal/offers/${offer.id}`, { method: 'PATCH', body: JSON.stringify({ is_active: active }) })
+      onChanged()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Update failed')
+    } finally {
       setBusy(false)
     }
   }
@@ -264,6 +282,7 @@ function OfferItem({ offer, onChanged }: { offer: OfferRow; onChanged: () => voi
       display: 'flex', alignItems: 'center', gap: 12,
       background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.line}`,
       borderRadius: 10, padding: '10px 12px', cursor: 'grab',
+      opacity: offer.is_active ? 1 : 0.55,
     }}>
       <span title="Drag to reorder" style={{ color: C.faint, fontSize: 14, userSelect: 'none' }}>⠿</span>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -272,12 +291,17 @@ function OfferItem({ offer, onChanged }: { offer: OfferRow; onChanged: () => voi
           <span style={{ fontSize: 11, color: isVip ? C.gold : C.green, fontFamily: mono }}>
             {isVip ? `VIP · €${offer.price_eur}` : 'FREE'}
           </span>
+          {!offer.is_active && <Badge color={C.faint}>Inactive</Badge>}
         </div>
         <p style={{ margin: '2px 0 0', fontSize: 12, color: C.dim, fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {offer.subtitle} · {offer.valid_days}
         </p>
       </div>
       <Btn small kind="ghost" onClick={() => setEditing(true)} disabled={busy}>Edit</Btn>
+      {offer.is_active
+        ? <Btn small kind="ghost" onClick={() => setActive(false)} disabled={busy}
+            title="Hide from the front page but keep the data">Deactivate</Btn>
+        : <Btn small onClick={() => setActive(true)} disabled={busy}>Reactivate</Btn>}
       <Btn small kind="danger" onClick={remove} disabled={busy}>Delete</Btn>
     </div>
   )

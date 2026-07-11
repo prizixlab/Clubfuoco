@@ -64,5 +64,10 @@ export function resolveBookingDate(requested: unknown): string | null {
   const today = new Date()
   const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
   const diffDays = Math.floor((picked - todayUTC) / 86_400_000)
-  return diffDays >= 0 && diffDays <= 14 ? requested : null
+  // `requested` is a LOCAL calendar date; the client's local "today" can be a
+  // day off from UTC today in either direction (offsets span UTC±14). Without
+  // this tolerance a same-night claim after UTC midnight (e.g. 22:00 in
+  // Barcelona → 00:00Z) is wrongly rejected. Keep the 14-day product window but
+  // allow one day of slack on each side to absorb the timezone boundary.
+  return diffDays >= -1 && diffDays <= 15 ? requested : null
 }

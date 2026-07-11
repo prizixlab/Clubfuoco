@@ -5,11 +5,18 @@ type SB = Awaited<ReturnType<typeof createServiceClient>>
 // The active guestlist partner's identity, shown to users. Swappable at runtime
 // (see supabase/migrations/20260711_partner_config.sql) so a partner switch
 // doesn't need a rebuild or App Store release.
+//
+// Attribution (20260711_partner_attribution.sql): when a supplier's contract
+// requires their brand stay visible, `attribution_required` turns on a small
+// subordinate credit ("Guestlist by Rumba") on the offer/booking sheet. Club
+// Fuoco stays the dominant brand everywhere.
 export interface PartnerBrand {
-  key:      string
-  name:     string
-  logo_url: string | null
-  color:    string
+  key:                  string
+  name:                 string
+  logo_url:             string | null
+  color:                string
+  attribution_required: boolean
+  attribution_label:    string | null
 }
 
 // A per-club offer (free guestlist / VIP), denormalized for display. Mirrors the
@@ -43,13 +50,28 @@ function toOffer(r: Record<string, unknown>): PartnerOffer {
   }
 }
 
+// select('*') + explicit mapping, not a column list: production drifts from the
+// migration files (SQL-editor applies), so the attribution columns may not
+// exist yet. This keeps the public /api/partner up either way.
+function toBrand(r: Record<string, unknown>): PartnerBrand & { id: string } {
+  return {
+    id:                   r.id as string,
+    key:                  r.key as string,
+    name:                 r.name as string,
+    logo_url:             (r.logo_url as string | null) ?? null,
+    color:                r.color as string,
+    attribution_required: r.attribution_required === true,
+    attribution_label:    (r.attribution_label as string | null) ?? null,
+  }
+}
+
 export async function getActiveBrand(sb: SB): Promise<(PartnerBrand & { id: string }) | null> {
   const { data } = await sb
     .from('partner_brands')
-    .select('id, key, name, logo_url, color')
+    .select('*')
     .eq('is_active', true)
     .maybeSingle()
-  return (data as (PartnerBrand & { id: string }) | null) ?? null
+  return data ? toBrand(data) : null
 }
 
 // All of the active brand's offers, grouped by club id (the RUMBALIST_OFFERS map).
@@ -79,4 +101,158 @@ export async function getPartnerOffers(sb: SB, clubId: string | null | undefined
     .eq('club_id', clubId)
     .order('sort_order', { ascending: true })
   return (data ?? []).map(toOffer)
+}
+
+// ── Portal write helpers ─────────────────────────────────────────────────────
+// Used only by /api/portal/** routes (portal-password gated, service client).
+// Row shapes are the raw DB rows — the portal is an admin surface and wants
+// ids/brand_id/sort_order, unlike the public consumer payload above.
+
+export interface BrandRow extends PartnerBrand {
+  id:          string
+  is_active:   boolean
+  created_at:  string
+  offer_count: number
+}
+
+export async function listBrands(sb: SB): Promise<BrandRow[]> {
+  const [{ data: brands, error }, { data: offers }] = await Promise.all([
+    sb.from('partner_brands').select('*').order('created_at', { ascending: true }),
+    sb.from('partner_offers').select('brand_id'),
+  ])
+  if (error) throw new Error(error.message)
+  const counts: Record<string, number> = {}
+  for (const o of offers ?? []) counts[(o as { brand_id: string }).brand_id] = (counts[(o as { brand_id: string }).brand_id] ?? 0) + 1
+  return (brands ?? []).map(r => ({
+    ...toBrand(r),
+    is_active:   (r as { is_active: boolean }).is_active,
+    created_at:  (r as { created_at: string }).created_at,
+    offer_count: counts[(r as { id: string }).id] ?? 0,
+  }))
+}
+
+export async function getBrand(sb: SB, id: string): Promise<BrandRow | null> {
+  const { data } = await sb.from('partner_brands').select('*').eq('id', id).maybeSingle()
+  if (!data) return null
+  const { count } = await sb.from('partner_offers').select('id', { count: 'exact', head: true }).eq('brand_id', id)
+  return {
+    ...toBrand(data),
+    is_active:   (data as { is_active: boolean }).is_active,
+    created_at:  (data as { created_at: string }).created_at,
+    offer_count: count ?? 0,
+  }
+}
+
+export async function createBrand(
+  sb: SB,
+  input: { key: string; name: string; color: string },
+): Promise<BrandRow> {
+  const { data, error } = await sb
+    .from('partner_brands')
+    .insert({ key: input.key, name: input.name, color: input.color, is_active: false })
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return { ...toBrand(data), is_active: false, created_at: (data as { created_at: string }).created_at, offer_count: 0 }
+}
+
+// `key` is deliberately not updatable — it's the stable slug / storage path.
+export async function updateBrand(
+  sb: SB,
+  id: string,
+  patch: Partial<Pick<PartnerBrand, 'name' | 'color' | 'logo_url' | 'attribution_required' | 'attribution_label'>>,
+): Promise<void> {
+  const { error } = await sb.from('partner_brands').update(patch).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+// The switch. Prefer the transactional RPC (20260711_partner_attribution.sql);
+// fall back to two sequential updates if the function isn't applied yet —
+// unset-then-set never trips the one-active partial-unique index.
+export async function activateBrand(sb: SB, id: string): Promise<void> {
+  const { error } = await sb.rpc('set_active_brand', { brand: id })
+  if (!error) return
+  const missingFn = error.code === 'PGRST202' || /set_active_brand/.test(error.message)
+  if (!missingFn) throw new Error(error.message)
+
+  const { data: target } = await sb.from('partner_brands').select('id').eq('id', id).maybeSingle()
+  if (!target) throw new Error('brand not found')
+  const off = await sb.from('partner_brands').update({ is_active: false }).eq('is_active', true).neq('id', id)
+  if (off.error) throw new Error(off.error.message)
+  const on = await sb.from('partner_brands').update({ is_active: true }).eq('id', id)
+  if (on.error) throw new Error(on.error.message)
+}
+
+export interface OfferRow extends PartnerOffer {
+  id:         string
+  brand_id:   string
+  club_id:    string
+  sort_order: number
+}
+
+const OFFER_ROW_COLS = `id, brand_id, sort_order, ${OFFER_COLS}`
+
+function toOfferRow(r: Record<string, unknown>): OfferRow {
+  return {
+    ...toOffer(r),
+    id:         r.id as string,
+    brand_id:   r.brand_id as string,
+    club_id:    r.club_id as string,
+    sort_order: Number(r.sort_order ?? 0),
+  }
+}
+
+export async function listBrandOffers(sb: SB, brandId: string): Promise<OfferRow[]> {
+  const { data, error } = await sb
+    .from('partner_offers')
+    .select(OFFER_ROW_COLS)
+    .eq('brand_id', brandId)
+    .order('club_id', { ascending: true })
+    .order('sort_order', { ascending: true })
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(toOfferRow)
+}
+
+export type OfferInput = PartnerOffer & { club_id: string; sort_order?: number }
+
+export async function createOffer(sb: SB, brandId: string, input: OfferInput): Promise<OfferRow> {
+  const { data, error } = await sb
+    .from('partner_offers')
+    .insert({ ...input, brand_id: brandId })
+    .select(OFFER_ROW_COLS)
+    .single()
+  if (error) throw new Error(error.message)
+  return toOfferRow(data)
+}
+
+export async function updateOffer(
+  sb: SB,
+  offerId: string,
+  patch: Partial<OfferInput>,
+): Promise<void> {
+  const { error } = await sb.from('partner_offers').update(patch).eq('id', offerId)
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteOffer(sb: SB, offerId: string): Promise<void> {
+  const { error } = await sb.from('partner_offers').delete().eq('id', offerId)
+  if (error) throw new Error(error.message)
+}
+
+// Bulk "duplicate offers from another brand" — stands up a new partner fast.
+// Copies every offer row (all clubs) from `fromBrandId`, skipping clubs the
+// target brand already has offers for.
+export async function duplicateOffers(sb: SB, fromBrandId: string, toBrandId: string): Promise<number> {
+  const [source, existing] = await Promise.all([
+    listBrandOffers(sb, fromBrandId),
+    listBrandOffers(sb, toBrandId),
+  ])
+  const taken = new Set(existing.map(o => o.club_id))
+  const rows = source
+    .filter(o => !taken.has(o.club_id))
+    .map(({ id: _id, brand_id: _b, ...rest }) => ({ ...rest, brand_id: toBrandId }))
+  if (!rows.length) return 0
+  const { error } = await sb.from('partner_offers').insert(rows)
+  if (error) throw new Error(error.message)
+  return rows.length
 }

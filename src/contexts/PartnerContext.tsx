@@ -15,6 +15,10 @@ export interface PartnerBrand {
   name:     string
   logo_url: string | null
   color:    string
+  // Contractual supplier credit — when required, the booking sheet shows a
+  // small subordinate "attribution_label name" line (e.g. "Guestlist by Rumba").
+  attribution_required: boolean
+  attribution_label:    string | null
 }
 
 interface PartnerValue {
@@ -25,6 +29,7 @@ interface PartnerValue {
 
 const FALLBACK_BRAND: PartnerBrand = {
   key: 'clubfuoco', name: 'Club Fuoco', logo_url: null, color: '#C09950',
+  attribution_required: false, attribution_label: null,
 }
 
 // Module-level cache so navigations don't re-fetch or flash the fallback.

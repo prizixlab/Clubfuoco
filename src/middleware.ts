@@ -1,5 +1,6 @@
 import { createServerClient, type CookieMethodsServer } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { PORTAL_COOKIE, isValidPortalCookie } from '@/lib/portal-auth'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin':  '*',
@@ -11,6 +12,43 @@ export async function middleware(request: NextRequest) {
   // ── CORS preflight — Capacitor sends OPTIONS before every POST ──────────────
   if (request.method === 'OPTIONS' && request.nextUrl.pathname.startsWith('/api/')) {
     return new NextResponse(null, { status: 204, headers: CORS_HEADERS })
+  }
+
+  // ── Partner Portal — shared-secret cookie gate ──────────────────────────────
+  // /portal/** (pages) and /api/portal/** (writes) are operator-only. No
+  // Supabase accounts involved: the login route checks PORTAL_PASSWORD and sets
+  // an httpOnly HMAC cookie (src/lib/portal-auth.ts). Handled before the
+  // Supabase session machinery — the portal doesn't use it. Every /api/portal
+  // route additionally self-protects with requirePortal() (defence in depth).
+  {
+    const { pathname } = request.nextUrl
+    const isPortalPage = pathname === '/portal' || pathname.startsWith('/portal/')
+    const isPortalApi  = pathname.startsWith('/api/portal')
+    if (isPortalPage || isPortalApi) {
+      const isLoginPage  = pathname === '/portal/login'
+      const isAuthRoute  = pathname === '/api/portal/auth'
+      const authed = await isValidPortalCookie(request.cookies.get(PORTAL_COOKIE)?.value)
+
+      if (!authed && isPortalPage && !isLoginPage) {
+        const login = request.nextUrl.clone()
+        login.pathname = '/portal/login'
+        login.search = ''
+        return NextResponse.redirect(login)
+      }
+      if (!authed && isPortalApi && !isAuthRoute) {
+        return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 })
+      }
+      // Already logged in on the login page → straight to the portal.
+      if (authed && isLoginPage) {
+        const home = request.nextUrl.clone()
+        home.pathname = '/portal'
+        home.search = ''
+        return NextResponse.redirect(home)
+      }
+      const res = NextResponse.next({ request })
+      res.headers.set('X-Robots-Tag', 'noindex, nofollow')   // never in search results
+      return res
+    }
   }
 
   let supabaseResponse = NextResponse.next({ request })

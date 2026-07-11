@@ -1,0 +1,65 @@
+import { NextRequest } from 'next/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { requirePortal } from '@/lib/portal-auth'
+import { OfferSchema, OfferPatchSchema } from '@/lib/portal-schemas'
+import { updateOffer, deleteOffer } from '@/lib/partner'
+import { ok, err } from '@/lib/utils'
+
+// PATCH /api/portal/offers/:offerId — edit an offer. The patch is merged onto
+// the existing row and the merged object re-validated, so kind/price stay
+// consistent (VIP ⇒ price, free ⇒ no price) no matter which subset is sent.
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ offerId: string }> },
+) {
+  const denied = await requirePortal()
+  if (denied) return denied
+  const { offerId } = await params
+  const parsed = OfferPatchSchema.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) return err(parsed.error.issues[0]?.message ?? 'Invalid patch')
+  if (Object.keys(parsed.data).length === 0) return err('Nothing to update')
+
+  const sb = await createServiceClient()
+  const { data: existing } = await sb
+    .from('partner_offers')
+    .select('club_id, kind, title, subtitle, price_eur, party_size, time_window, valid_days, dress_code, music, sort_order')
+    .eq('id', offerId)
+    .maybeSingle()
+  if (!existing) return err('Offer not found', 404)
+
+  const patch = { ...parsed.data }
+  // Flipping to free implies dropping the price — don't make the operator
+  // clear it in a separate request.
+  if (patch.kind === 'free_guestlist' && patch.price_eur === undefined) patch.price_eur = null
+
+  const merged = OfferSchema.safeParse({
+    ...existing,
+    price_eur: existing.price_eur == null ? null : Number(existing.price_eur),
+    ...patch,
+  })
+  if (!merged.success) return err(merged.error.issues[0]?.message ?? 'Invalid offer')
+
+  try {
+    await updateOffer(sb, offerId, patch)
+    return ok({ updated: true })
+  } catch (e) {
+    return err(e instanceof Error ? e.message : 'Could not update offer', 500)
+  }
+}
+
+// DELETE /api/portal/offers/:offerId — remove an offer.
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ offerId: string }> },
+) {
+  const denied = await requirePortal()
+  if (denied) return denied
+  const { offerId } = await params
+  const sb = await createServiceClient()
+  try {
+    await deleteOffer(sb, offerId)
+    return ok({ deleted: true })
+  } catch (e) {
+    return err(e instanceof Error ? e.message : 'Could not delete offer', 500)
+  }
+}

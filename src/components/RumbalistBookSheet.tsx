@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { apiFetch } from '@/lib/api'
 import { usePlan } from '@/contexts/PlanContext'
+import { usePartner } from '@/contexts/PartnerContext'
 import { RumbalistOffer } from '@/lib/rumbalist-offers'
 
 /**
@@ -326,6 +327,8 @@ function ReviewStep({ offer, venueName, venueAddress, error, paying, onConfirm, 
         )}
       </div>
 
+      <SupplierCreditLine />
+
       {error && (
         <p style={{ margin: '12px 0 0', fontSize: 12, color: '#FFB4A2', textAlign: 'center' }}>{error}</p>
       )}
@@ -479,6 +482,8 @@ function PassStep({ offer, venueName, venueAddress, date, code, bookingId, onClo
         Show this on the door, or open it any time from your Tickets.
       </p>
 
+      <SupplierCreditLine />
+
       {/* Add to Apple Wallet — black pill, native PassKit visual language.
           Only renders once the server-confirmed booking id is in hand. */}
       {bookingId && (
@@ -508,6 +513,29 @@ function PassStep({ offer, venueName, venueAddress, date, code, bookingId, onClo
         Done
       </button>
     </div>
+  )
+}
+
+/* ─── Supplier credit ──────────────────────────────────────────────────── */
+// Contractual attribution for the active offer supplier ("Guestlist by Rumba").
+// Data-driven from /api/partner: renders only when the supplier's contract
+// requires it (brand.attribution_required), as a small subordinate line —
+// Club Fuoco stays the dominant brand on the sheet. The supplier's logo/color
+// live only inside this credit.
+function SupplierCreditLine() {
+  const { brand } = usePartner()
+  if (!brand.attribution_required) return null
+  return (
+    <p style={{
+      margin: '14px 0 0', textAlign: 'center', fontSize: 11,
+      color: 'rgba(245,245,247,0.5)', fontFamily: 'Geist, -apple-system, system-ui, sans-serif',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+    }}>
+      {brand.attribution_label?.trim() || 'Guestlist by'}
+      {brand.logo_url
+        ? <img src={brand.logo_url} alt={brand.name} style={{ height: 12, maxWidth: 84, objectFit: 'contain', opacity: 0.85 }} />
+        : <span style={{ fontWeight: 600, color: 'rgba(245,245,247,0.72)' }}>{brand.name}</span>}
+    </p>
   )
 }
 

@@ -12,7 +12,16 @@ export async function GET() {
 
   const offersByClub = await getPartnerOffersByClub(sb)
   return ok({
-    brand: { key: brand.key, name: brand.name, logo_url: brand.logo_url, color: brand.color },
+    brand: {
+      key:                  brand.key,
+      name:                 brand.name,
+      logo_url:             brand.logo_url,
+      color:                brand.color,
+      // Contractual supplier credit — clients render "attribution_label name"
+      // (e.g. "Guestlist by Rumba") on the booking sheet when required.
+      attribution_required: brand.attribution_required,
+      attribution_label:    brand.attribution_label,
+    },
     offersByClub,
   })
 }

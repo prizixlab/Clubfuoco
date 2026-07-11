@@ -24,7 +24,7 @@ interface PartnerValue {
 }
 
 const FALLBACK_BRAND: PartnerBrand = {
-  key: 'clubfuoco', name: 'Club Fuoco', logo_url: null, color: '#FF2D92',
+  key: 'clubfuoco', name: 'Club Fuoco', logo_url: null, color: '#C09950',
 }
 
 // Module-level cache so navigations don't re-fetch or flash the fallback.

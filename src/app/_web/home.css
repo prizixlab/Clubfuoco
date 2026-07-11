@@ -98,9 +98,9 @@
   font-family: "Bowlby One", var(--serif);
   font-size: 13px;
   letter-spacing: 0.02em;
-  color: var(--pink);
-  border-color: rgba(255, 45, 146, 0.22);
-  box-shadow: 0 8px 26px -12px rgba(255, 45, 146, 0.3);
+  color: var(--gold);
+  border-color: rgba(192, 153, 80, 0.22);
+  box-shadow: 0 8px 26px -12px rgba(192, 153, 80, 0.3);
 }
 @media (hover: none), (prefers-reduced-motion: reduce) {
   .glimmer-layer { display: none; }
@@ -195,7 +195,7 @@
   max-width: 150vw;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(circle, rgba(255,45,146,0.10) 0%, rgba(192,153,80,0.06) 30%, transparent 60%);
+  background: radial-gradient(circle, rgba(192,153,80,0.12) 0%, rgba(192,153,80,0.06) 30%, transparent 60%);
 }
 .iphone {
   position: relative;
@@ -240,7 +240,7 @@
 .statusbar .sb .batt::after { content:""; position:absolute; right:-2px; top:3px; width:1.5px; height:4px; background: rgba(255,255,255,0.6); border-radius:0 1px 1px 0; }
 .app-body { padding: 14px 16px 24px; }
 .app-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--muted); }
-.app-title { font-family: "Bowlby One", var(--serif); color: var(--pink); font-size: 34px; line-height: 0.92; margin-top: 5px; letter-spacing: 0.005em; }
+.app-title { font-family: "Bowlby One", var(--serif); color: var(--gold); font-size: 34px; line-height: 0.92; margin-top: 5px; letter-spacing: 0.005em; }
 .venue-list { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
 .venue-row { display: flex; align-items: center; gap: 12px; background: #141312; border: 1px solid var(--border); border-radius: 14px; padding: 9px; }
 .venue-thumb { width: 48px; height: 48px; border-radius: 9px; flex: none; border: 1px solid rgba(255,255,255,0.06); }

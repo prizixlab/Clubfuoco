@@ -15,7 +15,6 @@
   --muted: #9A948E;
   --gold: #C09950;
   --gold-soft: #d8b876;
-  --pink: #FF2D92;
 
   --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
   --sans: "Inter", system-ui, -apple-system, sans-serif;
@@ -58,7 +57,7 @@ a { color: inherit; }
   pointer-events: none;
   background:
     radial-gradient(50vw 50vw at 15% 20%, rgba(232, 182, 91, 0.08), transparent 60%),
-    radial-gradient(60vw 60vw at 85% 50%, rgba(255, 45, 146, 0.06), transparent 65%),
+    radial-gradient(60vw 60vw at 85% 50%, rgba(232, 182, 91, 0.06), transparent 65%),
     radial-gradient(55vw 55vw at 50% 90%, rgba(194, 86, 45, 0.07), transparent 60%);
   filter: blur(60px);
 }
@@ -113,7 +112,7 @@ a { color: inherit; }
   width: min(480px, 78vw);
   height: 1px;
   border: 0;
-  background: linear-gradient(90deg, var(--gold), var(--pink));
+  background: linear-gradient(90deg, var(--gold), var(--gold-soft));
   opacity: 0.45;
 }
 
@@ -647,7 +646,7 @@ a { color: inherit; }
   text-align: center;
 }
 .error-msg {
-  color: var(--pink);
+  color: #FFB4A2;
   font-size: 13px;
   text-align: center;
   margin-top: 14px;

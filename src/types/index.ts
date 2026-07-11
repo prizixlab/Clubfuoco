@@ -231,4 +231,15 @@ export interface GroupDetail {
   unit_price:    number
   members:       GroupMember[]
   me:            GroupMember | null   // my membership, or null if not a member yet
+  unread_count:  number              // chat messages after my last_read_at (excludes my own)
+}
+
+export interface GroupMessage {
+  id:                string
+  user_id:           string
+  sender_name:       string | null
+  sender_avatar_url: string | null
+  body:              string
+  created_at:        string
+  is_mine:           boolean
 }

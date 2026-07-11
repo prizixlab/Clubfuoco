@@ -23,7 +23,7 @@ export async function getGroupDetail(sb: SB, groupId: string, meId: string): Pro
 
   const { data: memberRows } = await sb
     .from('booking_group_members')
-    .select('id, user_id, role, rsvp, payment_required, amount_due, paid, booking_id')
+    .select('id, user_id, role, rsvp, payment_required, amount_due, paid, booking_id, last_read_at')
     .eq('group_id', groupId)
     .order('created_at', { ascending: true })
 
@@ -70,6 +70,18 @@ export async function getGroupDetail(sb: SB, groupId: string, meId: string): Pro
     qr_token: r.user_id === meId ? myQrToken : null,
   }))
 
+  // Unread chat = messages posted after the viewer last opened the thread,
+  // excluding their own. `last_read_at` null → everything from others counts.
+  const myRow = rows.find(r => r.user_id === meId)
+  const lastRead = (myRow as { last_read_at?: string | null } | undefined)?.last_read_at ?? null
+  let unreadQuery = sb
+    .from('booking_group_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('group_id', groupId)
+    .neq('user_id', meId)
+  if (lastRead) unreadQuery = unreadQuery.gt('created_at', lastRead)
+  const { count: unreadCount } = await unreadQuery
+
   return {
     id: group.id,
     club_id: group.club_id,
@@ -84,6 +96,7 @@ export async function getGroupDetail(sb: SB, groupId: string, meId: string): Pro
     unit_price: unitPrice,
     members,
     me: members.find(m => m.is_me) ?? null,
+    unread_count: unreadCount ?? 0,
   }
 }
 

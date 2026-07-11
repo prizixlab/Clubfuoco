@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { BrandRow, OfferRow } from '@/lib/partner'
-import { Badge, Btn, Card, ErrorLine, Field, TextInput, inputStyle, api, C, font, mono } from '../../_ui'
+import { Badge, Btn, Card, ErrorLine, Field, TextInput, inputStyle, api, C, caps, font, mono } from '../../_ui'
 
 interface Club { id: string; name: string }
 
@@ -53,58 +53,66 @@ export default function OffersEditor({ brand, onOffersChanged }: {
   }
 
   const otherBrands = brands.filter(b => b.id !== brand.id && b.offer_count > 0)
+  const liveCount = offers?.filter(o => o.is_active).length ?? 0
+  const inactiveCount = offers ? offers.length - liveCount : 0
 
   return (
-    <section style={{ marginTop: 28 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, fontFamily: font }}>
-          Offers{' '}
-          <span style={{ color: C.faint, fontWeight: 400 }}>
-            · {offers ? offers.filter(o => o.is_active).length : '…'} live
-            {offers && offers.some(o => !o.is_active) && ` · ${offers.filter(o => !o.is_active).length} inactive`}
+    <section style={{ marginTop: 32 }}>
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 20 }}>
+          <span style={{ ...caps, color: C.gold, letterSpacing: '0.14em' }}>
+            Offers &amp; venues
+            <span style={{ color: C.faint, marginLeft: 10, letterSpacing: '0.1em' }}>
+              {offers ? `${liveCount} live${inactiveCount ? ` · ${inactiveCount} inactive` : ''}` : '…'}
+            </span>
           </span>
-        </h2>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {otherBrands.length > 0 && <DuplicateFrom brandId={brand.id} sources={otherBrands} onDone={changed} />}
-          <ClubPicker
-            clubs={clubs.filter(c => !byClub.some(([id]) => id === c.id))}
-            onPick={id => setDraftClubs(d => [...d, id])}
-          />
         </div>
-      </div>
 
-      <ErrorLine error={error} />
-      {offers && byClub.length === 0 && (
-        <Card>
-          <p style={{ margin: 0, color: C.dim, fontFamily: font, fontSize: 14 }}>
-            No offers yet. Pick a venue to add the first one{otherBrands.length ? ', or copy another brand’s set' : ''}.
+        <ErrorLine error={error} />
+        {offers && byClub.length === 0 && (
+          <p style={{ margin: '4px 0 16px', color: C.dim, fontFamily: font, fontSize: 14 }}>
+            No offers yet. Add a venue below{otherBrands.length ? ', or copy another brand’s set' : ''}.
           </p>
-        </Card>
-      )}
+        )}
 
-      <div style={{ display: 'grid', gap: 14 }}>
-        {byClub.map(([clubId, clubOffers]) => (
-          <ClubGroup key={clubId} brandId={brand.id} clubId={clubId} name={clubName(clubId)}
-            offers={clubOffers} onChanged={changed} />
-        ))}
-      </div>
+        <div style={{ display: 'grid', gap: 14 }}>
+          {byClub.map(([clubId, clubOffers]) => (
+            <ClubGroup key={clubId} brandId={brand.id} clubId={clubId} name={clubName(clubId)}
+              offers={clubOffers} onChanged={changed} />
+          ))}
+        </div>
+
+        <ClubPicker
+          clubs={clubs.filter(c => !byClub.some(([id]) => id === c.id))}
+          onPick={id => setDraftClubs(d => [...d, id])}
+        />
+      </Card>
     </section>
   )
 }
 
-// ── Club picker — searchable dropdown over the clubs table ──────────────────
+// ── Club picker — dashed "add another venue" block opening a search panel ───
 function ClubPicker({ clubs, onPick }: { clubs: Club[]; onPick: (id: string) => void }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const hits = clubs.filter(c => c.name.toLowerCase().includes(q.toLowerCase())).slice(0, 12)
   return (
-    <div style={{ position: 'relative' }}>
-      <Btn kind="primary" onClick={() => { setOpen(o => !o); setQ('') }}>Add venue</Btn>
+    <div style={{ position: 'relative', marginTop: 14 }}>
+      <button onClick={() => { setOpen(o => !o); setQ('') }} className="cfp-hover-lift" style={{
+        width: '100%', background: 'transparent', border: '1px dashed rgba(255,255,255,0.18)',
+        borderRadius: 8, padding: '18px 16px', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+      }}>
+        <span style={{ color: C.goldHi, fontSize: 16, fontFamily: font }} aria-hidden>＋</span>
+        <span style={{ ...caps, color: C.dim, letterSpacing: '0.14em' }}>Add another venue</span>
+      </button>
       {open && (
         <div style={{
-          position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50, width: 280,
-          background: C.card, border: `1px solid ${C.line}`, borderRadius: 12, padding: 10,
-          boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+          position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 'calc(100% + 8px)',
+          zIndex: 50, width: 320,
+          background: C.lifted, border: `1px solid ${C.line}`, borderRadius: 8, padding: 12,
+          boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
         }}>
           <TextInput autoFocus placeholder="Search venues…" value={q} onChange={e => setQ(e.target.value)} />
           <div style={{ maxHeight: 260, overflowY: 'auto', marginTop: 8 }}>
@@ -113,7 +121,7 @@ function ClubPicker({ clubs, onPick }: { clubs: Club[]; onPick: (id: string) => 
                 style={{
                   display: 'block', width: '100%', textAlign: 'left', background: 'none',
                   border: 'none', color: C.text, fontFamily: font, fontSize: 13.5,
-                  padding: '8px 8px', borderRadius: 8, cursor: 'pointer',
+                  padding: '9px 8px', borderRadius: 4, cursor: 'pointer',
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
@@ -134,9 +142,11 @@ function DuplicateFrom({ brandId, sources, onDone }: {
 }) {
   const [from, setFrom] = useState('')
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   async function run() {
     if (!from || busy) return
     setBusy(true)
+    setError(null)
     try {
       await api(`/api/portal/brands/${brandId}/offers`, {
         method: 'POST',
@@ -145,19 +155,20 @@ function DuplicateFrom({ brandId, sources, onDone }: {
       setFrom('')
       onDone()
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Copy failed')
+      setError(e instanceof Error ? e.message : 'Copy failed')
     } finally {
       setBusy(false)
     }
   }
   return (
-    <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+    <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
       <select value={from} onChange={e => setFrom(e.target.value)}
-        style={{ ...inputStyle, width: 190, padding: '8px 10px', fontSize: 13 }}>
-        <option value="">Copy offers from…</option>
+        style={{ ...inputStyle, width: 210, padding: '8px 10px', fontSize: 12.5 }}>
+        <option value="">Copy offers from another brand…</option>
         {sources.map(b => <option key={b.id} value={b.id}>{b.name} ({b.offer_count})</option>)}
       </select>
       {from && <Btn small onClick={run} disabled={busy}>{busy ? 'Copying…' : 'Copy'}</Btn>}
+      {error && <span style={{ fontSize: 12, color: C.danger, fontFamily: font }}>{error}</span>}
     </span>
   )
 }
@@ -168,10 +179,12 @@ function ClubGroup({ brandId, clubId, name, offers, onChanged }: {
 }) {
   const [adding, setAdding] = useState(offers.length === 0)
   const [dragId, setDragId] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState<string | null>(null)
 
   // Drop `dragged` at `target`'s position, then persist every row whose
   // sort_order changed. Sequential order within the club is all that matters.
   async function reorder(targetId: string) {
+    setDragOver(null)
     if (!dragId || dragId === targetId) return
     const ids = offers.map(o => o.id)
     const fromIdx = ids.indexOf(dragId)
@@ -194,9 +207,14 @@ function ClubGroup({ brandId, clubId, name, offers, onChanged }: {
   }
 
   return (
-    <Card style={{ padding: 16 }}>
+    <div style={{ background: 'rgba(0,0,0,0.25)', border: `1px solid ${C.line}`, borderRadius: 8, padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: offers.length || adding ? 12 : 0 }}>
-        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, fontFamily: font }}>{name}</h3>
+        <span style={{ ...caps, color: C.text, letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" aria-hidden>
+            <path d="M12 2v6m-6 3 6-3 6 3M5 22V11m14 11V11M3 22h18" />
+          </svg>
+          {name}
+        </span>
         {!adding && <Btn small onClick={() => setAdding(true)}>Add offer</Btn>}
       </div>
 
@@ -205,10 +223,15 @@ function ClubGroup({ brandId, clubId, name, offers, onChanged }: {
           <div key={o.id}
             draggable
             onDragStart={() => setDragId(o.id)}
-            onDragEnd={() => setDragId(null)}
-            onDragOver={e => e.preventDefault()}
+            onDragEnd={() => { setDragId(null); setDragOver(null) }}
+            onDragOver={e => { e.preventDefault(); setDragOver(o.id) }}
             onDrop={() => reorder(o.id)}
-            style={{ opacity: dragId === o.id ? 0.4 : 1 }}>
+            style={{
+              opacity: dragId === o.id ? 0.35 : 1,
+              // Drop indicator — an ember rule above the row being hovered.
+              boxShadow: dragOver === o.id && dragId && dragId !== o.id ? `0 -2px 0 0 ${C.gold}` : 'none',
+              borderRadius: 8, transition: 'opacity 0.15s',
+            }}>
             <OfferItem offer={o} onChanged={onChanged} />
           </div>
         ))}
@@ -227,7 +250,7 @@ function ClubGroup({ brandId, clubId, name, offers, onChanged }: {
           />
         </div>
       )}
-    </Card>
+    </div>
   )
 }
 
@@ -278,31 +301,47 @@ function OfferItem({ offer, onChanged }: { offer: OfferRow; onChanged: () => voi
   }
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 12,
-      background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.line}`,
-      borderRadius: 10, padding: '10px 12px', cursor: 'grab',
+    <div className="cfp-hover-lift" style={{
+      display: 'flex', alignItems: 'center', gap: 13,
+      background: C.card, border: `1px solid ${C.line}`,
+      borderRadius: 8, padding: '12px 14px', cursor: 'grab',
       opacity: offer.is_active ? 1 : 0.55,
     }}>
-      <span title="Drag to reorder" style={{ color: C.faint, fontSize: 14, userSelect: 'none' }}>⠿</span>
+      <span title="Drag to reorder" style={{ color: C.faint, fontSize: 14, userSelect: 'none' }} aria-hidden>⠿</span>
+
+      {/* Kind chip — label-caps, outlined, never a filled pill */}
+      <span style={{
+        ...caps, fontSize: 9.5, color: isVip ? C.goldHi : C.green,
+        border: `1px solid ${isVip ? 'rgba(235,192,115,0.35)' : 'rgba(143,214,165,0.3)'}`,
+        borderRadius: 4, padding: '5px 7px', flexShrink: 0,
+      }}>
+        {isVip ? 'VIP' : 'Free'}
+      </span>
+
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 600, fontFamily: font }}>{offer.title}</span>
-          <span style={{ fontSize: 11, color: isVip ? C.gold : C.green, fontFamily: mono }}>
-            {isVip ? `VIP · €${offer.price_eur}` : 'FREE'}
-          </span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13.5, fontWeight: 600, fontFamily: font, color: C.text }}>{offer.title}</span>
           {!offer.is_active && <Badge color={C.faint}>Inactive</Badge>}
         </div>
-        <p style={{ margin: '2px 0 0', fontSize: 12, color: C.dim, fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <p style={{ margin: '3px 0 0', fontSize: 12, color: C.dim, fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {offer.subtitle} · {offer.valid_days}
         </p>
       </div>
-      <Btn small kind="ghost" onClick={() => setEditing(true)} disabled={busy}>Edit</Btn>
-      {offer.is_active
-        ? <Btn small kind="ghost" onClick={() => setActive(false)} disabled={busy}
-            title="Hide from the front page but keep the data">Deactivate</Btn>
-        : <Btn small onClick={() => setActive(true)} disabled={busy}>Reactivate</Btn>}
-      <Btn small kind="danger" onClick={remove} disabled={busy}>Delete</Btn>
+
+      {isVip && (
+        <span style={{ fontFamily: mono, fontSize: 13, color: C.goldHi, flexShrink: 0 }}>
+          €{offer.price_eur}
+        </span>
+      )}
+
+      <span style={{ display: 'inline-flex', gap: 8, flexShrink: 0 }}>
+        <Btn small kind="ghost" onClick={() => setEditing(true)} disabled={busy}>Edit</Btn>
+        {offer.is_active
+          ? <Btn small kind="ghost" onClick={() => setActive(false)} disabled={busy}
+              title="Hide from the front page but keep the data">Deactivate</Btn>
+          : <Btn small onClick={() => setActive(true)} disabled={busy}>Reactivate</Btn>}
+        <Btn small kind="danger" onClick={remove} disabled={busy}>Delete</Btn>
+      </span>
     </div>
   )
 }
@@ -380,8 +419,8 @@ function OfferForm({ initial, onSave, onCancel }: {
   const half: React.CSSProperties = { flex: 1, minWidth: 150 }
 
   return (
-    <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px dashed ${C.line}`, borderRadius: 12, padding: 14 }}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+    <div style={{ background: 'rgba(0,0,0,0.3)', border: `1px dashed rgba(255,255,255,0.18)`, borderRadius: 8, padding: 16 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <Btn small kind={!isVip ? 'primary' : 'ghost'} onClick={() => switchKind('free_guestlist')}>Free Guestlist</Btn>
         <Btn small kind={isVip ? 'primary' : 'ghost'} onClick={() => switchKind('vip_table')}>VIP Table</Btn>
       </div>
@@ -401,13 +440,13 @@ function OfferForm({ initial, onSave, onCancel }: {
         {isVip && (
           <div style={half}>
             <Field label="Price (EUR)">
-              <TextInput type="number" min={1} value={price} onChange={e => setPrice(e.target.value)} placeholder="300" />
+              <TextInput type="number" min={1} value={price} onChange={e => setPrice(e.target.value)} placeholder="300" style={{ fontFamily: mono, fontSize: 13 }} />
             </Field>
           </div>
         )}
         <div style={half}>
           <Field label="Party size">
-            <TextInput type="number" min={1} value={partySize} onChange={e => setPartySize(e.target.value)} placeholder={isVip ? '5' : 'optional'} />
+            <TextInput type="number" min={1} value={partySize} onChange={e => setPartySize(e.target.value)} placeholder={isVip ? '5' : 'optional'} style={{ fontFamily: mono, fontSize: 13 }} />
           </Field>
         </div>
         <div style={half}>
@@ -428,7 +467,7 @@ function OfferForm({ initial, onSave, onCancel }: {
       </div>
 
       <ErrorLine error={error} />
-      <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+      <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
         <Btn small kind="primary" onClick={save} disabled={busy || !valid}>{busy ? 'Saving…' : 'Save offer'}</Btn>
         <Btn small kind="ghost" onClick={onCancel} disabled={busy}>Cancel</Btn>
       </div>

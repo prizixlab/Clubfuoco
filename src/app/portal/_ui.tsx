@@ -2,26 +2,37 @@
 
 import { useEffect, useState } from 'react'
 
-// ── Partner Portal UI kit ────────────────────────────────────────────────────
-// Small shared primitives for the /portal screens. Dark surface, Club Fuoco
-// ember/gold accent (#C09950 — never pink), inline styles like the rest of
-// the app. Operator tooling: legible and fast over fancy.
+// ── Partner Portal UI kit — "Ember & Onyx" ──────────────────────────────────
+// Design system from the Stitch redesign (docs: ember_onyx/DESIGN.md in the
+// design export): onyx surfaces with tonal layering + hairline outlines, ember
+// gold as the sole action color, label-caps for section headers/status, mono
+// for slugs/prices, serif (Instrument Serif) for editorial display moments.
+// Never pink — supplier colors decorate their data, not the interface.
 
 export const C = {
-  bg:    '#0A0A0A',
-  card:  '#141416',
-  line:  'rgba(255,255,255,0.09)',
-  text:  '#F5F5F7',
-  dim:   'rgba(245,245,247,0.55)',
-  faint: 'rgba(245,245,247,0.38)',
-  gold:  '#C09950',
-  danger:'#FFB4A2',
-  green: '#8FD6A5',
+  bg:     '#0A0A0A',                      // level 0 — the void
+  card:   '#141416',                      // level 1 — cards, panels, modals
+  lifted: '#1C1C1E',                      // level 2 — hover / nested elements
+  line:   'rgba(255,255,255,0.09)',       // hairline outline
+  lineHi: 'rgba(255,255,255,0.22)',       // outline on hover/focus
+  text:   '#F5F5F7',
+  dim:    'rgba(245,245,247,0.6)',
+  faint:  'rgba(245,245,247,0.38)',
+  gold:   '#C09950',                      // ember — the sole catalyst for action
+  goldHi: '#EBC073',                      // bright ember — hover / emphasis text
+  danger: '#FFB4A2',
+  green:  '#8FD6A5',
 }
 
-export const font = 'Geist, -apple-system, system-ui, sans-serif'
+export const font  = 'Geist, -apple-system, system-ui, sans-serif'
 export const serif = '"Instrument Serif", Georgia, serif'
-export const mono = 'ui-monospace, SFMono-Regular, Menlo, monospace'
+export const mono  = 'ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace'
+
+// label-caps — the system's workhorse for section headers, statuses, kickers.
+export const caps: React.CSSProperties = {
+  fontFamily: font, fontSize: 11, fontWeight: 600,
+  letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1,
+}
 
 // Same-origin fetch against /api/portal/**. Unwraps the { data, error }
 // envelope; a 401 (expired/cleared cookie) bounces to the login screen.
@@ -40,7 +51,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return json.data as T
 }
 
-export function Btn({ children, onClick, kind = 'default', disabled, small, type, title }: {
+export function Btn({ children, onClick, kind = 'default', disabled, small, type, title, wide }: {
   children: React.ReactNode
   onClick?: () => void
   kind?: 'default' | 'primary' | 'danger' | 'ghost'
@@ -48,22 +59,33 @@ export function Btn({ children, onClick, kind = 'default', disabled, small, type
   small?: boolean
   type?: 'button' | 'submit'
   title?: string
+  wide?: boolean
 }) {
+  const primary = kind === 'primary'
   const base: React.CSSProperties = {
-    fontFamily: font, fontSize: small ? 12 : 14, fontWeight: 600,
-    padding: small ? '6px 12px' : '10px 18px', borderRadius: 10,
+    // Primary CTAs speak in label-caps (the mock's PUBLISH CHANGES / CONFIRM &
+    // ACTIVATE); secondary actions stay sentence-case and quiet.
+    ...(primary
+      ? { ...caps, fontSize: small ? 10.5 : 12, letterSpacing: '0.12em' }
+      : { fontFamily: font, fontSize: small ? 12.5 : 14, fontWeight: 600 }),
+    padding: small ? '7px 13px' : '12px 20px',
+    borderRadius: 8,
     cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.45 : 1,
-    border: '1px solid transparent', transition: 'opacity 0.15s',
-    display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+    border: '1px solid transparent',
+    transition: 'background 0.18s, border-color 0.18s, opacity 0.18s',
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+    whiteSpace: 'nowrap',
+    ...(wide ? { width: '100%' } : null),
   }
   const kinds: Record<string, React.CSSProperties> = {
     default: { background: 'rgba(255,255,255,0.08)', color: C.text },
     primary: { background: C.gold, color: '#141416' },
-    danger:  { background: 'transparent', color: C.danger, border: `1px solid rgba(255,180,166,0.35)` },
+    danger:  { background: 'transparent', color: C.danger, border: '1px solid rgba(255,180,166,0.3)' },
     ghost:   { background: 'transparent', color: C.dim, border: `1px solid ${C.line}` },
   }
   return (
     <button type={type ?? 'button'} onClick={onClick} disabled={disabled} title={title}
+      className={`cfp-btn cfp-btn-${kind}`}
       style={{ ...base, ...kinds[kind] }}>
       {children}
     </button>
@@ -72,54 +94,78 @@ export function Btn({ children, onClick, kind = 'default', disabled, small, type
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: 'block', marginBottom: 16 }}>
-      <span style={{ display: 'block', fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.dim, marginBottom: 6, fontFamily: font }}>
-        {label}
-      </span>
+    <label style={{ display: 'block', marginBottom: 18 }}>
+      <span style={{ ...caps, display: 'block', color: C.dim, marginBottom: 8 }}>{label}</span>
       {children}
-      {hint && <span style={{ display: 'block', fontSize: 11, color: C.faint, marginTop: 5, fontFamily: font }}>{hint}</span>}
+      {hint && <span style={{ display: 'block', fontSize: 11.5, color: C.faint, marginTop: 6, fontFamily: font, lineHeight: 1.45 }}>{hint}</span>}
     </label>
   )
 }
 
+// Inputs sit INTO the canvas — darker than the card, sharp 4px corners.
 export const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box',
-  background: 'rgba(255,255,255,0.06)', color: C.text,
-  border: `1px solid ${C.line}`, borderRadius: 10,
-  padding: '10px 12px', fontSize: 14, fontFamily: font, outline: 'none',
+  background: 'rgba(0,0,0,0.35)', color: C.text,
+  border: `1px solid ${C.line}`, borderRadius: 4,
+  padding: '11px 12px', fontSize: 14, fontFamily: font, outline: 'none',
+  transition: 'border-color 0.18s',
 }
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} style={{ ...inputStyle, ...props.style }} />
+  return <input {...props} className="cfp-input" style={{ ...inputStyle, ...props.style }} />
 }
 
 export function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: 20, ...style }}>
+    <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 8, padding: 24, ...style }}>
       {children}
     </div>
   )
 }
 
+// Section header inside a card — label-caps in ember, per the mock's
+// "BRAND IDENTITY" / "OFFERS & VENUES".
+export function SectionLabel({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 20 }}>
+      <span style={{ ...caps, color: C.gold, letterSpacing: '0.14em' }}>{children}</span>
+      {right}
+    </div>
+  )
+}
+
+// Status chip — 6px dot + label-caps, outlined and subtle (never a filled pill).
 export function Badge({ children, color = C.gold }: { children: React.ReactNode; color?: string }) {
   return (
     <span style={{
-      fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700,
-      color, border: `1px solid ${color}55`, background: `${color}1A`,
-      padding: '3px 8px', borderRadius: 999, fontFamily: font,
+      ...caps, fontSize: 10, color,
+      border: `1px solid ${color}44`, background: 'rgba(0,0,0,0.25)',
+      padding: '5px 9px', borderRadius: 4,
+      display: 'inline-flex', alignItems: 'center', gap: 6,
     }}>
+      <span style={{ width: 6, height: 6, borderRadius: 3, background: color, display: 'inline-block' }} />
       {children}
     </span>
   )
 }
 
-export function ErrorLine({ error }: { error: string | null }) {
-  if (!error) return null
-  return <p style={{ margin: '10px 0 0', fontSize: 12.5, color: C.danger, fontFamily: font }}>{error}</p>
+// Value block — big editorial number over an ember label (real metrics only).
+export function StatTile({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 8, padding: '18px 20px' }}>
+      <p style={{ ...caps, color: C.gold, margin: '0 0 10px', letterSpacing: '0.14em' }}>{label}</p>
+      <p style={{ margin: 0, fontFamily: serif, fontSize: 26, lineHeight: 1.1, color: C.text }}>{value}</p>
+    </div>
+  )
 }
 
-export function Modal({ title, children, onClose }: {
-  title: string; children: React.ReactNode; onClose: () => void
+export function ErrorLine({ error }: { error: string | null }) {
+  if (!error) return null
+  return <p style={{ margin: '12px 0 0', fontSize: 12.5, color: C.danger, fontFamily: font, lineHeight: 1.5 }}>{error}</p>
+}
+
+export function Modal({ title, children, onClose, width = 480 }: {
+  title?: string; children: React.ReactNode; onClose: () => void; width?: number
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -130,13 +176,14 @@ export function Modal({ title, children, onClose }: {
     <div onClick={onClose} style={{
       position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.62)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-      backdropFilter: 'blur(2px)',
+      backdropFilter: 'blur(12px)',
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: C.card, border: `1px solid ${C.line}`, borderRadius: 16,
-        padding: 24, width: '100%', maxWidth: 480, maxHeight: '86vh', overflowY: 'auto',
+        background: C.card, border: `1px solid ${C.line}`, borderRadius: 8,
+        boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+        padding: 28, width: '100%', maxWidth: width, maxHeight: '88vh', overflowY: 'auto',
       }}>
-        <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 700, color: C.text, fontFamily: font }}>{title}</h2>
+        {title && <h2 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 700, color: C.text, fontFamily: font }}>{title}</h2>}
         {children}
       </div>
     </div>
@@ -159,13 +206,18 @@ export function SupplierCredit({ name, label, logoUrl }: {
   )
 }
 
-// Activate flow shared by the brands list and the brand editor. Confirms, and
-// warns (doesn't block) when the brand has no offers — activating an empty
-// brand blanks the front-page partner shelf.
-export function ActivateButton({ brand, onDone, small }: {
+// ── Activation ceremony ─────────────────────────────────────────────────────
+// The switch changes the consumer app's production state for every user, so
+// the dialog is deliberately ceremonial (per the mock): bolt mark, serif title
+// with the brand name in ember, an ember-ruled warning panel, a critical panel
+// when the brand has zero live offers (warn — don't block), and the target
+// environment spelled out. Shared by the suppliers list and the brand editor.
+export function ActivateButton({ brand, onDone, small, wide, currentLive }: {
   brand: { id: string; name: string; is_active: boolean; offer_count: number }
   onDone: () => void
   small?: boolean
+  wide?: boolean
+  currentLive?: string | null
 }) {
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -185,27 +237,81 @@ export function ActivateButton({ brand, onDone, small }: {
     }
   }
 
-  if (brand.is_active) return <Badge color={C.green}>Active</Badge>
+  if (brand.is_active) return null   // status chips mark the live brand
+
   return (
     <>
-      <Btn kind="primary" small={small} onClick={() => setConfirming(true)}>Activate</Btn>
+      <Btn kind="primary" small={small} wide={wide} onClick={() => setConfirming(true)}>Activate</Btn>
       {confirming && (
-        <Modal title={`Make ${brand.name} the live partner?`} onClose={() => busy ? null : setConfirming(false)}>
-          <p style={{ margin: 0, fontSize: 14, color: C.dim, lineHeight: 1.55, fontFamily: font }}>
-            Web updates on next load, the app on next open.
-          </p>
-          {brand.offer_count === 0 && (
-            <p style={{ margin: '12px 0 0', fontSize: 13, color: C.danger, lineHeight: 1.5, fontFamily: font }}>
-              ⚠ {brand.name} has no offers yet — activating it will blank the
-              front-page partner shelf until offers are added.
+        <Modal onClose={() => busy ? null : setConfirming(false)} width={520}>
+          <div style={{ textAlign: 'center', padding: '6px 0 2px' }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 8, margin: '0 auto 18px',
+              background: 'rgba(192,153,80,0.1)', border: '1px solid rgba(192,153,80,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill={C.goldHi} aria-hidden>
+                <path d="M13 2 4.5 13.5H11L9.5 22 19 10h-6.5L13 2z" />
+              </svg>
+            </div>
+            <h2 style={{ margin: 0, fontFamily: serif, fontSize: 24, fontWeight: 400, color: C.text }}>
+              Make <em style={{ color: C.goldHi, fontStyle: 'italic' }}>{brand.name}</em> the live partner?
+            </h2>
+            <p style={{ ...caps, color: C.faint, margin: '10px 0 0', letterSpacing: '0.18em' }}>
+              Production state transition
             </p>
-          )}
+          </div>
+
+          <div style={{
+            margin: '22px 0 0', background: C.lifted, borderRadius: 6,
+            borderLeft: `2px solid ${C.gold}`, padding: '16px 18px',
+          }}>
+            <p style={{ margin: 0, fontSize: 13.5, color: C.text, lineHeight: 1.6, fontFamily: font }}>
+              This changes the consumer app immediately.{' '}
+              <span style={{ color: C.dim }}>Web updates on next load, the app on next open.</span>
+            </p>
+            {brand.offer_count === 0 && (
+              <div style={{
+                marginTop: 14, background: 'rgba(147,0,10,0.18)',
+                border: '1px solid rgba(255,180,166,0.25)', borderRadius: 6, padding: '13px 15px',
+              }}>
+                <p style={{ ...caps, color: C.danger, margin: '0 0 7px', letterSpacing: '0.12em' }}>
+                  ⚠ No live offers
+                </p>
+                <p style={{ margin: 0, fontSize: 13, color: C.text, lineHeight: 1.55, fontFamily: font }}>
+                  {brand.name} has <strong>zero</strong> live offers. Activating it
+                  will blank the front-page partner shelf until offers are added.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div style={{
+            display: 'flex', justifyContent: 'space-around', gap: 16,
+            borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}`,
+            margin: '20px 0', padding: '15px 0', textAlign: 'center',
+          }}>
+            <div>
+              <p style={{ ...caps, color: C.gold, margin: '0 0 7px' }}>Target environment</p>
+              <p style={{ margin: 0, fontFamily: serif, fontSize: 16, color: C.text }}>Production</p>
+            </div>
+            <div>
+              <p style={{ ...caps, color: C.gold, margin: '0 0 7px' }}>Currently live</p>
+              <p style={{ margin: 0, fontFamily: serif, fontSize: 16, color: C.text }}>{currentLive ?? '—'}</p>
+            </div>
+          </div>
+
           <ErrorLine error={error} />
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-            <Btn kind="ghost" onClick={() => setConfirming(false)} disabled={busy}>Cancel</Btn>
-            <Btn kind="primary" onClick={activate} disabled={busy}>
-              {busy ? 'Switching…' : `Make ${brand.name} live`}
+          <div style={{ marginTop: 16 }}>
+            <Btn kind="primary" wide onClick={activate} disabled={busy}>
+              {busy ? 'Switching…' : 'Confirm & activate brand'}
             </Btn>
+            <button onClick={() => setConfirming(false)} disabled={busy} style={{
+              ...caps, background: 'none', border: 'none', color: C.dim, cursor: 'pointer',
+              display: 'block', margin: '16px auto 0', padding: 6, letterSpacing: '0.14em',
+            }}>
+              Cancel action
+            </button>
           </div>
         </Modal>
       )}

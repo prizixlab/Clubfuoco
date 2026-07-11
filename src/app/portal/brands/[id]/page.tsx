@@ -4,18 +4,20 @@ import { use, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { BrandRow } from '@/lib/partner'
 import {
-  ActivateButton, Btn, Card, ErrorLine, Field, SupplierCredit, TextInput,
-  api, C, font, mono, serif,
+  ActivateButton, Badge, Btn, Card, ErrorLine, Field, SectionLabel, SupplierCredit, TextInput,
+  api, C, caps, font, mono, serif,
 } from '../../_ui'
 import OffersEditor from './_offers'
 
 const LABEL_PRESETS = ['Guestlist by', 'Powered by', 'via']
 
 // Brand editor — identity, logo, and the contractual attribution credit, with
-// a live preview of exactly what the booking sheet will show. Offers below.
+// a sticky live preview of exactly what the booking sheet will show. Offers
+// below. Layout per the Stitch "brand & offers editor" screen.
 export default function BrandEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const [brand, setBrand] = useState<BrandRow | null>(null)
+  const [currentLive, setCurrentLive] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Unsaved attribution edits, mirrored up from the identity form so the
   // preview is live — the operator sees the credit before committing it.
@@ -25,6 +27,10 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
     api<BrandRow>(`/api/portal/brands/${id}`)
       .then(setBrand)
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load'))
+    // Who's live right now — shown in the activation ceremony.
+    api<BrandRow[]>('/api/portal/brands')
+      .then(all => setCurrentLive(all.find(b => b.is_active)?.name ?? null))
+      .catch(() => setCurrentLive(null))
   }, [id])
   useEffect(load, [load])
 
@@ -33,16 +39,25 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-          <Link href="/portal" style={{ color: C.dim, textDecoration: 'none', fontFamily: font, fontSize: 13 }}>← Suppliers</Link>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, fontFamily: font }}>{brand.name}</h1>
-          <span style={{ fontFamily: mono, fontSize: 12, color: C.faint }}>{brand.key}</span>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
+        <div>
+          <Link href="/portal" style={{ ...caps, color: C.dim, textDecoration: 'none', letterSpacing: '0.12em' }}>
+            ← Suppliers
+          </Link>
+          <h1 style={{ margin: '14px 0 0', fontFamily: serif, fontSize: 30, fontWeight: 400, color: C.text }}>
+            Edit brand: <em style={{ fontStyle: 'italic', color: C.goldHi }}>{brand.name}</em>
+          </h1>
+          <p style={{ margin: '8px 0 0', fontSize: 14, color: C.dim, fontFamily: font, display: 'flex', alignItems: 'center', gap: 10 }}>
+            Manage identity, attribution, and per-venue offers.
+            <span style={{ fontFamily: mono, fontSize: 12, color: C.faint }}>/{brand.key}</span>
+          </p>
         </div>
-        <ActivateButton brand={brand} onDone={load} />
+        {brand.is_active
+          ? <Badge color={C.gold}>Live now</Badge>
+          : <ActivateButton brand={brand} onDone={load} currentLive={currentLive} />}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 18, alignItems: 'start' }}>
         <IdentityCard brand={brand} onSaved={load} onDraft={setDraft} />
         <PreviewCard brand={draft ? { ...brand, ...draft } : brand} />
       </div>
@@ -117,59 +132,58 @@ function IdentityCard({ brand, onSaved, onDraft }: {
 
   return (
     <Card>
-      <h2 style={{ margin: '0 0 16px', fontSize: 14, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.dim, fontFamily: font }}>
-        Identity
-      </h2>
+      <SectionLabel>Brand identity</SectionLabel>
 
-      <Field label="Name">
-        <TextInput value={name} maxLength={60} onChange={e => setName(e.target.value)} />
-      </Field>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <Field label="Brand name">
+          <TextInput value={name} maxLength={60} onChange={e => setName(e.target.value)} />
+        </Field>
+        <Field label="Immutable key">
+          <TextInput value={brand.key} readOnly disabled
+            style={{ fontFamily: mono, fontSize: 13, opacity: 0.5, cursor: 'not-allowed', background: 'rgba(255,255,255,0.04)' }} />
+        </Field>
+      </div>
 
-      <Field label="Key" hint="Immutable — storage path + cache key.">
-        <TextInput value={brand.key} readOnly disabled style={{ fontFamily: mono, opacity: 0.55, cursor: 'not-allowed' }} />
-      </Field>
-
-      <Field label="Brand color" hint="Only used inside the supplier’s credit/logo — never the app accent.">
+      <Field label="Primary accent (hex)" hint="Only used inside the supplier’s credit/logo — never the app accent.">
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <input type="color" value={/^#[0-9A-F]{6}$/i.test(color) ? color : '#C09950'}
             onChange={e => setColor(e.target.value.toUpperCase())}
-            style={{ width: 44, height: 38, border: `1px solid ${C.line}`, borderRadius: 8, background: 'none', padding: 2, cursor: 'pointer' }} />
-          <TextInput value={color} maxLength={7} style={{ width: 120, fontFamily: mono }}
+            style={{ width: 46, height: 40, border: `1px solid ${C.line}`, borderRadius: 4, background: 'rgba(0,0,0,0.35)', padding: 3, cursor: 'pointer' }} />
+          <TextInput value={color} maxLength={7} style={{ width: 130, fontFamily: mono, fontSize: 13 }}
             onChange={e => setColor(e.target.value.startsWith('#') ? e.target.value.toUpperCase() : `#${e.target.value.toUpperCase()}`)} />
         </div>
       </Field>
 
-      <Field label="Logo" hint="PNG or SVG, max 2 MB. Stored at brand/<key>/ and cache-busted on re-upload.">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <Field label="Logo assets" hint="PNG or SVG, max 2 MB. Stored at brand/<key>/ and cache-busted on re-upload.">
+        <div style={{ display: 'flex', alignItems: 'stretch', gap: 12 }}>
           <div style={{
-            width: 120, height: 52, borderRadius: 10, background: 'rgba(255,255,255,0.05)',
-            border: `1px solid ${C.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+            flex: 1, minHeight: 84, borderRadius: 6, background: 'rgba(0,0,0,0.35)',
+            border: `1px dashed rgba(255,255,255,0.18)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: 10,
           }}>
             {brand.logo_url
-              ? <img src={brand.logo_url} alt={brand.name} style={{ maxWidth: '84%', maxHeight: '72%', objectFit: 'contain' }} />
-              : <span style={{ fontSize: 11, color: C.faint, fontFamily: font }}>no logo</span>}
+              ? <img src={brand.logo_url} alt={brand.name} style={{ maxWidth: '86%', maxHeight: 60, objectFit: 'contain' }} />
+              : <span style={{ ...caps, fontSize: 10, color: C.faint }}>No logo uploaded</span>}
           </div>
           <input ref={fileRef} type="file" accept=".png,.svg,image/png,image/svg+xml" style={{ display: 'none' }}
             onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(f) }} />
           <Btn onClick={() => fileRef.current?.click()} disabled={busy === 'logo'}>
-            {busy === 'logo' ? 'Uploading…' : brand.logo_url ? 'Replace logo' : 'Upload logo'}
+            {busy === 'logo' ? 'Uploading…' : brand.logo_url ? 'Replace' : 'Upload'}
           </Btn>
         </div>
       </Field>
 
-      <div style={{ borderTop: `1px solid ${C.line}`, margin: '4px 0 16px' }} />
-      <h2 style={{ margin: '0 0 6px', fontSize: 14, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.dim, fontFamily: font }}>
-        Attribution
-      </h2>
-      <p style={{ margin: '0 0 14px', fontSize: 12.5, color: C.faint, lineHeight: 1.5, fontFamily: font }}>
+      <div style={{ borderTop: `1px solid ${C.line}`, margin: '6px 0 20px' }} />
+      <SectionLabel>Attribution</SectionLabel>
+      <p style={{ margin: '-8px 0 16px', fontSize: 12.5, color: C.faint, lineHeight: 1.55, fontFamily: font }}>
         Some supplier contracts require their brand stay visible. When on, the
         booking sheet shows a small subordinate credit — Club Fuoco stays dominant.
       </p>
 
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer' }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, cursor: 'pointer' }}>
         <input type="checkbox" checked={required} onChange={e => setRequired(e.target.checked)}
           style={{ width: 17, height: 17, accentColor: C.gold, cursor: 'pointer' }} />
-        <span style={{ fontSize: 14, fontFamily: font }}>Credit required on the booking sheet</span>
+        <span style={{ fontSize: 14, fontFamily: font, color: C.text }}>Credit required on the booking sheet</span>
       </label>
 
       {required && (
@@ -181,69 +195,89 @@ function IdentityCard({ brand, onSaved, onDraft }: {
             <Btn small kind={customLabel ? 'primary' : 'ghost'} onClick={() => setLabel('')}>Custom…</Btn>
             {customLabel && (
               <TextInput value={label} maxLength={40} placeholder="In partnership with"
-                onChange={e => setLabel(e.target.value)} style={{ width: 200 }} />
+                onChange={e => setLabel(e.target.value)} style={{ width: 210 }} />
             )}
           </div>
         </Field>
       )}
 
       <ErrorLine error={error} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 16 }}>
         <Btn kind="primary" onClick={save} disabled={busy === 'save' || !name.trim() || !/^#[0-9A-F]{6}$/i.test(color)}>
-          {busy === 'save' ? 'Saving…' : 'Save changes'}
+          {busy === 'save' ? 'Saving…' : 'Publish changes'}
         </Btn>
-        {saved && <span style={{ fontSize: 12.5, color: C.green, fontFamily: font }}>Saved ✓</span>}
+        {saved && <span style={{ ...caps, fontSize: 10.5, color: C.green }}>● Saved</span>}
       </div>
     </Card>
   )
 }
 
-// Live preview — the supplier credit as the booking sheet renders it, plus a
-// sample offer card, so a contract's visibility clause can be honored exactly.
+// Live consumer preview — the supplier credit as the booking sheet renders it,
+// plus a sample offer card, so a contract's visibility clause can be honored
+// exactly before flipping the switch. Sticky beside the form on wide screens.
 function PreviewCard({ brand }: { brand: BrandRow }) {
+  const credit = brand.attribution_required
   return (
-    <Card>
-      <h2 style={{ margin: '0 0 14px', fontSize: 14, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.dim, fontFamily: font }}>
-        Live preview
-      </h2>
+    <div style={{ position: 'sticky', top: 88 }}>
+      <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 8, overflow: 'hidden' }}>
+        {/* Panel chrome */}
+        <div style={{
+          padding: '14px 20px', borderBottom: `2px solid ${C.gold}`,
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: 3, background: C.goldHi }} />
+          <span style={{ ...caps, color: C.goldHi, letterSpacing: '0.16em' }}>Live consumer preview</span>
+        </div>
 
-      {/* Booking sheet footer */}
-      <p style={{ margin: '0 0 8px', fontSize: 11, color: C.faint, fontFamily: font }}>Booking sheet</p>
-      <div style={{ background: '#0A0A0A', border: `1px solid ${C.line}`, borderRadius: 14, padding: '16px 18px', marginBottom: 18 }}>
-        <div style={{ height: 2, background: C.gold, margin: '-16px -18px 12px', borderRadius: '14px 14px 0 0' }} />
-        <p style={{ margin: 0, textAlign: 'center', fontSize: 10, letterSpacing: '0.24em', textTransform: 'uppercase', color: C.dim, fontFamily: font }}>
-          A booking with
-        </p>
-        <p style={{ margin: '4px 0 14px', textAlign: 'center', fontFamily: serif, fontStyle: 'italic', fontSize: 22 }}>
-          Club Fuoco
-        </p>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.dim, fontFamily: font, padding: '6px 0' }}>
-          <span>Operator</span><span style={{ color: C.text }}>Club Fuoco</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.dim, fontFamily: font, padding: '6px 0' }}>
-          <span>Venue</span><span style={{ color: C.text }}>Opium Barcelona</span>
-        </div>
-        <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 10, paddingTop: 12, textAlign: 'center' }}>
-          {brand.attribution_required
-            ? <SupplierCredit name={brand.name} label={brand.attribution_label} logoUrl={brand.logo_url} />
-            : <span style={{ fontSize: 11, color: C.faint, fontFamily: font, fontStyle: 'italic' }}>no supplier credit (attribution off)</span>}
-        </div>
-      </div>
-
-      {/* Sample offer card */}
-      <p style={{ margin: '0 0 8px', fontSize: 11, color: C.faint, fontFamily: font }}>Offer card</p>
-      <div style={{ background: '#0A0A0A', border: `1px solid ${C.line}`, borderRadius: 14, padding: '14px 16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: font }}>Free Guestlist</span>
-          <span style={{ fontSize: 12, color: C.gold, fontWeight: 600, fontFamily: font }}>Free</span>
-        </div>
-        <p style={{ margin: '4px 0 0', fontSize: 12, color: C.dim, fontFamily: font }}>Free till 1:00 AM · Sun – Fri</p>
-        {brand.attribution_required && (
-          <div style={{ marginTop: 10 }}>
-            <SupplierCredit name={brand.name} label={brand.attribution_label} logoUrl={brand.logo_url} />
+        <div style={{ padding: 24, background: '#0A0A0A' }}>
+          {/* Booking sheet lockup — faithful to RumbalistBookSheet/OfferSheet */}
+          <p style={{ ...caps, color: C.dim, margin: 0, textAlign: 'center', letterSpacing: '0.24em', fontSize: 10 }}>
+            A booking with
+          </p>
+          <p style={{ margin: '8px 0 0', textAlign: 'center', fontFamily: serif, fontStyle: 'italic', fontSize: 26, color: C.text }}>
+            Club Fuoco
+          </p>
+          <div style={{ width: 44, height: 1, background: C.gold, margin: '14px auto 0' }} />
+          <div style={{ textAlign: 'center', marginTop: 14, minHeight: 16 }}>
+            {credit
+              ? <SupplierCredit name={brand.name} label={brand.attribution_label} logoUrl={brand.logo_url} />
+              : <span style={{ fontSize: 11, color: C.faint, fontFamily: font, fontStyle: 'italic' }}>no supplier credit (attribution off)</span>}
           </div>
-        )}
+
+          {/* Sheet detail rows */}
+          <div style={{ margin: '22px 0 0', borderTop: `1px solid ${C.line}`, paddingTop: 6 }}>
+            {[['Operator', 'Club Fuoco'], ['Venue', 'Opium Barcelona']].map(([k, v]) => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 12.5, fontFamily: font }}>
+                <span style={{ color: C.dim }}>{k}</span><span style={{ color: C.text }}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Sample offer card */}
+          <p style={{ ...caps, color: C.gold, margin: '20px 0 10px', fontSize: 10 }}>Selected option</p>
+          <div style={{
+            background: C.card, border: `1px solid ${C.line}`, borderRight: `2px solid ${C.gold}`,
+            borderRadius: 6, padding: '14px 16px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+              <span style={{ fontSize: 14.5, fontWeight: 700, fontFamily: font, color: C.text }}>Free Guestlist</span>
+              <span style={{ fontFamily: mono, fontSize: 13, color: C.goldHi }}>Free</span>
+            </div>
+            <p style={{ margin: '5px 0 0', fontSize: 12, color: C.dim, fontFamily: font }}>
+              Free till 1:00 AM · Sun – Fri
+            </p>
+            {credit && (
+              <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.line}` }}>
+                <SupplierCredit name={brand.name} label={brand.attribution_label} logoUrl={brand.logo_url} />
+              </div>
+            )}
+          </div>
+
+          <p style={{ margin: '18px 0 0', fontSize: 11, color: C.faint, fontFamily: font, textAlign: 'center', lineHeight: 1.5 }}>
+            Preview updates instantly as you edit — save to publish.
+          </p>
+        </div>
       </div>
-    </Card>
+    </div>
   )
 }

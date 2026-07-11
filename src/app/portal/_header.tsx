@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { C, font, serif } from './_ui'
+import { C, caps, font, serif } from './_ui'
 
 export default function PortalHeader() {
   const pathname = usePathname()
@@ -13,30 +13,30 @@ export default function PortalHeader() {
     window.location.href = '/portal/login'
   }
 
+  // The login screen carries its own centered lockup — no chrome behind it.
+  if (onLogin) return null
+
   return (
     <header style={{
       borderBottom: `1px solid ${C.line}`,
-      background: 'rgba(10,10,10,0.9)', backdropFilter: 'blur(8px)',
+      background: 'rgba(10,10,10,0.88)', backdropFilter: 'blur(12px)',
       position: 'sticky', top: 0, zIndex: 100,
     }}>
       <div style={{
-        maxWidth: 960, margin: '0 auto', padding: '14px 20px',
-        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12,
+        maxWidth: 1180, margin: '0 auto', padding: '15px 24px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
       }}>
-        <Link href="/portal" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'baseline', gap: 10 }}>
-          <span style={{ fontFamily: serif, fontStyle: 'italic', fontSize: 21, color: C.text }}>Club Fuoco</span>
-          <span style={{ fontFamily: font, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: C.gold }}>
-            Partner Portal
-          </span>
+        <Link href="/portal" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'baseline', gap: 12 }}>
+          <span style={{ fontFamily: serif, fontStyle: 'italic', fontSize: 20, color: C.goldHi }}>Club Fuoco</span>
+          <span style={{ color: C.faint, fontFamily: font, fontSize: 13 }}>/</span>
+          <span style={{ ...caps, color: C.gold, letterSpacing: '0.18em' }}>Partner Portal</span>
         </Link>
-        {!onLogin && (
-          <button onClick={logout} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontFamily: font, fontSize: 12, color: C.dim, padding: 4,
-          }}>
-            Log out
-          </button>
-        )}
+        <button onClick={logout} style={{
+          ...caps, background: 'none', border: `1px solid ${C.line}`, borderRadius: 8,
+          cursor: 'pointer', color: C.dim, padding: '8px 14px', letterSpacing: '0.12em',
+        }}>
+          Log out
+        </button>
       </div>
     </header>
   )

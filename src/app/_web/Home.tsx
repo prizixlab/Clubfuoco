@@ -57,8 +57,8 @@ export default function WebHome() {
               </span>
             </div>
             <div className="app-body">
-              <p className="app-eyebrow">Tonight with</p>
-              <div className="app-title">RUMBALIST</div>
+              <p className="app-eyebrow">Tonight, curated by</p>
+              <div className="app-title">CLUB FUOCO</div>
               <div className="venue-list">
                 {[
                   ['Opium Barcelona',  'Free guestlist',            'linear-gradient(135deg,#3a2a4a,#160f22)'],
@@ -108,7 +108,7 @@ export default function WebHome() {
         </div>
       </section>
 
-      {/* ===== PARTNER / RUMBALIST ===== */}
+      {/* ===== PARTNER NETWORK ===== */}
       <section className="section partner">
         <div className="wrap">
           <p className="eyebrow" style={{ textAlign: 'center' }}>The network</p>
@@ -116,9 +116,8 @@ export default function WebHome() {
             Curated with the operators who own Barcelona nights.
           </h2>
           <p className="sub">
-            In partnership with{' '}
-            <span className="rumbalist">Rumbalist</span> — guest lists, VIP
-            tables, and direct entry at eleven of the city&rsquo;s best venues.
+            Guest lists, VIP tables, and direct entry at eleven of the
+            city&rsquo;s best venues.
           </p>
           <div className="venues" aria-label="Partner venues">
             {['Opium','Pacha','Jamboree','CDLC','Shôko','Sutton','Bling Bling','Disco City Hall','Downtown','Twenties','Carpe Diem'].map((name, i, arr) => (

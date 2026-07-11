@@ -299,7 +299,7 @@
 }
 .step-rule { display: none; }
 
-/* ---------- Partner / Rumbalist ---------- */
+/* ---------- Partner network ---------- */
 .partner { text-align: center; }
 .partner h2 {
   font-size: clamp(32px, 4.6vw, 50px);
@@ -315,13 +315,6 @@
   line-height: 1.85;
   color: var(--muted);
   text-wrap: pretty;
-}
-.rumbalist {
-  color: var(--pink);
-  font-weight: 600;
-  font-style: normal;
-  letter-spacing: 0.01em;
-  text-shadow: 0 0 28px rgba(255, 45, 146, 0.30);
 }
 .venues {
   display: flex;

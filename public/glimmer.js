@@ -73,7 +73,7 @@
         el.textContent = pick(PILLS);
       } else {
         el.className = "glimmer g-mark";
-        el.textContent = "RUMBALIST";
+        el.textContent = "CLUB FUOCO";
       }
       return el;
     }

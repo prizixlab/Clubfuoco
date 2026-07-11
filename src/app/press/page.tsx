@@ -43,10 +43,10 @@ export default function PressPage() {
             </article>
             <article className="release">
               <span className="date">May 2026</span>
-              <h3>Club Fuoco partners with Rumbalist</h3>
+              <h3>Club Fuoco opens its partner venue network</h3>
               <p>
-                A network partnership brings guest lists, VIP tables, and direct
-                entry at the city&rsquo;s best rooms into one app.
+                Guest lists, VIP tables, and direct entry at the city&rsquo;s
+                best rooms, brought into one app.
               </p>
             </article>
           </div>

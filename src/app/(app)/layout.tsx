@@ -5,6 +5,7 @@ import PresenceTracker from '@/components/PresenceTracker'
 import SwipeBack from '@/components/SwipeBack'
 import { useAuth } from '@/contexts/AuthContext'
 import { PlanProvider } from '@/contexts/PlanContext'
+import { PartnerProvider } from '@/contexts/PartnerContext'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Guests can browse — login is only required for account-based actions
@@ -14,16 +15,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (loading) return null
 
   return (
+    <PartnerProvider>
     <PlanProvider>
     <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#F8F5EE' }}>
-      {/* Global keyframes for the Rumbalist wordmark's gloss sweep. Defined at
-          the (app) layout so it's available everywhere the mark renders, not
-          just inside the booking-sheet portal. */}
-      <style>{`@keyframes rumbaGloss {
-        0%   { background-position: 100% 0; }
-        55%  { background-position: -60% 0; }
-        100% { background-position: -60% 0; }
-      }`}</style>
       {/* Scrollable content */}
       <div
         id="app-scroll"
@@ -48,5 +42,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <SwipeBack />
     </div>
     </PlanProvider>
+    </PartnerProvider>
   )
 }

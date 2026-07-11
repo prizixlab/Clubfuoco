@@ -216,14 +216,6 @@ export default function RumbalistBookSheet({
 
   return createPortal(
     <>
-      {/* Rumbalist wordmark gloss-sweep keyframes — moves the white band from
-          far right through the mask and off the left, then pauses before
-          repeating so the wordmark stays mostly pink with periodic shine. */}
-      <style>{`@keyframes rumbaGloss {
-        0%   { background-position: 100% 0; }
-        55%  { background-position: -60% 0; }
-        100% { background-position: -60% 0; }
-      }`}</style>
       {/* Scrim */}
       <div onClick={step === 'pass' ? close : undefined}
         onTouchMove={e => e.preventDefault()}
@@ -289,7 +281,7 @@ function ReviewStep({ offer, venueName, venueAddress, error, paying, onConfirm, 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         {isFree
           ? <span style={{ fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(245,245,247,0.7)', fontFamily: 'ui-monospace, monospace', display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
-              Free Guestlist · <RumbalistMark size={14} />
+              Free Guestlist
             </span>
           : <ApplePayLogo />}
         <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#fff', borderRadius: 999, width: 30, height: 30, fontSize: 16, cursor: 'pointer' }}>×</button>
@@ -315,9 +307,9 @@ function ReviewStep({ offer, venueName, venueAddress, error, paying, onConfirm, 
       {/* Items */}
       <div style={{ marginTop: 22, background: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: '14px 16px' }}>
         {isFree ? (
-          <Row label="Operator" value={<>Club Fuoco · via <RumbalistMark /></>} />
+          <Row label="Operator" value="Club Fuoco" />
         ) : (
-          <Row label="Pay to" value={<>Club Fuoco · via <RumbalistMark /></>} />
+          <Row label="Pay to" value="Club Fuoco" />
         )}
         <Hr />
         <Row label="Venue"   value={venueName} />
@@ -353,7 +345,7 @@ function ReviewStep({ offer, venueName, venueAddress, error, paying, onConfirm, 
         }}>
         {isFree
           ? <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
-              Free Guestlist with <RumbalistMark size={18} />
+              Join Free Guestlist
             </span>
           : paying
             ? <>Opening Apple Pay…</>
@@ -414,18 +406,16 @@ function ListGlyph() {
 }
 
 /* ─── Confirmation receipt ────────────────────────────────────────────── */
-// Rumbalist-branded confirmation. We deliberately stay flat-receipt (no
-// gradient pass card, no barcode/QR block) so we don't trip Guideline 4.5.4
-// (Apple Pay/Wallet visual imitation), but every accent is Miami pink and the
-// Rumbalist wordmark sits prominently at the top so the booking reads as
-// Rumbalist's, with Club Fuoco as the surface.
+// Club Fuoco confirmation. We deliberately stay flat-receipt (no gradient pass
+// card, no barcode/QR block) so we don't trip Guideline 4.5.4 (Apple Pay/Wallet
+// visual imitation). Accents use Club Fuoco's dark-surface coral.
 function PassStep({ offer, venueName, venueAddress, date, code, bookingId, onClose }: {
   offer: RumbalistOffer; venueName: string; venueAddress: string;
   date: string; code: string; bookingId: string | null; onClose: () => void
 }) {
-  const PINK      = '#FF2D92'
-  const PINK_DIM  = 'rgba(255,45,146,0.14)'
-  const PINK_RULE = 'rgba(255,45,146,0.32)'
+  const PINK      = '#FFB4A2'
+  const PINK_DIM  = 'rgba(255,180,166,0.14)'
+  const PINK_RULE = 'rgba(255,180,166,0.32)'
 
   // Open the signed .pkpass — the browser downloads it / hands it to Wallet.
   async function addToAppleWallet() {
@@ -437,14 +427,14 @@ function PassStep({ offer, venueName, venueAddress, date, code, bookingId, onClo
   return (
     <div style={{ padding: '8px 22px 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', color: '#F5F5F7' }}>
 
-      {/* Top accent rule + Rumbalist lockup */}
+      {/* Top accent rule + Club Fuoco lockup */}
       <div style={{ height: 2, background: PINK, margin: '0 -22px 18px' }} />
       <div style={{ textAlign: 'center', marginBottom: 18 }}>
         <p style={{ margin: '0 0 6px', fontSize: 10, letterSpacing: '0.24em', textTransform: 'uppercase', color: 'rgba(245,245,247,0.55)' }}>
           A booking with
         </p>
-        <div style={{ display: 'inline-flex', alignItems: 'baseline', justifyContent: 'center' }}>
-          <RumbalistMark size={22} />
+        <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 26, letterSpacing: '-0.2px', color: '#F5F5F7' }}>
+          Club Fuoco
         </div>
       </div>
 
@@ -509,7 +499,7 @@ function PassStep({ offer, venueName, venueAddress, date, code, bookingId, onClo
       <button onClick={onClose}
         style={{
           marginTop: 12, width: '100%', height: 50,
-          background: PINK, color: '#FFFFFF',
+          background: PINK, color: '#1A1210',
           border: 'none', borderRadius: 12,
           fontSize: 15, fontWeight: 600, cursor: 'pointer',
           fontFamily: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif',
@@ -531,34 +521,6 @@ function Row({ label, value, bold, small }: { label: string; value: React.ReactN
   )
 }
 
-// The "Rumbalist" wordmark: chunky Bowlby One in Miami pink with a sweeping
-// white-gloss highlight — like a glossy badge / Mercedes-AMG style co-brand.
-// `color` lets callers override the base pink if it needs to read on a dark sheet.
-// The Rumbalist wordmark — uses their actual logo PNG as a CSS mask so the
-// shapes are exact, then fills it with a moving pink → white → pink gradient.
-// The white band sweeps across every ~3.4s, giving the wet-gloss highlight on
-// the Miami-pink mark. The PNG ships from /public, served from the iOS bundle.
-export function RumbalistMark({ size = 18 }: { size?: number }) {
-  const mask = "url(/rumbalist-logo.png) no-repeat left center / contain"
-  return (
-    <span
-      aria-label="Rumbalist"
-      style={{
-        display: 'inline-block',
-        height: size,
-        aspectRatio: '1600 / 325',
-        verticalAlign: '-0.28em',
-        backgroundImage:
-          'linear-gradient(105deg, #FF2D92 0%, #FF2D92 38%, #FFFFFF 50%, #FF2D92 62%, #FF2D92 100%)',
-        backgroundSize: '260% 100%',
-        backgroundPosition: '100% 0',
-        WebkitMask: mask,
-        mask,
-        animation: 'rumbaGloss 3.4s ease-in-out infinite',
-      }}
-    />
-  )
-}
 const Hr = () => <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
 
 function Field({ label, value }: { label: string; value: string }) {

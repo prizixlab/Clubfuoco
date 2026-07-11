@@ -9,7 +9,6 @@ import {
 import { apiFetch } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { RUMBALIST_OFFERS } from '@/lib/rumbalist-offers'
-import { RumbalistMark } from '@/components/RumbalistBookSheet'
 import { rumbaScore } from '@/lib/rumba-score'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
@@ -285,9 +284,8 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
     })
     .slice(0, 12)
   if (forYou.length > 0) {
-    // Explicit Rumbalist partner shelf — renderer swaps the title for the
-    // animated Rumbalist wordmark (id-based check on `rumbalist_partners`).
-    shelves.push({ id: 'rumbalist_partners', title: 'Tonight with Rumbalist', subtitle: 'Free guestlists & VIP tables', places: forYou, featured: true })
+    // Featured "curated tonight" shelf — the venues with guestlist / VIP offers.
+    shelves.push({ id: 'rumbalist_partners', title: 'Curated Tonight', subtitle: 'Free guestlists & VIP tables', places: forYou, featured: true })
   }
 
   // ── 2. RUMBAS (active guest list events) ─────────────────────────────────
@@ -837,9 +835,7 @@ function ShelfRow({ shelf, saved, onSave, index }: { shelf: Shelf; saved: Set<st
           <p style={{ fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 3px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{shelf.subtitle}</p>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
             <h2 style={{ fontSize: 18, fontWeight: 500, color: C.ink, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', display: 'inline-flex', alignItems: 'baseline', gap: 7 }}>
-              {shelf.id === 'rumbalist_partners'
-                ? <>Tonight with <RumbalistMark size={17} /></>
-                : shelf.title}
+              {shelf.title}
             </h2>
             <span style={{ fontSize: 12, color: C.accent, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{shelf.places.length} venues →</span>
           </div>

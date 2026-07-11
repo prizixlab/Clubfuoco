@@ -4,7 +4,7 @@ import { getClubById, getPlaceFavorites, savePlaceFavorite, removePlaceFavorite 
 import { useAuth } from '@/contexts/AuthContext'
 import { getRumbalistOffers, type RumbalistOffer } from '@/lib/rumbalist-offers'
 import { rumbaScore } from '@/lib/rumba-score'
-import RumbalistBookSheet, { RumbalistMark } from '@/components/RumbalistBookSheet'
+import RumbalistBookSheet from '@/components/RumbalistBookSheet'
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
@@ -979,7 +979,7 @@ export default function PlaceDetailPage() {
                                   fontSize: 14, fontWeight: 600,
                                   color: isVip ? 'rgb(42,27,8)' : C.ink,
                                   display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-                        {o.title} <span style={{ fontWeight: 400, fontSize: 12, opacity: 0.75 }}>with</span> <RumbalistMark size={13} />
+                        {o.title}
                       </p>
                       <p style={{ margin: '2px 0 0', fontSize: 12,
                                   color: isVip ? 'rgba(42,27,8,0.7)' : C.ink3 }}>

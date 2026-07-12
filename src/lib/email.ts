@@ -4,6 +4,10 @@ import QRCode    from 'qrcode'
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 const FROM   = process.env.RESEND_FROM ?? 'Club Fuoco <onboarding@resend.dev>'
+// Partner/supplier mail reads better from a dedicated address than from the
+// ticket sender. Any mailbox on the already-verified clubfuoco.com domain sends
+// with no extra setup; override via env if you want a different one.
+const PARTNER_FROM = process.env.RESEND_PARTNER_FROM ?? 'Club Fuoco <partners@clubfuoco.com>'
 const ADMIN  = process.env.ADMIN_EMAILS?.split(',')[0] ?? ''
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://clubfuoco.com'
 
@@ -93,7 +97,7 @@ export async function sendSupplierPasswordSetup({
 </html>`
 
   await resend.emails.send({
-    from:    FROM,
+    from:    PARTNER_FROM,
     to,
     subject: isReset ? 'Reset your Club Fuoco partner password' : 'Set up your Club Fuoco partner access',
     html,

@@ -119,6 +119,7 @@ export async function middleware(request: NextRequest) {
       '/i',                                                       // promoter invite links (/i/<token>)
       '/billing',                                                 // Stripe card-setup return page
       '/login', '/signup', '/complete-profile', '/auth',         // auth for joining
+      '/supplier',                                                // supplier set-password link
     ]
     const allowed =
       pathname === '/' ||

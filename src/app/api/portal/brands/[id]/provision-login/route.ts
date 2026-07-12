@@ -3,13 +3,18 @@ import { requirePortal } from '@/lib/portal-auth'
 import { getBrand } from '@/lib/partner'
 import { ok, err } from '@/lib/utils'
 
-// POST /api/portal/brands/:id/provision-login — grant the supplier access to the
-// FuocoPromoters app. Finds or creates a Supabase account for the brand's
-// login_email, marks it a pre-approved promoter (so it passes the app's gate
-// without the IG-application flow), and links it to the brand via owner_user_id.
-//
-// No email is sent: the account is created with email_confirm so the supplier
-// just signs in with their email via the app's normal one-time-code flow.
+// Where the set-password email lands. Canonical production origin (not the
+// request origin, which could be a preview/localhost) so the emailed link is
+// always the live page. This path must be in Supabase Auth → Redirect URLs.
+const SET_PASSWORD_URL = 'https://clubfuoco.com/supplier/set-password'
+
+// POST /api/portal/brands/:id/provision-login — grant a supplier access to the
+// FuocoPromoters app and email them a "create your password" link.
+//   • new email  → admin invite (creates the account + sends the set-password link)
+//   • known email → password-reset email (they set/replace their password)
+// Either way the account is marked a pre-approved promoter and linked to the
+// brand via owner_user_id. Re-POSTing for an already-provisioned brand just
+// resends the link.
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -24,20 +29,23 @@ export async function POST(
   const email = brand.login_email?.trim().toLowerCase()
   if (!email) return err('Set a login email for this brand first')
 
-  // Find an existing account for this email, else create one (no email sent).
-  let userId: string | null = null
-  let reused = false
+  // Find an existing account for this email.
   const { data: existing } = await sb.from('users').select('id').eq('email', email).maybeSingle()
+
+  let userId: string
+  let emailKind: 'invite' | 'reset'
   if (existing) {
     userId = (existing as { id: string }).id
-    reused = true
+    // Known account → send a set/replace-password email.
+    const { error: resetErr } = await sb.auth.resetPasswordForEmail(email, { redirectTo: SET_PASSWORD_URL })
+    if (resetErr) return err(resetErr.message, 500)
+    emailKind = 'reset'
   } else {
-    const { data: created, error: createErr } = await sb.auth.admin.createUser({
-      email,
-      email_confirm: true,   // no confirmation email; OTP sign-in works immediately
-    })
-    if (createErr || !created?.user) return err(createErr?.message ?? 'Could not create account', 500)
-    userId = created.user.id
+    // New account → invite (creates the user AND sends the set-password link).
+    const { data: invited, error: inviteErr } = await sb.auth.admin.inviteUserByEmail(email, { redirectTo: SET_PASSWORD_URL })
+    if (inviteErr || !invited?.user) return err(inviteErr?.message ?? 'Could not send the invite', 500)
+    userId = invited.user.id
+    emailKind = 'invite'
   }
 
   // Don't let one login own two brands — the supplier UI resolves exactly one.
@@ -60,7 +68,7 @@ export async function POST(
     .eq('id', id)
   if (linkErr) return err(linkErr.message, 500)
 
-  return ok({ provisioned: true, email, reused })
+  return ok({ provisioned: true, email, emailKind })
 }
 
 // DELETE /api/portal/brands/:id/provision-login — revoke access. Unlinks the

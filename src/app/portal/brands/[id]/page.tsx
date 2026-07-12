@@ -209,8 +209,8 @@ function IdentityCard({ brand, onSaved, onDraft }: {
       <SectionLabel>Supplier access</SectionLabel>
       <p style={{ margin: '-8px 0 14px', fontSize: 12.5, color: C.faint, lineHeight: 1.55, fontFamily: font }}>
         The email this supplier uses to sign in to the FuocoPromoters app and
-        monitor their own offers. Passwordless — they receive a one-time code at
-        this address.
+        manage their own offers. Save it, then send the password link below —
+        they’ll get an email to create a password and sign in with it.
       </p>
       <Field label="Login email" hint="Leave blank if no login has been set up yet.">
         <TextInput type="email" value={loginEmail} maxLength={160} placeholder="team@rumba.com"
@@ -230,10 +230,10 @@ function IdentityCard({ brand, onSaved, onDraft }: {
   )
 }
 
-// Grant / revoke the supplier's FuocoPromoters access. Provisioning creates (or
-// links) a pre-approved promoter account for login_email — no email is sent, so
-// after provisioning the operator just tells the supplier to sign in with that
-// address. Save the email first; provisioning uses the stored value.
+// Grant / revoke the supplier's FuocoPromoters access. "Send password link"
+// creates (or links) a pre-approved promoter account for login_email and emails
+// that address a link to create their password; they then sign in to the app
+// with email + password. Save the email first — this uses the stored value.
 function ProvisionAccess({ brand, emailValue, onChanged }: {
   brand: BrandRow; emailValue: string; onChanged: () => void
 }) {
@@ -241,19 +241,20 @@ function ProvisionAccess({ brand, emailValue, onChanged }: {
   const [error, setError] = useState<string | null>(null)
   const [note, setNote]   = useState<string | null>(null)
 
-  // Provisioning uses the persisted login_email, so an unsaved edit must be
-  // published first — guard against provisioning a stale/blank address.
+  // Sending uses the persisted login_email, so an unsaved edit must be published
+  // first — guard against emailing a stale/blank address.
   const emailDirty = (emailValue.trim() || '') !== (brand.login_email ?? '')
 
-  async function provision() {
-    if (!confirm(`Grant ${brand.name} access to the FuocoPromoters app with ${brand.login_email}? They'll sign in with a one-time code at that email.`)) return
+  async function sendLink(isResend: boolean) {
+    const verb = isResend ? 'Resend the password link to' : `Grant ${brand.name} access and email a "create your password" link to`
+    if (!confirm(`${verb} ${brand.login_email}?`)) return
     setBusy(true); setError(null); setNote(null)
     try {
-      const r = await api<{ reused: boolean }>(`/api/portal/brands/${brand.id}/provision-login`, { method: 'POST' })
-      setNote(r.reused ? 'Linked the existing account for that email.' : 'Account created and linked.')
+      await api(`/api/portal/brands/${brand.id}/provision-login`, { method: 'POST' })
+      setNote(`Password link sent to ${brand.login_email}.`)
       onChanged()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Provisioning failed')
+      setError(e instanceof Error ? e.message : 'Failed to send link')
     } finally { setBusy(false) }
   }
 
@@ -268,19 +269,23 @@ function ProvisionAccess({ brand, emailValue, onChanged }: {
     } finally { setBusy(false) }
   }
 
+  const blockedReason = !brand.login_email ? 'Set + publish a login email first'
+    : emailDirty ? 'Publish the email change first' : undefined
+
   return (
     <div style={{ margin: '4px 0 4px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
       {brand.login_provisioned
         ? <>
             <Badge color={C.green}>Access active</Badge>
-            <Btn small kind="danger" onClick={revoke} disabled={busy}>{busy ? 'Working…' : 'Revoke access'}</Btn>
+            <Btn small onClick={() => sendLink(true)} disabled={busy || !!blockedReason} title={blockedReason}>
+              {busy ? 'Sending…' : 'Resend password link'}
+            </Btn>
+            <Btn small kind="danger" onClick={revoke} disabled={busy}>Revoke access</Btn>
           </>
         : <>
             <Badge color={C.faint}>No app access</Badge>
-            <Btn small onClick={provision}
-              disabled={busy || !brand.login_email || emailDirty}
-              title={!brand.login_email ? 'Set + publish a login email first' : emailDirty ? 'Publish the email change first' : undefined}>
-              {busy ? 'Provisioning…' : 'Provision access'}
+            <Btn small onClick={() => sendLink(false)} disabled={busy || !!blockedReason} title={blockedReason}>
+              {busy ? 'Sending…' : 'Send password link & grant access'}
             </Btn>
             {emailDirty && brand.login_email && <span style={{ fontSize: 11.5, color: C.faint, fontFamily: font }}>Publish the email change first.</span>}
           </>}

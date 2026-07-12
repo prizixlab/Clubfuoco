@@ -250,8 +250,9 @@ function ProvisionAccess({ brand, emailValue, onChanged }: {
     if (!confirm(`${verb} ${brand.login_email}?`)) return
     setBusy(true); setError(null); setNote(null)
     try {
-      await api(`/api/portal/brands/${brand.id}/provision-login`, { method: 'POST' })
-      setNote(`Password link sent to ${brand.login_email}.`)
+      const r = await api<{ emailSent: boolean }>(`/api/portal/brands/${brand.id}/provision-login`, { method: 'POST' })
+      if (r.emailSent) setNote(`Password link sent to ${brand.login_email}.`)
+      else setError(`Access granted, but the email didn't send (email service not configured). Configure Resend and resend.`)
       onChanged()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to send link')

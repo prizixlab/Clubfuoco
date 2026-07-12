@@ -43,6 +43,64 @@ function dataUrlToBase64(dataUrl: string): string {
   return dataUrl.replace(/^data:image\/png;base64,/, '')
 }
 
+// ── Supplier password-setup email ────────────────────────────────────────────
+// Sent when the portal provisions a list/supplier's FuocoPromoters access. The
+// actionLink is a Supabase invite/recovery link (generated, not sent, by
+// Supabase) that lands on /supplier/set-password. Returns whether it sent, so
+// the caller can tell the operator if email isn't configured.
+export async function sendSupplierPasswordSetup({
+  to, brandName, actionLink, isReset,
+}: {
+  to:         string
+  brandName:  string
+  actionLink: string
+  isReset:    boolean
+}): Promise<boolean> {
+  if (!resend) return false
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0A0A0A;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0A0A0A;padding:32px 0;">
+<tr><td align="center">
+<table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
+  <tr><td style="padding:0 0 28px;text-align:center;">
+    <p style="margin:0;font-size:11px;letter-spacing:0.25em;text-transform:uppercase;color:#C09950;font-weight:700;">CLUB FUOCO · PARTNER ACCESS</p>
+  </td></tr>
+  <tr><td style="background:#141416;border-radius:16px;border:1px solid rgba(255,255,255,0.1);padding:32px 28px;">
+    <h1 style="margin:0 0 12px;font-size:22px;color:#F5F5F7;font-weight:700;">${isReset ? 'Reset your password' : 'Create your password'}</h1>
+    <p style="margin:0 0 24px;font-size:15px;color:rgba(245,245,247,0.65);line-height:1.6;">
+      ${isReset
+        ? `Use the button below to set a new password for the <strong style="color:#F5F5F7;">${brandName}</strong> account.`
+        : `You've been given access to manage <strong style="color:#F5F5F7;">${brandName}</strong>'s guestlist offers in the Fuoco for Promoters app. Set a password to get started.`}
+    </p>
+    <a href="${actionLink}" style="display:inline-block;background:#C09950;color:#141416;font-weight:700;font-size:15px;padding:14px 28px;border-radius:8px;text-decoration:none;letter-spacing:0.02em;">
+      ${isReset ? 'Reset password' : 'Create password'}
+    </a>
+    <p style="margin:24px 0 0;font-size:13px;color:rgba(245,245,247,0.45);line-height:1.6;">
+      After setting your password, open the <strong style="color:rgba(245,245,247,0.7);">Fuoco for Promoters</strong> app and sign in with this email address and your new password. This link expires — if it's stopped working, ask your Club Fuoco contact to resend it.
+    </p>
+  </td></tr>
+  <tr><td style="padding:24px 0 0;text-align:center;">
+    <p style="margin:0;font-size:11px;color:rgba(245,245,247,0.25);line-height:1.6;">Club Fuoco · Barcelona</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+
+  await resend.emails.send({
+    from:    FROM,
+    to,
+    subject: isReset ? 'Reset your Club Fuoco partner password' : 'Set up your Club Fuoco partner access',
+    html,
+  })
+  return true
+}
+
 // ── User ticket email ─────────────────────────────────────────────────────────
 export async function sendTicketConfirmation({
   to, orderId, eventName, venueName, eventDate,

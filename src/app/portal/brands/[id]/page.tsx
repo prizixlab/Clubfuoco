@@ -217,6 +217,8 @@ function IdentityCard({ brand, onSaved, onDraft }: {
           autoComplete="off" onChange={e => setLoginEmail(e.target.value)} />
       </Field>
 
+      <ProvisionAccess brand={brand} emailValue={loginEmail} onChanged={onSaved} />
+
       <ErrorLine error={error} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 16 }}>
         <Btn kind="primary" onClick={save} disabled={busy === 'save' || !name.trim() || !/^#[0-9A-F]{6}$/i.test(color) || !emailValid}>
@@ -225,6 +227,66 @@ function IdentityCard({ brand, onSaved, onDraft }: {
         {saved && <span style={{ ...caps, fontSize: 10.5, color: C.green }}>● Saved</span>}
       </div>
     </Card>
+  )
+}
+
+// Grant / revoke the supplier's FuocoPromoters access. Provisioning creates (or
+// links) a pre-approved promoter account for login_email — no email is sent, so
+// after provisioning the operator just tells the supplier to sign in with that
+// address. Save the email first; provisioning uses the stored value.
+function ProvisionAccess({ brand, emailValue, onChanged }: {
+  brand: BrandRow; emailValue: string; onChanged: () => void
+}) {
+  const [busy, setBusy]   = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [note, setNote]   = useState<string | null>(null)
+
+  // Provisioning uses the persisted login_email, so an unsaved edit must be
+  // published first — guard against provisioning a stale/blank address.
+  const emailDirty = (emailValue.trim() || '') !== (brand.login_email ?? '')
+
+  async function provision() {
+    if (!confirm(`Grant ${brand.name} access to the FuocoPromoters app with ${brand.login_email}? They'll sign in with a one-time code at that email.`)) return
+    setBusy(true); setError(null); setNote(null)
+    try {
+      const r = await api<{ reused: boolean }>(`/api/portal/brands/${brand.id}/provision-login`, { method: 'POST' })
+      setNote(r.reused ? 'Linked the existing account for that email.' : 'Account created and linked.')
+      onChanged()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Provisioning failed')
+    } finally { setBusy(false) }
+  }
+
+  async function revoke() {
+    if (!confirm(`Revoke ${brand.name}'s access? They'll no longer be able to manage offers in the app. (The account itself is kept.)`)) return
+    setBusy(true); setError(null); setNote(null)
+    try {
+      await api(`/api/portal/brands/${brand.id}/provision-login`, { method: 'DELETE' })
+      onChanged()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Revoke failed')
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ margin: '4px 0 4px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      {brand.login_provisioned
+        ? <>
+            <Badge color={C.green}>Access active</Badge>
+            <Btn small kind="danger" onClick={revoke} disabled={busy}>{busy ? 'Working…' : 'Revoke access'}</Btn>
+          </>
+        : <>
+            <Badge color={C.faint}>No app access</Badge>
+            <Btn small onClick={provision}
+              disabled={busy || !brand.login_email || emailDirty}
+              title={!brand.login_email ? 'Set + publish a login email first' : emailDirty ? 'Publish the email change first' : undefined}>
+              {busy ? 'Provisioning…' : 'Provision access'}
+            </Btn>
+            {emailDirty && brand.login_email && <span style={{ fontSize: 11.5, color: C.faint, fontFamily: font }}>Publish the email change first.</span>}
+          </>}
+      {note && <span style={{ fontSize: 12, color: C.green, fontFamily: font }}>{note}</span>}
+      {error && <span style={{ fontSize: 12, color: C.danger, fontFamily: font }}>{error}</span>}
+    </div>
   )
 }
 

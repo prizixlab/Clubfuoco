@@ -122,6 +122,9 @@ export interface BrandRow extends PartnerBrand {
   // deliberately NOT part of the consumer-facing PartnerBrand, and the public
   // /api/partner never emits it.
   login_email: string | null
+  // true once a promoter account has been provisioned + linked (owner_user_id
+  // set) for this brand. The uid itself stays server-side.
+  login_provisioned: boolean
 }
 
 // offer_count counts ACTIVE offers only — it drives the "activating an empty
@@ -143,6 +146,7 @@ export async function listBrands(sb: SB): Promise<BrandRow[]> {
     created_at:  (r as { created_at: string }).created_at,
     offer_count: counts[(r as { id: string }).id] ?? 0,
     login_email: ((r as { login_email?: string | null }).login_email) ?? null,
+    login_provisioned: !!(r as { owner_user_id?: string | null }).owner_user_id,
   }))
 }
 
@@ -156,7 +160,20 @@ export async function getBrand(sb: SB, id: string): Promise<BrandRow | null> {
     created_at:  (data as { created_at: string }).created_at,
     offer_count: (offers ?? []).filter(isActiveOffer).length,
     login_email: ((data as { login_email?: string | null }).login_email) ?? null,
+    login_provisioned: !!(data as { owner_user_id?: string | null }).owner_user_id,
   }
+}
+
+// Resolve the brand a supplier account owns (owner_user_id = their auth uid).
+// Used by the Bearer-authed /api/supplier/** routes. Returns the raw row (incl.
+// id) or null if this user isn't linked to a brand.
+export async function getBrandByOwner(sb: SB, userId: string): Promise<(PartnerBrand & { id: string }) | null> {
+  const { data } = await sb
+    .from('partner_brands')
+    .select('*')
+    .eq('owner_user_id', userId)
+    .maybeSingle()
+  return data ? toBrand(data) : null
 }
 
 export async function createBrand(
@@ -169,7 +186,7 @@ export async function createBrand(
     .select('*')
     .single()
   if (error) throw new Error(error.message)
-  return { ...toBrand(data), is_active: false, created_at: (data as { created_at: string }).created_at, offer_count: 0, login_email: null }
+  return { ...toBrand(data), is_active: false, created_at: (data as { created_at: string }).created_at, offer_count: 0, login_email: null, login_provisioned: false }
 }
 
 // `key` is deliberately not updatable — it's the stable slug / storage path.

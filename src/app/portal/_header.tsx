@@ -6,12 +6,11 @@ import { usePathname } from 'next/navigation'
 import { api, C, caps, font, serif } from './_ui'
 
 const TABS = [
-  { href: '/portal',           label: 'Suppliers', match: (p: string) => p === '/portal' || p.startsWith('/portal/brands') },
-  { href: '/portal/clubs',     label: 'Clubs',     match: (p: string) => p.startsWith('/portal/clubs') },
-  { href: '/portal/promoters', label: 'Promoters', match: (p: string) => p.startsWith('/portal/promoters') },
-  { href: '/portal/reviews',   label: 'Changes',   match: (p: string) => p.startsWith('/portal/reviews') },
-  { href: '/portal/insights',  label: 'Insights',  match: (p: string) => p.startsWith('/portal/insights') },
-  { href: '/portal/activity',  label: 'Activity',  match: (p: string) => p.startsWith('/portal/activity') },
+  { href: '/portal',           label: 'Partners', match: (p: string) => p === '/portal' || p.startsWith('/portal/brands') },
+  { href: '/portal/clubs',     label: 'Clubs',    match: (p: string) => p.startsWith('/portal/clubs') },
+  { href: '/portal/reviews',   label: 'Changes',  match: (p: string) => p.startsWith('/portal/reviews') },
+  { href: '/portal/insights',  label: 'Insights', match: (p: string) => p.startsWith('/portal/insights') },
+  { href: '/portal/activity',  label: 'Activity', match: (p: string) => p.startsWith('/portal/activity') },
 ]
 
 export default function PortalHeader() {
@@ -73,7 +72,7 @@ export default function PortalHeader() {
             }}>
               {t.label}
               {(() => {
-                const n = t.label === 'Changes' ? pendingChanges : t.label === 'Promoters' ? pendingPromoters : 0
+                const n = t.label === 'Changes' ? pendingChanges : t.label === 'Partners' ? pendingPromoters : 0
                 return n > 0 && (
                   <span style={{
                     ...caps, fontSize: 9.5, letterSpacing: 0, color: '#141416', background: C.gold,

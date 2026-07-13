@@ -5,8 +5,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { BrandRow } from '@/lib/partner'
 import { ActivateButton, Badge, Btn, Card, ErrorLine, StatTile, api, C, caps, font, mono, serif } from './_ui'
+import { PromoterApprovals } from './_promoters'
 
-// Suppliers — every offer supplier as a card; the live one wears the chip.
+// Partners — the suppliers/lists (offer providers) up top, then the promoter
+// accounts below. Both are the same kind of external partner.
 // Suppliers are offer providers, not the face of the app: Club Fuoco stays
 // the brand, these rows decide whose offers fill the front-page shelf.
 export default function BrandsPage() {
@@ -26,11 +28,13 @@ export default function BrandsPage() {
   return (
     <>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ margin: 0, fontFamily: serif, fontSize: 34, fontWeight: 400, color: C.text }}>Suppliers</h1>
+        <h1 style={{ margin: 0, fontFamily: serif, fontSize: 34, fontWeight: 400, color: C.text }}>Partners</h1>
         <p style={{ margin: '8px 0 0', fontSize: 14, color: C.dim, fontFamily: font, lineHeight: 1.5 }}>
-          The active supplier&rsquo;s offers fill the front-page guestlist shelf — web and app, live.
+          Suppliers &amp; promoters. The active supplier&rsquo;s offers fill the front-page guestlist shelf; promoter access is approved below.
         </p>
       </div>
+
+      <h2 style={{ margin: '0 0 16px', fontFamily: serif, fontSize: 26, fontWeight: 400, color: C.text }}>Suppliers</h2>
 
       {/* Real numbers only — no fictional network metrics. */}
       {brands && (
@@ -122,6 +126,8 @@ export default function BrandsPage() {
           </button>
         )}
       </div>
+
+      <PromoterApprovals />
     </>
   )
 }

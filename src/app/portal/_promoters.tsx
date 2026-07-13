@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Badge, Btn, Card, ErrorLine, api, C, caps, font, mono, serif } from '../_ui'
+import { Badge, Btn, Card, ErrorLine, api, C, caps, font, mono, serif } from './_ui'
 
 interface Application {
   id: string
@@ -21,8 +21,9 @@ interface Application {
 
 // Promoter account approvals — who gets (and keeps) access to the
 // FuocoPromoters app. Approving an application is what unlocks the app for
-// that account. Event/offer changes live on the separate Changes tab.
-export default function PromotersPage() {
+// that account. Rendered as a section of the Partners page (suppliers and
+// promoters are the same kind of partner); event/offer changes live on Changes.
+export function PromoterApprovals() {
   const [pending, setPending] = useState<Application[] | null>(null)
   const [decided, setDecided] = useState<Application[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -55,11 +56,11 @@ export default function PromotersPage() {
   }
 
   return (
-    <>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontFamily: serif, fontSize: 34, fontWeight: 400, color: C.text }}>Promoters</h1>
-        <p style={{ margin: '8px 0 0', fontSize: 14, color: C.dim, fontFamily: font }}>
-          Approve who can use the FuocoPromoters app — applications first, roster below.
+    <section style={{ marginTop: 44, paddingTop: 32, borderTop: `1px solid ${C.line}` }}>
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ margin: 0, fontFamily: serif, fontSize: 26, fontWeight: 400, color: C.text }}>Promoters</h2>
+        <p style={{ margin: '6px 0 0', fontSize: 13.5, color: C.dim, fontFamily: font }}>
+          Who can use the FuocoPromoters app — applications first, roster below.
         </p>
       </div>
 
@@ -139,7 +140,7 @@ export default function PromotersPage() {
           </div>
         </>
       )}
-    </>
+    </section>
   )
 }
 

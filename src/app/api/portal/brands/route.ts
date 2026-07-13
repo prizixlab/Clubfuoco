@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
 import { listBrands, createBrand } from '@/lib/partner'
+import { logAudit } from '@/lib/portal-audit'
 import { ok, err } from '@/lib/utils'
 
 // GET /api/portal/brands — every brand + its offer count, for the portal list.
@@ -33,7 +34,9 @@ export async function POST(request: NextRequest) {
 
   const sb = await createServiceClient()
   try {
-    return ok(await createBrand(sb, parsed.data), 201)
+    const brand = await createBrand(sb, parsed.data)
+    await logAudit(sb, { action: 'brand.create', summary: `Created brand “${brand.name}” (${brand.key})`, target_type: 'brand', target_id: brand.id })
+    return ok(brand, 201)
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Could not create brand'
     return err(/duplicate key/.test(msg) ? `A brand with key "${parsed.data.key}" already exists` : msg)

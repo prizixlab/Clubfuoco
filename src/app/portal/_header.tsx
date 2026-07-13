@@ -5,8 +5,10 @@ import { usePathname } from 'next/navigation'
 import { C, caps, font, serif } from './_ui'
 
 const TABS = [
-  { href: '/portal',       label: 'Suppliers', match: (p: string) => p === '/portal' || p.startsWith('/portal/brands') },
-  { href: '/portal/clubs', label: 'Clubs',     match: (p: string) => p.startsWith('/portal/clubs') },
+  { href: '/portal',          label: 'Suppliers', match: (p: string) => p === '/portal' || p.startsWith('/portal/brands') },
+  { href: '/portal/clubs',    label: 'Clubs',     match: (p: string) => p.startsWith('/portal/clubs') },
+  { href: '/portal/insights', label: 'Insights',  match: (p: string) => p.startsWith('/portal/insights') },
+  { href: '/portal/activity', label: 'Activity',  match: (p: string) => p.startsWith('/portal/activity') },
 ]
 
 export default function PortalHeader() {

@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
 import { OfferSchema, OfferPatchSchema } from '@/lib/portal-schemas'
 import { updateOffer, deleteOffer } from '@/lib/partner'
+import { logAudit } from '@/lib/portal-audit'
 import { ok, err } from '@/lib/utils'
 
 // PATCH /api/portal/offers/:offerId — edit an offer. The patch is merged onto
@@ -43,6 +44,11 @@ export async function PATCH(
 
   try {
     await updateOffer(sb, offerId, patch)
+    const isArchiveToggle = 'is_active' in patch && Object.keys(patch).length === 1
+    const summary = isArchiveToggle
+      ? `${patch.is_active ? 'Reactivated' : 'Deactivated'} offer “${existing.title}”`
+      : `Edited offer “${existing.title}”`
+    await logAudit(sb, { action: isArchiveToggle ? 'offer.archive' : 'offer.update', summary, target_type: 'offer', target_id: offerId, meta: patch })
     return ok({ updated: true })
   } catch (e) {
     return err(e instanceof Error ? e.message : 'Could not update offer', 500)
@@ -58,8 +64,10 @@ export async function DELETE(
   if (denied) return denied
   const { offerId } = await params
   const sb = await createServiceClient()
+  const { data: existing } = await sb.from('partner_offers').select('title').eq('id', offerId).maybeSingle()
   try {
     await deleteOffer(sb, offerId)
+    await logAudit(sb, { action: 'offer.delete', summary: `Deleted offer “${(existing as { title?: string } | null)?.title ?? offerId}”`, target_type: 'offer', target_id: offerId })
     return ok({ deleted: true })
   } catch (e) {
     return err(e instanceof Error ? e.message : 'Could not delete offer', 500)

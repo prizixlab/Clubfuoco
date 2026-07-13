@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
 import { OfferSchema } from '@/lib/portal-schemas'
 import { getBrand, listBrandOffers, createOffer, duplicateOffers } from '@/lib/partner'
+import { logAudit } from '@/lib/portal-audit'
 import { ok, err } from '@/lib/utils'
 
 // GET /api/portal/brands/:id/offers — the brand's offers (all clubs, ordered).
@@ -42,6 +43,7 @@ export async function POST(
     if (!source) return err('Source brand not found', 404)
     try {
       const copied = await duplicateOffers(sb, source.id, id)
+      await logAudit(sb, { action: 'offer.duplicate', summary: `Copied ${copied} offer${copied === 1 ? '' : 's'} from “${source.name}” into “${brand.name}”`, target_type: 'brand', target_id: id, meta: { from: source.id, copied } })
       return ok({ copied })
     } catch (e) {
       return err(e instanceof Error ? e.message : 'Could not duplicate offers', 500)
@@ -51,7 +53,9 @@ export async function POST(
   const parsed = OfferSchema.safeParse(body)
   if (!parsed.success) return err(parsed.error.issues[0]?.message ?? 'Invalid offer')
   try {
-    return ok(await createOffer(sb, id, parsed.data), 201)
+    const offer = await createOffer(sb, id, parsed.data)
+    await logAudit(sb, { action: 'offer.create', summary: `Added “${offer.title}” to “${brand.name}”`, target_type: 'offer', target_id: offer.id, meta: { brand_id: id, club_id: offer.club_id, kind: offer.kind } })
+    return ok(offer, 201)
   } catch (e) {
     return err(e instanceof Error ? e.message : 'Could not create offer', 500)
   }

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
+import { logAudit } from '@/lib/portal-audit'
 import { ok, err } from '@/lib/utils'
 
 // GET /api/portal/clubs/:id — the full club row (all columns) for the Clubs
@@ -68,5 +69,6 @@ export async function PATCH(
     return err(msg, 500)
   }
   const { data } = await sb.from('clubs').select('*').eq('id', id).maybeSingle()
+  await logAudit(sb, { action: 'club.update', summary: `Edited club “${(data as { name?: string } | null)?.name ?? id}” (${Object.keys(parsed.data).join(', ')})`, target_type: 'club', target_id: id, meta: parsed.data })
   return ok(data)
 }

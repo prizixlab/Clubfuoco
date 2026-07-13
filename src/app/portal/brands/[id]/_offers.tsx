@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { BrandRow, OfferRow } from '@/lib/partner'
-import { Badge, Btn, Card, ErrorLine, Field, TextInput, inputStyle, api, C, caps, font, mono } from '../../_ui'
+import { Badge, Btn, Card, DayPicker, ErrorLine, Field, TextInput, inputStyle, api, C, caps, font, mono } from '../../_ui'
 
 interface Club { id: string; name: string }
 
@@ -452,10 +452,11 @@ function OfferForm({ initial, onSave, onCancel }: {
         <div style={half}>
           <Field label="Time window"><TextInput value={timeWindow} maxLength={120} onChange={e => setTimeWindow(e.target.value)} /></Field>
         </div>
-        <div style={half}>
-          <Field label="Valid days"><TextInput value={validDays} maxLength={120} placeholder="Tue, Thu – Sun" onChange={e => setValidDays(e.target.value)} /></Field>
-        </div>
       </div>
+
+      <Field label="Valid days" hint="Which nights this offer runs — drives the app’s “Tonight” view.">
+        <DayPicker value={validDays} onChange={setValidDays} />
+      </Field>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <div style={half}>

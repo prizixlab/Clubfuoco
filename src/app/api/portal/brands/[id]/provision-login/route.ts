@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
 import { getBrand } from '@/lib/partner'
 import { sendSupplierPasswordSetup } from '@/lib/email'
+import { logAudit } from '@/lib/portal-audit'
 import { ok, err } from '@/lib/utils'
 
 // Where the set-password email lands. Canonical production origin (not the
@@ -72,6 +73,7 @@ export async function POST(
     to: email, brandName: brand.name, actionLink, isReset,
   })
 
+  await logAudit(sb, { action: 'brand.provision', summary: `Sent “${brand.name}” a ${isReset ? 'password-reset' : 'set-password'} link (${email})`, target_type: 'brand', target_id: id, meta: { email, emailSent } })
   return ok({ provisioned: true, email, emailKind: isReset ? 'reset' : 'invite', emailSent })
 }
 
@@ -85,7 +87,9 @@ export async function DELETE(
   if (denied) return denied
   const { id } = await params
   const sb = await createServiceClient()
+  const brand = await getBrand(sb, id)
   const { error } = await sb.from('partner_brands').update({ owner_user_id: null }).eq('id', id)
   if (error) return err(error.message, 500)
+  await logAudit(sb, { action: 'brand.revoke', summary: `Revoked app access for “${brand?.name ?? id}”`, target_type: 'brand', target_id: id })
   return ok({ revoked: true })
 }

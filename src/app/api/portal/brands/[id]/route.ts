@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
 import { getBrand, updateBrand } from '@/lib/partner'
+import { logAudit } from '@/lib/portal-audit'
 import { ok, err } from '@/lib/utils'
 
 // GET /api/portal/brands/:id — one brand (editor bootstrap).
@@ -43,7 +44,9 @@ export async function PATCH(
   const sb = await createServiceClient()
   try {
     await updateBrand(sb, id, parsed.data)
-    return ok(await getBrand(sb, id))
+    const brand = await getBrand(sb, id)
+    await logAudit(sb, { action: 'brand.update', summary: `Edited brand “${brand?.name ?? id}” (${Object.keys(parsed.data).join(', ')})`, target_type: 'brand', target_id: id, meta: parsed.data })
+    return ok(brand)
   } catch (e) {
     return err(e instanceof Error ? e.message : 'Could not update brand', 500)
   }

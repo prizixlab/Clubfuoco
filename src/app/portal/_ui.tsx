@@ -159,6 +159,63 @@ export function StatTile({ label, value }: { label: string; value: React.ReactNo
   )
 }
 
+// ── Day picker ───────────────────────────────────────────────────────────────
+// valid_days is stored as display text ("Tue, Thu – Sun") that the iOS "Tonight"
+// filter has to parse. This picker reads that text into toggles and emits a
+// canonical, unambiguous string ("Every night" or an explicit comma list) so
+// the parsing is always reliable.
+const DAYS = [
+  { key: 'mon', label: 'Mon' }, { key: 'tue', label: 'Tue' }, { key: 'wed', label: 'Wed' },
+  { key: 'thu', label: 'Thu' }, { key: 'fri', label: 'Fri' }, { key: 'sat', label: 'Sat' }, { key: 'sun', label: 'Sun' },
+] as const
+
+// sun=0 order for range-wrapping when parsing legacy strings.
+const WRAP = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+
+export function parseDays(s: string): Set<string> {
+  const v = (s ?? '').toLowerCase()
+  if (/every|any|daily/.test(v)) return new Set(DAYS.map(d => d.key))
+  const idxOf = (seg: string) => WRAP.findIndex(d => seg.includes(d))
+  const set = new Set<string>()
+  for (const part of v.split(',')) {
+    const sep = ['–', '—', '-'].find(x => part.includes(x))
+    if (sep) {
+      const [a, b] = part.split(sep)
+      const ai = idxOf(a), bi = idxOf(b)
+      if (ai >= 0 && bi >= 0) { let i = ai; while (true) { set.add(WRAP[i]); if (i === bi) break; i = (i + 1) % 7 } continue }
+    }
+    const j = idxOf(part); if (j >= 0) set.add(WRAP[j])
+  }
+  return set
+}
+
+export function daysToString(set: Set<string>): string {
+  if (set.size >= 7) return 'Every night'
+  return DAYS.filter(d => set.has(d.key)).map(d => d.label).join(', ')
+}
+
+export function DayPicker({ value, onChange }: { value: string; onChange: (s: string) => void }) {
+  const set = parseDays(value)
+  const every = set.size >= 7
+  const toggle = (key: string) => {
+    const next = new Set(set)
+    next.has(key) ? next.delete(key) : next.add(key)
+    onChange(daysToString(next))
+  }
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      <Btn small kind={every ? 'primary' : 'ghost'}
+        onClick={() => onChange(every ? '' : 'Every night')}>Every night</Btn>
+      <span style={{ width: 1, height: 22, background: C.line, margin: '0 2px' }} />
+      {DAYS.map(d => (
+        <Btn key={d.key} small kind={!every && set.has(d.key) ? 'primary' : 'ghost'} onClick={() => toggle(d.key)}>
+          {d.label}
+        </Btn>
+      ))}
+    </div>
+  )
+}
+
 export function ErrorLine({ error }: { error: string | null }) {
   if (!error) return null
   return <p style={{ margin: '12px 0 0', fontSize: 12.5, color: C.danger, fontFamily: font, lineHeight: 1.5 }}>{error}</p>

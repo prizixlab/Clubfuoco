@@ -5,9 +5,10 @@ import { getChange, applyChange, markReviewed } from '@/lib/pending-changes'
 import { logAudit } from '@/lib/portal-audit'
 import { ok, err } from '@/lib/utils'
 
-// POST /api/portal/reviews/:id — { decision: 'approve' | 'reject', note? }.
-// Approve applies the queued change to the live table then marks it approved;
-// reject discards it. Both are logged to the audit trail.
+// POST /api/portal/reviews/:id — { type: 'change'|'night'|'series', decision: 'approve'|'reject' }.
+//   change → apply the queued supplier offer change (or discard on reject)
+//   night  → publish the promoter night (is_published + approved) / reject it
+//   series → approve the recurring series (its occurrences then materialize live)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -17,14 +18,38 @@ export async function POST(
   const { id } = await params
   const body = await request.json().catch(() => null)
   const decision = body?.decision
+  const type = body?.type ?? 'change'
   if (decision !== 'approve' && decision !== 'reject') return err('decision must be approve or reject')
 
   const sb = await createServiceClient()
+  const approve = decision === 'approve'
+
+  if (type === 'night' || type === 'series') {
+    const table = type === 'night' ? 'promoter_nights' : 'promoter_series'
+    const { data: row } = await sb.from(table).select('id, title, review_status').eq('id', id).maybeSingle()
+    if (!row) return err('Item not found', 404)
+    if ((row as { review_status?: string }).review_status !== 'pending') return err('Already reviewed')
+
+    const patch: Record<string, unknown> = { review_status: approve ? 'approved' : 'rejected' }
+    if (type === 'night' && approve) patch.is_published = true
+    const { error } = await sb.from(table).update(patch).eq('id', id)
+    if (error) return err(error.message, 500)
+
+    const label = type === 'night' ? 'night' : 'series'
+    await logAudit(sb, {
+      action: `${label}.${decision}`,
+      summary: `${approve ? 'Approved' : 'Rejected'} ${label}${(row as { title?: string }).title ? ` “${(row as { title: string }).title}”` : ''}`,
+      target_type: label, target_id: id,
+    })
+    return ok({ [approve ? 'approved' : 'rejected']: true })
+  }
+
+  // type === 'change' (supplier offer queue)
   const change = await getChange(sb, id)
   if (!change) return err('Review item not found', 404)
   if (change.status !== 'pending') return err('This item was already reviewed')
 
-  if (decision === 'approve') {
+  if (approve) {
     try {
       await applyChange(sb, change)
     } catch (e) {

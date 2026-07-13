@@ -1,5 +1,6 @@
 import { createServiceClient, createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
+import { nightBlocked } from '@/lib/promoter-review'
 import InviteClaimClient from './InviteClaimClient'
 
 /**
@@ -34,6 +35,11 @@ export default async function InvitePage({
     .single()
 
   if (!alloc || !alloc.night) notFound()
+
+  // A night still awaiting Club Fuoco review isn't joinable yet — its link
+  // resolves but shows nothing until approved. (Defensive: no-op pre-migration.)
+  const nightRow = Array.isArray(alloc.night) ? alloc.night[0] : alloc.night
+  if (nightRow?.id && await nightBlocked(sb, nightRow.id as string)) notFound()
 
   // Group view (only loaded if group_visible)
   let guests: { id: string; full_name: string; plus_ones: number }[] = []

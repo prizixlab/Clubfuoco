@@ -5,17 +5,17 @@ import { Badge, Btn, Card, ErrorLine, api, C, caps, font, mono, serif } from '..
 
 interface Review {
   id: string
-  source: string
+  type: 'change' | 'night' | 'series'
   entity: string
   action: string
   summary: string
   created_at: string
-  payload: Record<string, unknown> | null
+  payload?: Record<string, unknown> | null
 }
 
 const ACTION_LABEL: Record<string, string> = {
   'offer.create': 'New offer', 'offer.update': 'Offer change', 'offer.delete': 'Offer removal',
-  'night.create': 'New night',
+  'night.create': 'New night', 'series.create': 'New series',
 }
 
 export default function ReviewsPage() {
@@ -30,11 +30,11 @@ export default function ReviewsPage() {
   }, [])
   useEffect(load, [load])
 
-  async function decide(id: string, decision: 'approve' | 'reject') {
+  async function decide(r: Review, decision: 'approve' | 'reject') {
     if (decision === 'reject' && !confirm('Reject this change? It will be discarded.')) return
-    setBusy(id)
+    setBusy(r.id)
     try {
-      await api(`/api/portal/reviews/${id}`, { method: 'POST', body: JSON.stringify({ decision }) })
+      await api(`/api/portal/reviews/${r.id}`, { method: 'POST', body: JSON.stringify({ decision, type: r.type }) })
       load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Action failed')
@@ -64,19 +64,19 @@ export default function ReviewsPage() {
             <div style={{ flex: 1, minWidth: 220 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                 <Badge color={r.action === 'offer.delete' ? C.danger : C.gold}>{ACTION_LABEL[r.action] ?? r.action}</Badge>
-                <Badge color={C.faint}>{r.source}</Badge>
+                <Badge color={C.faint}>{r.type === 'change' ? 'supplier' : 'promoter'}</Badge>
               </div>
               <p style={{ margin: 0, fontSize: 14.5, fontFamily: font, color: C.text }}>{r.summary}</p>
               <p style={{ margin: '4px 0 0', fontFamily: mono, fontSize: 11, color: C.faint }}>
                 {new Date(r.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
               </p>
-              <ReviewDetail payload={r.payload} action={r.action} />
+              <ReviewDetail payload={r.payload ?? null} action={r.action} />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <Btn kind="primary" onClick={() => decide(r.id, 'approve')} disabled={busy === r.id}>
+              <Btn kind="primary" onClick={() => decide(r, 'approve')} disabled={busy === r.id}>
                 {busy === r.id ? '…' : 'Approve'}
               </Btn>
-              <Btn kind="danger" onClick={() => decide(r.id, 'reject')} disabled={busy === r.id}>Reject</Btn>
+              <Btn kind="danger" onClick={() => decide(r, 'reject')} disabled={busy === r.id}>Reject</Btn>
             </div>
           </Card>
         ))}

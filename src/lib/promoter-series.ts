@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { allocationBlocked, seriesBlocked } from '@/lib/promoter-review'
 
 /**
  * Promoter "series" = a recurring guestlist with ONE permanent invite token.
@@ -210,15 +211,18 @@ export async function resolveTokenToAllocation(
   sb: SupabaseClient,
   token: string
 ): Promise<{ allocationId: string; seriesToken: string | null; referralId: string | null } | null> {
-  // 1. One-off allocation token.
+  // 1. One-off allocation token. Held (unapproved) nights don't resolve.
   const { data: oneOff } = await sb
     .from('promoter_allocations')
     .select('id')
     .eq('invite_token', token)
     .maybeSingle()
-  if (oneOff) return { allocationId: oneOff.id, seriesToken: null, referralId: null }
+  if (oneOff) {
+    if (await allocationBlocked(sb, oneOff.id)) return null
+    return { allocationId: oneOff.id, seriesToken: null, referralId: null }
+  }
 
-  // 2. Series token → resolve + materialize.
+  // 2. Series token → resolve + materialize. A held series doesn't materialize.
   const { data: series } = await sb
     .from('promoter_series')
     .select('*')
@@ -226,6 +230,7 @@ export async function resolveTokenToAllocation(
     .eq('is_active', true)
     .maybeSingle()
   if (series) {
+    if (await seriesBlocked(sb, (series as PromoterSeries).id)) return null
     const date = resolveOccurrenceDate(series as PromoterSeries)
     if (!date) return null
     const allocationId = await ensureOccurrence(sb, series as PromoterSeries, date)

@@ -55,7 +55,7 @@ export default function ReviewsPage() {
       <ErrorLine error={error} />
       {!rows && !error && <p style={{ color: C.dim, fontFamily: font, fontSize: 14 }}>Loading…</p>}
       {rows?.length === 0 && (
-        <Card><p style={{ margin: 0, color: C.dim, fontFamily: font, fontSize: 14 }}>Nothing waiting for review. 🎉</p></Card>
+        <Card><p style={{ margin: 0, color: C.dim, fontFamily: font, fontSize: 14 }}>Nothing waiting for review.</p></Card>
       )}
 
       <div style={{ display: 'grid', gap: 12 }}>

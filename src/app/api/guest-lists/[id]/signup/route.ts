@@ -82,7 +82,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await notify({
       user_id: userId,
       type: 'guestlist_confirmed',
-      title: `You're on the list! 🎉`,
+      title: `You're on the list!`,
       body: `${gl?.event_name} at ${clubName} — arrive before ${list.cutoff_time?.slice(0, 5)}`,
       link: '/bookings',
     })

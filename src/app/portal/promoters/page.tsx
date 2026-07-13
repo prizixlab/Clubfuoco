@@ -73,7 +73,7 @@ export default function PromotersPage() {
           </p>
           {pending.length === 0 && (
             <Card style={{ marginBottom: 26 }}>
-              <p style={{ margin: 0, color: C.dim, fontFamily: font, fontSize: 14 }}>No applications waiting. 🎉</p>
+              <p style={{ margin: 0, color: C.dim, fontFamily: font, fontSize: 14 }}>No applications waiting.</p>
             </Card>
           )}
           <div style={{ display: 'grid', gap: 12, marginBottom: 30 }}>

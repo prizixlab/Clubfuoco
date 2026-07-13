@@ -333,7 +333,7 @@ export function ActivateButton({ brand, onDone, small, wide, currentLive }: {
                 border: '1px solid rgba(255,180,166,0.25)', borderRadius: 6, padding: '13px 15px',
               }}>
                 <p style={{ ...caps, color: C.danger, margin: '0 0 7px', letterSpacing: '0.12em' }}>
-                  ⚠ No live offers
+                  No live offers
                 </p>
                 <p style={{ margin: 0, fontSize: 13, color: C.text, lineHeight: 1.55, fontFamily: font }}>
                   {brand.name} has <strong>zero</strong> live offers. Activating it

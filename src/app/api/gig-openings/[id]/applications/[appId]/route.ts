@@ -38,7 +38,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     await notify({
       user_id: djUserId,
       type: status === 'accepted' ? 'gig_confirmed' : 'gig_rejected',
-      title: status === 'accepted' ? `You got the gig! 🎉` : `Application update`,
+      title: status === 'accepted' ? `You got the gig!` : `Application update`,
       body: status === 'accepted'
         ? `${clubName} accepted you for "${openingTitle}"`
         : `${clubName} passed on your application for "${openingTitle}"`,

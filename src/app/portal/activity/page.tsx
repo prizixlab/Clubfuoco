@@ -6,10 +6,13 @@ import { Card, ErrorLine, api, C, caps, font, mono, serif } from '../_ui'
 
 // Activity — an append-only log of operator actions (brand switches, offer
 // edits, provisioning, club changes). Read-only.
+// Text-presentation glyphs only — no emoji.
 const ICON: Record<string, string> = {
-  'brand.create': '＋', 'brand.update': '✎', 'brand.activate': '⚡', 'brand.provision': '✉',
+  'brand.create': '＋', 'brand.update': '✎', 'brand.activate': '↯', 'brand.provision': '@',
   'brand.revoke': '⊘', 'offer.create': '＋', 'offer.update': '✎', 'offer.archive': '◐',
-  'offer.delete': '🗑', 'offer.duplicate': '⧉', 'club.update': '✎',
+  'offer.delete': '×', 'offer.duplicate': '⧉', 'club.update': '✎',
+  'promoter.approve': '✓', 'promoter.reject': '×', 'promoter.revoke': '⊘',
+  'review.approve': '✓', 'review.reject': '×',
 }
 const COLOR: Record<string, string> = {
   'brand.activate': C.gold, 'brand.provision': C.gold, 'offer.delete': C.danger, 'brand.revoke': C.danger,

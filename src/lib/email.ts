@@ -268,7 +268,7 @@ export async function sendTicketConfirmation({
   await resend.emails.send({
     from:    FROM,
     to,
-    subject: `🎟 Your ticket — ${eventName}`,
+    subject: `Your ticket — ${eventName}`,
     html,
     attachments: [
       {
@@ -327,7 +327,7 @@ export async function sendRumbaConfirmation({
       <tr>
         <td style="background:linear-gradient(135deg,#cc2200 0%,#ff4d00 50%,#ff7c00 100%);padding:28px 28px 24px;">
           <p style="margin:0 0 6px;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.75);">
-            Guest List Confirmation 🔥
+            Guest List Confirmation
           </p>
           <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#fff;line-height:1.2;">You're on the list</h1>
           <p style="margin:0;font-size:17px;color:rgba(255,255,255,0.9);font-weight:600;">${rumbaTitle}</p>
@@ -441,7 +441,7 @@ export async function sendRumbaConfirmation({
   await resend.emails.send({
     from:    FROM,
     to,
-    subject: `🔥 You're on the list — ${rumbaTitle}`,
+    subject: `You're on the list — ${rumbaTitle}`,
     html,
     attachments: [
       {
@@ -483,7 +483,7 @@ export async function sendAdminTicketAlert({
 <html>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#111;padding:32px;max-width:520px;">
   <div style="border-left:4px solid #ff4d00;padding-left:16px;margin-bottom:24px;">
-    <h2 style="color:#ff4d00;margin:0 0 4px;font-size:20px;">🎟 New ticket order</h2>
+    <h2 style="color:#ff4d00;margin:0 0 4px;font-size:20px;">New ticket order</h2>
     <p style="color:#666;margin:0;font-size:14px;">Action required — purchase ticket on ${platform === 'ra' ? 'Resident Advisor' : 'Eventbrite'} and forward to customer.</p>
   </div>
 

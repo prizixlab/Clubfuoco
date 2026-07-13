@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { resolveSupplierBrand } from '@/lib/supplier-auth'
 import { OfferSchema, OfferPatchSchema } from '@/lib/portal-schemas'
-import { updateOffer, deleteOffer } from '@/lib/partner'
+import { enqueueOrApplyDirect } from '@/lib/pending-changes'
 import { ok, err } from '@/lib/utils'
 
 // Verify the offer exists AND belongs to the caller's brand — the ownership
@@ -23,7 +23,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ offerId: string }> },
 ) {
-  const { brand, sb, response } = await resolveSupplierBrand()
+  const { brand, userId, sb, response } = await resolveSupplierBrand()
   if (response) return response
   const { offerId } = await params
 
@@ -47,11 +47,18 @@ export async function PATCH(
   })
   if (!merged.success) return err(merged.error.issues[0]?.message ?? 'Invalid offer')
 
+  // Queue for review — the live offer keeps its current values until approved.
+  const isToggle = 'is_active' in patch && Object.keys(patch).length === 1
+  const verb = isToggle ? (patch.is_active ? 'reactivate' : 'deactivate') : 'edit'
   try {
-    await updateOffer(sb, offerId, patch)
-    return ok({ updated: true })
+    const { queued } = await enqueueOrApplyDirect(sb, {
+      source: 'supplier', submitter_user_id: userId, brand_id: brand.id,
+      action: 'offer.update', entity: 'offer', target_id: offerId, payload: patch,
+      summary: `${brand.name}: ${verb} “${(existing as { title: string }).title}”`,
+    })
+    return ok({ pending: queued, updated: !queued }, queued ? 202 : 200)
   } catch (e) {
-    return err(e instanceof Error ? e.message : 'Could not update offer', 500)
+    return err(e instanceof Error ? e.message : 'Could not submit change', 500)
   }
 }
 
@@ -60,17 +67,22 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ offerId: string }> },
 ) {
-  const { brand, sb, response } = await resolveSupplierBrand()
+  const { brand, userId, sb, response } = await resolveSupplierBrand()
   if (response) return response
   const { offerId } = await params
 
   const owned = await ownedOffer(offerId, brand.id, sb)
   if (owned.error) return owned.error
 
+  // Queue the removal for review — the offer stays live until approved.
   try {
-    await deleteOffer(sb, offerId)
-    return ok({ deleted: true })
+    const { queued } = await enqueueOrApplyDirect(sb, {
+      source: 'supplier', submitter_user_id: userId, brand_id: brand.id,
+      action: 'offer.delete', entity: 'offer', target_id: offerId,
+      summary: `${brand.name}: remove “${(owned.existing as { title: string }).title}”`,
+    })
+    return ok({ pending: queued, deleted: !queued }, queued ? 202 : 200)
   } catch (e) {
-    return err(e instanceof Error ? e.message : 'Could not delete offer', 500)
+    return err(e instanceof Error ? e.message : 'Could not submit removal', 500)
   }
 }

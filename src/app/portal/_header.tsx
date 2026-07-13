@@ -1,12 +1,14 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { C, caps, font, serif } from './_ui'
+import { api, C, caps, font, serif } from './_ui'
 
 const TABS = [
   { href: '/portal',          label: 'Suppliers', match: (p: string) => p === '/portal' || p.startsWith('/portal/brands') },
   { href: '/portal/clubs',    label: 'Clubs',     match: (p: string) => p.startsWith('/portal/clubs') },
+  { href: '/portal/reviews',  label: 'Review',    match: (p: string) => p.startsWith('/portal/reviews') },
   { href: '/portal/insights', label: 'Insights',  match: (p: string) => p.startsWith('/portal/insights') },
   { href: '/portal/activity', label: 'Activity',  match: (p: string) => p.startsWith('/portal/activity') },
 ]
@@ -14,6 +16,12 @@ const TABS = [
 export default function PortalHeader() {
   const pathname = usePathname()
   const onLogin = pathname === '/portal/login'
+  // Pending-review count, shown as a badge on the Review tab.
+  const [pending, setPending] = useState(0)
+  useEffect(() => {
+    if (onLogin) return
+    api<{ id: string }[]>('/api/portal/reviews').then(r => setPending(r.length)).catch(() => {})
+  }, [onLogin, pathname])
 
   async function logout() {
     await fetch('/api/portal/auth', { method: 'DELETE' })
@@ -57,8 +65,16 @@ export default function PortalHeader() {
               padding: '8px 12px 12px',
               borderBottom: `2px solid ${active ? C.gold : 'transparent'}`,
               marginBottom: -1,
+              display: 'inline-flex', alignItems: 'center', gap: 7,
             }}>
               {t.label}
+              {t.label === 'Review' && pending > 0 && (
+                <span style={{
+                  ...caps, fontSize: 9.5, letterSpacing: 0, color: '#141416', background: C.gold,
+                  borderRadius: 999, minWidth: 17, height: 17, padding: '0 5px',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                }}>{pending}</span>
+              )}
             </Link>
           )
         })}

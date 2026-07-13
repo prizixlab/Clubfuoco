@@ -46,9 +46,9 @@ export default function ReviewsPage() {
   return (
     <>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontFamily: serif, fontSize: 34, fontWeight: 400, color: C.text }}>Review</h1>
+        <h1 style={{ margin: 0, fontFamily: serif, fontSize: 34, fontWeight: 400, color: C.text }}>Changes</h1>
         <p style={{ margin: '8px 0 0', fontSize: 14, color: C.dim, fontFamily: font }}>
-          Changes submitted from the app — nothing goes live until you approve it.
+          Event &amp; offer changes submitted from the app — nothing goes live until you approve it.
         </p>
       </div>
 

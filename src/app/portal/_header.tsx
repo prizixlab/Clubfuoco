@@ -6,21 +6,25 @@ import { usePathname } from 'next/navigation'
 import { api, C, caps, font, serif } from './_ui'
 
 const TABS = [
-  { href: '/portal',          label: 'Suppliers', match: (p: string) => p === '/portal' || p.startsWith('/portal/brands') },
-  { href: '/portal/clubs',    label: 'Clubs',     match: (p: string) => p.startsWith('/portal/clubs') },
-  { href: '/portal/reviews',  label: 'Review',    match: (p: string) => p.startsWith('/portal/reviews') },
-  { href: '/portal/insights', label: 'Insights',  match: (p: string) => p.startsWith('/portal/insights') },
-  { href: '/portal/activity', label: 'Activity',  match: (p: string) => p.startsWith('/portal/activity') },
+  { href: '/portal',           label: 'Suppliers', match: (p: string) => p === '/portal' || p.startsWith('/portal/brands') },
+  { href: '/portal/clubs',     label: 'Clubs',     match: (p: string) => p.startsWith('/portal/clubs') },
+  { href: '/portal/promoters', label: 'Promoters', match: (p: string) => p.startsWith('/portal/promoters') },
+  { href: '/portal/reviews',   label: 'Changes',   match: (p: string) => p.startsWith('/portal/reviews') },
+  { href: '/portal/insights',  label: 'Insights',  match: (p: string) => p.startsWith('/portal/insights') },
+  { href: '/portal/activity',  label: 'Activity',  match: (p: string) => p.startsWith('/portal/activity') },
 ]
 
 export default function PortalHeader() {
   const pathname = usePathname()
   const onLogin = pathname === '/portal/login'
-  // Pending-review count, shown as a badge on the Review tab.
-  const [pending, setPending] = useState(0)
+  // Per-tab pending counts: change approvals (Changes) and promoter
+  // applications (Promoters), each badged on its own tab.
+  const [pendingChanges, setPendingChanges] = useState(0)
+  const [pendingPromoters, setPendingPromoters] = useState(0)
   useEffect(() => {
     if (onLogin) return
-    api<{ id: string }[]>('/api/portal/reviews').then(r => setPending(r.length)).catch(() => {})
+    api<{ id: string }[]>('/api/portal/reviews').then(r => setPendingChanges(r.length)).catch(() => {})
+    api<{ pending: { id: string }[] }>('/api/portal/promoters').then(r => setPendingPromoters(r.pending.length)).catch(() => {})
   }, [onLogin, pathname])
 
   async function logout() {
@@ -68,13 +72,16 @@ export default function PortalHeader() {
               display: 'inline-flex', alignItems: 'center', gap: 7,
             }}>
               {t.label}
-              {t.label === 'Review' && pending > 0 && (
-                <span style={{
-                  ...caps, fontSize: 9.5, letterSpacing: 0, color: '#141416', background: C.gold,
-                  borderRadius: 999, minWidth: 17, height: 17, padding: '0 5px',
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                }}>{pending}</span>
-              )}
+              {(() => {
+                const n = t.label === 'Changes' ? pendingChanges : t.label === 'Promoters' ? pendingPromoters : 0
+                return n > 0 && (
+                  <span style={{
+                    ...caps, fontSize: 9.5, letterSpacing: 0, color: '#141416', background: C.gold,
+                    borderRadius: 999, minWidth: 17, height: 17, padding: '0 5px',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  }}>{n}</span>
+                )
+              })()}
             </Link>
           )
         })}

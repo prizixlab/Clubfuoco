@@ -87,29 +87,11 @@ struct SupplierTonightView: View {
     }
 
     /// The set of weekday indices (0=Sun…6=Sat) an offer's valid_days covers.
-    /// Handles "Every night"/"Any night", comma lists ("Mon, Tue, Sun"), and
-    /// ranges ("Thu – Sun", wrapping past Saturday).
+    /// Delegates to ValidDays — canonical picker strings are matched exactly,
+    /// legacy free-form text ("Every night", comma lists, "Thu – Sun" ranges)
+    /// goes through the hardened fallback parser.
     static func nights(_ validDays: String) -> Set<Int> {
-        let v = validDays.lowercased()
-        if v.contains("every") || v.contains("any") || v.contains("daily") { return Set(0...6) }
-        let order = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
-        func idx(_ s: String) -> Int? { order.firstIndex { s.contains($0) } }
-
-        var result = Set<Int>()
-        for part in v.split(separator: ",") {
-            let seg = String(part)
-            let sep = ["–", "—", "-"].first { seg.contains($0) }
-            if let sep {
-                let ends = seg.components(separatedBy: sep)
-                if ends.count == 2, let a = idx(ends[0]), let b = idx(ends[1]) {
-                    var i = a
-                    while true { result.insert(i); if i == b { break }; i = (i + 1) % 7 }
-                    continue
-                }
-            }
-            if let d = idx(seg) { result.insert(d) }
-        }
-        return result
+        ValidDays.parse(validDays)
     }
 }
 

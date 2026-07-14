@@ -84,9 +84,13 @@ struct MainTabs: View {
             .tabItem { Label("Guestlist", systemImage: "list.bullet") }
             .tag(Tab.guestlist)
 
-            NavigationStack { EarningsView() }
-                .tabItem { Label("Earnings", systemImage: "creditcard") }
-                .tag(Tab.earnings)
+            // Earnings is promoter payout/billing — irrelevant to a supplier
+            // account (a brand like Rumba), so the tab disappears for them.
+            if !isSupplier {
+                NavigationStack { EarningsView() }
+                    .tabItem { Label("Earnings", systemImage: "creditcard") }
+                    .tag(Tab.earnings)
+            }
 
             NavigationStack {
                 if isSupplier { SupplierYouView() } else { YouView() }
@@ -96,7 +100,15 @@ struct MainTabs: View {
         }
         .tint(Theme.ember)
         .toolbarBackground(Theme.night, for: .tabBar)
-        .task { supplierBrand = try? await SupplierRepo().me() }
+        .task {
+            // Push: prompt (first time) + register, and store the APNs token
+            // so review outcomes can reach this promoter.
+            PushManager.shared.enable()
+            supplierBrand = try? await SupplierRepo().me()
+            // The supplier check resolves async — if the user was already on
+            // Earnings when the tab vanished, land them somewhere real.
+            if supplierBrand != nil && selection == .earnings { selection = .tonight }
+        }
     }
 }
 
@@ -109,6 +121,8 @@ struct GuestlistTabRoot: View {
     @State private var navigateTo: PromoterAllocation?
     @State private var seriesOccurrence: SeriesOccurrence?
     @State private var pendingDelete: PromoterAllocation?
+    @State private var editingAllocation: PromoterAllocation?
+    @State private var editingSeries: PromoterSeries?
     @State private var deleting = false
     @State private var opening = false
 
@@ -148,8 +162,18 @@ struct GuestlistTabRoot: View {
                                 SeriesRow(series: s)
                             }
                             .buttonStyle(.plain)
+                            .contextMenu {
+                                Button { editingSeries = s } label: {
+                                    Label("Edit series", systemImage: "pencil")
+                                }
+                            }
                         }
                     }
+                    Text("Hold a permanent link to edit it. Edits are re-reviewed before going live.")
+                        .font(.cfMono(10))
+                        .kerning(1.5)
+                        .foregroundStyle(Theme.parchmentDim)
+                        .padding(.top, 4)
                     if !model.allocations.isEmpty {
                         HStack {
                             Kicker("One-off nights", color: Theme.parchmentDim)
@@ -169,7 +193,7 @@ struct GuestlistTabRoot: View {
                         .foregroundStyle(Theme.parchmentDim)
                         .padding(.top, 24)
                 } else if !model.allocations.isEmpty {
-                    Text("Swipe a night left to delete.")
+                    Text("Swipe a night left to delete, right to edit.")
                         .font(.cfMono(10))
                         .kerning(1.5)
                         .foregroundStyle(Theme.parchmentDim)
@@ -190,12 +214,20 @@ struct GuestlistTabRoot: View {
                                     Label("Delete", systemImage: "trash")
                                 }
                             }
+                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                Button {
+                                    editingAllocation = a
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .tint(Theme.ember)
+                            }
                         }
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                     .background(Theme.night)
-                    .frame(minHeight: CGFloat(model.allocations.count) * 80 + 20)
+                    .frame(minHeight: listHeight)
                 }
                 Spacer(minLength: 80)
             }
@@ -223,6 +255,9 @@ struct GuestlistTabRoot: View {
             }
         }
         .onAppear { Task { await model.load() } }
+        .onReceive(NotificationCenter.default.publisher(for: .reviewOutcomeReceived)) { _ in
+            Task { await model.load() }
+        }
         .refreshable { await model.load() }
         .navigationDestination(for: PromoterAllocation.self) { a in
             GuestlistView(allocation: a)
@@ -254,6 +289,24 @@ struct GuestlistTabRoot: View {
                 .presentationBackground(Theme.night)
             }
         }
+        .sheet(item: $editingAllocation) { a in
+            if case .signedIn(let p) = auth.state {
+                CreateGuestlistSheet(promoterId: p.id, editing: .night(a)) { _ in
+                    editingAllocation = nil
+                    Task { await model.load() }
+                }
+                .presentationBackground(Theme.night)
+            }
+        }
+        .sheet(item: $editingSeries) { s in
+            if case .signedIn(let p) = auth.state {
+                CreateGuestlistSheet(promoterId: p.id, editing: .series(s)) { _ in
+                    editingSeries = nil
+                    Task { await model.load() }
+                }
+                .presentationBackground(Theme.night)
+            }
+        }
         .navigationDestination(item: $seriesOccurrence) { occ in
             GuestlistView(allocation: occ.allocation, shareTokenOverride: occ.token, seriesId: occ.seriesId)
         }
@@ -266,6 +319,13 @@ struct GuestlistTabRoot: View {
             return String(p.displayName.prefix(1)).uppercased()
         }
         return ""
+    }
+
+    /// Row estimate for the embedded List — rejected rows carry an inline
+    /// rejection notice and need extra room.
+    private var listHeight: CGFloat {
+        let rejected = model.allocations.filter { $0.night?.reviewState == .rejected }.count
+        return CGFloat(model.allocations.count) * 84 + CGFloat(rejected) * 84 + 20
     }
 
     private func openSeries(_ s: PromoterSeries) async {
@@ -309,11 +369,15 @@ private struct SeriesRow: View {
                         .foregroundStyle(Theme.ember)
                 }
                 Spacer()
-                Text("ACTIVE")
-                    .font(.cfMono(9, weight: .medium)).kerning(1.5)
-                    .foregroundStyle(Theme.emberCream)
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(Capsule().fill(Theme.ember))
+                if let state = series.reviewState {
+                    ReviewBadge(state: state)
+                } else {
+                    Text("ACTIVE")
+                        .font(.cfMono(9, weight: .medium)).kerning(1.5)
+                        .foregroundStyle(Theme.emberCream)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Capsule().fill(Theme.ember))
+                }
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text(series.displayTitle)
@@ -325,6 +389,9 @@ private struct SeriesRow: View {
                         .font(.cfMono(10, weight: .medium)).kerning(1.2)
                         .foregroundStyle(Theme.flame)
                 }
+            }
+            if series.reviewState == .rejected {
+                RejectionNotice(reason: series.rejectionReason)
             }
         }
         .padding(18)
@@ -340,18 +407,26 @@ private struct GuestlistRow: View {
     var body: some View {
         let title = allocation.night?.displayTitle ?? "Night"
         let subtitle = (allocation.night?.club?.name ?? "") + " · " + (allocation.night?.nightDate ?? "")
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.cfSerif(20))
-                    .foregroundStyle(Theme.parchment)
-                Text(subtitle)
-                    .font(.cfSans(12))
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text(title)
+                            .font(.cfSerif(20))
+                            .foregroundStyle(Theme.parchment)
+                        if let state = allocation.night?.reviewState { ReviewBadge(state: state) }
+                    }
+                    Text(subtitle)
+                        .font(.cfSans(12))
+                        .foregroundStyle(Theme.parchmentDim)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
                     .foregroundStyle(Theme.parchmentDim)
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .foregroundStyle(Theme.parchmentDim)
+            if allocation.night?.reviewState == .rejected {
+                RejectionNotice(reason: allocation.night?.rejectionReason)
+            }
         }
         .padding(.vertical, 16)
         .contentShape(Rectangle())

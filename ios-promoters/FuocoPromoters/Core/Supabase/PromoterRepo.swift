@@ -5,24 +5,81 @@ import Supabase
 final class PromoterRepo: ObservableObject {
     private let sb = SupabaseService.shared
 
+    // ── Drift-defensive review columns ──────────────────────────────────────
+    // Production drifts from supabase/migrations: review_status exists today,
+    // rejection_reason lands with a later manual migration. Selects start at
+    // the richest level and step down only when PostgREST reports a missing
+    // column, so a screen never breaks on an unapplied migration.
+    // Level 2 → review_status + rejection_reason, 1 → review_status, 0 → none.
+    private static var reviewColumnLevel = 2
+
+    private static func reviewCols(_ level: Int) -> String {
+        switch level {
+        case 2:  return ", review_status, rejection_reason"
+        case 1:  return ", review_status"
+        default: return ""
+        }
+    }
+
+    private static func nightSelect(_ level: Int) -> String {
+        """
+        id, club_id, title, night_date, doors_at, open_time, close_time,
+        total_capacity, is_published,
+        location_name, address, lat, lng, auto_checkin,
+        description, theme, theme_translate, photo_urls, featured, max_plus_ones\(reviewCols(level))
+        """
+    }
+
+    private static func allocationSelect(_ level: Int) -> String {
+        """
+        id, night_id, promoter_id, spots, payout_per_guest, payout_status,
+        group_visible, invite_token,
+        guests:promoter_guests ( id, plus_ones, checked_in_at ),
+        night:promoter_nights (
+            \(nightSelect(level)),
+            club:clubs ( id, name )
+        )
+        """
+    }
+
+    private static func seriesSelect(_ level: Int) -> String {
+        """
+        id, club_id, title, weekdays, open_time, close_time, spots,
+        payout_per_guest, group_visible, invite_token, is_active,
+        location_name, address, lat, lng, auto_checkin,
+        description, theme, theme_translate, photo_urls, featured, max_plus_ones\(reviewCols(level)),
+        club:clubs ( id, name )
+        """
+    }
+
+    /// Run `op` at the current review-column level; on a missing-column error
+    /// step down a level and retry (remembering the level that worked).
+    private func withReviewFallback<T>(_ op: (Int) async throws -> T) async throws -> T {
+        var level = Self.reviewColumnLevel
+        while true {
+            do {
+                let value = try await op(level)
+                Self.reviewColumnLevel = level
+                return value
+            } catch {
+                let msg = String(describing: error).lowercased()
+                let missingColumn = msg.contains("does not exist")
+                    || msg.contains("schema cache") || msg.contains("42703")
+                guard missingColumn, level > 0 else { throw error }
+                level -= 1
+            }
+        }
+    }
+
     func myAllocations() async throws -> [PromoterAllocation] {
-        var allocs: [PromoterAllocation] = try await sb.client
-            .from("promoter_allocations")
-            .select("""
-                id, night_id, promoter_id, spots, payout_per_guest, payout_status,
-                group_visible, invite_token,
-                guests:promoter_guests ( id, plus_ones, checked_in_at ),
-                night:promoter_nights (
-                    id, club_id, title, night_date, doors_at, open_time, close_time,
-                    total_capacity, is_published,
-                    location_name, address, lat, lng, auto_checkin,
-                    description, theme, photo_urls, featured, max_plus_ones,
-                    club:clubs ( id, name )
-                )
-            """)
-            .order("night_date", ascending: true, referencedTable: "promoter_nights")
-            .execute()
-            .value
+        var allocs: [PromoterAllocation] = try await withReviewFallback { level in
+            try await sb.client
+                .from("promoter_allocations")
+                .select(Self.allocationSelect(level))
+                .order("night_date", ascending: true, referencedTable: "promoter_nights")
+                .execute()
+                .value
+        }
         // Sort newest first by night_date for the activity feed
         allocs.sort { ($0.night?.nightDate ?? "") > ($1.night?.nightDate ?? "") }
         return allocs
@@ -281,35 +338,120 @@ final class PromoterRepo: ObservableObject {
     }
 
     func createSeries(_ s: NewSeries) async throws -> PromoterSeries {
-        try await sb.client
-            .from("promoter_series")
-            .insert(s)
-            .select("""
-                id, club_id, title, weekdays, open_time, close_time, spots,
-                payout_per_guest, group_visible, invite_token, is_active,
-                location_name, address, lat, lng, auto_checkin,
-                description, theme, photo_urls, featured, max_plus_ones,
-                club:clubs ( id, name )
-            """)
-            .single()
-            .execute()
-            .value
+        try await withReviewFallback { level in
+            try await sb.client
+                .from("promoter_series")
+                .insert(s)
+                .select(Self.seriesSelect(level))
+                .single()
+                .execute()
+                .value
+        }
     }
 
     func mySeries() async throws -> [PromoterSeries] {
+        try await withReviewFallback { level in
+            try await sb.client
+                .from("promoter_series")
+                .select(Self.seriesSelect(level))
+                .eq("is_active", value: true)
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+        }
+    }
+
+    /// Edit an existing series. Content edits re-enter review — the patch
+    /// resets review_status to 'pending' (the DB trigger enforces the same
+    /// for any direct write, and the client can never self-approve).
+    func updateSeries(seriesId: UUID, _ s: NewSeries) async throws {
+        var patch: [String: AnyJSON] = [
+            "title":            s.title.map(AnyJSON.string) ?? .null,
+            "weekdays":         .array(s.weekdays.map { .integer($0) }),
+            "open_time":        s.openTime.map(AnyJSON.string) ?? .null,
+            "close_time":       s.closeTime.map(AnyJSON.string) ?? .null,
+            "spots":            .integer(s.spots),
+            "payout_per_guest": .double(NSDecimalNumber(decimal: s.payoutPerGuest).doubleValue),
+            "group_visible":    .bool(s.groupVisible),
+            "auto_checkin":     .bool(s.autoCheckin),
+            "description":      s.description.map(AnyJSON.string) ?? .null,
+            "theme":            s.theme.map(AnyJSON.string) ?? .null,
+            "theme_translate":  .bool(s.themeTranslate),
+            "photo_urls":       .array(s.photoUrls.map(AnyJSON.string)),
+            "featured":         .bool(s.featured),
+            "max_plus_ones":    s.maxPlusOnes.map { AnyJSON.integer($0) } ?? .null,
+            "review_status":    .string("pending"),
+        ]
+        do {
+            try await sb.client.from("promoter_series")
+                .update(patch).eq("id", value: seriesId).execute()
+        } catch {
+            // Drift-defensive: review_status column missing → save the content
+            // edit anyway rather than failing the whole save.
+            let msg = String(describing: error).lowercased()
+            guard msg.contains("does not exist") || msg.contains("schema cache") || msg.contains("42703") else { throw error }
+            patch.removeValue(forKey: "review_status")
+            try await sb.client.from("promoter_series")
+                .update(patch).eq("id", value: seriesId).execute()
+        }
+    }
+
+    /// Edit an existing night through the web API (service-role with an
+    /// ownership check — night rows have no promoter-updatable RLS policy).
+    /// The server flips the night back to pending review.
+    func updateNight(nightId: UUID, body: [String: Any]) async throws {
+        let token = try await sb.client.auth.session.accessToken
+        var req = URLRequest(url: URL(string: "\(Self.webBase)/api/promoter-nights/\(nightId.uuidString.lowercased())")!)
+        req.httpMethod = "PATCH"
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200...299).contains(code) else {
+            let msg = ((try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String)
+            throw NSError(domain: "PromoterRepo", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: msg ?? "Couldn't save your changes."])
+        }
+    }
+
+    /// Update the promoter-owned allocation half of a night edit.
+    func updateAllocation(allocationId: UUID, spots: Int, payoutPerGuest: Decimal, groupVisible: Bool) async throws {
+        struct Patch: Encodable {
+            let spots: Int
+            let payoutPerGuest: Decimal
+            let groupVisible: Bool
+        }
         try await sb.client
-            .from("promoter_series")
-            .select("""
-                id, club_id, title, weekdays, open_time, close_time, spots,
-                payout_per_guest, group_visible, invite_token, is_active,
-                location_name, address, lat, lng, auto_checkin,
-                description, theme, photo_urls, featured, max_plus_ones,
-                club:clubs ( id, name )
-            """)
-            .eq("is_active", value: true)
-            .order("created_at", ascending: false)
+            .from("promoter_allocations")
+            .update(Patch(spots: spots, payoutPerGuest: payoutPerGuest, groupVisible: groupVisible))
+            .eq("id", value: allocationId)
             .execute()
-            .value
+    }
+
+    // MARK: - Push device tokens
+
+    /// Persist this device's APNs token against the signed-in user. Fully
+    /// defensive: the device_tokens table ships in a manual migration, so a
+    /// failure here (table missing, RLS, offline) is silently ignored — push
+    /// is a best-effort layer, never a blocker.
+    func registerDeviceToken(_ token: String, environment: String) async {
+        guard let uid = try? await sb.client.auth.session.user.id else { return }
+        struct Row: Encodable {
+            let userId: UUID
+            let token: String
+            let platform: String
+            let app: String
+            let environment: String
+            let updatedAt: String
+        }
+        let row = Row(userId: uid, token: token, platform: "ios", app: "promoters",
+                      environment: environment,
+                      updatedAt: ISO8601DateFormatter().string(from: Date()))
+        _ = try? await sb.client
+            .from("device_tokens")
+            .upsert(row, onConflict: "token")
+            .execute()
     }
 
     /// Update a series' default visibility (applies to all future occurrences).
@@ -353,24 +495,15 @@ final class PromoterRepo: ObservableObject {
     }
 
     func allocation(byId id: UUID) async throws -> PromoterAllocation {
-        try await sb.client
-            .from("promoter_allocations")
-            .select("""
-                id, night_id, promoter_id, spots, payout_per_guest, payout_status,
-                group_visible, invite_token,
-                guests:promoter_guests ( id, plus_ones, checked_in_at ),
-                night:promoter_nights (
-                    id, club_id, title, night_date, doors_at, open_time, close_time,
-                    total_capacity, is_published,
-                    location_name, address, lat, lng, auto_checkin,
-                    description, theme, photo_urls, featured, max_plus_ones,
-                    club:clubs ( id, name )
-                )
-            """)
-            .eq("id", value: id)
-            .single()
-            .execute()
-            .value
+        try await withReviewFallback { level in
+            try await sb.client
+                .from("promoter_allocations")
+                .select(Self.allocationSelect(level))
+                .eq("id", value: id)
+                .single()
+                .execute()
+                .value
+        }
     }
 
     func barcelonaClubs() async throws -> [Club] {
@@ -447,35 +580,28 @@ final class PromoterRepo: ObservableObject {
                      themeTranslate: themeTranslate, photoUrls: photoUrls, featured: featured,
                      maxPlusOnes: maxPlusOnes)
         }
-        let nights: [PromoterNight] = try await sb.client
-            .from("promoter_nights")
-            .insert(nightPayload)
-            .select("id,club_id,title,night_date,doors_at,open_time,close_time,total_capacity,is_published,location_name,address,lat,lng,auto_checkin,description,theme,photo_urls,featured,max_plus_ones")
-            .execute()
-            .value
+        let nights: [PromoterNight] = try await withReviewFallback { level in
+            try await sb.client
+                .from("promoter_nights")
+                .insert(nightPayload)
+                .select(Self.nightSelect(level))
+                .execute()
+                .value
+        }
 
         let allocPayload = nights.map {
             NewAllocation(nightId: $0.id, promoterId: promoterId,
                           spots: spots, payoutPerGuest: payoutPerGuest,
                           groupVisible: groupVisible)
         }
-        let allocs: [PromoterAllocation] = try await sb.client
-            .from("promoter_allocations")
-            .insert(allocPayload)
-            .select("""
-                id, night_id, promoter_id, spots, payout_per_guest, payout_status,
-                group_visible, invite_token,
-                guests:promoter_guests ( id, plus_ones, checked_in_at ),
-                night:promoter_nights (
-                    id, club_id, title, night_date, doors_at, open_time, close_time,
-                    total_capacity, is_published,
-                    location_name, address, lat, lng, auto_checkin,
-                    description, theme, photo_urls, featured, max_plus_ones,
-                    club:clubs ( id, name )
-                )
-            """)
-            .execute()
-            .value
+        let allocs: [PromoterAllocation] = try await withReviewFallback { level in
+            try await sb.client
+                .from("promoter_allocations")
+                .insert(allocPayload)
+                .select(Self.allocationSelect(level))
+                .execute()
+                .value
+        }
 
         // Return the earliest by night_date
         return allocs.sorted { ($0.night?.nightDate ?? "") < ($1.night?.nightDate ?? "") }.first

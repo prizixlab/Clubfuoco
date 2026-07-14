@@ -18,6 +18,30 @@ struct Club: Codable, Identifiable, Equatable, Hashable {
     let name: String
 }
 
+/// Review pipeline state of a promoter night/series. Reads are defensive —
+/// production drifts, so a missing review_status/rejection_reason column just
+/// leaves these nil and the UI shows nothing.
+enum ReviewState: Equatable {
+    case pending, rejected, live
+
+    init?(status: String?) {
+        switch status {
+        case "pending":  self = .pending
+        case "rejected": self = .rejected
+        case "approved": self = .live
+        default:         return nil
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .pending:  return "PENDING REVIEW"
+        case .rejected: return "REJECTED"
+        case .live:     return "LIVE"
+        }
+    }
+}
+
 struct PromoterNight: Codable, Identifiable, Equatable, Hashable {
     let id: UUID
     let clubId: UUID?
@@ -35,13 +59,20 @@ struct PromoterNight: Codable, Identifiable, Equatable, Hashable {
     let autoCheckin: Bool?
     let description: String?
     let theme: String?
+    let themeTranslate: Bool?
     let photoUrls: [String]?
+    let featured: Bool?
     let maxPlusOnes: Int?
+    // Optional: absent from the row when the drifted production schema lacks
+    // the columns (see PromoterRepo's fallback selects).
+    var reviewStatus: String?
+    var rejectionReason: String?
     var club: Club?
 
     /// Venue label — club name for partner clubs, custom name otherwise.
     var venueName: String { club?.name ?? locationName ?? "Custom location" }
     var displayTitle: String { title ?? venueName }
+    var reviewState: ReviewState? { ReviewState(status: reviewStatus) }
 }
 
 /// Sentinel capacity meaning "unlimited" — stored in spots since the column
@@ -145,9 +176,15 @@ struct PromoterSeries: Codable, Identifiable, Equatable, Hashable {
     let autoCheckin: Bool?
     let description: String?
     let theme: String?
+    let themeTranslate: Bool?
     let photoUrls: [String]?
+    let featured: Bool?
     let maxPlusOnes: Int?
+    var reviewStatus: String?
+    var rejectionReason: String?
     var club: Club?
+
+    var reviewState: ReviewState? { ReviewState(status: reviewStatus) }
 
     /// "Every Fri", "Every Fri & Sat", etc.
     var weekdayLabel: String {

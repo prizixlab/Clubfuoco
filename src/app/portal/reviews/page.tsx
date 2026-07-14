@@ -31,10 +31,17 @@ export default function ReviewsPage() {
   useEffect(load, [load])
 
   async function decide(r: Review, decision: 'approve' | 'reject') {
-    if (decision === 'reject' && !confirm('Reject this change? It will be discarded.')) return
+    let reason: string | undefined
+    if (decision === 'reject') {
+      // The reason is threaded back to the submitter in-app (and by push), so
+      // ask for one — cancel aborts, empty is allowed but discouraged.
+      const input = prompt('Reject this change? It will be discarded.\n\nReason shown to the submitter:')
+      if (input === null) return
+      reason = input.trim() || undefined
+    }
     setBusy(r.id)
     try {
-      await api(`/api/portal/reviews/${r.id}`, { method: 'POST', body: JSON.stringify({ decision, type: r.type }) })
+      await api(`/api/portal/reviews/${r.id}`, { method: 'POST', body: JSON.stringify({ decision, type: r.type, reason }) })
       load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Action failed')

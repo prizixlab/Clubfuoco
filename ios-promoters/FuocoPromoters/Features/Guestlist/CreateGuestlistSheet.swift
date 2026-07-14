@@ -102,9 +102,107 @@ final class CreateGuestlistModel: ObservableObject {
         case pending                         // submitted, held for Club Fuoco review
     }
 
-    init(promoterId: UUID, onResult: @escaping (CreateResult) -> Void) {
+    /// Non-nil when the sheet edits an existing night/series instead of
+    /// creating one. Edits always re-enter review — they never write live.
+    enum EditTarget {
+        case night(PromoterAllocation)
+        case series(PromoterSeries)
+    }
+    let editing: EditTarget?
+
+    var isEditing: Bool { editing != nil }
+
+    /// The stored rejection reason when editing something that was rejected —
+    /// surfaced at the top of the form so the promoter knows what to fix.
+    var editingRejectionReason: String? {
+        switch editing {
+        case .night(let a): return a.night?.reviewState == .rejected
+            ? (a.night?.rejectionReason ?? "") : nil
+        case .series(let s): return s.reviewState == .rejected
+            ? (s.rejectionReason ?? "") : nil
+        case nil: return nil
+        }
+    }
+
+    init(promoterId: UUID, editing: EditTarget? = nil, onResult: @escaping (CreateResult) -> Void) {
         self.promoterId = promoterId
+        self.editing = editing
         self.onResult = onResult
+        if let editing { prefill(from: editing) }
+    }
+
+    /// Seed every field from the item being edited, so the create form opens
+    /// as a faithful edit form.
+    private func prefill(from target: EditTarget) {
+        func applyCommon(club: Club?, locationName: String?, address: String?,
+                         lat: Double?, lng: Double?, title t: String?,
+                         open: String?, close: String?, spotsValue: Int,
+                         maxPlus: Int?, auto: Bool?, desc: String?,
+                         themeValue: String?, translate: Bool?,
+                         photos: [String]?, isFeatured: Bool?,
+                         payout: Decimal, visible: Bool) {
+            if let club {
+                selected = club
+            } else {
+                customName = locationName ?? ""
+                customAddress = address ?? ""
+                if let lat, let lng {
+                    customCoord = CLLocationCoordinate2D(latitude: lat, longitude: lng)
+                }
+                customConfirmed = true
+                locationMode = .custom
+            }
+            title = t ?? ""
+            if let open { setOpenClose = true
+                openTime = Self.parseTime(open) ?? openTime
+                closeTime = close.flatMap(Self.parseTime) ?? closeTime
+            }
+            if spotsValue >= SpotsLimit.threshold { unlimitedSpots = true }
+            else { spots = spotsValue }
+            if let maxPlus { maxPlusOnes = maxPlus } else { unlimitedPlusOnes = true }
+            autoCheckin = auto ?? true
+            eventDescription = desc ?? ""
+            theme = themeValue ?? ""
+            themeTranslate = translate ?? false
+            photoURLs = photos ?? []
+            featured = isFeatured ?? false
+            trackPayouts = payout > 0
+            payoutPerGuestText = payout > 0 ? "\(payout)" : payoutPerGuestText
+            groupVisible = visible
+        }
+
+        switch target {
+        case .night(let a):
+            guard let n = a.night else { return }
+            mode = .once
+            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+            if let d = f.date(from: n.nightDate) { startDate = d }
+            applyCommon(club: n.club, locationName: n.locationName, address: n.address,
+                        lat: n.lat, lng: n.lng, title: n.title,
+                        open: n.openTime, close: n.closeTime, spotsValue: a.spots,
+                        maxPlus: n.maxPlusOnes, auto: n.autoCheckin, desc: n.description,
+                        themeValue: n.theme, translate: n.themeTranslate,
+                        photos: n.photoUrls, isFeatured: n.featured,
+                        payout: a.payoutPerGuest, visible: a.groupVisible ?? true)
+        case .series(let s):
+            mode = .recurring
+            weekdays = Set(s.weekdays)
+            applyCommon(club: s.club, locationName: s.locationName, address: s.address,
+                        lat: s.lat, lng: s.lng, title: s.title,
+                        open: s.openTime, close: s.closeTime, spotsValue: s.spots,
+                        maxPlus: s.maxPlusOnes, auto: s.autoCheckin, desc: s.description,
+                        themeValue: s.theme, translate: s.themeTranslate,
+                        photos: s.photoUrls, isFeatured: s.featured,
+                        payout: s.payoutPerGuest, visible: s.groupVisible)
+        }
+    }
+
+    private static func parseTime(_ s: String) -> Date? {
+        let f = DateFormatter(); f.dateFormat = "HH:mm:ss"
+        guard let t = f.date(from: s) else { return nil }
+        let comps = Calendar.current.dateComponents([.hour, .minute], from: t)
+        return Calendar.current.date(bySettingHour: comps.hour ?? 0,
+                                     minute: comps.minute ?? 0, second: 0, of: Date())
     }
 
     var payoutPerGuestDecimal: Decimal {
@@ -230,6 +328,13 @@ final class CreateGuestlistModel: ObservableObject {
         let themeVal = theme.trimmingCharacters(in: .whitespaces)
         let translateVal = !themeVal.isEmpty && themeTranslate
 
+        if let editing {
+            await saveEdit(editing, openStr: openStr, closeStr: closeStr, payout: payout,
+                           spotsValue: spotsValue, maxPlus: maxPlus, desc: desc,
+                           themeVal: themeVal, translateVal: translateVal)
+            return
+        }
+
         do {
             if mode == .recurring {
                 // Permanent link: one series row, no pre-generated nights.
@@ -286,6 +391,64 @@ final class CreateGuestlistModel: ObservableObject {
         submitting = false
     }
 
+    /// Save an edit to an existing night/series. Edits never write live —
+    /// they re-enter review (server-enforced), so on success we show the
+    /// same pending-review confirmation as a fresh submission.
+    private func saveEdit(_ target: EditTarget, openStr: String?, closeStr: String?,
+                          payout: Decimal, spotsValue: Int, maxPlus: Int?,
+                          desc: String?, themeVal: String, translateVal: Bool) async {
+        do {
+            switch target {
+            case .night(let a):
+                let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+                // Location is locked while editing, so only content fields go
+                // in the patch. Explicit NSNull clears a field server-side.
+                let body: [String: Any] = [
+                    "title": title.isEmpty ? NSNull() as Any : title as Any,
+                    "night_date": f.string(from: startDate),
+                    "open_time": openStr.map { $0 as Any } ?? NSNull(),
+                    "close_time": closeStr.map { $0 as Any } ?? NSNull(),
+                    "total_capacity": max(spotsValue, 50),
+                    "auto_checkin": autoCheckin,
+                    "description": (desc?.isEmpty ?? true) ? NSNull() as Any : desc! as Any,
+                    "theme": themeVal.isEmpty ? NSNull() as Any : themeVal as Any,
+                    "theme_translate": translateVal,
+                    "photo_urls": photoURLs,
+                    "featured": featured,
+                    "max_plus_ones": maxPlus.map { $0 as Any } ?? NSNull(),
+                ]
+                try await repo.updateNight(nightId: a.nightId, body: body)
+                try await repo.updateAllocation(allocationId: a.id, spots: spotsValue,
+                                                payoutPerGuest: payout, groupVisible: groupVisible)
+            case .series(let s):
+                guard !weekdays.isEmpty else {
+                    error = "Pick at least one weekday."; submitting = false; return
+                }
+                let loc = resolvedLocation
+                try await repo.updateSeries(seriesId: s.id, .init(
+                    promoterId: promoterId, clubId: loc.clubId,
+                    title: title.isEmpty ? nil : title,
+                    weekdays: Array(weekdays).sorted(),
+                    openTime: openStr, closeTime: closeStr,
+                    spots: spotsValue, payoutPerGuest: payout, groupVisible: groupVisible,
+                    locationName: loc.name, address: loc.address,
+                    lat: loc.lat, lng: loc.lng, autoCheckin: autoCheckin,
+                    description: (desc?.isEmpty ?? true) ? nil : desc,
+                    theme: themeVal.isEmpty ? nil : themeVal,
+                    themeTranslate: translateVal, photoUrls: photoURLs,
+                    featured: featured, maxPlusOnes: maxPlus))
+            }
+            Haptics.success()
+            submitting = false
+            submitted = true
+        } catch {
+            self.error = (error as NSError).localizedDescription.isEmpty
+                ? "Couldn't save your changes." : (error as NSError).localizedDescription
+            Haptics.error()
+            submitting = false
+        }
+    }
+
     static func defaultTime(hour: Int, minute: Int) -> Date {
         let cal = Calendar.current
         return cal.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) ?? Date()
@@ -301,8 +464,10 @@ struct CreateGuestlistSheet: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
 
-    init(promoterId: UUID, onResult: @escaping (CreateGuestlistModel.CreateResult) -> Void) {
-        _model = StateObject(wrappedValue: CreateGuestlistModel(promoterId: promoterId, onResult: onResult))
+    init(promoterId: UUID, editing: CreateGuestlistModel.EditTarget? = nil,
+         onResult: @escaping (CreateGuestlistModel.CreateResult) -> Void) {
+        _model = StateObject(wrappedValue: CreateGuestlistModel(
+            promoterId: promoterId, editing: editing, onResult: onResult))
     }
 
     var body: some View {
@@ -357,6 +522,10 @@ struct CreateGuestlistSheet: View {
     }
 
     private var navTitle: String {
+        if model.isEditing {
+            if case .series = model.editing { return "Edit Series" }
+            return "Edit Night"
+        }
         if model.locationChosen { return "New Night" }
         switch model.locationMode {
         case .none: return "Where's the night?"
@@ -364,9 +533,15 @@ struct CreateGuestlistSheet: View {
         case .custom: return "Custom Location"
         }
     }
-    private var backLabel: String { (model.locationChosen || model.locationMode != .none) ? "Back" : "Cancel" }
+    private var backLabel: String {
+        if model.isEditing { return "Cancel" }
+        return (model.locationChosen || model.locationMode != .none) ? "Back" : "Cancel"
+    }
     private func goBack() {
-        if model.locationChosen {
+        if model.isEditing {
+            // Editing keeps the location locked — Back just closes the sheet.
+            dismiss()
+        } else if model.locationChosen {
             // back to location choice
             model.selected = nil
             model.customConfirmed = false
@@ -497,6 +672,9 @@ struct CreateGuestlistSheet: View {
         ScrollView {
             Color.clear.frame(height: 0).contentShape(Rectangle()).onTapGesture { focused = nil }
             VStack(alignment: .leading, spacing: 22) {
+                if let reason = model.editingRejectionReason {
+                    RejectionNotice(reason: reason.isEmpty ? nil : reason)
+                }
                 clubHeader
                 titleField
                 descriptionField
@@ -516,12 +694,20 @@ struct CreateGuestlistSheet: View {
                 }
 
                 let needsCard = model.featured && !model.cardOnFile
-                EmberPillButton(title: "Create guestlist", loading: model.submitting) {
+                EmberPillButton(title: model.isEditing ? "Submit changes for review" : "Create guestlist",
+                                loading: model.submitting) {
                     Task { await model.create() }
                 }
                 .padding(.top, 8)
                 .disabled(needsCard)
                 .opacity(needsCard ? 0.4 : 1)
+
+                if model.isEditing {
+                    Text("Edits are reviewed by Club Fuoco before going live. While in review the night is held — invites pause until it's approved again.")
+                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
+                }
 
                 if needsCard {
                     Text("Add a payment method above to feature this event.")
@@ -793,29 +979,32 @@ struct CreateGuestlistSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             Kicker("Schedule")
 
-            // Mode picker
-            HStack(spacing: 6) {
-                ForEach(ScheduleMode.allCases) { m in
-                    Button {
-                        Haptics.tap()
-                        withAnimation(.easeInOut(duration: 0.15)) { model.mode = m }
-                    } label: {
-                        Text(m.rawValue)
-                            .font(.cfMono(10, weight: .medium))
-                            .kerning(1.2)
-                            .foregroundStyle(model.mode == m ? Theme.emberCream : Theme.parchmentDim)
-                            .padding(.vertical, 10)
-                            .frame(maxWidth: .infinity)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(model.mode == m ? Theme.ember : Color.clear)
-                            )
+            // Mode picker — locked while editing (a one-off night can't become
+            // a series in place, and vice versa).
+            if !model.isEditing {
+                HStack(spacing: 6) {
+                    ForEach(ScheduleMode.allCases) { m in
+                        Button {
+                            Haptics.tap()
+                            withAnimation(.easeInOut(duration: 0.15)) { model.mode = m }
+                        } label: {
+                            Text(m.rawValue)
+                                .font(.cfMono(10, weight: .medium))
+                                .kerning(1.2)
+                                .foregroundStyle(model.mode == m ? Theme.emberCream : Theme.parchmentDim)
+                                .padding(.vertical, 10)
+                                .frame(maxWidth: .infinity)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(model.mode == m ? Theme.ember : Color.clear)
+                                )
+                        }
                     }
                 }
+                .padding(4)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Theme.night))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
             }
-            .padding(4)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Theme.night))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
 
             // Mode-specific inputs
             switch model.mode {
@@ -831,17 +1020,21 @@ struct CreateGuestlistSheet: View {
                     Text("Repeat on")
                         .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
                     weekdayPicker
-                    Text("Creates a permanent link you can post anywhere. It always opens the next upcoming date — no end date, no re-sharing.")
-                        .font(.cfSans(11))
-                        .foregroundStyle(Theme.parchmentDim)
+                    if !model.isEditing {
+                        Text("Creates a permanent link you can post anywhere. It always opens the next upcoming date — no end date, no re-sharing.")
+                            .font(.cfSans(11))
+                            .foregroundStyle(Theme.parchmentDim)
+                    }
                 }
             }
 
-            Text(model.generationSummary)
-                .font(.cfMono(10, weight: .medium))
-                .kerning(1.5)
-                .foregroundStyle(Theme.flame)
-                .padding(.top, 4)
+            if !model.isEditing {
+                Text(model.generationSummary)
+                    .font(.cfMono(10, weight: .medium))
+                    .kerning(1.5)
+                    .foregroundStyle(Theme.flame)
+                    .padding(.top, 4)
+            }
         }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))

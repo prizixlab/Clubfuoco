@@ -85,6 +85,9 @@ struct TonightView: View {
                 await model.load()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .reviewOutcomeReceived)) { _ in
+            Task { await model.load() }
+        }
         .refreshable { await model.load() }
         .navigationDestination(for: PromoterAllocation.self) { a in
             GuestlistView(allocation: a)
@@ -134,7 +137,10 @@ struct TonightView: View {
                             startPoint: .top, endPoint: .bottom))
                         .frame(height: 220)
                     VStack(alignment: .leading, spacing: 8) {
-                        Kicker("Currently featured")
+                        HStack(spacing: 10) {
+                            Kicker("Currently featured")
+                            if let state = n?.reviewState { ReviewBadge(state: state) }
+                        }
                         HStack(alignment: .lastTextBaseline) {
                             Text(n?.displayTitle ?? "Tonight")
                                 .font(.cfSerif(34))
@@ -151,28 +157,41 @@ struct TonightView: View {
                 }
             }
             .buttonStyle(.plain)
+
+            if n?.reviewState == .rejected {
+                RejectionNotice(reason: n?.rejectionReason)
+            }
         }
     }
 
     private func upcomingRow(_ a: PromoterAllocation) -> some View {
-        HStack(spacing: 14) {
-            Text(shortDate(a.night?.nightDate))
-                .font(.cfMono(11, weight: .medium))
-                .foregroundStyle(Theme.flame)
-                .frame(width: 56, alignment: .leading)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(a.night?.displayTitle ?? "Night")
-                    .font(.cfSerif(20))
-                    .foregroundStyle(Theme.parchment)
-                Text(a.night?.club?.name ?? "—")
-                    .font(.cfSans(12))
-                    .foregroundStyle(Theme.parchmentDim)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 14) {
+                Text(shortDate(a.night?.nightDate))
+                    .font(.cfMono(11, weight: .medium))
+                    .foregroundStyle(Theme.flame)
+                    .frame(width: 56, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 8) {
+                        Text(a.night?.displayTitle ?? "Night")
+                            .font(.cfSerif(20))
+                            .foregroundStyle(Theme.parchment)
+                        if let state = a.night?.reviewState { ReviewBadge(state: state) }
+                    }
+                    Text(a.night?.club?.name ?? "—")
+                        .font(.cfSans(12))
+                        .foregroundStyle(Theme.parchmentDim)
+                }
+                Spacer()
+                Text(a.usedLabel)
+                    .font(.cfMono(10))
+                    .kerning(1.5)
+                    .foregroundStyle(Theme.flame)
             }
-            Spacer()
-            Text(a.usedLabel)
-                .font(.cfMono(10))
-                .kerning(1.5)
-                .foregroundStyle(Theme.flame)
+            if a.night?.reviewState == .rejected {
+                RejectionNotice(reason: a.night?.rejectionReason)
+                    .padding(.leading, 70)
+            }
         }
         .padding(.vertical, 16)
     }

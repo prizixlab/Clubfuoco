@@ -42,6 +42,9 @@ final class EarningsModel: ObservableObject {
     static let monthPrefix: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM"; return f
     }()
+    static let dayPrefix: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f
+    }()
 }
 
 struct EarningsView: View {
@@ -115,25 +118,61 @@ struct EarningsView: View {
     private func row(_ a: PromoterAllocation) -> some View {
         let total = a.earnings
         let paid = a.payoutStatus == "paid"
-        return HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(a.night?.club?.name ?? a.night?.displayTitle ?? "Night")
-                    .font(.cfSerif(24)).foregroundStyle(Theme.parchment)
-                Text("\(a.usedLabel) guests")
-                    .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(a.night?.club?.name ?? a.night?.displayTitle ?? "Night")
+                        .font(.cfSerif(24)).foregroundStyle(Theme.parchment)
+                    Text(a.night?.nightDate ?? "")
+                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 6) {
+                    Text(format(total))
+                        .font(.cfSerif(26)).foregroundStyle(Theme.ember)
+                    Text(a.payoutStatus.uppercased())
+                        .font(.cfMono(9, weight: .medium)).kerning(1.5)
+                        .foregroundStyle(paid ? Theme.gold : Theme.parchmentDim)
+                        .padding(.horizontal, 12).padding(.vertical, 5)
+                        .overlay(Capsule().stroke(paid ? Theme.gold.opacity(0.6) : Theme.parchmentFaint))
+                }
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 6) {
-                Text(format(total))
-                    .font(.cfSerif(26)).foregroundStyle(Theme.ember)
-                Text(a.payoutStatus.uppercased())
-                    .font(.cfMono(9, weight: .medium)).kerning(1.5)
-                    .foregroundStyle(paid ? Theme.gold : Theme.parchmentDim)
-                    .padding(.horizontal, 12).padding(.vertical, 5)
-                    .overlay(Capsule().stroke(paid ? Theme.gold.opacity(0.6) : Theme.parchmentFaint))
-            }
+            nightStats(a)
         }
         .padding(.vertical, 18)
+    }
+
+    /// Per-night performance: how full the list got, how many actually walked
+    /// in, and (for past nights) who never showed. Derived from the night's
+    /// own guest rows (checked_in_at) — the night-linked attendance source.
+    private func nightStats(_ a: PromoterAllocation) -> some View {
+        let joined = a.guestCount
+        let arrived = a.checkedInCount
+        let isPast = (a.night?.nightDate ?? "") < EarningsModel.dayPrefix.string(from: Date())
+        let rate = joined > 0 ? Int((Double(arrived) / Double(joined) * 100).rounded()) : 0
+        return HStack(spacing: 10) {
+            statPill("Joined", a.usedLabel)
+            statPill("Arrived", "\(arrived)")
+            if isPast {
+                statPill("No-show", "\(max(joined - arrived, 0))")
+                statPill("Check-in", joined > 0 ? "\(rate)%" : "—")
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func statPill(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label.uppercased())
+                .font(.cfMono(8, weight: .medium)).kerning(1.2)
+                .foregroundStyle(Theme.parchmentDim)
+            Text(value)
+                .font(.cfMono(12, weight: .medium))
+                .foregroundStyle(Theme.parchment)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 7)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.nightLift))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.hairline))
     }
 
     private func miniStat(_ label: String, _ value: String) -> some View {

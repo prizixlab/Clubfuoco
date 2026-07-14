@@ -28,6 +28,12 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         DEVELOPMENT_TEAM: 4V87UVPTBW
+        # Push (aps-environment) entitlement is staged but NOT wired yet: the
+        # com.clubfuoco.promoters App ID doesn't have the Push Notifications
+        # capability and no signed-in account is available to xcodebuild to add
+        # it. Once the capability is enabled (Xcode > Signing & Capabilities
+        # with an Apple ID signed in, or developer.apple.com), uncomment:
+        # CODE_SIGN_ENTITLEMENTS: FuocoPromoters/FuocoPromoters.entitlements
         TARGETED_DEVICE_FAMILY: "1"
         SWIFT_VERSION: "5.0"
         ENABLE_USER_SCRIPT_SANDBOXING: YES

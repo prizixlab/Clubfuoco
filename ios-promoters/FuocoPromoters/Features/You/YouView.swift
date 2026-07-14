@@ -54,6 +54,7 @@ struct YouView: View {
     @EnvironmentObject var auth: AuthStore
     @StateObject private var model: ProfileModel
     @State private var logoItem: PhotosPickerItem?
+    @State private var showSettings = false
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var focused: Bool
@@ -65,17 +66,15 @@ struct YouView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            FuocoHeader(initials: initials)
+            FuocoHeader(initials: initials, onSettings: { showSettings = true })
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     profileCard
                     if let b = model.billing, b.status != "active" {
                         pastDueBanner(b)
                     }
-                    paymentSection
-                    accountSection
-                    legalRow
-                    signOutButton
+                    // Payment, account, legal, and sign-out now live under the
+                    // gear → Settings; the You tab is the profile editor.
                     Text("FUOCO INTERNO")
                         .font(.cfMono(10)).kerning(3)
                         .foregroundStyle(Theme.parchmentFaint)
@@ -86,6 +85,9 @@ struct YouView: View {
             }
         }
         .background(Theme.night.ignoresSafeArea())
+        .navigationDestination(isPresented: $showSettings) {
+            PromoterSettingsView()
+        }
         .task { await reloadForCurrentUser() }
         .onChange(of: scenePhase) { _, p in if p == .active { Task { await model.load() } } }
         .onChange(of: logoItem) { _, item in Task { await model.uploadLogo(item) } }
@@ -155,37 +157,7 @@ struct YouView: View {
         .overlay(RoundedRectangle(cornerRadius: Theme.radiusCard).stroke(Theme.hairline))
     }
 
-    // MARK: Payment
-
-    private var paymentSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Kicker("Payment method", color: Theme.parchmentDim)
-            if let b = model.billing, b.cardVerified {
-                HStack(spacing: 10) {
-                    Image(systemName: "creditcard.fill").foregroundStyle(Theme.gold)
-                    Text("\(b.cardBrand?.capitalized ?? "Card") ending \(b.cardLast4 ?? "••••")")
-                        .font(.cfSans(15)).foregroundStyle(Theme.parchment)
-                    Spacer()
-                    Button("Update") { Task { await openBilling() } }
-                        .font(.cfSans(13)).foregroundStyle(Theme.ember)
-                }
-            } else {
-                Button { Task { await openBilling() } } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "creditcard")
-                        Text("Add a payment method").font(.cfSans(14, weight: .medium))
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 12))
-                    }
-                    .foregroundStyle(Theme.parchment)
-                }
-            }
-            Text("Used only for front-page promotion (€0.30 per accepted guest). Nothing else is charged.")
-                .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
-        }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
-    }
+    // MARK: Past-due alert (payment now lives in Settings)
 
     private func pastDueBanner(_ b: PromoterRepo.BillingStatus) -> some View {
         let owed = Double(-b.balanceCents) / 100
@@ -202,45 +174,6 @@ struct YouView: View {
         .padding(14)
         .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.wine.opacity(0.15)))
         .overlay(RoundedRectangle(cornerRadius: Theme.radiusCard).stroke(Theme.wine.opacity(0.5)))
-    }
-
-    // MARK: Invite / Account / Legal
-
-    private var accountSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Kicker("Signed in as", color: Theme.parchmentDim)
-            if case .signedIn(let p) = auth.state {
-                Text(p.email ?? p.displayName).font(.cfSans(15)).foregroundStyle(Theme.parchment)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
-    }
-
-    private var legalRow: some View {
-        HStack(spacing: 20) {
-            Link("Privacy", destination: URL(string: "https://clubfuoco.com/legal/privacy")!)
-            Link("Terms", destination: URL(string: "https://clubfuoco.com/legal/terms")!)
-            Spacer()
-            Text("v0.1").font(.cfMono(10)).foregroundStyle(Theme.parchmentFaint)
-        }
-        .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
-        .padding(.horizontal, 4)
-    }
-
-    private var signOutButton: some View {
-        Button { Task { await auth.signOut() } } label: {
-            Text("Sign out")
-                .font(.cfMono(11, weight: .medium)).kerning(2)
-                .foregroundStyle(Theme.ember)
-                .frame(maxWidth: .infinity).padding(.vertical, 13)
-                .overlay(Capsule().stroke(Theme.ember.opacity(0.6)))
-        }
-    }
-
-    private func openBilling() async {
-        if let url = try? await model.repo.billingSetupURL() { openURL(url) }
     }
 
     @ViewBuilder

@@ -20,6 +20,10 @@ final class CreateGuestlistModel: ObservableObject {
     @Published var selected: Club?
     @Published var title = ""
 
+    /// The clubs the promoter named on their application, resolved to real
+    /// venues — surfaced as one-tap shortcuts on the location chooser.
+    @Published var suggestedClubs: [Club] = []
+
     // Location
     @Published var locationMode: LocationMode = .none
     @Published var customName = ""
@@ -85,6 +89,7 @@ final class CreateGuestlistModel: ObservableObject {
     @Published var groupVisible = true
 
     @Published var submitting = false
+    @Published var submitted = false     // shows the pending-review screen (held for approval)
     @Published var error: String?
 
     let repo = PromoterRepo()
@@ -94,6 +99,7 @@ final class CreateGuestlistModel: ObservableObject {
     enum CreateResult {
         case allocation(PromoterAllocation)  // one-off / multi-day
         case series(PromoterSeries)          // permanent recurring link
+        case pending                         // submitted, held for Club Fuoco review
     }
 
     init(promoterId: UUID, onResult: @escaping (CreateResult) -> Void) {
@@ -135,6 +141,21 @@ final class CreateGuestlistModel: ObservableObject {
         loadingClubs = true
         clubs = (try? await repo.barcelonaClubs()) ?? []
         loadingClubs = false
+        resolveSuggestedClubs(from: try? await repo.myApplication())
+    }
+
+    /// Match the comma-separated club names from the promoter's application
+    /// (e.g. "360°, Absenta") to loaded venues, preserving their listed order
+    /// and dropping any free-text "other" entries that aren't real clubs.
+    private func resolveSuggestedClubs(from application: PromoterApplication?) {
+        guard let raw = application?.clubs, !raw.isEmpty else { suggestedClubs = []; return }
+        let names = raw.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        var seen = Set<UUID>()
+        suggestedClubs = names.compactMap { name in
+            clubs.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
+        }.filter { seen.insert($0.id).inserted }
     }
 
     var filteredClubs: [Club] {
@@ -228,7 +249,11 @@ final class CreateGuestlistModel: ObservableObject {
                     themeTranslate: translateVal, photoUrls: photoURLs,
                     featured: featured, maxPlusOnes: maxPlus))
                 Haptics.success()
-                onResult(.series(series))
+                // Series are held for review on creation (server-enforced), so
+                // confirm pending rather than jumping to the (not-yet-live) link.
+                submitting = false
+                submitted = true
+                return
             } else {
                 let dates = generatedDates
                 guard !dates.isEmpty else { error = "Pick at least one day."; submitting = false; return }
@@ -244,6 +269,14 @@ final class CreateGuestlistModel: ObservableObject {
                     themeTranslate: translateVal, photoUrls: photoURLs,
                     featured: featured, maxPlusOnes: maxPlus, promoterId: promoterId)
                 Haptics.success()
+                // If the night came back held (is_published == false), it's
+                // awaiting review → confirm pending. Otherwise (pre-migration)
+                // fall through to the normal share flow.
+                if alloc.night?.isPublished == false {
+                    submitting = false
+                    submitted = true
+                    return
+                }
                 onResult(.allocation(alloc))
             }
         } catch {
@@ -273,6 +306,14 @@ struct CreateGuestlistSheet: View {
     }
 
     var body: some View {
+        if model.submitted {
+            ReviewSubmittedScreen { model.onResult(.pending); dismiss() }
+        } else {
+            editor
+        }
+    }
+
+    private var editor: some View {
         NavigationStack {
             ZStack {
                 Theme.night.ignoresSafeArea()
@@ -339,19 +380,42 @@ struct CreateGuestlistSheet: View {
     // MARK: - Location chooser
 
     private var locationChooser: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            chooserCard(icon: "building.2", title: "Club",
-                        sub: "Pick from Barcelona venues") {
-                model.locationMode = .club
+        ScrollView {
+            VStack(spacing: 16) {
+                // Shortcuts to the venues this promoter said they work with —
+                // one tap jumps straight to the night details (same as picking
+                // them from the full club list).
+                if !model.suggestedClubs.isEmpty {
+                    HStack {
+                        Kicker("Your clubs")
+                        Spacer()
+                    }
+                    ForEach(model.suggestedClubs) { club in
+                        chooserCard(icon: "star.fill", title: club.name,
+                                    sub: "Your venue") {
+                            model.selected = club
+                        }
+                    }
+
+                    HStack {
+                        Kicker("Or", color: Theme.parchmentDim)
+                        Spacer()
+                    }
+                    .padding(.top, 6)
+                }
+
+                chooserCard(icon: "building.2", title: "Club",
+                            sub: "Pick from Barcelona venues") {
+                    model.locationMode = .club
+                }
+                chooserCard(icon: "mappin.and.ellipse", title: "Custom location",
+                            sub: "Drop a pin for a villa, rooftop, or party") {
+                    model.locationMode = .custom
+                }
             }
-            chooserCard(icon: "mappin.and.ellipse", title: "Custom location",
-                        sub: "Drop a pin for a villa, rooftop, or party") {
-                model.locationMode = .custom
-            }
-            Spacer()
+            .padding(24)
+            .padding(.top, model.suggestedClubs.isEmpty ? 120 : 12)
         }
-        .padding(24)
     }
 
     private func chooserCard(icon: String, title: String, sub: String, action: @escaping () -> Void) -> some View {

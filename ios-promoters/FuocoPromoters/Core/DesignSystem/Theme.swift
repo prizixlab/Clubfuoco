@@ -64,9 +64,15 @@ extension Color {
 }
 
 enum Haptics {
-    @MainActor static func tap() { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
-    @MainActor static func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
-    @MainActor static func error() { UINotificationFeedbackGenerator().notificationOccurred(.error) }
+    /// User-toggleable in Settings; defaults on. Gated here so the toggle is
+    /// real — flipping it off silences every haptic app-wide.
+    static var enabled: Bool {
+        get { UserDefaults.standard.object(forKey: "cf.haptics.enabled") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "cf.haptics.enabled") }
+    }
+    @MainActor static func tap() { guard enabled else { return }; UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+    @MainActor static func success() { guard enabled else { return }; UINotificationFeedbackGenerator().notificationOccurred(.success) }
+    @MainActor static func error() { guard enabled else { return }; UINotificationFeedbackGenerator().notificationOccurred(.error) }
 }
 
 struct EmberPillButton: View {

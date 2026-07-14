@@ -17,7 +17,7 @@ struct RootView: View {
                 if profile.accountKind != "promoter" {
                     WrongAccountView()           // a consumer account on the promoter app
                 } else if profile.isPromoter {
-                    MainTabs()                   // approved + verified
+                    MainTabs()                   // full app; adds an Offers tab for suppliers
                 } else {
                     PromoterApplicationView()    // locked: pending verification
                 }
@@ -62,28 +62,41 @@ struct WrongAccountView: View {
 
 struct MainTabs: View {
     @State private var selection: Tab = .tonight
+    // Non-nil when this account manages a partner_brand (a supplier/"list").
+    // For those accounts the Tonight + Guestlist tabs show supplier content
+    // instead of the promoter views; Earnings + You stay the same.
+    @State private var supplierBrand: SupplierBrand?
     enum Tab: Hashable { case tonight, guestlist, earnings, you }
+
+    private var isSupplier: Bool { supplierBrand != nil }
 
     var body: some View {
         TabView(selection: $selection) {
-            NavigationStack { TonightView() }
-                .tabItem { Label("Tonight", systemImage: "moon") }
-                .tag(Tab.tonight)
+            NavigationStack {
+                if isSupplier { SupplierTonightView() } else { TonightView() }
+            }
+            .tabItem { Label("Tonight", systemImage: "moon") }
+            .tag(Tab.tonight)
 
-            NavigationStack { GuestlistTabRoot() }
-                .tabItem { Label("Guestlist", systemImage: "list.bullet") }
-                .tag(Tab.guestlist)
+            NavigationStack {
+                if isSupplier { SupplierHomeView() } else { GuestlistTabRoot() }
+            }
+            .tabItem { Label("Guestlist", systemImage: "list.bullet") }
+            .tag(Tab.guestlist)
 
             NavigationStack { EarningsView() }
                 .tabItem { Label("Earnings", systemImage: "creditcard") }
                 .tag(Tab.earnings)
 
-            NavigationStack { YouView() }
-                .tabItem { Label("You", systemImage: "person") }
-                .tag(Tab.you)
+            NavigationStack {
+                if isSupplier { SupplierYouView() } else { YouView() }
+            }
+            .tabItem { Label("You", systemImage: "person") }
+            .tag(Tab.you)
         }
         .tint(Theme.ember)
         .toolbarBackground(Theme.night, for: .tabBar)
+        .task { supplierBrand = try? await SupplierRepo().me() }
     }
 }
 
@@ -234,6 +247,7 @@ struct GuestlistTabRoot: View {
                         switch result {
                         case .allocation(let a): navigateTo = a
                         case .series(let s): await openSeries(s)
+                        case .pending: break   // held for review — just refresh
                         }
                     }
                 }

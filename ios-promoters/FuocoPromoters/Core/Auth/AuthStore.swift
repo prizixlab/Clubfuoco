@@ -83,6 +83,32 @@ final class AuthStore: ObservableObject {
         state = .signedOut
     }
 
+    /// Send a Supabase password-reset email to the signed-in address.
+    func sendPasswordReset() async throws {
+        guard let email else { throw NSError(domain: "Auth", code: 0,
+            userInfo: [NSLocalizedDescriptionKey: "No email on this account."]) }
+        try await sb.client.auth.resetPasswordForEmail(email)
+    }
+
+    /// Permanently delete this account via the shared web endpoint (same one
+    /// the consumer app uses; requireAuth scopes it to the caller). Signs out
+    /// locally on success so RootView returns to the sign-in screen.
+    func deleteAccount() async throws {
+        let token = try await sb.client.auth.session.accessToken
+        var req = URLRequest(url: URL(string: "https://clubfuoco.com/api/account/delete")!)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let msg = (try? JSONDecoder().decode([String: String?].self, from: data))?["error"] as? String
+            throw NSError(domain: "Auth", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: msg ?? "Couldn't delete your account. Try again."])
+        }
+        try? await sb.client.auth.signOut()
+        state = .signedOut
+    }
+
     private func loadProfile(userId: UUID) async {
         struct Row: Decodable {
             let id: UUID

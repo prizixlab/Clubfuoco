@@ -374,11 +374,17 @@ final class PromoterRepo: ObservableObject {
     }
 
     func barcelonaClubs() async throws -> [Club] {
+        // Scope by a Barcelona-metro coordinate box, NOT `address ILIKE
+        // '%Barcelona%'` — that string filter silently dropped venues whose
+        // address omits the city (Sala Apolo, Jamboree, BARTS, Macarena,
+        // Eclipse). Every active club has coordinates and all sit inside this
+        // box, so this includes them all and stays robust to address typos.
         try await sb.client
             .from("clubs")
             .select("id,name")
-            .ilike("address", pattern: "%Barcelona%")
             .eq("is_active", value: true)
+            .gte("lat", value: 41.2).lte("lat", value: 41.55)
+            .gte("lng", value: 1.9).lte("lng", value: 2.4)
             .order("name", ascending: true)
             .execute()
             .value

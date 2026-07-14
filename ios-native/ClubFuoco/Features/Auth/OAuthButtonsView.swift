@@ -92,9 +92,19 @@ struct OAuthButtonsView: View {
                 errorMessage = locale.t("common.error")
                 return
             }
-            let providerName = [credential.fullName?.givenName, credential.fullName?.familyName]
+            // Apple sends the name ONLY on the user's first-ever authorization
+            // of this app — re-auths (including after our account is deleted
+            // server-side) return nil. Cache it in the keychain keyed by
+            // Apple's stable per-app user id so later re-signups can still
+            // prefill the name.
+            var providerName = [credential.fullName?.givenName, credential.fullName?.familyName]
                 .compactMap { $0 }
                 .joined(separator: " ")
+            if providerName.isEmpty {
+                providerName = AppleNameCache.load(for: credential.user) ?? ""
+            } else {
+                AppleNameCache.save(providerName, for: credential.user)
+            }
             finishSignIn(provider: .apple, idToken: idToken, rawNonce: currentNonce, providerName: providerName)
         }
     }
@@ -159,5 +169,33 @@ struct OAuthButtonsView: View {
         SHA256.hash(data: Data(input.utf8))
             .map { String(format: "%02x", $0) }
             .joined()
+    }
+}
+
+/// Keychain cache for the Apple-provided name (see handleApple). Keychain, not
+/// UserDefaults: it survives app deletion, reinstalls, and server-side account
+/// deletion — exactly the situations where Apple won't resend the name.
+private enum AppleNameCache {
+    private static func query(_ user: String) -> [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword,
+         kSecAttrService as String: "com.clubfuoco.apple-name",
+         kSecAttrAccount as String: user]
+    }
+
+    static func save(_ name: String, for user: String) {
+        var q = query(user)
+        SecItemDelete(q as CFDictionary)
+        q[kSecValueData as String] = Data(name.utf8)
+        SecItemAdd(q as CFDictionary, nil)
+    }
+
+    static func load(for user: String) -> String? {
+        var q = query(user)
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var out: AnyObject?
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess,
+              let data = out as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 }

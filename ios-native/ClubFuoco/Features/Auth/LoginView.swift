@@ -69,10 +69,16 @@ struct LoginView: View {
                         FormError(message: errorMessage)
                     }
 
-                    // Present on web but inert there too — kept for parity.
-                    Text(locale.t("login.forgotPassword"))
-                        .font(.cfSans(13))
-                        .foregroundStyle(Theme.wine)
+                    HStack {
+                        Spacer()
+                        Button {
+                            path.append(.forgotPassword)
+                        } label: {
+                            Text(locale.t("login.forgotPassword"))
+                                .font(.cfSans(13))
+                                .foregroundStyle(Theme.wine)
+                        }
+                    }
 
                     PrimaryButton(
                         title: locale.t(submitting ? "login.signingIn" : "login.signIn"),

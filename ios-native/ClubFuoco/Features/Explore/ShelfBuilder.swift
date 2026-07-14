@@ -1,7 +1,8 @@
 import Foundation
 
-/// One horizontal row of the explore feed.
-struct Shelf: Identifiable {
+/// One horizontal row of the explore feed. Hashable so the "N venues →"
+/// header button can push the full list via `NavigationLink(value:)`.
+struct Shelf: Identifiable, Hashable {
     let id: String
     let title: String
     let subtitle: String
@@ -33,7 +34,10 @@ enum ShelfBuilder {
         var shelves: [Shelf] = []
 
         // ── Featured hero — Rumbalist clubs only (those with a Rumbalist offer) ─
-        let partners = places.filter { !RumbalistOffers.offers(for: $0.placeId).isEmpty }
+        // Shuffled per build like the rotating pool: feed order is
+        // most-rated-first, which made Pacha the big hero card on every
+        // single load. Every partner gets its turn as the lead.
+        let partners = places.filter { !RumbalistOffers.offers(for: $0.placeId).isEmpty }.shuffled()
         if !partners.isEmpty {
             shelves.append(Shelf(
                 id: "hero",

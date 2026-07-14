@@ -11,7 +11,9 @@ struct CompleteProfileView: View {
 
     private struct Missing {
         var name = false, email = false, phone = false, birthday = false, gender = false
-        var any: Bool { name || email || phone || birthday || gender }
+        /// Phone is optional — it shows as a field when absent, but never
+        /// forces this screen on its own.
+        var any: Bool { name || email || birthday || gender }
     }
 
     @State private var ready = false
@@ -90,7 +92,7 @@ struct CompleteProfileView: View {
                 }
 
                 if missing.phone {
-                    AuthField(label: locale.t("settings.phone")) {
+                    AuthField(label: locale.t("auth.phoneOptional")) {
                         PhoneNumberField(phone: $phone)
                     }
                 }
@@ -173,8 +175,16 @@ struct CompleteProfileView: View {
             auth.finishOnboarding()
             return
         }
-        if let full = row?.fullName, !full.isEmpty {
-            let parts = full.split(separator: " ")
+        // Pre-fill the name from whatever we DID get. The profile row is the
+        // primary source; the auth identity's metadata is the fallback (Apple
+        // only hands the name over on the very first authorization — a re-auth
+        // after account deletion returns nil, but GoTrue may still carry it in
+        // user_metadata from the original grant).
+        let metaName = auth.user?.userMetadata["full_name"]?.stringValue
+            ?? auth.user?.userMetadata["name"]?.stringValue
+        let knownName = [row?.fullName, metaName].compactMap { $0 }.first { !$0.isEmpty }
+        if let knownName {
+            let parts = knownName.split(separator: " ")
             firstName = String(parts.first ?? "")
             lastName = parts.dropFirst().joined(separator: " ")
         }
@@ -198,9 +208,9 @@ struct CompleteProfileView: View {
             updates["email"] = .string(trimmed)
         }
         if missing.phone {
+            // Optional — save it when given, never block entry on it.
             let trimmed = phone.trimmingCharacters(in: .whitespaces)
-            guard !trimmed.isEmpty else { errorMessage = locale.t("completeProfile.phoneError"); return }
-            updates["phone"] = .string(trimmed)
+            if !trimmed.isEmpty { updates["phone"] = .string(trimmed) }
         }
         if missing.gender {
             guard let gender else { errorMessage = locale.t("signup.genderError"); return }

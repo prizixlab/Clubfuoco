@@ -26,6 +26,7 @@ struct GroupDetailView: View {
     @State private var showInvite = false
     @State private var showPaymentNote = false
     @State private var showQR = false
+    @State private var showChat = false
     @State private var calendarMessage: String?
 
     var body: some View {
@@ -53,6 +54,16 @@ struct GroupDetailView: View {
         .sheet(isPresented: $showInvite) {
             inviteSheet
                 .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showChat, onDismiss: {
+            // Refresh so the unread badge clears (the thread was marked read).
+            Task { await model.load(groupId, api: api, queries: auth.queries) }
+        }) {
+            if let group = model.group {
+                NavigationStack {
+                    GroupChatView(groupId: groupId, clubName: group.clubName)
+                }
+            }
         }
         .sheet(isPresented: $showQR) {
             if let group = model.group, let token = passToken {
@@ -107,6 +118,12 @@ struct GroupDetailView: View {
                         .padding(.horizontal, 20)
                 }
 
+                // Group chat — members can coordinate the night.
+                if group.me != nil, group.status != "cancelled" {
+                    chatButton(group)
+                        .padding(.horizontal, 20)
+                }
+
                 if let error = model.errorMessage {
                     FormError(message: error)
                         .padding(.horizontal, 20)
@@ -131,6 +148,45 @@ struct GroupDetailView: View {
             .padding(.vertical, 16)
         }
         .refreshable { await model.load(groupId, api: api, queries: auth.queries) }
+    }
+
+    // ── Group chat ────────────────────────────────────────────────────────────
+
+    private func chatButton(_ group: GroupDetail) -> some View {
+        let unread = group.unreadCount ?? 0
+        return Button {
+            Haptics.tap()
+            showChat = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "bubble.left.and.bubble.right.fill")
+                    .font(.system(size: 15))
+                    .foregroundStyle(Theme.ink)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(locale.t("groupChat.open"))
+                        .font(.cfSans(15, weight: .semibold))
+                        .foregroundStyle(Theme.ink)
+                    Text(locale.t("groupChat.subtitle"))
+                        .font(.cfSans(12))
+                        .foregroundStyle(Theme.stone)
+                }
+                Spacer()
+                if unread > 0 {
+                    Text("\(unread)")
+                        .font(.cfSans(12, weight: .bold))
+                        .foregroundStyle(Theme.cream)
+                        .frame(minWidth: 22, minHeight: 22)
+                        .padding(.horizontal, 5)
+                        .background(Theme.wine, in: .capsule)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.fadedSand)
+            }
+            .padding(14)
+            .background(Color.white.opacity(0.55), in: .rect(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
     }
 
     // ── Your pass ─────────────────────────────────────────────────────────────

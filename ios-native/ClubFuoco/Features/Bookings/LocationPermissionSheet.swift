@@ -203,29 +203,40 @@ struct LocationPermissionSheet: View {
             requesting = true
             Task {
                 let svc = LocationService.shared
+
+                // Step 1 — first-time WhenInUse dialog. Wait for the user's
+                // ACTUAL answer (delegate callback), never a fixed sleep:
+                // requesting Always while the first dialog is still on screen
+                // makes iOS silently drop it, so the upgrade dialog never
+                // appeared and users who tapped Allow still landed on the
+                // Settings fallback.
                 if svc.authorizationStatus == .notDetermined {
                     svc.requestWhenInUseAuthorization()
-                    try? await Task.sleep(nanoseconds: 1_200_000_000)
+                    await svc.waitForAuthorizationChange(seconds: 60)
                 }
-                // Real foreground location read — iOS uses recent location
-                // activity as a heuristic for whether to show the upgrade
-                // dialog when we then request Always. Worth waiting for.
-                _ = try? await svc.currentLocation()
-                svc.requestAlwaysAuthorization()
-                // Poll for up to 10s instead of a single fixed delay: the
-                // user has to tap through TWO sequential iOS dialogs
-                // (WhenInUse → Always upgrade), which routinely takes
-                // longer than 1.5s. A fixed check fires the fallback even
-                // when the user did grant Always a moment later.
-                for _ in 0..<20 {
-                    try? await Task.sleep(nanoseconds: 500_000_000)
-                    if svc.authorizationStatus == .authorizedAlways { break }
+
+                if svc.authorizationStatus == .authorizedWhenInUse {
+                    // Real foreground location read — iOS uses recent location
+                    // activity as a heuristic for whether to show the upgrade
+                    // dialog when we then request Always. Worth waiting for.
+                    _ = try? await svc.currentLocation()
+                    // Step 2 — the "Change to Always Allow" upgrade dialog,
+                    // now that the first dialog is fully answered. Waked by
+                    // the delegate on grant; times out if the user picks
+                    // "Keep Only While Using" (no status change, no callback).
+                    svc.requestAlwaysAuthorization()
+                    if svc.authorizationStatus != .authorizedAlways {
+                        await svc.waitForAuthorizationChange(seconds: 15)
+                    }
                 }
+
                 requesting = false
                 if svc.authorizationStatus == .authorizedAlways {
                     Haptics.success()
                     dismiss()
                 } else {
+                    // Denied / kept WhenInUse / restricted — the OS won't ask
+                    // again, so route through Settings.
                     step = .openSettings
                 }
             }

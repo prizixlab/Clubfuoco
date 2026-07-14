@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var fullName = ""
     @State private var phone = ""
     @State private var gender: Gender?
+    @State private var birthday = Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date()
     @State private var loadedFromProfile = false
     @State private var saving = false
     @State private var savedFlash = false
@@ -63,7 +64,10 @@ struct SettingsView: View {
                 } label: {
                     Text(locale.t("settings.phone"))
                 }
-                LabeledContent(locale.t("settings.birthday"), value: auth.profile?.birthday ?? "—")
+                DatePicker(locale.t("settings.birthday"),
+                           selection: $birthday,
+                           in: minBirthday...maxBirthday,
+                           displayedComponents: .date)
 
                 Picker(locale.t("settings.gender"), selection: $gender) {
                     Text("—").tag(Gender?.none)
@@ -202,6 +206,7 @@ struct SettingsView: View {
                 fullName = auth.profile?.fullName ?? ""
                 phone = auth.profile?.phone ?? ""
                 gender = Gender(rawValue: auth.profile?.gender ?? "")
+                if let d = Self.parseYMD(auth.profile?.birthday) { birthday = d }
                 loadedFromProfile = true
             }
             locationStatus = LocationService.shared.authorizationStatus
@@ -244,12 +249,34 @@ struct SettingsView: View {
         }
     }
 
-    // ── Save (name + phone + gender) ─────────────────────────────────────────
+    // ── Birthday (18+ enforced by the picker's range) ────────────────────────
+
+    /// Youngest allowed: exactly 18 today. Oldest: 100 years back.
+    private var maxBirthday: Date { Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date() }
+    private var minBirthday: Date { Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date() }
+
+    /// "YYYY-MM-DD" from a Date using calendar components (timezone-safe — a
+    /// birthday is a plain date, not an instant).
+    private static func formatYMD(_ date: Date) -> String {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    private static func parseYMD(_ value: String?) -> Date? {
+        guard let value, value.count >= 10 else { return nil }
+        let p = value.prefix(10).split(separator: "-").compactMap { Int($0) }
+        guard p.count == 3 else { return nil }
+        var c = DateComponents(); c.year = p[0]; c.month = p[1]; c.day = p[2]; c.hour = 12
+        return Calendar.current.date(from: c)
+    }
+
+    // ── Save (name + phone + gender + birthday) ──────────────────────────────
 
     private var hasChanges: Bool {
         fullName != (auth.profile?.fullName ?? "")
             || phone != (auth.profile?.phone ?? "")
             || (gender?.rawValue ?? "") != (auth.profile?.gender ?? "")
+            || Self.formatYMD(birthday) != (auth.profile?.birthday.map { String($0.prefix(10)) } ?? "")
     }
 
     private func save() {
@@ -263,6 +290,7 @@ struct SettingsView: View {
                 if !name.isEmpty { updates["full_name"] = .string(name) }
                 if !phoneTrimmed.isEmpty { updates["phone"] = .string(phoneTrimmed) }
                 if let gender { updates["gender"] = .string(gender.rawValue) }
+                updates["birthday"] = .string(Self.formatYMD(birthday))
                 try await auth.updateProfile(updates)
                 Haptics.success()
                 savedFlash = true

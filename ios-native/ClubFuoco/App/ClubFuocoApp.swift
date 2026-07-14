@@ -4,6 +4,7 @@ import GoogleSignIn
 @main
 struct ClubFuocoApp: App {
     @State private var env = AppEnvironment()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -26,6 +27,15 @@ struct ClubFuocoApp: App {
                     }
                 }
                 .task { await env.authStore.start() }
+                // Pull the live partner offer catalog (falls back to the bundle).
+                .task { await RumbalistOffers.refresh(api: env.api) }
+                // Re-pull on foreground so a partner switch made in the portal
+                // shows up without a cold start.
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active {
+                        Task { await RumbalistOffers.refresh(api: env.api) }
+                    }
+                }
             #if DEBUG
                 // Simulator-only hook so automated runs can exercise the real
                 // sign-in path: pass CF_TEST_EMAIL / CF_TEST_PASSWORD via

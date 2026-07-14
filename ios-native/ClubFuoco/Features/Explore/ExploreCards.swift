@@ -27,16 +27,18 @@ private struct CardPhoto: View {
     }
 }
 
-private struct SaveHeart: View {
+/// Save toggle on card photos — bookmark glyph, matching the saved-clubs
+/// button in the explore header for continuity (was a red heart).
+private struct SaveBookmark: View {
     let isSaved: Bool
     let size: CGFloat
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: isSaved ? "heart.fill" : "heart")
-                .font(.system(size: size * 0.53))
-                .foregroundStyle(isSaved ? Color(hex: 0xE05252) : .white)
+            Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
+                .font(.system(size: size * 0.5))
+                .foregroundStyle(.white)
                 .frame(width: size, height: size)
                 .background(.black.opacity(0.45), in: .circle)
         }
@@ -88,7 +90,7 @@ struct HeroCard: View {
                     HStack(alignment: .top) {
                         TagPill(text: (place.musicGenres.first ?? "Featured").replacingOccurrences(of: "_", with: " "))
                         Spacer()
-                        SaveHeart(isSaved: isSaved, size: 32, action: onSave)
+                        SaveBookmark(isSaved: isSaved, size: 32, action: onSave)
                     }
                     .padding(12)
 
@@ -213,7 +215,7 @@ struct LandCard: View {
                             TagPill(text: genre.replacingOccurrences(of: "_", with: " "), background: .black.opacity(0.45), color: .white.opacity(0.8))
                         }
                         Spacer()
-                        SaveHeart(isSaved: isSaved, size: 28, action: onSave)
+                        SaveBookmark(isSaved: isSaved, size: 28, action: onSave)
                     }
                     Spacer()
                 }
@@ -257,7 +259,7 @@ struct PosterCard: View {
                             TagPill(text: ExploreViewModel.formatDistance(distance), background: .black.opacity(0.4), color: .white.opacity(0.75))
                         }
                         Spacer()
-                        SaveHeart(isSaved: isSaved, size: 26, action: onSave)
+                        SaveBookmark(isSaved: isSaved, size: 26, action: onSave)
                     }
                     .padding(6)
                 }
@@ -309,28 +311,34 @@ struct ShelfRowView: View {
                     .foregroundStyle(Theme.fadedSand)
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     if isRumba {
-                        // "<day> with [Rumbalist]" — tracks the When planner date.
-                        // Keep it on one line, shrinking to fit when the day label
-                        // is long (e.g. "Next Thursday with").
-                        Text("\(plan.nightPhrase(locale: locale)) \(locale.t("rumbalist.with"))")
+                        // Featured "curated tonight" header — tracks the When
+                        // planner date (e.g. "Tonight", "Next Thursday").
+                        Text(plan.nightPhrase(locale: locale))
                             .font(.cfSans(18, weight: .medium))
                             .foregroundStyle(Theme.ink)
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)
                             .layoutPriority(1)
-                        RumbalistMark(height: 15)
-                            .fixedSize()
                     } else {
                         Text(shelf.title)
                             .font(.cfSans(shelf.featured ? 18 : 16, weight: .medium))
                             .foregroundStyle(Theme.ink)
                     }
                     Spacer(minLength: 6)
-                    Text(String(format: locale.t("explore.venuesArrow"), shelf.places.count))
-                        .font(.cfSans(12))
-                        .foregroundStyle(Theme.wine)
-                        .lineLimit(1)
-                        .fixedSize()
+                    NavigationLink(value: shelf) {
+                        Text(String(format: locale.t("explore.venuesArrow"), shelf.places.count))
+                            .font(.cfSans(12))
+                            .foregroundStyle(Theme.wine)
+                            .lineLimit(1)
+                            .fixedSize()
+                            // Generous tap target without shifting the layout.
+                            .padding(.vertical, 8)
+                            .padding(.leading, 12)
+                            .contentShape(.rect)
+                            .padding(.vertical, -8)
+                            .padding(.leading, -12)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, hPad)
@@ -356,10 +364,10 @@ struct ShelfRowView: View {
         .background {
             if isRumba {
                 RoundedRectangle(cornerRadius: 22)
-                    .fill(RumbalistMark.pink.opacity(0.05))
+                    .fill(Theme.ember.opacity(0.05))
                     .overlay(
                         RoundedRectangle(cornerRadius: 22)
-                            .strokeBorder(RumbalistMark.pink.opacity(0.35), lineWidth: 1.5)
+                            .strokeBorder(Theme.ember.opacity(0.35), lineWidth: 1.5)
                     )
             }
         }

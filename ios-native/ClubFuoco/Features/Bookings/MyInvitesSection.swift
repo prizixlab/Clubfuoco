@@ -32,7 +32,16 @@ struct MyInvitesSection: View {
             }
         }
         .task { await load() }
-        .sheet(item: $openInvite) { inv in
+        // Reload every time the Tickets tab reappears (TabView fires onAppear
+        // on reselection) — a just-claimed invite must show without an app
+        // restart. Silent reload keeps current cards on screen meanwhile.
+        .onAppear { Task { await load(showSpinner: false) } }
+        .onReceive(NotificationCenter.default.publisher(for: .cfInviteClaimed)) { _ in
+            Task { await load(showSpinner: false) }
+        }
+        .sheet(item: $openInvite, onDismiss: {
+            Task { await load(showSpinner: false) }
+        }) { inv in
             InviteClaimView(
                 token: inv.allocation.inviteToken,
                 preclaimedGuestId: inv.id.uuidString.lowercased(),
@@ -42,8 +51,8 @@ struct MyInvitesSection: View {
         }
     }
 
-    private func load() async {
-        loading = true
+    private func load(showSpinner: Bool = true) async {
+        if showSpinner && invites.isEmpty { loading = true }
         struct Resp: Decodable, Sendable { let invites: [InviteSummary] }
         if let resp: Resp = try? await api.get("/api/promoter-invites/mine") {
             invites = resp.invites
@@ -99,12 +108,23 @@ struct MyInvitesSection: View {
     }
 }
 
+/// Wrapper for GET /api/promoter-invites/mine.
+struct InvitesResponse: Decodable, Sendable {
+    let invites: [InviteSummary]
+}
+
 struct InviteSummary: Decodable, Identifiable, Hashable, Sendable {
     let id: UUID
     let fullName: String
     let plusOnes: Int
     let checkedInAt: String?
     let allocation: InviteAllocation
+
+    // Convenience accessors for the merged Tickets list.
+    var nightDate: String { allocation.night.nightDate }
+    var eventTitle: String { allocation.night.title ?? allocation.night.club.name }
+    var venueName: String { allocation.night.club.name }
+    var inviteToken: String { allocation.inviteToken }
 }
 struct InviteAllocation: Decodable, Hashable, Sendable {
     let id: UUID

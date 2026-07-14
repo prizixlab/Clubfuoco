@@ -222,6 +222,48 @@ final class AuthStore {
         }
     }
 
+    // ── Password recovery (forgot password) ──────────────────────────────────
+    // Native OTP flow: send a recovery code → verify it (creates a recovery
+    // session) → set the new password. Mirrors the signup OTP path so it uses
+    // the same email delivery the app already relies on.
+    //
+    // Requires the Supabase "Reset Password" email template to include the
+    // {{ .Token }} variable (same as the signup template), or the code won't
+    // appear in the email.
+
+    /// Step 1 — send (or resend) the 6-digit recovery code to the address.
+    func sendPasswordReset(email: String) async throws {
+        try await withAuthTimeout { [supabase] in
+            try await supabase.client.auth.resetPasswordForEmail(email)
+        }
+    }
+
+    /// Step 2 — verify the emailed code. On success Supabase mints a recovery
+    /// session (the user is now transiently authenticated). We flag
+    /// onboardingInProgress so RootView keeps showing the auth flow instead of
+    /// bouncing into the app before the new password is set.
+    func verifyPasswordRecoveryOTP(email: String, code: String) async throws {
+        onboardingInProgress = true
+        do {
+            try await withAuthTimeout { [supabase] in
+                try await supabase.client.auth.verifyOTP(email: email, token: code, type: .recovery)
+            }
+        } catch {
+            onboardingInProgress = false
+            throw error
+        }
+    }
+
+    /// Step 3 — set the new password on the recovery session, then finish so
+    /// RootView drops the (now signed-in) user into the app.
+    func updatePassword(_ newPassword: String) async throws {
+        try await withAuthTimeout { [supabase] in
+            _ = try await supabase.client.auth.update(user: UserAttributes(password: newPassword))
+        }
+        await refreshProfile()
+        onboardingInProgress = false
+    }
+
     // ── Guest (Guideline 5.1.1(v)) ───────────────────────────────────────────
 
     /// Mirrors continueAsGuest(): try to mint an anonymous Supabase user so
@@ -258,11 +300,30 @@ final class AuthStore {
             )
         }
 
-        // routeAfterOAuth(): Apple only supplies the name on first sign-in —
-        // persist it now if the profile has none.
+        // Apple only supplies the name on the FIRST authorization, and it never
+        // rides in the ID token — so Supabase can't record it automatically. We
+        // persist it ourselves in two places:
+        //   1. The auth user's metadata → shows as "Display name" in the
+        //      Supabase Authentication dashboard and is the canonical source.
+        //   2. public.users.full_name → what the app reads everywhere.
+        if let providerName, !providerName.isEmpty {
+            try? await withAuthTimeout { [supabase] in
+                _ = try await supabase.client.auth.update(
+                    user: UserAttributes(data: [
+                        "full_name": .string(providerName),
+                        "name": .string(providerName),
+                    ]))
+            }
+        }
+
+        // Wait briefly for the post-signup DB trigger to create the users row
+        // on a first-ever sign-in (otherwise the name update below no-ops).
         var row = try? await queries.me()
-        if let providerName, !providerName.isEmpty,
-           row != nil, (row?.fullName ?? "").isEmpty {
+        for _ in 0..<3 where row == nil {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            row = try? await queries.me()
+        }
+        if let providerName, !providerName.isEmpty, (row?.fullName ?? "").isEmpty {
             try? await queries.updateMe(["full_name": .string(providerName)])
             row = try? await queries.me()
         }

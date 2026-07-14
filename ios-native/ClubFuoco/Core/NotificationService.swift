@@ -38,6 +38,9 @@ final class NotificationForegroundDelegate: NSObject, UNUserNotificationCenterDe
 
 extension Notification.Name {
     static let cfMorningAfterTapped = Notification.Name("cf.morning-after.tapped")
+    /// Posted after a promoter-invite guestlist claim succeeds, so the Tickets
+    /// tab's Guestlists section refreshes immediately.
+    static let cfInviteClaimed = Notification.Name("cf.invite.claimed")
 }
 
 /// Local "morning after" notifications for attendance verification.

@@ -1,5 +1,7 @@
 import SwiftUI
 import Observation
+import PhotosUI
+import UIKit
 
 /// Native profile page: CLUB FUOCO · ACCOUNT header, identity card (avatar +
 /// name + member-number), stats strip, menu sections, sign out, footer.
@@ -8,6 +10,9 @@ struct ProfileView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(LocaleStore.self) private var locale
     @State private var model = ProfileViewModel()
+    @State private var avatarItem: PhotosPickerItem?
+    @State private var cropImage: IdentifiableImage?
+    @State private var uploadingAvatar = false
     #if DEBUG
     // CF_TEST_PUSH=settings|friends|notifications|fiamme
     // (CF_TEST_SETTINGS=1 kept as an alias)
@@ -77,6 +82,45 @@ struct ProfileView: View {
             await auth.refreshProfile()
             await model.load(api: api, queries: auth.queries)
         }
+        .onChange(of: avatarItem) {
+            guard let item = avatarItem else { return }
+            avatarItem = nil
+            Task { await loadForCrop(item) }
+        }
+        .fullScreenCover(item: $cropImage) { wrapper in
+            AvatarCropView(image: wrapper.image) {
+                cropImage = nil
+            } onConfirm: { jpeg in
+                cropImage = nil
+                Task { await uploadAvatar(jpeg) }
+            }
+        }
+    }
+
+    /// Load the picked photo into memory and hand it to the crop editor.
+    private func loadForCrop(_ item: PhotosPickerItem) async {
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else {
+            Haptics.error()
+            return
+        }
+        cropImage = IdentifiableImage(image: image)
+    }
+
+    /// Upload the already-cropped 512px JPEG to the avatar endpoint; the profile
+    /// refresh pulls back the new cache-busted URL.
+    private func uploadAvatar(_ jpeg: Data) async {
+        uploadingAvatar = true
+        defer { uploadingAvatar = false }
+        struct Body: Encodable { let image: String }
+        struct Result: Decodable, Sendable { let avatarUrl: String }
+        do {
+            let _: Result = try await api.post("/api/account/avatar", body: Body(image: jpeg.base64EncodedString()))
+            await auth.refreshProfile()
+            Haptics.success()
+        } catch {
+            Haptics.error()
+        }
     }
 
     // ── Identity card ─────────────────────────────────────────────────────────
@@ -127,14 +171,48 @@ struct ProfileView: View {
             .padding(14)
 
             VStack(alignment: .leading, spacing: 10) {
-                Circle()
-                    .fill(Color.white.opacity(0.55))
-                    .frame(width: 84, height: 84)
-                    .overlay {
-                        Text(parts.initials)
-                            .font(.cfSerif(42, italic: true))
-                            .foregroundStyle(Theme.darkRed)
+                // Tap to pick a profile photo (out-of-process system picker —
+                // no photo-library permission prompt needed).
+                PhotosPicker(selection: $avatarItem, matching: .images) {
+                    ZStack(alignment: .bottomTrailing) {
+                        Circle()
+                            .fill(Color.white.opacity(0.55))
+                            .frame(width: 84, height: 84)
+                            .overlay {
+                                if let avatar = auth.profile?.avatarUrl, let url = URL(string: avatar) {
+                                    CachedAsyncImage(url: url) {
+                                        $0.resizable().aspectRatio(contentMode: .fill)
+                                    } placeholder: {
+                                        Text(parts.initials)
+                                            .font(.cfSerif(42, italic: true))
+                                            .foregroundStyle(Theme.darkRed)
+                                    }
+                                    .frame(width: 84, height: 84)
+                                    .clipShape(.circle)
+                                } else {
+                                    Text(parts.initials)
+                                        .font(.cfSerif(42, italic: true))
+                                        .foregroundStyle(Theme.darkRed)
+                                }
+                            }
+                            .overlay {
+                                if uploadingAvatar {
+                                    Circle().fill(.black.opacity(0.35))
+                                    ProgressView().tint(.white)
+                                }
+                            }
+
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Theme.cream)
+                            .frame(width: 24, height: 24)
+                            .background(Theme.ink, in: .circle)
+                            .overlay(Circle().stroke(Color(hex: 0xF8EFDC), lineWidth: 2))
+                            .offset(x: 2, y: 2)
                     }
+                }
+                .buttonStyle(.plain)
+                .disabled(uploadingAvatar)
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text(parts.first.isEmpty ? "—" : parts.first)
@@ -204,7 +282,7 @@ struct ProfileView: View {
             } label: {
                 menuRow(n: "01", icon: "ticket.fill",
                         label: locale.t("profile.myBookings"),
-                        sub: model.nights.map { String(format: locale.t("profile.bookingsCount"), $0) } ?? "—")
+                        sub: model.bookingsTotal.map { String(format: locale.t($0 == 1 ? "profile.bookingsCountOne" : "profile.bookingsCount"), $0) } ?? "—")
             }
             menuRowDivider
             NavigationLink {
@@ -320,7 +398,12 @@ struct ProfileView: View {
 @MainActor
 @Observable
 final class ProfileViewModel {
+    /// "Nights out" score — a lifetime, ever-growing tally across every kind of
+    /// night (bookings, guestlist signups, ticket orders). Meant to feel full
+    /// and climb over time, like a Snap score. Never counts down.
     private(set) var nights: Int?
+    /// Total paid bookings — the subtitle on the My Bookings row.
+    private(set) var bookingsTotal: Int?
     private(set) var savedCount: Int?
     private(set) var friendCount: Int?
     private(set) var friendsSub: String?
@@ -331,7 +414,12 @@ final class ProfileViewModel {
         async let favorites = (try? queries.placeFavoriteIds())
         async let friendsData: FriendsData? = try? api.get("/api/friends")
 
-        nights = await bookings?.bookings.count
+        if let data = await bookings {
+            // Every night counts toward the score — paid bookings, guestlist
+            // signups, and ticket orders alike.
+            nights = data.bookings.count + data.guestSignups.count + data.ticketOrders.count
+            bookingsTotal = data.bookings.count
+        }
         savedCount = await favorites?.count
         if let friends = await friendsData {
             friendCount = friends.friends.count
@@ -339,5 +427,129 @@ final class ProfileViewModel {
                 ? "\(friends.friends.count)"
                 : "\(friends.friends.count) · \(friends.incoming.count) ⏳"
         }
+    }
+}
+
+/// Identity wrapper so a picked `UIImage` can drive `.fullScreenCover(item:)`.
+struct IdentifiableImage: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
+/// Circular-crop editor: pan + pinch-zoom the picked photo inside a fixed
+/// circle, then Confirm to hand back a square 512px JPEG for upload.
+private struct AvatarCropView: View {
+    let image: UIImage
+    var onCancel: () -> Void
+    var onConfirm: (Data) -> Void
+
+    @State private var scale: CGFloat = 1
+    @State private var lastScale: CGFloat = 1
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+
+    private let cropSide: CGFloat = 300
+    private let minScale: CGFloat = 1
+    private let maxScale: CGFloat = 6
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: onCancel) {
+                    Text("Cancel").font(.cfSans(15, weight: .medium))
+                }
+                Spacer()
+                Text("Adjust photo").font(.cfSans(15, weight: .semibold))
+                Spacer()
+                Button {
+                    if let jpeg = renderCrop() {
+                        Haptics.tap()
+                        onConfirm(jpeg)
+                    } else {
+                        Haptics.error()
+                    }
+                } label: {
+                    Text("Use").font(.cfSans(15, weight: .semibold))
+                }
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+
+            Spacer()
+
+            // Pan/zoom stage with a circular focus ring and dimmed surround.
+            ZStack {
+                imageLayer
+                    .frame(width: cropSide, height: cropSide)
+                    .clipped()
+
+                Rectangle()
+                    .fill(.black.opacity(0.6))
+                    .mask {
+                        Rectangle()
+                            .overlay {
+                                Circle()
+                                    .frame(width: cropSide, height: cropSide)
+                                    .blendMode(.destinationOut)
+                            }
+                            .compositingGroup()
+                    }
+                    .allowsHitTesting(false)
+
+                Circle()
+                    .strokeBorder(.white.opacity(0.9), lineWidth: 2)
+                    .frame(width: cropSide, height: cropSide)
+                    .allowsHitTesting(false)
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                SimultaneousGesture(
+                    MagnifyGesture()
+                        .onChanged { v in
+                            scale = min(max(lastScale * v.magnification, minScale), maxScale)
+                        }
+                        .onEnded { _ in lastScale = scale },
+                    DragGesture()
+                        .onChanged { v in
+                            offset = CGSize(width: lastOffset.width + v.translation.width,
+                                            height: lastOffset.height + v.translation.height)
+                        }
+                        .onEnded { _ in lastOffset = offset }
+                )
+            )
+
+            Spacer()
+
+            Text("Drag to reposition · pinch to zoom")
+                .font(.cfSans(13))
+                .foregroundStyle(.white.opacity(0.55))
+                .padding(.bottom, 32)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black.ignoresSafeArea())
+    }
+
+    /// The photo scaled to fill the crop square, then transformed by the
+    /// user's pinch/drag. Reused verbatim for on-screen preview and render.
+    private var imageLayer: some View {
+        Image(uiImage: image)
+            .resizable()
+            .scaledToFill()
+            .frame(width: cropSide, height: cropSide)
+            .scaleEffect(scale)
+            .offset(offset)
+    }
+
+    /// Rasterize exactly what's inside the crop square at 512px and JPEG-encode.
+    @MainActor
+    private func renderCrop() -> Data? {
+        let content = imageLayer
+            .frame(width: cropSide, height: cropSide)
+            .clipped()
+        let renderer = ImageRenderer(content: content)
+        renderer.proposedSize = ProposedViewSize(width: cropSide, height: cropSide)
+        renderer.scale = 512 / cropSide
+        return renderer.uiImage?.jpegData(compressionQuality: 0.8)
     }
 }

@@ -16,7 +16,7 @@ final class Queries: @unchecked Sendable {
     /// (`/api/auth/me` is cookie-only and 401s for Bearer requests — the
     /// web app's native path uses this exact direct query instead.)
     func me() async throws -> UserProfile? {
-        guard let session = try? await supabase.client.auth.session else { return nil }
+        guard let session = await supabase.currentSession() else { return nil }
         return try await supabase.client
             .from("users")
             .select()
@@ -29,7 +29,7 @@ final class Queries: @unchecked Sendable {
     /// Update the signed-in user's `users` row (RLS-scoped) — used by
     /// complete-profile, the signup birthday step, and OAuth name capture.
     func updateMe(_ updates: [String: AnyJSON]) async throws {
-        guard let session = try? await supabase.client.auth.session else { return }
+        guard let session = await supabase.currentSession() else { return }
         try await supabase.client
             .from("users")
             .update(updates)
@@ -102,7 +102,9 @@ final class Queries: @unchecked Sendable {
     /// doesn't have, so RLS returns nothing. The direct query runs as the real
     /// signed-in user, so RLS (`auth.uid() = user_id`) passes.
     func myBookings() async throws -> BookingsResponse {
-        guard let session = try? await supabase.client.auth.session else {
+        // currentSession() (not a bare try?) — a dead refresh token must sign
+        // the user out, not render a silently-empty Tickets page.
+        guard let session = await supabase.currentSession() else {
             return BookingsResponse(bookings: [], guestSignups: [], ticketOrders: [])
         }
         let uid = session.user.id.uuidString
@@ -168,7 +170,7 @@ final class Queries: @unchecked Sendable {
     // ── Favorites (mirror of place_favorites helpers) ─────────────────────────
 
     func placeFavoriteIds() async throws -> Set<String> {
-        guard let session = try? await supabase.client.auth.session else { return [] }
+        guard let session = await supabase.currentSession() else { return [] }
         let rows: [PlaceFavorite] = try await supabase.client
             .from("place_favorites")
             .select("place_id")
@@ -180,7 +182,7 @@ final class Queries: @unchecked Sendable {
     }
 
     func savePlaceFavorite(_ place: Place) async throws {
-        guard let session = try? await supabase.client.auth.session else {
+        guard let session = await supabase.currentSession() else {
             throw APIError.unauthorized
         }
         var row: [String: AnyJSON] = [
@@ -198,7 +200,7 @@ final class Queries: @unchecked Sendable {
     }
 
     func removePlaceFavorite(placeId: String) async throws {
-        guard let session = try? await supabase.client.auth.session else {
+        guard let session = await supabase.currentSession() else {
             throw APIError.unauthorized
         }
         try await supabase.client

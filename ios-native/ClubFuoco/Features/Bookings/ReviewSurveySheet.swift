@@ -156,6 +156,9 @@ struct ReviewSurveySheet: View {
         case .didYouGo:
             VStack(spacing: 10) {
                 bigChoice(label: "Yes, I went", systemImage: "checkmark.circle.fill") {
+                    // Record the attendance claim immediately, so it sticks even
+                    // if they abandon the rest of the review.
+                    recordWentIn()
                     advance(from: .didYouGo)
                 }
                 bigChoice(label: "I didn't go", systemImage: "xmark.circle") {
@@ -250,6 +253,16 @@ struct ReviewSurveySheet: View {
         Haptics.tap()
         guard let next = Phase(rawValue: current.rawValue + 1) else { return }
         withAnimation { phase = next }
+    }
+
+    /// Fire the "I got in" attendance signal (→ user_claimed_attended) the
+    /// moment they confirm they went, independent of finishing the review.
+    /// Fire-and-forget; a failure just leaves attendance for the geo signals.
+    private func recordWentIn() {
+        let path = "/api/bookings/\(booking.id.uuidString.lowercased())/signals"
+        struct SBody: Encodable { let kind: String }
+        struct SResp: Decodable, Sendable { let attendanceStatus: String? }
+        Task { let _: SResp? = try? await api.post(path, body: SBody(kind: "post_entry_got_in")) }
     }
 
     private func sendDidNotGo() async {

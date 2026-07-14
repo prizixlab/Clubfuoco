@@ -149,7 +149,7 @@ struct FriendsView: View {
     private func searchAction(_ result: FriendSearchResult) -> some View {
         switch result.relation {
         case "friends":
-            tag(locale.t("friends.friends"))
+            tag(locale.t("friends.added"), icon: "checkmark")
         case "outgoing":
             tag(locale.t("friends.requested"))
         case "incoming":
@@ -223,13 +223,19 @@ struct FriendsView: View {
         .disabled(busy)
     }
 
-    private func tag(_ text: String) -> some View {
-        Text(text)
-            .font(.cfSans(11, weight: .semibold))
-            .foregroundStyle(Theme.fadedSand)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color(hex: 0x221E1A).opacity(0.05), in: .capsule)
+    private func tag(_ text: String, icon: String? = nil) -> some View {
+        HStack(spacing: 4) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(.system(size: 9, weight: .bold))
+            }
+            Text(text)
+                .font(.cfSans(11, weight: .semibold))
+        }
+        .foregroundStyle(Theme.fadedSand)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color(hex: 0x221E1A).opacity(0.05), in: .capsule)
     }
 }
 

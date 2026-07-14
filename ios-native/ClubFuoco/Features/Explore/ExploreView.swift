@@ -77,8 +77,7 @@ struct ExploreView: View {
                 .padding(.top, 16)
             }
             .refreshable {
-                await model.load()
-                model.rebuildShelves(planDate: plan.date) { locale.t($0) }
+                await model.load(planDate: plan.date) { locale.t($0) }
             }
         }
         .background(Theme.cream)
@@ -89,13 +88,22 @@ struct ExploreView: View {
         .navigationDestination(for: Rumba.self) { rumba in
             RumbaDetailView(rumba: rumba)
         }
+        .navigationDestination(for: Shelf.self) { shelf in
+            ShelfListView(shelf: shelf, model: model, onSave: save)
+        }
         .sheet(isPresented: $showNearbyLocationSheet) {
             LocationPermissionSheet(mode: .nearby)
         }
         .task {
             model.configure(queries: auth.queries, api: api)
-            await model.load()
-            model.rebuildShelves(planDate: plan.date) { locale.t($0) }
+            // .task re-fires every time the feed reappears (back from a club,
+            // tab switch) — and a reload rebuilds the shelves, whose pool is
+            // shuffled per build. Only load when we have nothing yet, so the
+            // feed the user was browsing stays exactly as they left it.
+            // Pull-to-refresh is the explicit way to get a fresh rotation.
+            if model.places.isEmpty {
+                await model.load(planDate: plan.date) { locale.t($0) }
+            }
             maybePromptNearby()
             #if DEBUG
             // Simulator automation: open the first venue / rumba detail
@@ -466,9 +474,9 @@ struct ExploreView: View {
                 Button {
                     save(place)
                 } label: {
-                    Image(systemName: "heart.fill")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Color(hex: 0xE05252))
+                    Image(systemName: "bookmark.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.white)
                         .frame(width: 32, height: 32)
                         .background(.black.opacity(0.45), in: .circle)
                 }
@@ -519,15 +527,20 @@ struct ExploreView: View {
                 }
                 .padding(16)
             }
-            // Shelves
+            // Shelves — horizontal ScrollView (like the loaded feed) so the
+            // fixed-width cards clip at the screen edge instead of widening
+            // the whole skeleton past it.
             ForEach(0..<2, id: \.self) { _ in
                 VStack(alignment: .leading, spacing: 14) {
                     ShimmerBlock(corner: 4).frame(width: 140, height: 12)
-                    HStack(spacing: 12) {
-                        ForEach(0..<3, id: \.self) { _ in
-                            ShimmerBlock(corner: 14).frame(width: 160, height: 200)
+                    ScrollView(.horizontal) {
+                        HStack(spacing: 12) {
+                            ForEach(0..<3, id: \.self) { _ in
+                                ShimmerBlock(corner: 14).frame(width: 160, height: 200)
+                            }
                         }
                     }
+                    .scrollDisabled(true)
                 }
             }
         }
@@ -543,7 +556,7 @@ struct ExploreView: View {
                 .foregroundStyle(Theme.stone)
             Spacer()
             Button(locale.t("common.retry")) {
-                Task { await model.load() }
+                Task { await model.load(planDate: plan.date) { locale.t($0) } }
             }
             .font(.cfSans(13, weight: .medium))
             .foregroundStyle(Theme.wine)

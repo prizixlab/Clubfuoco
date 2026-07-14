@@ -32,6 +32,7 @@ struct RootView: View {
         )) { wrapped in
             InviteClaimView(token: wrapped.value)
                 .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .task { await maybePromptNotifications() }
     }

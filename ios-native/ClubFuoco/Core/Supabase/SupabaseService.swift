@@ -45,10 +45,34 @@ extension SupabaseService: AuthTokenProvider {
     /// `client.auth.session` refreshes an expired session before returning,
     /// which is exactly the guarantee apiFetch() gets from supabase-js.
     func accessToken() async -> String? {
-        try? await client.auth.session.accessToken
+        await currentSession()?.accessToken
     }
 
     func refreshSession() async -> String? {
-        try? await client.auth.refreshSession().accessToken
+        do { return try await client.auth.refreshSession().accessToken }
+        catch { await signOutIfSessionDead(error); return nil }
+    }
+
+    /// Session for the direct PostgREST query paths, or nil when there is no
+    /// usable one. Unlike a bare `try? client.auth.session`, this reacts to a
+    /// dead session instead of masking it.
+    func currentSession() async -> Session? {
+        do { return try await client.auth.session }
+        catch { await signOutIfSessionDead(error); return nil }
+    }
+
+    /// GoTrue explicitly rejected our refresh token (revoked, rotated away
+    /// mid-kill, or expired) — the stored session can never recover. Clear it
+    /// so authStateChanges emits .signedOut and RootView returns to the
+    /// welcome screen. Without this the app runs a "zombie" signed-in UI:
+    /// Tickets renders empty, favorites vanish, and every write 401s with no
+    /// hint that signing back in would fix it. Network errors are left alone —
+    /// those are transient and the session may still be fine.
+    private func signOutIfSessionDead(_ error: Error) async {
+        guard case let .api(_, code, _, _) = error as? AuthError,
+              code == .refreshTokenNotFound || code == .refreshTokenAlreadyUsed
+                || code == .sessionNotFound || code == .sessionExpired
+        else { return }
+        try? await client.auth.signOut(scope: .local)
     }
 }

@@ -15,9 +15,13 @@ struct BookingsView: View {
     @State private var detailBooking: Booking?
     @State private var openGroup: GroupListItem?
     @State private var reviewBooking: Booking?
+    @State private var openInvite: InviteSummary?
     @State private var tab: TopTab = .tickets
+    /// Live pager position, 0 = Tickets … 1 = Reviews — drives the slider
+    /// indicator continuously during the swipe.
+    @State private var pageProgress: CGFloat = 0
     @State private var showArrivalLocationSheet = false
-    private static let arrivalPromptKey = "cf.arrivalPromptShownV2"
+    private static let arrivalPromptDateKey = "cf.arrivalPromptLastShownAt"
 
     /// Arrival (Always) prompt — fires on the Tickets tab when there's at
     /// least one upcoming booking and the user hasn't already granted Always.
@@ -25,12 +29,20 @@ struct BookingsView: View {
     /// the moment the user taps Done — any sheet attached to it tears down
     /// with it. The Tickets tab is the stable parent that always exists by
     /// the time a booking is on the books.
+    ///
+    /// Re-ask rule: once per NEW booking, not once per install — the old
+    /// boolean key meant a single "Not now" silenced auto check-in forever.
+    /// Anything upcoming that was created after the previous ask earns one
+    /// more nudge.
     private func maybePromptArrival() {
-        guard !UserDefaults.standard.bool(forKey: Self.arrivalPromptKey) else { return }
         guard !model.upcoming.isEmpty else { return }
         let status = LocationService.shared.authorizationStatus
-        guard status != .authorizedAlways else { return }
-        UserDefaults.standard.set(true, forKey: Self.arrivalPromptKey)
+        guard status != .authorizedAlways, status != .restricted else { return }
+        let defaults = UserDefaults.standard
+        if let last = defaults.object(forKey: Self.arrivalPromptDateKey) as? Date {
+            guard let newest = model.newestUpcomingCreation, newest > last else { return }
+        }
+        defaults.set(Date(), forKey: Self.arrivalPromptDateKey)
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 600_000_000)
             showArrivalLocationSheet = true
@@ -52,7 +64,11 @@ struct BookingsView: View {
     }
 
     var body: some View {
-        Group {
+        VStack(alignment: .leading, spacing: 0) {
+            // Pinned above the switching content so it exists in every state —
+            // the Reviews List previously rendered without any way back.
+            topTabSlider
+
             switch model.state {
             case .idle, .loading:
                 ProgressView(locale.t("common.loading"))
@@ -79,9 +95,11 @@ struct BookingsView: View {
             }
         }
         .background(Theme.cream, ignoresSafeAreaEdges: .all)
+        // Native centered bar title. INLINE mode on purpose: the large title
+        // got stuck collapsed after the loading→loaded container swap (SwiftUI
+        // bug) and only rendered mid-scroll; the inline title always draws.
         .navigationTitle(locale.t("nav.tickets"))
-        // Match the nav-bar background to the page so the large-title / status-bar
-        // area doesn't render in the system white against the cream content.
+        .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.cream, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .task {
@@ -97,6 +115,16 @@ struct BookingsView: View {
             // A booking just landed (or a refresh added one) — re-evaluate
             // without waiting for the next tab visit.
             maybePromptArrival()
+        }
+        .onChange(of: tab) {
+            // The capsule tracks `pageProgress`, which the swipe-offset reader
+            // only updates during an interactive drag. Tapping a label (or a
+            // swipe settling) changes `tab` WITHOUT emitting drag offsets, so
+            // sync the capsule to the settled tab here — otherwise it froze on
+            // taps.
+            withAnimation(.easeInOut(duration: 0.22)) {
+                pageProgress = tab == .reviews ? 1 : 0
+            }
         }
         .sheet(isPresented: $showArrivalLocationSheet) {
             LocationPermissionSheet(mode: .arrival)
@@ -134,9 +162,24 @@ struct BookingsView: View {
                 }
             )
         }
-        .sheet(item: $openGroup) { group in
+        .sheet(item: $openGroup, onDismiss: {
+            // Reload so a just-answered invite drops out of the prompt and the
+            // tab badge stays in sync.
+            Task { await model.load(api: api, queries: auth.queries) }
+        }) { group in
             NavigationStack { GroupDetailView(groupId: group.id, presentedModally: true) }
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $openInvite, onDismiss: {
+            Task { await model.load(api: api, queries: auth.queries) }
+        }) { inv in
+            InviteClaimView(
+                token: inv.inviteToken,
+                preclaimedGuestId: inv.id.uuidString.lowercased(),
+                preclaimedName: inv.fullName
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $reviewBooking) { booking in
             ReviewSurveySheet(
@@ -160,11 +203,22 @@ struct BookingsView: View {
             // whatever is at the top of the pending list so something opens.
             withAnimation { tab = .reviews }
             let id = notif.userInfo?["bookingId"] as? UUID
-            if let id, let match = model.allBookings.first(where: { $0.id == id }) {
-                reviewBooking = match
-            } else {
-                reviewBooking = model.pendingReviews.first
+            let match = (id.flatMap { bid in model.allBookings.first { $0.id == bid } })
+                ?? model.pendingReviews.first
+            reviewBooking = match
+            // Tapping the morning-after prompt is itself a soft "probably
+            // arrived" signal (→ likely_attended), even if they don't finish.
+            if let match {
+                let path = "/api/bookings/\(match.id.uuidString.lowercased())/signals"
+                struct SBody: Encodable { let kind: String }
+                struct SResp: Decodable, Sendable { let attendanceStatus: String? }
+                Task { let _: SResp? = try? await api.post(path, body: SBody(kind: "morning_after_opened")) }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .cfInviteClaimed)) { _ in
+            // A guestlist was just claimed elsewhere — refresh so it appears
+            // inline with the bookings.
+            Task { await model.load(api: api, queries: auth.queries) }
         }
         .overlay(alignment: .bottom) {
             if let toast = model.toast {
@@ -193,40 +247,80 @@ struct BookingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    @ViewBuilder private var list: some View {
-        switch tab {
-        case .tickets: ticketsList
-        case .reviews: reviewsList
+    /// Swipeable pages under the slider. A paging ScrollView instead of a
+    /// paged TabView so the live horizontal offset is readable — TabView only
+    /// reports selection after the page settles, which made the slider snap
+    /// late instead of moving with the finger.
+    private var list: some View {
+        GeometryReader { geo in
+            ScrollView(.horizontal) {
+                HStack(spacing: 0) {
+                    ticketsList
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .id(TopTab.tickets)
+                    reviewsList
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .id(TopTab.reviews)
+                }
+                .scrollTargetLayout()
+                .background {
+                    GeometryReader { inner in
+                        Color.clear.preference(
+                            key: PagerProgressKey.self,
+                            value: -inner.frame(in: .named("ticketsPager")).minX / max(geo.size.width, 1)
+                        )
+                    }
+                }
+            }
+            .coordinateSpace(name: "ticketsPager")
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: Binding(
+                get: { Optional(tab) },
+                set: { if let t = $0 { tab = t } }
+            ))
+            .scrollIndicators(.hidden)
+            .onPreferenceChange(PagerProgressKey.self) { pageProgress = $0 }
         }
     }
 
-    /// Segmented slider at the very top of Tickets. Reviews tab shows a small
-    /// badge with the pending count when there is one.
+    /// Segmented slider at the very top of Tickets. One wine capsule slides
+    /// between the two labels, riding `pageProgress` so it tracks the swipe
+    /// frame by frame. Reviews shows a badge with the pending count.
     private var topTabSlider: some View {
-        HStack(spacing: 0) {
+        // Labels flip style at the halfway point of the swipe.
+        let active: TopTab = pageProgress < 0.5 ? .tickets : .reviews
+        return HStack(spacing: 0) {
             ForEach(TopTab.allCases) { t in
-                let active = tab == t
+                let isActive = active == t
                 Button {
                     Haptics.tap()
-                    withAnimation(.easeInOut(duration: 0.18)) { tab = t }
+                    withAnimation(.easeInOut(duration: 0.22)) { tab = t }
                 } label: {
                     HStack(spacing: 8) {
                         Text(t.label)
-                            .font(.cfSans(13, weight: active ? .semibold : .regular))
+                            .font(.cfSans(13, weight: isActive ? .semibold : .regular))
                         if t == .reviews, !model.pendingReviews.isEmpty {
                             Text("\(model.pendingReviews.count)")
                                 .font(.cfMono(10, weight: .semibold))
-                                .foregroundStyle(active ? Theme.wine : Theme.cream)
+                                .foregroundStyle(isActive ? Theme.wine : Theme.cream)
                                 .frame(minWidth: 18, minHeight: 18)
-                                .background(active ? Theme.cream : Theme.wine, in: .circle)
+                                .background(isActive ? Theme.cream : Theme.wine, in: .circle)
                         }
                     }
-                    .foregroundStyle(active ? Theme.cream : Theme.ink)
+                    .foregroundStyle(isActive ? Theme.cream : Theme.ink)
                     .frame(maxWidth: .infinity)
                     .frame(height: 38)
-                    .background(active ? Theme.wine : Color.clear, in: .capsule)
+                    .contentShape(.capsule)
                 }
                 .buttonStyle(.plain)
+            }
+        }
+        .background {
+            GeometryReader { geo in
+                Capsule()
+                    .fill(Theme.wine)
+                    .frame(width: geo.size.width / 2)
+                    .offset(x: geo.size.width / 2 * min(max(pageProgress, 0), 1))
             }
         }
         .padding(4)
@@ -240,13 +334,34 @@ struct BookingsView: View {
     private var ticketsList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                topTabSlider
+                if !model.pendingInvites.isEmpty {
+                    invitesSection
+                }
                 if !model.tonight.isEmpty {
                     section(locale.t("bookings.tonight"), items: model.tonight, tonight: true)
                 }
-                MyInvitesSection()
                 if !model.upcoming.isEmpty {
                     section(locale.t("bookings.upcoming"), items: model.upcoming, tonight: false)
+                }
+                // Nothing tonight/upcoming — show a real empty state instead of
+                // a bare "SHOW PAST" (which read as a bug).
+                if model.tonight.isEmpty && model.upcoming.isEmpty && model.pendingInvites.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "ticket")
+                            .font(.system(size: 40))
+                            .foregroundStyle(Theme.sand)
+                        Text(locale.t("bookings.noUpcoming"))
+                            .font(.cfSans(15))
+                            .foregroundStyle(Theme.stone)
+                        Text(locale.t(model.hasPast ? "bookings.noUpcomingPast" : "bookings.noUpcomingSub"))
+                            .font(.cfSans(12))
+                            .foregroundStyle(Theme.fadedSand)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 50)
+                    .padding(.bottom, 8)
                 }
                 if model.hasPast {
                     Button {
@@ -271,7 +386,6 @@ struct BookingsView: View {
     @ViewBuilder private var reviewsList: some View {
         if model.pendingReviews.isEmpty {
             VStack(spacing: 8) {
-                topTabSlider
                 Image(systemName: "star.bubble")
                     .font(.system(size: 36))
                     .foregroundStyle(Theme.sand)
@@ -316,6 +430,59 @@ struct BookingsView: View {
             .background(Theme.cream)
             .refreshable { await model.load(api: api, queries: auth.queries) }
         }
+    }
+
+    // ── Pending friend group invites ──────────────────────────────────────────
+
+    private var invitesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Kicker(locale.t("bookings.invited"), color: Theme.wine)
+                .padding(.horizontal, 20)
+            VStack(spacing: 12) {
+                ForEach(model.pendingInvites) { group in
+                    Button {
+                        Haptics.tap()
+                        openGroup = group
+                    } label: {
+                        inviteCard(group)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    private func inviteCard(_ group: GroupListItem) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12).fill(Theme.wine.opacity(0.12))
+                    .frame(width: 56, height: 56)
+                Image(systemName: "person.2.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(Theme.wine)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(group.club?.name ?? locale.t("bookings.aNightOut"))
+                    .font(.cfSerif(20))
+                    .foregroundStyle(Theme.ink)
+                    .lineLimit(1)
+                Text(shortDate(group.bookingDate))
+                    .font(.cfSans(12))
+                    .foregroundStyle(Theme.stone)
+            }
+            Spacer(minLength: 8)
+            Text(locale.t("bookings.invitedRespond"))
+                .font(.cfSans(12, weight: .semibold))
+                .foregroundStyle(Theme.cream)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Theme.wine, in: .capsule)
+        }
+        .padding(14)
+        .background(Color.white, in: .rect(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.wine.opacity(0.25)))
+        .shadow(color: Color(hex: 0x221E1A).opacity(0.05), radius: 6, y: 3)
     }
 
     private func reviewCard(_ booking: Booking) -> some View {
@@ -363,6 +530,9 @@ struct BookingsView: View {
                     signupCard(signup)
                 case .ticket(let order):
                     ticketCard(order)
+                case .invite(let inv):
+                    Button { openInvite = inv } label: { inviteCard(inv) }
+                        .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 20)
@@ -624,6 +794,48 @@ struct BookingsView: View {
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
     }
 
+    /// Claimed promoter guestlist — rendered as a booking so it sits inline
+    /// with the rest, but tagged with a gold "GUESTLIST" pill so it reads as a
+    /// promoter pass rather than a paid reservation.
+    private func inviteCard(_ inv: InviteSummary) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 24))
+                .foregroundStyle(Theme.gold)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(locale.t("bookings.guestlistTag"))
+                        .font(.cfMono(8, weight: .semibold)).kerning(1)
+                        .foregroundStyle(Theme.ink)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Theme.gold, in: .capsule)
+                    if inv.checkedInAt != nil {
+                        statusChip("checked_in")
+                    }
+                }
+                Text(inv.eventTitle)
+                    .font(.cfSerif(18))
+                    .foregroundStyle(Theme.ink)
+                    .lineLimit(1)
+                Text([inv.venueName, formatDate(inv.nightDate),
+                      inv.plusOnes > 0 ? String(format: locale.t("bookings.partyOf"), inv.plusOnes + 1) : nil]
+                    .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
+                    .font(.cfSans(11.5))
+                    .foregroundStyle(Theme.fadedSand)
+                    .lineLimit(1)
+            }
+            Spacer()
+            Image(systemName: "qrcode")
+                .font(.system(size: 20))
+                .foregroundStyle(Theme.stone)
+        }
+        .padding(14)
+        .background(Color.white)
+        .clipShape(.rect(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.gold.opacity(0.35)))
+    }
+
     private func statusChip(_ status: String) -> some View {
         let (key, color): (String, Color) = switch status {
         case "confirmed": ("bookings.statusConfirmed", Color(hex: 0x2D7A46))
@@ -786,12 +998,14 @@ final class BookingsViewModel {
         case booking(Booking)
         case signup(GuestSignup)
         case ticket(TicketOrder)
+        case invite(InviteSummary)   // claimed promoter guestlist
 
         var id: UUID {
             switch self {
             case .booking(let b): return b.id
             case .signup(let s): return s.id
             case .ticket(let t): return t.id
+            case .invite(let i): return i.id
             }
         }
     }
@@ -799,20 +1013,30 @@ final class BookingsViewModel {
     private(set) var state: LoadState = .idle
     private(set) var data: BookingsResponse?
     private(set) var groups: [GroupListItem] = []
+    private(set) var invites: [InviteSummary] = []
     var showPast = false
     var toast: String?
 
+    /// Open group nights a friend invited me to that I haven't answered yet.
+    /// These drive the Tickets tab badge; surfaced as an actionable prompt so
+    /// the badge isn't a dead-end.
+    var pendingInvites: [GroupListItem] {
+        groups.filter { $0.status == "open" && $0.myRsvp == "invited" }
+    }
+
     var isEmpty: Bool {
         guard let data else { return true }
-        return data.bookings.isEmpty && data.guestSignups.isEmpty && data.ticketOrders.isEmpty
+        return data.bookings.isEmpty && data.guestSignups.isEmpty
+            && data.ticketOrders.isEmpty && invites.isEmpty
     }
 
     func load(api: APIClient, queries: Queries) async {
         if data == nil { state = .loading }
-        // Bookings come from PostgREST directly (RLS-scoped). Groups stay on
-        // the REST route — it uses the service client + manual scoping, so it
-        // works for native Bearer requests.
+        // Bookings come from PostgREST directly (RLS-scoped). Groups + claimed
+        // promoter guestlists stay on their REST routes — they use the service
+        // client + manual scoping, so they work for native Bearer requests.
         async let groupList: [GroupListItem]? = try? await api.get("/api/groups")
+        async let inviteResp: InvitesResponse? = try? await api.get("/api/promoter-invites/mine")
         do {
             data = try await queries.myBookings()
             state = .loaded
@@ -820,6 +1044,7 @@ final class BookingsViewModel {
             state = .failed(error.localizedDescription)
         }
         groups = (await groupList ?? []).filter { $0.status != "cancelled" }
+        invites = (await inviteResp)?.invites ?? []
         // Re-sync background geofences against the fresh booking list — picks
         // up newly-booked nights and drops cancelled or past ones. No-op when
         // the user hasn't granted Always.
@@ -842,6 +1067,7 @@ final class BookingsViewModel {
         return data.bookings.filter { $0.bookingDate == today && $0.status != "cancelled" }.map(Item.booking)
             + data.guestSignups.filter { $0.guestList?.eventDate == today && $0.checkedIn != true && $0.status != "cancelled" }.map(Item.signup)
             + data.ticketOrders.filter { $0.eventDate == today && $0.status != "payment_failed" }.map(Item.ticket)
+            + invites.filter { $0.nightDate == today && $0.checkedInAt == nil }.map(Item.invite)
     }
 
     var upcoming: [Item] {
@@ -850,6 +1076,7 @@ final class BookingsViewModel {
         return data.bookings.filter { $0.bookingDate > today && $0.status != "cancelled" }.map(Item.booking)
             + data.guestSignups.filter { ($0.guestList?.eventDate ?? "") > today && $0.checkedIn != true && $0.status != "cancelled" }.map(Item.signup)
             + data.ticketOrders.filter { $0.status != "payment_failed" && ($0.eventDate == nil || $0.eventDate! > today) }.map(Item.ticket)
+            + invites.filter { $0.nightDate > today && $0.checkedInAt == nil }.map(Item.invite)
     }
 
     var past: [Item] {
@@ -858,9 +1085,31 @@ final class BookingsViewModel {
         return data.bookings.filter { $0.bookingDate < today || $0.status == "cancelled" }.map(Item.booking)
             + data.guestSignups.filter { $0.guestList == nil || ($0.guestList?.eventDate ?? "") < today || $0.checkedIn == true || $0.status == "cancelled" }.map(Item.signup)
             + data.ticketOrders.filter { $0.status != "payment_failed" && ($0.eventDate ?? "9999") < today }.map(Item.ticket)
+            + invites.filter { $0.nightDate < today || $0.checkedInAt != nil }.map(Item.invite)
     }
 
     var hasPast: Bool { !past.isEmpty }
+
+    /// Newest created_at across upcoming items — drives the "re-ask once per
+    /// new booking" arrival-prompt rule.
+    var newestUpcomingCreation: Date? {
+        let stamps: [String] = upcoming.compactMap {
+            switch $0 {
+            case .booking(let b): b.createdAt
+            case .signup(let s):  s.createdAt
+            case .ticket(let t):  t.createdAt
+            case .invite:         nil
+            }
+        }
+        return stamps.compactMap(Self.parseISO).max()
+    }
+
+    private static func parseISO(_ value: String) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: value) { return date }
+        return ISO8601DateFormatter().date(from: value)
+    }
 
     /// All bookings the page currently knows about — used by the deep-link
     /// listener so a notification tap can match the right booking.
@@ -948,4 +1197,11 @@ final class BookingsViewModel {
             toast = nil
         }
     }
+}
+
+/// Continuous horizontal progress of the Tickets/Reviews pager (0…1),
+/// published every frame of the swipe via the content's minX.
+private struct PagerProgressKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }

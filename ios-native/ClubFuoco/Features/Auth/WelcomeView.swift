@@ -5,6 +5,7 @@ enum AuthRoute: Hashable {
     case login
     case signup
     case completeProfile
+    case forgotPassword
 }
 
 /// Container for the signed-out experience: dark splash → login / signup /
@@ -33,6 +34,8 @@ struct AuthFlowView: View {
                         SignupView(path: $path)
                     case .completeProfile:
                         CompleteProfileView()
+                    case .forgotPassword:
+                        ForgotPasswordView(path: $path)
                     }
                 }
         }

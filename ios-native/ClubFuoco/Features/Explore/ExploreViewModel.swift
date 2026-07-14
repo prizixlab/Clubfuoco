@@ -40,7 +40,11 @@ final class ExploreViewModel {
         self.api = api
     }
 
-    func load() async {
+    /// Loads the feed and builds shelves BEFORE flipping state to .loaded —
+    /// otherwise the feed renders with empty shelves for the seconds the
+    /// custom-shelves/rumbas requests are still in flight, flashing the
+    /// "No clubs found nearby" empty state.
+    func load(planDate: String, t: (String) -> String) async {
         guard let queries, let api else { return }
         if places.isEmpty { state = .loading }
 
@@ -48,6 +52,7 @@ final class ExploreViewModel {
         async let shelves: [CustomShelfRecord]? = try? await api.get("/api/explore/shelves")
         async let activeRumbas: [Rumba]? = try? await api.get("/api/rumbas")
 
+        var loadError: String?
         do {
             var loaded = try await queries.nearbyClubs(
                 lat: Self.barcelona.lat, lng: Self.barcelona.lng, radius: 8000
@@ -58,14 +63,20 @@ final class ExploreViewModel {
                 )
             }
             places = loaded
-            state = .loaded
         } catch {
-            state = .failed(error.localizedDescription)
+            loadError = error.localizedDescription
         }
 
         saved = await favorites
         customShelves = await shelves ?? []
         rumbas = await activeRumbas ?? []
+
+        if let loadError {
+            state = .failed(loadError)
+        } else {
+            rebuildShelves(planDate: planDate, t: t)
+            state = .loaded
+        }
     }
 
     /// Feed scoped to venues open on the planned night, the active chip, and
@@ -77,10 +88,19 @@ final class ExploreViewModel {
     }
 
     var searchResults: [Place] {
-        guard !search.isEmpty else { return [] }
-        let q = search.lowercased()
-        return places.filter {
-            $0.name.lowercased().contains(q) || $0.address.lowercased().contains(q)
+        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return [] }
+        return places.filter { place in
+            if place.name.lowercased().contains(q) { return true }
+            if place.address.lowercased().contains(q) { return true }
+            if place.neighborhood?.lowercased().contains(q) == true { return true }
+            // Genres + tags are snake_case ("live_music", "beach_club") —
+            // match the raw value AND the spaced form so "house music",
+            // "shisha", "club" etc. all hit.
+            return (place.musicGenres + place.tags).contains { value in
+                let v = value.lowercased()
+                return v.contains(q) || v.replacingOccurrences(of: "_", with: " ").contains(q)
+            }
         }
     }
 

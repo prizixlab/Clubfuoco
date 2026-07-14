@@ -91,6 +91,28 @@ struct GroupDetail: Decodable, Sendable {
     let unitPrice: Double
     let members: [GroupMember]
     let me: GroupMember?
+    let unreadCount: Int?   // optional so detail still decodes pre-deploy; treat nil as 0
+}
+
+struct GroupMessage: Decodable, Identifiable, Sendable, Equatable {
+    let id: UUID
+    let userId: UUID
+    let senderName: String?
+    let senderAvatarUrl: String?
+    let body: String
+    let createdAt: String
+    let isMine: Bool
+
+    var initials: String {
+        let parts = (senderName ?? "").split(separator: " ")
+        let chars = parts.prefix(2).compactMap { $0.first.map(String.init) }
+        return chars.isEmpty ? "?" : chars.joined().uppercased()
+    }
+
+    /// First name for the small sender label above others' bubbles.
+    var shortName: String {
+        (senderName ?? "").split(separator: " ").first.map(String.init) ?? "Someone"
+    }
 }
 
 struct GroupJoinResult: Decodable, Sendable {

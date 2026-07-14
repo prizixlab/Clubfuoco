@@ -33,6 +33,7 @@ struct UserProfile: Decodable, Sendable {
     let phone: String?
     let birthday: String?
     let gender: String?
+    let avatarUrl: String?
     let accountType: AccountType?
     let accountKind: String?      // 'user' | 'promoter' — promoters can't use this app
     let role: String?
@@ -42,11 +43,12 @@ struct UserProfile: Decodable, Sendable {
     /// Same completeness rule routeAfterOAuth() applies before allowing the
     /// user past /complete-profile. Gender was added 2026-06-22 for guest-list
     /// payout settlement — existing rows without one re-enter complete-profile
-    /// on next launch (see RootView's gate).
+    /// on next launch (see RootView's gate). Phone is OPTIONAL (2026-07-05) —
+    /// it must not gate entry, or phone-less users bounce into
+    /// complete-profile on every launch.
     var isComplete: Bool {
         fullName?.isEmpty == false && email?.isEmpty == false
-            && phone?.isEmpty == false && birthday?.isEmpty == false
-            && gender?.isEmpty == false
+            && birthday?.isEmpty == false && gender?.isEmpty == false
     }
 }
 

@@ -172,7 +172,7 @@ struct SignupView: View {
                     .font(.cfSans(16))
             }
 
-            AuthField(label: locale.t("settings.phone")) {
+            AuthField(label: locale.t("auth.phoneOptional")) {
                 PhoneNumberField(phone: $phone)
             }
 
@@ -321,18 +321,15 @@ struct SignupView: View {
             errorMessage = locale.t("signup.tosError")
             return
         }
+        // Phone is optional — validate uniqueness only when one was given.
         let trimmedPhone = phone.trimmingCharacters(in: .whitespaces)
-        guard !trimmedPhone.isEmpty else {
-            errorMessage = locale.t("signup.phoneError")
-            return
-        }
         loading = true
         errorMessage = nil
         Task {
             // Pre-flight phone check — fail fast before Supabase creates the
             // auth user. (Email duplication is detected from Supabase's signUp
             // response below, since it has authoritative knowledge there.)
-            if await auth.phoneIsTaken(trimmedPhone) {
+            if !trimmedPhone.isEmpty, await auth.phoneIsTaken(trimmedPhone) {
                 Haptics.error()
                 errorMessage = locale.t("signup.phoneTakenError")
                 loading = false

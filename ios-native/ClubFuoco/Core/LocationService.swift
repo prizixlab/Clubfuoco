@@ -38,6 +38,9 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
     private var pending: CheckedContinuation<CLLocation, Error>?
     private var timeoutTask: Task<Void, Never>?
+    /// Continuations parked in `waitForAuthorizationChange` — resumed by the
+    /// authorization delegate callback, or individually on timeout.
+    private var authWaiters: [UUID: CheckedContinuation<Void, Never>] = [:]
 
     /// Geofence radius in metres. iOS clamps to the hardware floor (~100m) and
     /// CLLocationManager.maximumRegionMonitoringDistance ceiling.
@@ -73,6 +76,22 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
 
     var authorizationStatus: CLAuthorizationStatus { manager.authorizationStatus }
 
+    /// Suspends until CoreLocation reports an authorization change, or
+    /// `seconds` elapses. The honest replacement for fixed sleeps while the
+    /// user reads a system permission dialog — people routinely take far
+    /// longer than any hardcoded delay, and acting while the dialog is still
+    /// up makes iOS silently drop follow-up authorization requests.
+    func waitForAuthorizationChange(seconds: Double) async {
+        let id = UUID()
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            authWaiters[id] = cont
+            Task { [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                self?.authWaiters.removeValue(forKey: id)?.resume()
+            }
+        }
+    }
+
     /// Read the device's current location. Triggers WhenInUse the first time.
     func currentLocation() async throws -> CLLocation {
         switch manager.authorizationStatus {
@@ -80,8 +99,13 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         case .restricted: throw LocationError.restricted
         case .notDetermined:
             manager.requestWhenInUseAuthorization()
-            try await Task.sleep(nanoseconds: 600_000_000)
-            if manager.authorizationStatus == .denied { throw LocationError.denied }
+            // Wait for the user's actual answer to the dialog, not a timer.
+            await waitForAuthorizationChange(seconds: 60)
+            switch manager.authorizationStatus {
+            case .denied, .notDetermined: throw LocationError.denied
+            case .restricted:             throw LocationError.restricted
+            default: break
+            }
         default: break
         }
 
@@ -213,6 +237,11 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         Task { @MainActor in
+            // Wake anyone waiting on the user's dialog answer first, then
+            // sync fences under the new status.
+            let waiters = self.authWaiters
+            self.authWaiters.removeAll()
+            for (_, cont) in waiters { cont.resume() }
             await self.syncGeofences()
         }
     }

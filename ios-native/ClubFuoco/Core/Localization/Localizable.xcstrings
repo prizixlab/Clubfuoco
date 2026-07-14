@@ -4258,6 +4258,22 @@
         }
       }
     },
+    "profile.bookingsCountOne": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d booking"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d reserva"
+          }
+        }
+      }
+    },
     "profile.savedClubs": {
       "localizations": {
         "en": {
@@ -4718,6 +4734,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Amigos"
+          }
+        }
+      }
+    },
+    "friends.added": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadido"
           }
         }
       }
@@ -5246,6 +5278,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tu noche de grupo en Club Fuoco. Muestra tu pase en la puerta."
+          }
+        }
+      }
+    },
+    "groupChat.open": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Group chat"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat del grupo"
+          }
+        }
+      }
+    },
+    "groupChat.subtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sort the meet-up, times, running late"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Organiza el punto de encuentro y la hora"
+          }
+        }
+      }
+    },
+    "groupChat.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No messages yet — say hi 👋"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aún no hay mensajes — saluda 👋"
+          }
+        }
+      }
+    },
+    "groupChat.placeholder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Message the group…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escribe al grupo…"
           }
         }
       }
@@ -6919,13 +7015,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Valid for this night only, while the venue keeps accepting Rumbalist."
+            "value": "Valid for this night only, while the venue keeps accepting the guest list."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Válido solo para esta noche, mientras el local siga aceptando Rumbalist."
+            "value": "Válido solo para esta noche, mientras el local siga aceptando la lista."
           }
         }
       }
@@ -6967,13 +7063,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Free Guestlist with"
+            "value": "Join Free Guestlist"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lista gratis con"
+            "value": "Únete a la lista gratis"
           }
         }
       }
@@ -7591,13 +7687,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tonight with Rumbalist"
+            "value": "Tonight"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Esta noche con Rumbalist"
+            "value": "Esta noche"
           }
         }
       }

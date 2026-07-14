@@ -29,9 +29,12 @@ struct RumbalistOfferSheet: View {
         ZStack {
             Self.ink.ignoresSafeArea()
             VStack(spacing: 0) {
-                // Pink top rule + lockup
-                Rectangle().fill(RumbalistMark.pink).frame(height: 2)
-                RumbalistMark(height: 22)
+                // Club Fuoco top rule + wordmark
+                Rectangle().fill(Theme.ember).frame(height: 2)
+                Text("CLUB FUOCO")
+                    .font(.cfSans(15, weight: .semibold))
+                    .kerning(3)
+                    .foregroundStyle(Self.textColor)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 18)
 
@@ -44,6 +47,10 @@ struct RumbalistOfferSheet: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        // A join/group request mid-flight must not be swiped into the void —
+        // the model (and its error message) die with the sheet, so a slow
+        // request would fail invisibly and look like a silent no-op.
+        .interactiveDismissDisabled(model.busy)
     }
 
     // ── Review ────────────────────────────────────────────────────────────────
@@ -93,14 +100,14 @@ struct RumbalistOfferSheet: View {
                 // Details card
                 VStack(spacing: 0) {
                     detailRow(offer.isVip ? locale.t("rumbalist.payTo") : locale.t("rumbalist.operator")) {
-                        HStack(spacing: 4) {
-                            Text(locale.t("rumbalist.via")).foregroundStyle(Self.textColor)
-                            RumbalistMark(height: 11)
-                        }
+                        Text("Club Fuoco").foregroundStyle(Self.textColor)
                     }
                     divider
                     detailRow(locale.t("rumbalist.venue")) { Text(venueName).foregroundStyle(Self.textColor) }
                     detailRow(locale.t("rumbalist.address"), small: true) { Text(venueAddress).foregroundStyle(Self.textColor.opacity(0.7)) }
+                    // The night being booked — mirrors the When planner, so
+                    // what you confirm is what gets booked.
+                    detailRow(locale.t("rumbalist.date")) { Text(confirmedDateText).foregroundStyle(Self.textColor) }
                     divider
                     detailRow(localizedTitle, small: true) { Text(offer.subtitle).foregroundStyle(Self.textColor.opacity(0.7)) }
                     detailRow(locale.t("rumbalist.valid"), small: true) { Text(offer.validDays).foregroundStyle(Self.textColor.opacity(0.7)) }
@@ -115,6 +122,8 @@ struct RumbalistOfferSheet: View {
                 .padding(.init(top: 14, leading: 16, bottom: 14, trailing: 16))
                 .background(.white.opacity(0.05), in: .rect(cornerRadius: 14))
                 .padding(.top, 22)
+
+                supplierCredit
 
                 if let error = model.errorMessage {
                     Text(error)
@@ -136,10 +145,7 @@ struct RumbalistOfferSheet: View {
                                 Label(locale.t("rumbalist.pay"), systemImage: "applelogo")
                             }
                         } else {
-                            HStack(spacing: 8) {
-                                Text(locale.t("rumbalist.freeGuestlistWith"))
-                                RumbalistMark(height: 17, animated: false)
-                            }
+                            Text(locale.t("rumbalist.freeGuestlistWith"))
                         }
                     }
                     .font(.cfSans(16, weight: .semibold))
@@ -180,7 +186,9 @@ struct RumbalistOfferSheet: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 48)
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.18)))
+                        .opacity(model.busy ? 0.55 : 1)
                     }
+                    .disabled(model.busy)
                     .padding(.top, 14)
 
                     Text(locale.t("rumbalist.bringCrewNote"))
@@ -217,6 +225,40 @@ struct RumbalistOfferSheet: View {
         Rectangle().fill(.white.opacity(0.08)).frame(height: 1).padding(.vertical, 3)
     }
 
+    /// Contractual supplier credit ("Guestlist by Rumba") — data-driven from
+    /// /api/partner via the Partner Portal, rendered only when the active
+    /// supplier's contract requires it. A small subordinate line: the Club
+    /// Fuoco lockup above stays dominant, and the supplier's mark is confined
+    /// to this credit.
+    @ViewBuilder
+    private var supplierCredit: some View {
+        if let brand = RumbalistOffers.brand, brand.attributionRequired {
+            HStack(spacing: 6) {
+                Text(brand.attributionLabel ?? "Guestlist by")
+                    .font(.cfSans(11))
+                    .foregroundStyle(Self.textColor.opacity(0.5))
+                if let url = brand.logoURL {
+                    AsyncImage(url: url) { image in
+                        image.resizable().scaledToFit()
+                    } placeholder: {
+                        supplierName(brand.name)
+                    }
+                    .frame(height: 12)
+                } else {
+                    supplierName(brand.name)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 14)
+        }
+    }
+
+    private func supplierName(_ name: String) -> some View {
+        Text(name)
+            .font(.cfSans(11, weight: .semibold))
+            .foregroundStyle(Self.textColor.opacity(0.72))
+    }
+
     // ── Pass / confirmation ───────────────────────────────────────────────────
 
     private func passStep(_ booking: RumbalistBookingResult) -> some View {
@@ -225,7 +267,7 @@ struct RumbalistOfferSheet: View {
                 VStack(spacing: 16) {
                     Image(systemName: "checkmark.seal.fill")
                         .font(.system(size: 40))
-                        .foregroundStyle(RumbalistMark.pink)
+                        .foregroundStyle(Theme.ember)
                         .padding(.top, 4)
                     Text(offer.isVip ? locale.t("rumbalist.tableBooked") : locale.t("rumbalist.onDoorList"))
                         .font(.cfSerif(24, italic: true))
@@ -285,6 +327,8 @@ struct RumbalistOfferSheet: View {
                         .foregroundStyle(Self.textColor.opacity(0.45))
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
+
+                    supplierCredit
 
                     // Add to Wallet / Calendar
                     VStack(spacing: 10) {
@@ -379,9 +423,9 @@ struct RumbalistOfferSheet: View {
     private func confirm() {
         Haptics.tap()
         if offer.isVip {
-            model.payVip(offer: offer, clubId: clubId, venueName: venueName, api: api)
+            model.payVip(offer: offer, clubId: clubId, venueName: venueName, bookingDate: plan.date, api: api)
         } else {
-            model.joinFree(clubId: clubId, venueName: venueName, api: api)
+            model.joinFree(clubId: clubId, venueName: venueName, bookingDate: plan.date, api: api)
         }
     }
 }
@@ -400,7 +444,7 @@ final class RumbalistOfferModel {
     private(set) var confirmation: RumbalistBookingResult?
     var errorMessage: String?
 
-    func joinFree(clubId: String, venueName: String, api: APIClient) {
+    func joinFree(clubId: String, venueName: String, bookingDate: String, api: APIClient) {
         busy = true
         errorMessage = nil
         Task {
@@ -409,10 +453,11 @@ final class RumbalistOfferModel {
                     let clubId: String
                     let venueName: String
                     let productName: String
+                    let bookingDate: String
                 }
                 let result: RumbalistBookingResult = try await api.post(
                     "/api/rumbalist/join-guestlist",
-                    body: Body(clubId: clubId, venueName: venueName, productName: "Free Guestlist")
+                    body: Body(clubId: clubId, venueName: venueName, productName: "Free Guestlist", bookingDate: bookingDate)
                 )
                 Haptics.success()
                 confirmation = result
@@ -460,7 +505,7 @@ final class RumbalistOfferModel {
         }
     }
 
-    func payVip(offer: RumbalistOffer, clubId: String, venueName: String, api: APIClient) {
+    func payVip(offer: RumbalistOffer, clubId: String, venueName: String, bookingDate: String, api: APIClient) {
         guard let price = offer.priceEur else { return }
         busy = true
         errorMessage = nil
@@ -490,11 +535,12 @@ final class RumbalistOfferModel {
                     let clubId: String
                     let venueName: String
                     let productName: String
+                    let bookingDate: String
                 }
                 let result: RumbalistBookingResult = try await api.post(
                     "/api/rumbalist/confirm-vip",
                     body: ConfirmBody(paymentIntentId: intent.paymentIntentId, clubId: clubId,
-                                      venueName: venueName, productName: "VIP Table")
+                                      venueName: venueName, productName: "VIP Table", bookingDate: bookingDate)
                 )
                 Haptics.success()
                 confirmation = result

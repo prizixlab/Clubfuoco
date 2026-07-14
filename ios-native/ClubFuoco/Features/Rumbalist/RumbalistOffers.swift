@@ -20,6 +20,20 @@ struct RumbalistOffer: Identifiable, Hashable {
     var isVip: Bool { kind == .vipTable }
 }
 
+/// The active offer supplier's identity from GET /api/partner. Suppliers are
+/// offer providers, not the face of the app — Club Fuoco stays the brand.
+/// When `attributionRequired` (a contract clause, set per supplier in the
+/// Partner Portal), the booking sheet shows a small subordinate credit:
+/// "\(attributionLabel) \(name)", e.g. "Guestlist by Rumba".
+struct PartnerBrand: Hashable, Sendable {
+    let key: String
+    let name: String
+    let logoURL: URL?
+    let color: String
+    let attributionRequired: Bool
+    let attributionLabel: String?
+}
+
 enum RumbalistOffers {
     private static func free(_ subtitle: String, _ music: String, _ dress: String,
                              days: String = "Sun – Fri",
@@ -38,7 +52,9 @@ enum RumbalistOffers {
     }
 
     /// clubs.id (lowercased) → offers.
-    static let byClub: [String: [RumbalistOffer]] = [
+    /// Bundled fallback so offers render instantly / offline on first launch.
+    /// Replaced at runtime by `refresh(api:)` with the live set from the backend.
+    static let bundledByClub: [String: [RumbalistOffer]] = [
         // Opium Barcelona
         "b3f7747f-d911-490d-a688-d04add6a1c8b": [
             free("Free till 1:00 AM", "R&B · Hip Hop · Commercial House · Reggaeton", "Elegant — no sneakers or sportswear", days: "Every night"),
@@ -86,7 +102,74 @@ enum RumbalistOffers {
         ],
     ]
 
+    /// Live offer catalog, keyed by lowercased club id. Seeded from the bundle,
+    /// swapped in by `refresh(api:)` (written on the main actor at launch and
+    /// on each app-foreground).
+    nonisolated(unsafe) private(set) static var byClub: [String: [RumbalistOffer]] = bundledByClub
+
+    /// The active supplier's brand (credit line data). nil until the first
+    /// successful refresh — no bundled fallback: with no live data we show no
+    /// supplier credit rather than risk crediting the wrong partner.
+    nonisolated(unsafe) private(set) static var brand: PartnerBrand?
+
     static func offers(for clubId: String) -> [RumbalistOffer] {
         byClub[clubId.lowercased()] ?? []
+    }
+
+    // ── Backend feed ────────────────────────────────────────────────────────
+    // The active partner's offers from GET /api/partner. Keeps the catalog
+    // editable (and swappable) without an app release; falls back to the bundle.
+
+    private struct Response: Decodable, Sendable {
+        let brand: BrandDTO?
+        let offersByClub: [String: [OfferDTO]]
+    }
+    private struct BrandDTO: Decodable, Sendable {
+        let key: String
+        let name: String
+        let logoUrl: String?
+        let color: String
+        // Optional: an API deploy that predates the attribution migration
+        // doesn't send these — default to "no credit required".
+        let attributionRequired: Bool?
+        let attributionLabel: String?
+
+        var model: PartnerBrand {
+            PartnerBrand(
+                key: key, name: name,
+                logoURL: logoUrl.flatMap(URL.init(string:)),
+                color: color,
+                attributionRequired: attributionRequired ?? false,
+                attributionLabel: attributionLabel)
+        }
+    }
+    private struct OfferDTO: Decodable, Sendable {
+        let kind: String
+        let title: String
+        let subtitle: String
+        let priceEur: Double?
+        let partySize: Int?
+        let timeWindow: String
+        let validDays: String
+        let dressCode: String
+        let music: String
+
+        var model: RumbalistOffer {
+            RumbalistOffer(
+                kind: kind == "vip_table" ? .vipTable : .freeGuestlist,
+                title: title, subtitle: subtitle, priceEur: priceEur, partySize: partySize,
+                timeWindow: timeWindow, validDays: validDays, dressCode: dressCode, music: music)
+        }
+    }
+
+    @MainActor
+    static func refresh(api: APIClient) async {
+        guard let resp: Response = try? await api.get("/api/partner") else { return }
+        brand = resp.brand?.model
+        let mapped = resp.offersByClub.reduce(into: [String: [RumbalistOffer]]()) { acc, pair in
+            acc[pair.key.lowercased()] = pair.value.map(\.model)
+        }
+        guard !mapped.isEmpty else { return }   // keep bundle if backend is empty
+        byClub = mapped
     }
 }

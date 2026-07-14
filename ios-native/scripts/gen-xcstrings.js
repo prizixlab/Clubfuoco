@@ -224,6 +224,7 @@ const NATIVE_KEYS = {
   'profile.prefsSection': { en: 'N° 03 · Preferenze', es: 'N° 03 · Preferenze' },
   'profile.myBookings': { en: 'My Bookings', es: 'Mis reservas' },
   'profile.bookingsCount': { en: '%d bookings', es: '%d reservas' },
+  'profile.bookingsCountOne': { en: '%d booking', es: '%d reserva' },
   'profile.savedClubs': { en: 'Saved Clubs', es: 'Clubs guardados' },
   'profile.savedCount': { en: '%d saved', es: '%d guardados' },
   'profile.friends': { en: 'Friends', es: 'Amigos' },
@@ -255,6 +256,7 @@ const NATIVE_KEYS = {
   'friends.pending': { en: 'Pending', es: 'Pendiente' },
   'friends.requested': { en: 'Requested', es: 'Solicitado' },
   'friends.friends': { en: 'Friends', es: 'Amigos' },
+  'friends.added': { en: 'Added', es: 'Añadido' },
   'friends.empty': {
     en: 'No friends yet — search above to add people you go out with.',
     es: 'Aún no tienes amigos — busca arriba para añadir a la gente con la que sales.',
@@ -302,6 +304,12 @@ const NATIVE_KEYS = {
     en: 'Your Club Fuoco group night. Show your pass at the door.',
     es: 'Tu noche de grupo en Club Fuoco. Muestra tu pase en la puerta.',
   },
+
+  // Group chat
+  'groupChat.open': { en: 'Group chat', es: 'Chat del grupo' },
+  'groupChat.subtitle': { en: 'Sort the meet-up, times, running late', es: 'Organiza el punto de encuentro y la hora' },
+  'groupChat.empty': { en: 'No messages yet — say hi 👋', es: 'Aún no hay mensajes — saluda 👋' },
+  'groupChat.placeholder': { en: 'Message the group…', es: 'Escribe al grupo…' },
 
   // Rumbas (hardcoded EN on web)
   'rumba.spotsLeft': { en: '%d spots left', es: '%d plazas libres' },
@@ -437,12 +445,12 @@ const NATIVE_KEYS = {
   'rumbalist.validNight': { en: '%@ only', es: 'Solo %@' },
   'rumbalist.worksUntil': { en: 'Works until %@', es: 'Válido hasta %@' },
   'rumbalist.validNote': {
-    en: 'Valid for this night only, while the venue keeps accepting Rumbalist.',
-    es: 'Válido solo para esta noche, mientras el local siga aceptando Rumbalist.',
+    en: 'Valid for this night only, while the venue keeps accepting the guest list.',
+    es: 'Válido solo para esta noche, mientras el local siga aceptando la lista.',
   },
   'rumbalist.total': { en: 'Total', es: 'Total' },
   'rumbalist.free': { en: 'Free', es: 'Gratis' },
-  'rumbalist.freeGuestlistWith': { en: 'Free Guestlist with', es: 'Lista gratis con' },
+  'rumbalist.freeGuestlistWith': { en: 'Join Free Guestlist', es: 'Únete a la lista gratis' },
   'rumbalist.openingApplePay': { en: 'Opening Apple Pay…', es: 'Abriendo Apple Pay…' },
   'rumbalist.pay': { en: 'Pay', es: 'Pagar' },
   'rumbalist.freeFooter': {
@@ -499,7 +507,7 @@ const NATIVE_KEYS = {
   'detail.seeHours': { en: 'See hours', es: 'Ver horario' },
 
   // Shelf titles/subtitles (hardcoded EN on web; native subset)
-  'shelf.hero.title': { en: 'Tonight with Rumbalist', es: 'Esta noche con Rumbalist' },
+  'shelf.hero.title': { en: 'Tonight', es: 'Esta noche' },
   'shelf.hero.sub': { en: 'Free guestlists & VIP tables', es: 'Listas gratis y mesas VIP' },
   'shelf.top_rated.title': { en: 'Highest Rated', es: 'Mejor valorados' },
   'shelf.top_rated.sub': { en: 'The crowd has spoken', es: 'El público ha hablado' },

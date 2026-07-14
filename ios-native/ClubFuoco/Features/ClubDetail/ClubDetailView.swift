@@ -9,6 +9,7 @@ struct ClubDetailView: View {
     let place: Place
     @Environment(AuthStore.self) private var auth
     @Environment(LocaleStore.self) private var locale
+    @Environment(PlanStore.self) private var plan
     @Environment(\.dismiss) private var dismiss
     @State private var detail: PlaceDetail?
     @State private var hoursOpen = false
@@ -16,6 +17,7 @@ struct ClubDetailView: View {
     @State private var showGuestGate = false
     @State private var activeOffer: RumbalistOffer?
     @State private var planGroup: GroupRef?
+    @State private var photoViewer: PhotoIndex?
 
     private var offers: [RumbalistOffer] { RumbalistOffers.offers(for: place.placeId) }
 
@@ -58,6 +60,9 @@ struct ClubDetailView: View {
         .sheet(item: $planGroup) { ref in
             NavigationStack { GroupDetailView(groupId: ref.id, presentedModally: true) }
                 .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(item: $photoViewer) { idx in
+            PhotoViewer(photos: photos, startIndex: idx.value)
         }
         .task {
             detail = try? await auth.queries.clubById(place.placeId)
@@ -142,6 +147,12 @@ struct ClubDetailView: View {
             .padding(.init(top: 0, leading: 20, bottom: 44, trailing: 20))
         }
         .frame(height: heroHeight)
+        .contentShape(.rect)
+        .onTapGesture {
+            guard !photos.isEmpty else { return }
+            Haptics.tap()
+            photoViewer = PhotoIndex(value: 0)
+        }
     }
 
     private var backButton: some View {
@@ -276,6 +287,8 @@ struct ClubDetailView: View {
                 .font(.cfMono(9))
                 .kerning(1.6)
                 .foregroundStyle(Theme.fadedSand)
+            // No attribution line — "— <club name>" read as if the club wrote
+            // its own pitch.
             Text("“\(description)”")
                 .font(.cfSerif(18, italic: true))
                 .foregroundStyle(Theme.stone)
@@ -284,10 +297,6 @@ struct ClubDetailView: View {
                 .overlay(alignment: .leading) {
                     Rectangle().fill(Color(hex: 0x221E1A).opacity(0.16)).frame(width: 2)
                 }
-            Text("— \(place.name)")
-                .font(.cfSans(10))
-                .foregroundStyle(Theme.fadedSand)
-                .padding(.leading, 14)
         }
     }
 
@@ -323,7 +332,11 @@ struct ClubDetailView: View {
                     .font(.cfMono(9))
                     .kerning(1.8)
                     .foregroundStyle(Theme.fadedSand)
-                Text(locale.t("rumbalist.tonightOptions"))
+                // Tracks the When planner — "Tonight's options" only when the
+                // planned night IS tonight, otherwise the selected day.
+                Text(plan.date <= PlanStore.today()
+                     ? locale.t("rumbalist.tonightOptions")
+                     : String(format: locale.t("rumbalist.optionsFor"), plan.nightPhrase(locale: locale)))
                     .font(.cfSerif(22, italic: true))
                     .foregroundStyle(Theme.ink)
             }
@@ -371,11 +384,6 @@ struct ClubDetailView: View {
                         .foregroundStyle(offer.isVip ? ink : Theme.ink)
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
-                    Text(locale.t("rumbalist.with"))
-                        .font(.cfSans(12))
-                        .foregroundStyle((offer.isVip ? ink : Theme.ink).opacity(0.7))
-                        .fixedSize()
-                    RumbalistMark(height: 13)
                 }
                 Text(offer.subtitle)
                     .font(.cfSans(12))
@@ -422,15 +430,21 @@ struct ClubDetailView: View {
                 .padding(.horizontal, 20)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(Array(photos.dropFirst()), id: \.self) { url in
-                        Color(hex: 0xEFE9DD)
-                            .overlay {
-                                if let parsed = URL(string: url) {
-                                    CachedAsyncImage(url: parsed) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                    ForEach(Array(photos.dropFirst().enumerated()), id: \.offset) { i, url in
+                        Button {
+                            Haptics.tap()
+                            photoViewer = PhotoIndex(value: i + 1)
+                        } label: {
+                            Color(hex: 0xEFE9DD)
+                                .overlay {
+                                    if let parsed = URL(string: url) {
+                                        CachedAsyncImage(url: parsed) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                                    }
                                 }
-                            }
-                            .frame(width: 140, height: 100)
-                            .clipShape(.rect(cornerRadius: 12))
+                                .frame(width: 140, height: 100)
+                                .clipShape(.rect(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -600,4 +614,10 @@ struct FlowLayout: Layout {
             lineHeight = max(lineHeight, size.height)
         }
     }
+}
+
+/// Identifiable index for the fullscreen photo viewer cover.
+private struct PhotoIndex: Identifiable {
+    let value: Int
+    var id: Int { value }
 }

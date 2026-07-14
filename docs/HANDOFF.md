@@ -97,12 +97,12 @@ supplier variants of Tonight (venues live tonight) + Guestlist (offer manager)
    emits a canonical string, but legacy/free-form data still relies on the
    parser (handles "Every night", comma lists, ranges "Thu – Sun").
 
-**Note:** the whole `ios-promoters` tree has **uncommitted working-tree
-changes** (supplier feature, approval screens, day-picker). It builds
-(`xcodebuild ... BUILD SUCCEEDED`) and is installed on Yakov's iPhone
-(`00008101-001424640131003A`) but is **not committed** — ships on the next
-promoter-app build. Project uses **XcodeGen** (`ios-promoters/project.yml`);
-run `xcodegen generate` after adding files.
+**Note:** the supplier feature, approval screens, and day-picker are
+**committed** on `main` (`4af0755`), build clean (`xcodebuild ... BUILD
+SUCCEEDED`), and are installed on Yakov's iPhone (`00008101-001424640131003A`).
+Not yet pushed/released — ships on the next promoter-app build. Project uses
+**XcodeGen** (`ios-promoters/project.yml`); run `xcodegen generate` after
+adding files.
 
 ---
 
@@ -191,9 +191,9 @@ joinable. Public discovery feed `/api/nero/events` filters `is_published=true`.
    other consumer surface needs the credit (booking sheet is done).
 3. **Consumer app not audited for its own gaps** this session (discovery,
    search, membership/IAP, notifications) — a dedicated pass is warranted.
-4. **iOS consumer (`ios-native`) also has uncommitted working-tree changes**
-   (attribution credit, palette, share-message emoji removal) — ships next App
-   Store build.
+4. **iOS consumer (`ios-native`) changes are committed** (`18d7da2`:
+   attribution credit, palette, share-message emoji removal) but not yet
+   released — ships next App Store build.
 
 ---
 
@@ -223,9 +223,10 @@ joinable. Public discovery feed `/api/nero/events` filters `is_published=true`.
   linked to `yakov.a.v@icloud.com`; and **Rumba's `login_email` = `test12345@clubfuoco.com`**
   (should be Rumba's real operator address). Delete the test brand + its
   account; set Rumba's real login.
-- **Uncommitted iOS:** ~51 files across `ios-promoters` (supplier + approval
-  features — the bulk) and `ios-native` (attribution/palette/emoji). Both build.
-  Commit + release on the normal cadence.
+- **iOS committed, not released:** `ios-promoters` (supplier + approval,
+  `4af0755`) and `ios-native` (attribution/palette/emoji, `18d7da2`) are on
+  `main` and build clean, but not pushed or shipped. Release on the normal
+  cadence.
 - **Two apps' review-submitted screen** is shared (`ReviewSubmittedScreen`).
 
 ---

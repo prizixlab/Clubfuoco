@@ -379,20 +379,27 @@ struct ClubDetailView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
+                    // No fixedSize — that forced the row wider than the screen
+                    // (horizontal-scroll bug). Shrinks a hair before yielding
+                    // the mark's space; the mark keeps priority so it never
+                    // gets squeezed / wrapped.
                     Text(localizedOfferTitle(offer))
                         .font(.cfSans(14, weight: .semibold))
                         .foregroundStyle(offer.isVip ? ink : Theme.ink)
                         .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
+                        .minimumScaleFactor(0.75)
                     // Credit the supplier — restores the pre-swappable-partner
                     // look ("Free Guestlist with [Rumbalist mark]"). Only when
                     // Rumba is the currently active brand, so a future supplier
                     // swap doesn't leave stale Rumbalist branding on the card.
                     if let brand = RumbalistOffers.brand, brand.key == "rumba" {
                         Text("with")
-                            .font(.cfSans(12))
+                            .font(.cfSans(11))
                             .foregroundStyle((offer.isVip ? ink : Theme.ink).opacity(0.75))
-                        SupplierMark(brand: brand, height: 13, animated: false)
+                            .lineLimit(1)
+                            .fixedSize()
+                        SupplierMark(brand: brand, height: 12, animated: false)
+                            .layoutPriority(1)
                     }
                 }
                 Text(offer.subtitle)

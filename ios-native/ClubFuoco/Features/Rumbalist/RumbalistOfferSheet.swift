@@ -1,11 +1,17 @@
 import SwiftUI
 import Observation
 
-/// Native port of RumbalistBookSheet — the dark, pink-accented sheet that
-/// opens from a venue's Rumbalist offer. Free guestlist joins via
+/// Native port of RumbalistBookSheet — the dark booking sheet that opens
+/// from a venue's supplier offer. Free guestlist joins via
 /// /api/rumbalist/join-guestlist; VIP tables run the Apple Pay flow
 /// (create-vip-intent → confirm on-device → confirm-vip). Ends on a pass
 /// step with the door QR.
+///
+/// When the offer comes from a supplier (the active brand from /api/partner),
+/// the sheet carries that supplier's identity — accent color, top lockup,
+/// "via <mark>" in the details, mark on the free CTA — so Rumba keeps the
+/// pink scheme + wordmark it had before. With no live brand the sheet falls
+/// back to plain Club Fuoco ember.
 struct RumbalistOfferSheet: View {
     let offer: RumbalistOffer
     let clubId: String
@@ -25,18 +31,33 @@ struct RumbalistOfferSheet: View {
     private static let ink = Color(hex: 0x141416)
     private static let textColor = Color(hex: 0xF5F5F7)
 
+    /// The active offer supplier — drives the sheet's branding.
+    private var brand: PartnerBrand? { RumbalistOffers.brand }
+    private var accent: Color {
+        brand.flatMap { Color(hexString: $0.color) } ?? Theme.ember
+    }
+
     var body: some View {
         ZStack {
             Self.ink.ignoresSafeArea()
             VStack(spacing: 0) {
-                // Club Fuoco top rule + wordmark
-                Rectangle().fill(Theme.ember).frame(height: 2)
-                Text("CLUB FUOCO")
-                    .font(.cfSans(15, weight: .semibold))
-                    .kerning(3)
-                    .foregroundStyle(Self.textColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
+                // Top rule + lockup: the supplier's own mark and color when the
+                // offer comes from a supplier (Rumba pink, as before), plain
+                // Club Fuoco otherwise. Club Fuoco stays the operator in the
+                // details card either way.
+                Rectangle().fill(accent).frame(height: 2)
+                Group {
+                    if let brand {
+                        SupplierMark(brand: brand, height: 22)
+                    } else {
+                        Text("CLUB FUOCO")
+                            .font(.cfSans(15, weight: .semibold))
+                            .kerning(3)
+                            .foregroundStyle(Self.textColor)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 18)
 
                 if let booking = model.confirmation {
                     passStep(booking)
@@ -100,7 +121,14 @@ struct RumbalistOfferSheet: View {
                 // Details card
                 VStack(spacing: 0) {
                     detailRow(offer.isVip ? locale.t("rumbalist.payTo") : locale.t("rumbalist.operator")) {
-                        Text("Club Fuoco").foregroundStyle(Self.textColor)
+                        HStack(spacing: 5) {
+                            Text("Club Fuoco").foregroundStyle(Self.textColor)
+                            if let brand {
+                                Text(locale.t("rumbalist.via"))
+                                    .foregroundStyle(Self.textColor.opacity(0.5))
+                                SupplierMark(brand: brand, height: 11, animated: false)
+                            }
+                        }
                     }
                     divider
                     detailRow(locale.t("rumbalist.venue")) { Text(venueName).foregroundStyle(Self.textColor) }
@@ -145,7 +173,12 @@ struct RumbalistOfferSheet: View {
                                 Label(locale.t("rumbalist.pay"), systemImage: "applelogo")
                             }
                         } else {
-                            Text(locale.t("rumbalist.freeGuestlistWith"))
+                            HStack(spacing: 8) {
+                                Text(locale.t("rumbalist.freeGuestlistWith"))
+                                if let brand {
+                                    SupplierMark(brand: brand, height: 17, animated: false)
+                                }
+                            }
                         }
                     }
                     .font(.cfSans(16, weight: .semibold))
@@ -267,7 +300,7 @@ struct RumbalistOfferSheet: View {
                 VStack(spacing: 16) {
                     Image(systemName: "checkmark.seal.fill")
                         .font(.system(size: 40))
-                        .foregroundStyle(Theme.ember)
+                        .foregroundStyle(accent)
                         .padding(.top, 4)
                     Text(offer.isVip ? locale.t("rumbalist.tableBooked") : locale.t("rumbalist.onDoorList"))
                         .font(.cfSerif(24, italic: true))

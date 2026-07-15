@@ -217,6 +217,15 @@ export default function RumbalistBookSheet({
 
   return createPortal(
     <>
+      {/* Supplier wordmark gloss-sweep keyframes — moves the white band from
+          far right through the mask and off the left, then pauses before
+          repeating so the wordmark stays mostly in the brand color with a
+          periodic shine (the pre-refactor Rumbalist treatment). */}
+      <style>{`@keyframes rumbaGloss {
+        0%   { background-position: 100% 0; }
+        55%  { background-position: -60% 0; }
+        100% { background-position: -60% 0; }
+      }`}</style>
       {/* Scrim */}
       <div onClick={step === 'pass' ? close : undefined}
         onTouchMove={e => e.preventDefault()}
@@ -276,13 +285,14 @@ function ReviewStep({ offer, venueName, venueAddress, error, paying, onConfirm, 
 }) {
   const isFree = offer.kind === 'free_guestlist'
   const total  = offer.price_eur ? `€${offer.price_eur.toFixed(2)}` : 'Free'
+  const supplier = useSupplier()
   return (
     <div style={{ padding: '0 22px', color: '#F5F5F7', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         {isFree
           ? <span style={{ fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(245,245,247,0.7)', fontFamily: 'ui-monospace, monospace', display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
-              Free Guestlist
+              Free Guestlist{supplier && <> · <SupplierMark size={12} /></>}
             </span>
           : <ApplePayLogo />}
         <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#fff', borderRadius: 999, width: 30, height: 30, fontSize: 16, cursor: 'pointer' }}>×</button>
@@ -308,9 +318,9 @@ function ReviewStep({ offer, venueName, venueAddress, error, paying, onConfirm, 
       {/* Items */}
       <div style={{ marginTop: 22, background: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: '14px 16px' }}>
         {isFree ? (
-          <Row label="Operator" value="Club Fuoco" />
+          <Row label="Operator" value={supplier ? <>Club Fuoco · via <SupplierMark size={11} /></> : 'Club Fuoco'} />
         ) : (
-          <Row label="Pay to" value="Club Fuoco" />
+          <Row label="Pay to" value={supplier ? <>Club Fuoco · via <SupplierMark size={11} /></> : 'Club Fuoco'} />
         )}
         <Hr />
         <Row label="Venue"   value={venueName} />
@@ -416,9 +426,12 @@ function PassStep({ offer, venueName, venueAddress, date, code, bookingId, onClo
   offer: RumbalistOffer; venueName: string; venueAddress: string;
   date: string; code: string; bookingId: string | null; onClose: () => void
 }) {
-  const PINK      = '#FFB4A2'
-  const PINK_DIM  = 'rgba(255,180,166,0.14)'
-  const PINK_RULE = 'rgba(255,180,166,0.32)'
+  // Accent follows the active supplier (Rumba pink, as before); the soft
+  // salmon stays as the no-supplier fallback.
+  const supplier  = useSupplier()
+  const PINK      = supplier?.color || '#FFB4A2'
+  const PINK_DIM  = hexToRgba(PINK, 0.14)
+  const PINK_RULE = hexToRgba(PINK, 0.32)
 
   // Open the signed .pkpass — the browser downloads it / hands it to Wallet.
   async function addToAppleWallet() {
@@ -439,6 +452,11 @@ function PassStep({ offer, venueName, venueAddress, date, code, bookingId, onClo
         <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 26, letterSpacing: '-0.2px', color: '#F5F5F7' }}>
           Club Fuoco
         </div>
+        {supplier && (
+          <p style={{ margin: '6px 0 0', fontSize: 11, color: 'rgba(245,245,247,0.55)' }}>
+            via <SupplierMark size={11} />
+          </p>
+        )}
       </div>
 
       {/* Success badge */}
@@ -540,6 +558,55 @@ function SupplierCreditLine() {
 }
 
 /* ─── Bits ─────────────────────────────────────────────────────────────── */
+/** The active supplier when one is live — the 'clubfuoco' key is the
+ *  no-supplier fallback baked into PartnerContext. */
+function useSupplier() {
+  const { brand } = usePartner()
+  return brand.key !== 'clubfuoco' ? brand : null
+}
+
+/** The supplier's mark, restoring the branding it had before the swappable-
+ *  partner refactor. Rumba gets the bundled wordmark masking a gloss sweep in
+ *  the brand color; other suppliers get their logo, or their name in the
+ *  brand color. Confined to the booking sheet. */
+function SupplierMark({ size = 18 }: { size?: number }) {
+  const { brand } = usePartner()
+  if (brand.key === 'rumba') {
+    const mask = 'url(/rumbalist-logo.png) no-repeat left center / contain'
+    return (
+      <span
+        aria-label={brand.name}
+        style={{
+          display: 'inline-block',
+          height: size,
+          aspectRatio: '1600 / 325',
+          verticalAlign: '-0.28em',
+          backgroundImage:
+            `linear-gradient(105deg, ${brand.color} 0%, ${brand.color} 38%, #FFFFFF 50%, ${brand.color} 62%, ${brand.color} 100%)`,
+          backgroundSize: '260% 100%',
+          backgroundPosition: '100% 0',
+          WebkitMask: mask,
+          mask,
+          animation: 'rumbaGloss 3.4s ease-in-out infinite',
+        }}
+      />
+    )
+  }
+  if (brand.logo_url) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={brand.logo_url} alt={brand.name} style={{ height: size, verticalAlign: '-0.28em', objectFit: 'contain', maxWidth: size * 6 }} />
+  }
+  return <span style={{ fontWeight: 700, color: brand.color }}>{brand.name}</span>
+}
+
+/** "#RRGGBB" → rgba() at the given alpha; passes anything else through. */
+function hexToRgba(hex: string, alpha: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return hex
+  const v = parseInt(m[1], 16)
+  return `rgba(${(v >> 16) & 255},${(v >> 8) & 255},${v & 255},${alpha})`
+}
+
 function Row({ label, value, bold, small }: { label: string; value: React.ReactNode; bold?: boolean; small?: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, padding: '7px 0' }}>

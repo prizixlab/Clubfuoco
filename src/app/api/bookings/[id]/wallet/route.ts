@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { PKPass } from 'passkit-generator'
 import path from 'path'
 import fs from 'fs'
+import { RUMBALIST_OFFERS } from '@/lib/rumbalist-offers'
 
 // Apple Wallet pass generation
 // Required env vars (all cert values are base64-encoded PEM):
@@ -59,17 +60,29 @@ export async function GET(
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })
 
+  // Rumbalist partner bookings get a Miami-pink pass with the Rumbalist
+  // wordmark in the logo slot. Detected by club id, so this stays in sync
+  // with the rest of the app's Rumbalist routing (the join-guestlist /
+  // create-vip-intent flows only ever book clubs in this same static
+  // catalog) — a historical receipt, so it doesn't chase whichever supplier
+  // brand is active today.
+  const isRumbalist = booking.club_id != null && booking.club_id in RUMBALIST_OFFERS
+
   const passJson = {
     formatVersion:      1,
     passTypeIdentifier: process.env.APPLE_PASS_TYPE_ID!,
     serialNumber:       booking.id,
     teamIdentifier:     process.env.APPLE_TEAM_ID!,
-    organizationName:   'Club Fuoco',
-    description:        `${clubName} ticket`,
+    organizationName:   isRumbalist ? 'Rumbalist' : 'Club Fuoco',
+    description:        isRumbalist ? `${clubName} with Rumbalist` : `${clubName} ticket`,
     foregroundColor:    'rgb(255, 255, 255)',
-    backgroundColor:    'rgb(18, 20, 20)',
-    labelColor:         'rgb(255, 180, 166)',
-    logoText:           'Club Fuoco',
+    backgroundColor:    isRumbalist ? 'rgb(255, 45, 146)' : 'rgb(18, 20, 20)',
+    labelColor:         isRumbalist ? 'rgb(255, 226, 240)' : 'rgb(255, 180, 166)',
+    // Rumbalist passes show the wordmark in the logo image — duplicating it
+    // as logoText would be redundant. We OMIT the key entirely for it;
+    // passkit-generator's Joi schema rejects empty strings (silently — then
+    // type never gets set → "MISSING_TYPE" 500 at close()).
+    ...(isRumbalist ? {} : { logoText: 'Club Fuoco' }),
     eventTicket: {
       primaryFields: [
         { key: 'venue', label: 'VENUE', value: clubName },
@@ -78,9 +91,15 @@ export async function GET(
         { key: 'date',  label: 'DATE',   value: dateStr },
         { key: 'type',  label: 'TICKET', value: booking.booking_type === 'vip' ? 'VIP' : 'General' },
       ],
-      // PAID row only shows when there's an amount — free guestlists would
-      // otherwise show "€0.00" which reads as a glitch.
-      auxiliaryFields: (booking.total_amount ?? 0) > 0
+      // PAID row is dropped on Rumbalist passes — free guestlists would show
+      // "€0.00" which reads as a glitch, and paid VIP tables don't need the
+      // amount on the wallet face. Club Fuoco passes keep it when there's an
+      // amount to show.
+      auxiliaryFields: isRumbalist
+        ? [
+            { key: 'guests', label: 'GUESTS', value: String(booking.party_size) },
+          ]
+        : (booking.total_amount ?? 0) > 0
         ? [
             { key: 'guests', label: 'GUESTS', value: String(booking.party_size) },
             { key: 'paid',   label: 'PAID',   value: `€${(booking.total_amount ?? 0).toFixed(2)}` },
@@ -112,11 +131,14 @@ export async function GET(
 
   const assetsDir = path.join(process.cwd(), 'public', 'pass-assets')
 
-  // Read logo variants with a literal string path so Vercel's static file
-  // tracer bundles them into the serverless function. (Reading via a variable
-  // name skips the tracer → ENOENT on Vercel → 500.)
-  const logoFuoco   = fs.readFileSync(path.join(assetsDir, 'logo.png'))
-  const logoFuoco2x = fs.readFileSync(path.join(assetsDir, 'logo@2x.png'))
+  // Read every logo variant with a literal string path so Vercel's static
+  // file tracer bundles them into the serverless function. (Reading via a
+  // variable name skips the tracer → ENOENT on Vercel → 500.) We pick the
+  // Rumbalist variant only AFTER both are loaded.
+  const logoFuoco       = fs.readFileSync(path.join(assetsDir, 'logo.png'))
+  const logoFuoco2x     = fs.readFileSync(path.join(assetsDir, 'logo@2x.png'))
+  const logoRumbalist   = fs.readFileSync(path.join(assetsDir, 'logo-rumbalist.png'))
+  const logoRumbalist2x = fs.readFileSync(path.join(assetsDir, 'logo-rumbalist@2x.png'))
 
   try {
     const pass = new PKPass(
@@ -125,8 +147,8 @@ export async function GET(
         'icon.png':    fs.readFileSync(path.join(assetsDir, 'icon.png')),
         'icon@2x.png': fs.readFileSync(path.join(assetsDir, 'icon@2x.png')),
         'icon@3x.png': fs.readFileSync(path.join(assetsDir, 'icon@3x.png')),
-        'logo.png':    logoFuoco,
-        'logo@2x.png': logoFuoco2x,
+        'logo.png':    isRumbalist ? logoRumbalist   : logoFuoco,
+        'logo@2x.png': isRumbalist ? logoRumbalist2x : logoFuoco2x,
       },
       {
         wwdr:                Buffer.from(process.env.APPLE_WWDR_PEM!,        'base64'),

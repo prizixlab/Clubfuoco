@@ -42,6 +42,10 @@ final class TonightModel: ObservableObject {
 struct TonightView: View {
     @EnvironmentObject var auth: AuthStore
     @StateObject private var model = TonightModel()
+    @State private var detailAllocation: PromoterAllocation?
+    @State private var navigateTo: PromoterAllocation?
+    @State private var editingAllocation: PromoterAllocation?
+    @State private var pendingDelete: PromoterAllocation?
 
     var body: some View {
         ScrollView {
@@ -63,8 +67,10 @@ struct TonightView: View {
                         Kicker("Upcoming this week").padding(.top, 8)
                         VStack(spacing: 0) {
                             ForEach(model.upcoming) { a in
-                                NavigationLink(value: a) { upcomingRow(a) }
-                                    .buttonStyle(.plain)
+                                Button { Haptics.tap(); detailAllocation = a } label: {
+                                    upcomingRow(a)
+                                }
+                                .buttonStyle(.plain)
                                 Divider().background(Theme.hairline)
                             }
                         }
@@ -91,6 +97,56 @@ struct TonightView: View {
         .refreshable { await model.load() }
         .navigationDestination(for: PromoterAllocation.self) { a in
             GuestlistView(allocation: a)
+        }
+        .navigationDestination(item: $navigateTo) { a in
+            GuestlistView(allocation: a)
+        }
+        .sheet(item: $detailAllocation) { a in
+            NightDetailSheet(
+                allocation: a,
+                onOpenList: { afterSheetDismiss { navigateTo = a } },
+                onEdit: { afterSheetDismiss { editingAllocation = a } },
+                onDelete: { afterSheetDismiss { pendingDelete = a } },
+                onChanged: { Task { await model.load() } })
+                .presentationBackground(Theme.night)
+        }
+        .sheet(item: $editingAllocation) { a in
+            if case .signedIn(let p) = auth.state {
+                CreateGuestlistSheet(promoterId: p.id, editing: .night(a)) { _ in
+                    editingAllocation = nil
+                    Task { await model.load() }
+                }
+                .presentationBackground(Theme.night)
+            }
+        }
+        .alert("Delete this guestlist?",
+               isPresented: Binding(get: { pendingDelete != nil },
+                                    set: { if !$0 { pendingDelete = nil } })) {
+            Button("Cancel", role: .cancel) { pendingDelete = nil }
+            Button("Delete", role: .destructive) {
+                if let target = pendingDelete { Task { await delete(target) } }
+            }
+        } message: {
+            if let p = pendingDelete {
+                Text("\(p.night?.displayTitle ?? "This night") on \(p.night?.nightDate ?? "") will be removed along with all guests on the list. This can't be undone.")
+            }
+        }
+    }
+
+    /// Run after the detail sheet finishes dismissing — presenting a new
+    /// sheet/alert/navigation in the same tick gets dropped.
+    private func afterSheetDismiss(_ action: @escaping () -> Void) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: action)
+    }
+
+    private func delete(_ a: PromoterAllocation) async {
+        defer { pendingDelete = nil }
+        do {
+            try await PromoterRepo().deleteAllocation(allocationId: a.id)
+            Haptics.success()
+            await model.load()
+        } catch {
+            Haptics.error()
         }
     }
 
@@ -129,7 +185,7 @@ struct TonightView: View {
                 .font(.cfSerif(18, italic: true))
                 .foregroundStyle(Theme.parchmentDim)
 
-            NavigationLink(value: a) {
+            Button { Haptics.tap(); detailAllocation = a } label: {
                 ZStack(alignment: .bottomLeading) {
                     RoundedRectangle(cornerRadius: Theme.radiusCard)
                         .fill(LinearGradient(

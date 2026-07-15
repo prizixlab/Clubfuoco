@@ -119,6 +119,9 @@ struct PromoterGuest: Codable, Identifiable, Equatable, Hashable {
     let checkedInAt: Date?
     let createdAt: Date?
     let referralId: UUID?
+    /// Whether the guest agreed to share location for auto check-in.
+    /// nil = unknown (older claims, or the column isn't applied yet).
+    let locationConsent: Bool?
 
     var totalCount: Int { 1 + plusOnes }
     var isCheckedIn: Bool { checkedInAt != nil }
@@ -182,6 +185,9 @@ struct PromoterSeries: Codable, Identifiable, Equatable, Hashable {
     let maxPlusOnes: Int?
     var reviewStatus: String?
     var rejectionReason: String?
+    /// Weeks the promoter took off ("yyyy-MM-dd" occurrence dates). The
+    /// permanent link skips these. nil until the column migration is applied.
+    var skippedDates: [String]?
     var club: Club?
 
     var reviewState: ReviewState? { ReviewState(status: reviewStatus) }

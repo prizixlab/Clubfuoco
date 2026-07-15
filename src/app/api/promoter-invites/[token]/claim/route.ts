@@ -16,6 +16,9 @@ export async function POST(
   const body = await req.json().catch(() => ({}))
   const fullName = typeof body.full_name === 'string' ? body.full_name.trim() : ''
   const plusOnes = Math.max(0, Math.min(10, Number(body.plus_ones) || 0))
+  // Optional: did the guest agree to share location for auto check-in?
+  // Tri-state — absent stays null (the invite page doesn't ask yet).
+  const locationConsent = typeof body.location_consent === 'boolean' ? body.location_consent : null
 
   if (!fullName) return err('Name is required', 400)
 
@@ -67,18 +70,33 @@ export async function POST(
     (s: number, g: { plus_ones: number }) => s + 1 + g.plus_ones, 0)
   if (used + 1 + cappedPlusOnes > alloc.spots) return err('Not enough spots left', 409)
 
-  const { data: guest, error: insertErr } = await sb
+  const row: Record<string, unknown> = {
+    allocation_id: alloc.id,
+    full_name: fullName,
+    plus_ones: cappedPlusOnes,
+    created_via_invite: true,
+    claimed_by_user: claimedByUser,
+    referral_id: resolved.referralId,   // tag the staff member who brought them
+  }
+  if (locationConsent !== null) row.location_consent = locationConsent
+
+  let { data: guest, error: insertErr } = await sb
     .from('promoter_guests')
-    .insert({
-      allocation_id: alloc.id,
-      full_name: fullName,
-      plus_ones: cappedPlusOnes,
-      created_via_invite: true,
-      claimed_by_user: claimedByUser,
-      referral_id: resolved.referralId,   // tag the staff member who brought them
-    })
+    .insert(row)
     .select('id, full_name, plus_ones')
     .single()
+
+  // Drift-defensive: location_consent ships in a manual migration — a claim
+  // must never fail because that column isn't applied yet.
+  if (insertErr && 'location_consent' in row
+      && /location_consent|column|schema cache/i.test(insertErr.message ?? '')) {
+    delete row.location_consent
+    ;({ data: guest, error: insertErr } = await sb
+      .from('promoter_guests')
+      .insert(row)
+      .select('id, full_name, plus_ones')
+      .single())
+  }
 
   // 23505 = unique_violation from the partial index (race between the dedupe
   // check above and insert). Fetch and return the winning row.

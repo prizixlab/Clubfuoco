@@ -121,8 +121,11 @@ struct GuestlistTabRoot: View {
     @State private var navigateTo: PromoterAllocation?
     @State private var seriesOccurrence: SeriesOccurrence?
     @State private var pendingDelete: PromoterAllocation?
+    @State private var pendingDeleteSeries: PromoterSeries?
     @State private var editingAllocation: PromoterAllocation?
     @State private var editingSeries: PromoterSeries?
+    @State private var detailAllocation: PromoterAllocation?
+    @State private var detailSeries: PromoterSeries?
     @State private var deleting = false
     @State private var opening = false
 
@@ -158,7 +161,7 @@ struct GuestlistTabRoot: View {
                     Kicker("Permanent links", color: Theme.parchmentDim).padding(.top, 8)
                     VStack(spacing: 14) {
                         ForEach(model.series) { s in
-                            Button { Haptics.tap(); Task { await openSeries(s) } } label: {
+                            Button { Haptics.tap(); detailSeries = s } label: {
                                 SeriesRow(series: s)
                             }
                             .buttonStyle(.plain)
@@ -169,7 +172,7 @@ struct GuestlistTabRoot: View {
                             }
                         }
                     }
-                    Text("Hold a permanent link to edit it. Edits are re-reviewed before going live.")
+                    Text("Tap a link for guests, skipped weeks, and options. Edits are re-reviewed before going live.")
                         .font(.cfMono(10))
                         .kerning(1.5)
                         .foregroundStyle(Theme.parchmentDim)
@@ -193,17 +196,17 @@ struct GuestlistTabRoot: View {
                         .foregroundStyle(Theme.parchmentDim)
                         .padding(.top, 24)
                 } else if !model.allocations.isEmpty {
-                    Text("Swipe a night left to delete, right to edit.")
+                    Text("Tap a night for guests and options. Swipe left to delete, right to edit.")
                         .font(.cfMono(10))
                         .kerning(1.5)
                         .foregroundStyle(Theme.parchmentDim)
                         .padding(.top, 4)
                     List {
                         ForEach(model.allocations) { a in
-                            ZStack {
-                                NavigationLink(value: a) { EmptyView() }.opacity(0)
+                            Button { Haptics.tap(); detailAllocation = a } label: {
                                 GuestlistRow(allocation: a)
                             }
+                            .buttonStyle(.plain)
                             .listRowBackground(Theme.night)
                             .listRowSeparatorTint(Theme.hairline)
                             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
@@ -307,11 +310,59 @@ struct GuestlistTabRoot: View {
                 .presentationBackground(Theme.night)
             }
         }
+        .sheet(item: $detailAllocation) { a in
+            NightDetailSheet(
+                allocation: a,
+                onOpenList: { afterSheetDismiss { navigateTo = a } },
+                onEdit: { afterSheetDismiss { editingAllocation = a } },
+                onDelete: { afterSheetDismiss { pendingDelete = a } },
+                onChanged: { Task { await model.load() } })
+                .presentationBackground(Theme.night)
+        }
+        .sheet(item: $detailSeries) { s in
+            SeriesDetailSheet(
+                series: s,
+                onOpenWeek: { afterSheetDismiss { Task { await openSeries(s) } } },
+                onEdit: { afterSheetDismiss { editingSeries = s } },
+                onDelete: { afterSheetDismiss { pendingDeleteSeries = s } },
+                onChanged: { Task { await model.load() } })
+                .presentationBackground(Theme.night)
+        }
         .navigationDestination(item: $seriesOccurrence) { occ in
             GuestlistView(allocation: occ.allocation, shareTokenOverride: occ.token, seriesId: occ.seriesId)
         }
         }
         .background(Theme.night.ignoresSafeArea())
+        .alert("Delete this permanent link?",
+               isPresented: Binding(get: { pendingDeleteSeries != nil },
+                                    set: { if !$0 { pendingDeleteSeries = nil } })) {
+            Button("Cancel", role: .cancel) { pendingDeleteSeries = nil }
+            Button("Delete", role: .destructive) {
+                if let target = pendingDeleteSeries { Task { await deleteSeries(target) } }
+            }
+        } message: {
+            if let s = pendingDeleteSeries {
+                Text("\(s.displayTitle) and its permanent invite link stop working immediately. This can't be undone.")
+            }
+        }
+    }
+
+    /// Run after the currently-presented detail sheet finishes dismissing —
+    /// presenting a new sheet/alert/navigation in the same tick gets dropped.
+    private func afterSheetDismiss(_ action: @escaping () -> Void) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: action)
+    }
+
+    private func deleteSeries(_ s: PromoterSeries) async {
+        deleting = true
+        defer { deleting = false; pendingDeleteSeries = nil }
+        do {
+            try await PromoterRepo().deleteSeries(seriesId: s.id)
+            Haptics.success()
+            await model.load()
+        } catch {
+            Haptics.error()
+        }
     }
 
     private var headerInitials: String {

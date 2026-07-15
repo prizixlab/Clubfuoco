@@ -35,6 +35,9 @@ export interface PromoterSeries {
   photo_urls: string[]
   featured: boolean
   max_plus_ones: number | null
+  // Drift-defensive: lands with the 20260715 migration. Undefined until the
+  // column exists — treated as "no weeks skipped".
+  skipped_dates?: string[] | null
 }
 
 const MADRID = 'Europe/Madrid'
@@ -102,12 +105,14 @@ export function resolveOccurrenceDate(series: PromoterSeries, now = new Date()):
   if (!series.weekdays?.length) return null
   const nowWall = nowMadridWall(now)
   const start = todayMadrid(now)
+  const skipped = new Set(series.skipped_dates ?? [])
   // Start at yesterday (i=-1): a Friday night's window runs into Saturday
   // morning, so when "now" is Sat 03:00 the still-live occurrence is
   // yesterday's date. The liveUntil check drops it once the window closes.
   for (let i = -1; i < 14; i++) {
     const date = addDays(start, i)
     if (!series.weekdays.includes(weekdayOf(date))) continue
+    if (skipped.has(date)) continue   // promoter took this week off
     if (liveUntil(series, date) > nowWall) return date
   }
   return null

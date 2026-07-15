@@ -94,7 +94,8 @@ final class GuestlistModel: ObservableObject {
                     id: g.id, allocationId: g.allocationId, fullName: g.fullName,
                     plusOnes: g.plusOnes, note: g.note,
                     checkedInAt: willCheckIn ? Date() : nil,
-                    createdAt: g.createdAt, referralId: g.referralId)
+                    createdAt: g.createdAt, referralId: g.referralId,
+                    locationConsent: g.locationConsent)
             }
             Haptics.tap()
         } catch {}

@@ -40,10 +40,19 @@ export async function POST(
   }
 
   const now = new Date().toISOString()
-  const { error: updErr } = await sb
+  // A geofence-triggered check-in is itself proof the guest shared location,
+  // so stamp consent alongside. Drift-defensive: if the location_consent
+  // column isn't applied yet, retry with the check-in alone.
+  let { error: updErr } = await sb
     .from('promoter_guests')
-    .update({ checked_in_at: now })
+    .update({ checked_in_at: now, location_consent: true })
     .eq('id', guestId)
+  if (updErr && /location_consent|column|schema cache/i.test(updErr.message ?? '')) {
+    ;({ error: updErr } = await sb
+      .from('promoter_guests')
+      .update({ checked_in_at: now })
+      .eq('id', guestId))
+  }
   if (updErr) return err('Failed to check in', 500)
 
   return ok({ checkedInAt: now })

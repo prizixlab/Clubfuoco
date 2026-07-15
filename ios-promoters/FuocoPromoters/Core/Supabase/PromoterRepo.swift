@@ -7,17 +7,18 @@ final class PromoterRepo: ObservableObject {
 
     // ── Drift-defensive review columns ──────────────────────────────────────
     // Production drifts from supabase/migrations: review_status exists today,
-    // rejection_reason lands with a later manual migration. Selects start at
-    // the richest level and step down only when PostgREST reports a missing
-    // column, so a screen never breaks on an unapplied migration.
-    // Level 2 → review_status + rejection_reason, 1 → review_status, 0 → none.
-    private static var reviewColumnLevel = 2
+    // rejection_reason and skipped_dates land with later manual migrations.
+    // Selects start at the richest level and step down only when PostgREST
+    // reports a missing column, so a screen never breaks on an unapplied
+    // migration. Level 3 → + skipped_dates (series only), 2 → review_status +
+    // rejection_reason, 1 → review_status, 0 → none.
+    private static var reviewColumnLevel = 3
 
     private static func reviewCols(_ level: Int) -> String {
         switch level {
-        case 2:  return ", review_status, rejection_reason"
-        case 1:  return ", review_status"
-        default: return ""
+        case 2...: return ", review_status, rejection_reason"
+        case 1:    return ", review_status"
+        default:   return ""
         }
     }
 
@@ -47,7 +48,7 @@ final class PromoterRepo: ObservableObject {
         id, club_id, title, weekdays, open_time, close_time, spots,
         payout_per_guest, group_visible, invite_token, is_active,
         location_name, address, lat, lng, auto_checkin,
-        description, theme, theme_translate, photo_urls, featured, max_plus_ones\(reviewCols(level)),
+        description, theme, theme_translate, photo_urls, featured, max_plus_ones\(level >= 3 ? ", skipped_dates" : "")\(reviewCols(level)),
         club:clubs ( id, name )
         """
     }
@@ -394,6 +395,19 @@ final class PromoterRepo: ObservableObject {
             try await sb.client.from("promoter_series")
                 .update(patch).eq("id", value: seriesId).execute()
         }
+    }
+
+    /// Replace the set of skipped occurrence dates on a recurring series
+    /// ("take a week off"). Scheduling, not content — the rehold trigger
+    /// ignores this column, so it never re-enters review. Throws when the
+    /// skipped_dates migration isn't applied yet; callers surface that.
+    func updateSeriesSkippedDates(seriesId: UUID, dates: [String]) async throws {
+        let patch: [String: AnyJSON] = ["skipped_dates": .array(dates.map(AnyJSON.string))]
+        try await sb.client
+            .from("promoter_series")
+            .update(patch)
+            .eq("id", value: seriesId)
+            .execute()
     }
 
     /// Edit an existing night through the web API (service-role with an

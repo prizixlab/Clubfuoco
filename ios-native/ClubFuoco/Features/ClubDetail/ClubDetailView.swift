@@ -398,7 +398,7 @@ struct ClubDetailView: View {
                             .foregroundStyle((offer.isVip ? ink : Theme.ink).opacity(0.75))
                             .lineLimit(1)
                             .fixedSize()
-                        SupplierMark(brand: brand, height: 12, animated: false)
+                        SupplierMark(brand: brand, height: 11, animated: false)
                             .layoutPriority(1)
                     }
                 }

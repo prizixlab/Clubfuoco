@@ -63,6 +63,7 @@ struct SupplierHomeView: View {
     @State private var creatingClub: UUID?
     @State private var showClubPicker = false
     @State private var pendingDelete: SupplierOffer?
+    @State private var detailOffer: SupplierOffer?
 
     var body: some View {
         ZStack {
@@ -78,6 +79,15 @@ struct SupplierHomeView: View {
         .task { await model.load() }
         .sheet(item: $editing) { offer in
             SupplierOfferSheet(model: model, existing: offer, clubId: offer.clubId) { await model.load() }
+        }
+        .sheet(item: $detailOffer) { offer in
+            SupplierOfferDetailSheet(
+                offer: offer,
+                clubName: model.clubName(offer.clubId),
+                onEdit: { afterSheetDismiss { editing = offer } },
+                onToggle: { Task { await model.setActive(offer, !offer.isActive) } },
+                onDelete: { afterSheetDismiss { pendingDelete = offer } })
+                .presentationBackground(Theme.night)
         }
         .sheet(isPresented: Binding(get: { creatingClub != nil }, set: { if !$0 { creatingClub = nil } })) {
             if let cid = creatingClub {
@@ -101,6 +111,12 @@ struct SupplierHomeView: View {
         } message: {
             Text("Your change will be reviewed and approved by Club Fuoco within 3 business days. It goes live once approved.")
         }
+    }
+
+    /// Run after the detail sheet finishes dismissing — presenting a new
+    /// sheet/alert in the same tick gets dropped.
+    private func afterSheetDismiss(_ action: @escaping () -> Void) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: action)
     }
 
     // Changes the supplier has submitted that are waiting on Club Fuoco.
@@ -175,6 +191,7 @@ struct SupplierHomeView: View {
                         ForEach(group.offers) { offer in
                             SupplierOfferRow(
                                 offer: offer,
+                                onTap: { detailOffer = offer },
                                 onEdit: { editing = offer },
                                 onToggle: { Task { await model.setActive(offer, !offer.isActive) } },
                                 onDelete: { pendingDelete = offer }
@@ -192,12 +209,15 @@ struct SupplierHomeView: View {
 
 private struct SupplierOfferRow: View {
     let offer: SupplierOffer
+    let onTap: () -> Void
     let onEdit: () -> Void
     let onToggle: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // Info area opens the detail sheet (guests + stats); the buttons
+            // below keep their direct shortcuts.
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
@@ -215,7 +235,11 @@ private struct SupplierOfferRow: View {
                         .lineLimit(2)
                 }
                 Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13)).foregroundStyle(Theme.parchmentDim)
             }
+            .contentShape(Rectangle())
+            .onTapGesture { Haptics.tap(); onTap() }
             HStack(spacing: 18) {
                 Button { Haptics.tap(); onEdit() } label: {
                     Label("Edit", systemImage: "pencil").font(.cfSans(13)).foregroundStyle(Theme.parchment)

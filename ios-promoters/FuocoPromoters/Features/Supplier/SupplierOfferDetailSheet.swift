@@ -1,0 +1,254 @@
+import SwiftUI
+
+// Tap-a-box detail sheet for supplier offers: pick one of the offer's next
+// valid nights, see who booked through it (name, party size, arrived), and
+// manage the offer (edit / deactivate / delete) without leaving the sheet.
+// Guest data comes from /api/supplier/guests (rumbalist_purchases + linked
+// booking check-ins), filtered to this offer's product kind.
+struct SupplierOfferDetailSheet: View {
+    let offer: SupplierOffer
+    let clubName: String
+    var onEdit: (() -> Void)?
+    var onToggle: (() -> Void)?
+    var onDelete: (() -> Void)?
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedDate: String = ""
+    @State private var guests: [SupplierGuest] = []
+    @State private var loading = true
+    @State private var loadError: String?
+
+    private let repo = SupplierRepo()
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                header
+                dayPicker
+                stats
+                guestList
+                actions
+                Spacer(minLength: 20)
+            }
+            .padding(22)
+        }
+        .background(Theme.night.ignoresSafeArea())
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .task {
+            if selectedDate.isEmpty { selectedDate = upcomingDates.first ?? Self.dayString(Date()) }
+            await load()
+        }
+    }
+
+    // MARK: - Data
+
+    /// The offer's next five valid nights (today included when valid).
+    private var upcomingDates: [String] {
+        let valid = ValidDays.parse(offer.validDays)
+        guard !valid.isEmpty else { return [] }
+        let cal = Calendar.current
+        var out: [String] = []
+        var d = cal.startOfDay(for: Date())
+        for _ in 0..<28 {
+            if valid.contains(cal.component(.weekday, from: d) - 1) {
+                out.append(Self.dayString(d))
+                if out.count == 5 { break }
+            }
+            d = cal.date(byAdding: .day, value: 1, to: d) ?? d
+        }
+        return out
+    }
+
+    private func load() async {
+        guard !selectedDate.isEmpty else { loading = false; return }
+        loading = true; loadError = nil
+        do {
+            let all = try await repo.guests(clubId: offer.clubId, date: selectedDate)
+            guests = all.filter { $0.productKind == offer.kind }
+        } catch {
+            guests = []
+            loadError = (error as? LocalizedError)?.errorDescription ?? "Couldn't load bookings."
+        }
+        loading = false
+    }
+
+    // MARK: - Sections
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(offer.title).font(.cfSerif(30)).foregroundStyle(Theme.parchment)
+                Text(offer.isVip ? "VIP · €\(Int(offer.priceEur ?? 0))" : "FREE")
+                    .font(.cfMono(10, weight: .medium)).kerning(1.2)
+                    .foregroundStyle(offer.isVip ? Theme.flame : Theme.ember)
+                if !offer.isActive {
+                    Text("INACTIVE").font(.cfMono(9, weight: .medium)).kerning(1.2)
+                        .foregroundStyle(Theme.parchmentDim)
+                }
+            }
+            Text("\(clubName) · \(offer.validDays)")
+                .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
+        }
+        .padding(.top, 10)
+    }
+
+    private var dayPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Kicker("Night", color: Theme.parchmentDim)
+            if upcomingDates.isEmpty {
+                Text("No valid nights parsed from \"\(offer.validDays)\".")
+                    .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(upcomingDates, id: \.self) { date in
+                            let on = date == selectedDate
+                            Button {
+                                Haptics.tap()
+                                selectedDate = date
+                                Task { await load() }
+                            } label: {
+                                Text(Self.chipLabel(date))
+                                    .font(.cfMono(11, weight: .medium))
+                                    .foregroundStyle(on ? Theme.emberCream : Theme.parchmentDim)
+                                    .padding(.horizontal, 13).padding(.vertical, 8)
+                                    .background(RoundedRectangle(cornerRadius: 10)
+                                        .fill(on ? Theme.ember : Color.clear))
+                                    .overlay(RoundedRectangle(cornerRadius: 10)
+                                        .stroke(on ? Color.clear : Theme.parchmentFaint))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var stats: some View {
+        let booked = guests.reduce(0) { $0 + $1.partySize }
+        let arrived = guests.filter(\.isArrived).reduce(0) { $0 + $1.partySize }
+        return HStack(spacing: 10) {
+            statChip("Bookings", "\(guests.count)")
+            statChip("People", "\(booked)")
+            statChip("Arrived", "\(arrived)")
+        }
+    }
+
+    private func statChip(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label.uppercased())
+                .font(.cfMono(8, weight: .medium)).kerning(1.2)
+                .foregroundStyle(Theme.parchmentDim)
+            Text(value)
+                .font(.cfMono(13, weight: .medium))
+                .foregroundStyle(Theme.parchment)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12).padding(.vertical, 9)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.nightLift))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.hairline))
+    }
+
+    private var guestList: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Kicker("Who's coming", color: Theme.parchmentDim).padding(.bottom, 6)
+            if loading {
+                ProgressView().tint(Theme.parchment)
+                    .frame(maxWidth: .infinity).padding(.vertical, 16)
+            } else if let loadError {
+                Text(loadError).font(.cfSans(13)).foregroundStyle(Theme.wine)
+                    .padding(.vertical, 10)
+            } else if guests.isEmpty {
+                Text("No bookings for this night yet.")
+                    .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
+                    .padding(.vertical, 10)
+            } else {
+                ForEach(guests) { g in
+                    HStack(spacing: 10) {
+                        Text(g.displayName)
+                            .font(.cfSans(14, weight: .medium))
+                            .foregroundStyle(Theme.parchment)
+                            .lineLimit(1)
+                        if g.partySize > 1 {
+                            Text("×\(g.partySize)")
+                                .font(.cfMono(10, weight: .medium))
+                                .foregroundStyle(Theme.flame)
+                        }
+                        Spacer()
+                        if let price = g.priceEur, price > 0 {
+                            Text("€\(Int(price))")
+                                .font(.cfMono(10, weight: .medium))
+                                .foregroundStyle(Theme.flame)
+                        }
+                        Image(systemName: g.isArrived ? "checkmark.circle.fill" : "circle.dotted")
+                            .font(.system(size: 13))
+                            .foregroundStyle(g.isArrived ? Theme.gold : Theme.parchmentFaint)
+                    }
+                    .padding(.vertical, 7)
+                    Divider().background(Theme.hairline)
+                }
+            }
+        }
+    }
+
+    private var actions: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Kicker("Actions", color: Theme.parchmentDim).padding(.bottom, 4)
+            if let onEdit {
+                actionRow(icon: "pencil", title: "Edit offer", tint: Theme.parchment) {
+                    dismiss(); onEdit()
+                }
+                Divider().background(Theme.hairline)
+            }
+            if let onToggle {
+                actionRow(icon: offer.isActive ? "eye.slash" : "eye",
+                          title: offer.isActive ? "Deactivate offer" : "Reactivate offer",
+                          tint: Theme.parchment) {
+                    dismiss(); onToggle()
+                }
+                Divider().background(Theme.hairline)
+            }
+            if let onDelete {
+                actionRow(icon: "trash", title: "Delete offer", tint: Theme.wine) {
+                    dismiss(); onDelete()
+                }
+            }
+        }
+    }
+
+    private func actionRow(icon: String, title: String, tint: Color,
+                           action: @escaping () -> Void) -> some View {
+        Button { Haptics.tap(); action() } label: {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 15))
+                    .foregroundStyle(tint == Theme.wine ? Theme.wine : Theme.ember)
+                    .frame(width: 24)
+                Text(title)
+                    .font(.cfSans(15, weight: .medium))
+                    .foregroundStyle(tint)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12)).foregroundStyle(Theme.parchmentFaint)
+            }
+            .padding(.vertical, 13)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Dates
+
+    private static func dayString(_ d: Date) -> String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: d)
+    }
+
+    private static func chipLabel(_ s: String) -> String {
+        let inF = DateFormatter(); inF.dateFormat = "yyyy-MM-dd"
+        guard let d = inF.date(from: s) else { return s }
+        if Calendar.current.isDateInToday(d) { return "Tonight" }
+        let outF = DateFormatter(); outF.dateFormat = "EEE d MMM"
+        return outF.string(from: d)
+    }
+}

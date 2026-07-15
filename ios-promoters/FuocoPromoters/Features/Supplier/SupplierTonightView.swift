@@ -7,6 +7,8 @@ import SwiftUI
 // "Thu – Sun").
 struct SupplierTonightView: View {
     @StateObject private var model = SupplierHomeModel()
+    @State private var detailOffer: SupplierOffer?
+    @State private var editing: SupplierOffer?
 
     // 0 = Sunday … 6 = Saturday (matches `order` below).
     private var todayIndex: Int { Calendar.current.component(.weekday, from: Date()) - 1 }
@@ -30,6 +32,28 @@ struct SupplierTonightView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         .task { await model.load() }
+        .sheet(item: $detailOffer) { offer in
+            SupplierOfferDetailSheet(
+                offer: offer,
+                clubName: model.clubName(offer.clubId),
+                onEdit: { afterSheetDismiss { editing = offer } },
+                onToggle: { Task { await model.setActive(offer, !offer.isActive) } })
+                .presentationBackground(Theme.night)
+        }
+        .sheet(item: $editing) { offer in
+            SupplierOfferSheet(model: model, existing: offer, clubId: offer.clubId) { await model.load() }
+        }
+        .alert("Submitted for review", isPresented: $model.reviewNotice) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Your change will be reviewed and approved by Club Fuoco within 3 business days. It goes live once approved.")
+        }
+    }
+
+    /// Run after the detail sheet finishes dismissing — presenting a new
+    /// sheet in the same tick gets dropped.
+    private func afterSheetDismiss(_ action: @escaping () -> Void) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: action)
     }
 
     private var content: some View {
@@ -66,7 +90,10 @@ struct SupplierTonightView: View {
                                 .font(.cfSerif(22)).foregroundStyle(Theme.parchment)
                         }
                         ForEach(group.offers) { offer in
-                            TonightOfferRow(offer: offer)
+                            Button { Haptics.tap(); detailOffer = offer } label: {
+                                TonightOfferRow(offer: offer)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(16)

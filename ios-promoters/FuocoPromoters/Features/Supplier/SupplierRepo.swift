@@ -45,6 +45,31 @@ struct SupplierPending: Decodable, Identifiable, Hashable {
     let summary: String
 }
 
+/// A consumer who booked through this supplier's offers at a venue for a
+/// night (rumbalist_purchases + linked booking). checked_in_at stays a raw
+/// string — presence is all the UI needs, and it dodges fractional-second
+/// ISO date parsing.
+struct SupplierGuest: Decodable, Identifiable, Hashable {
+    struct Booking: Decodable, Hashable {
+        let checkedInAt: String?
+        let status: String?
+        let partySize: Int?
+    }
+    let id: UUID
+    let fullName: String?
+    let productKind: String
+    let productName: String?
+    let priceEur: Double?
+    let booking: Booking?
+
+    var isArrived: Bool { booking?.checkedInAt != nil }
+    var partySize: Int { booking?.partySize ?? 1 }
+    var displayName: String {
+        let n = (fullName ?? "").trimmingCharacters(in: .whitespaces)
+        return n.isEmpty ? "Guest" : n
+    }
+}
+
 /// Draft used for create + edit. Nil price ⇒ free guestlist.
 struct SupplierOfferDraft {
     var clubId: UUID
@@ -133,6 +158,13 @@ final class SupplierRepo {
     /// Changes this supplier has submitted that are awaiting review.
     func pending() async throws -> [SupplierPending] {
         try decode(try await request("/api/supplier/pending", method: "GET"), as: [SupplierPending].self)
+    }
+
+    /// Who booked through this supplier's offers at a venue on a given night.
+    func guests(clubId: UUID, date: String) async throws -> [SupplierGuest] {
+        try decode(try await request(
+            "/api/supplier/guests?club_id=\(clubId.uuidString.lowercased())&date=\(date)",
+            method: "GET"), as: [SupplierGuest].self)
     }
 
     // MARK: - Writes

@@ -18,17 +18,29 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
 
     @State private var uiImage: UIImage?
 
+    /// `targetWidth` (points) requests a right-sized image for the slot it's
+    /// shown in: Google Places photo URLs bake in a fixed `maxwidth` (we store
+    /// 800), so a 150pt card was downloading a 5x-oversized photo. Passing the
+    /// display width rewrites `maxwidth` to the pixels we actually need, which
+    /// cuts the bytes on the wire — and the decode cost — dramatically. Omit it
+    /// (nil) to fetch at the URL's native size, e.g. for a full-bleed hero.
     init(
         url: URL?,
+        targetWidth: CGFloat? = nil,
         @ViewBuilder content: @escaping (Image) -> Content,
         @ViewBuilder placeholder: @escaping () -> Placeholder
     ) {
-        self.url = url
+        let resolved: URL? = {
+            guard let url, let targetWidth else { return url }
+            let px = Int((targetWidth * UIScreen.main.scale).rounded(.up))
+            return url.placesPhotoSized(maxWidthPx: px)
+        }()
+        self.url = resolved
         self.content = content
         self.placeholder = placeholder
         // Seed synchronously from the in-memory cache so an already-fetched
         // image shows on the very first frame — no placeholder flash on reuse.
-        _uiImage = State(initialValue: url.flatMap { ImageCache.shared.cached(for: $0) })
+        _uiImage = State(initialValue: resolved.flatMap { ImageCache.shared.cached(for: $0) })
     }
 
     var body: some View {
@@ -49,6 +61,33 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
                 uiImage = loaded
             }
         }
+    }
+}
+
+/// One thumbnail width for every non-hero feed card, so a venue's cover photo
+/// resolves to a SINGLE cache entry no matter which card type shows it — that
+/// makes prefetching effective (warm once, reused everywhere) and halves the
+/// bytes vs. the stored 800px. Crisp for both the 220-wide and 150-wide cards.
+enum FeedImage {
+    static let thumbWidth: CGFloat = 220
+}
+
+extension URL {
+    /// Rewrite a Google Places photo URL's `maxwidth` to the pixels a slot
+    /// actually shows. We store these URLs with `maxwidth=800`; a thumbnail
+    /// only needs a few hundred pixels, so this is the single biggest lever on
+    /// image load time (bytes scale with the square of the dimension). Clamped
+    /// to a sane range and left unchanged for any non-Places URL (Supabase
+    /// storage, etc.), so it's always safe to call.
+    func placesPhotoSized(maxWidthPx: Int) -> URL {
+        guard host?.contains("maps.googleapis.com") == true,
+              var comps = URLComponents(url: self, resolvingAgainstBaseURL: false),
+              var items = comps.queryItems,
+              let idx = items.firstIndex(where: { $0.name == "maxwidth" })
+        else { return self }
+        items[idx].value = String(min(max(maxWidthPx, 200), 1000))
+        comps.queryItems = items
+        return comps.url ?? self
     }
 }
 
@@ -97,5 +136,20 @@ actor ImageCache {
         inFlight[url] = nil
         if let image { memory.setObject(image, forKey: url as NSURL) }
         return image
+    }
+
+    /// Warm the cache for feed cover photos before they scroll into view, at
+    /// the shared feed thumbnail size so the entry matches what the cards
+    /// request. Fire-and-forget; de-duped and coalesced by `load`. Skips URLs
+    /// already in memory so a refresh is nearly free. `nonisolated` (like
+    /// `cached(for:)`) so the feed's load path can call it without awaiting —
+    /// the actual fetch still hops onto the actor via `load`.
+    nonisolated func prefetchThumbnails<S: Sequence>(_ rawURLs: S) where S.Element == String {
+        let px = Int((FeedImage.thumbWidth * UIScreen.main.scale).rounded(.up))
+        for raw in rawURLs {
+            guard let url = URL(string: raw)?.placesPhotoSized(maxWidthPx: px) else { continue }
+            if cached(for: url) != nil { continue }
+            Task { _ = await load(url) }
+        }
     }
 }

@@ -455,7 +455,9 @@ struct ClubDetailView: View {
                             Color(hex: 0xEFE9DD)
                                 .overlay {
                                     if let parsed = URL(string: url) {
-                                        CachedAsyncImage(url: parsed) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                                        // Thumbnail strip — right-sized; the full
+                                        // photo loads native in the tap-through viewer.
+                                        CachedAsyncImage(url: parsed, targetWidth: 140) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
                                     }
                                 }
                                 .frame(width: 140, height: 100)

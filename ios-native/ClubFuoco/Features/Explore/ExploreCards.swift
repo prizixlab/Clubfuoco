@@ -6,12 +6,16 @@ import SwiftUI
 private struct CardPhoto: View {
     let url: String?
     let height: CGFloat
+    /// Largest display dimension (points) of this card, so the photo is
+    /// fetched right-sized instead of at its stored 800px. nil = full-bleed
+    /// (hero), fetched native.
+    var targetWidth: CGFloat? = nil
 
     var body: some View {
         Color(hex: 0xEFE9DD)
             .overlay {
                 if let url, let parsed = URL(string: url) {
-                    CachedAsyncImage(url: parsed) { image in
+                    CachedAsyncImage(url: parsed, targetWidth: targetWidth) { image in
                         image.resizable().aspectRatio(contentMode: .fill)
                     } placeholder: {
                         Color(hex: 0xEFE9DD)
@@ -184,7 +188,7 @@ struct LandCard: View {
     var body: some View {
         NavigationLink(value: place) {
             ZStack(alignment: .bottomLeading) {
-                CardPhoto(url: place.coverPhoto, height: 130)
+                CardPhoto(url: place.coverPhoto, height: 130, targetWidth: FeedImage.thumbWidth)
                     .overlay(
                         LinearGradient(
                             stops: [
@@ -241,7 +245,7 @@ struct PosterCard: View {
         NavigationLink(value: place) {
             VStack(alignment: .leading, spacing: 0) {
                 ZStack(alignment: .topLeading) {
-                    CardPhoto(url: place.coverPhoto, height: 168)
+                    CardPhoto(url: place.coverPhoto, height: 168, targetWidth: FeedImage.thumbWidth)
                         .overlay(
                             LinearGradient(
                                 stops: [

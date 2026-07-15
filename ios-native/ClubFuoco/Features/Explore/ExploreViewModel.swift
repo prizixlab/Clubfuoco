@@ -63,6 +63,11 @@ final class ExploreViewModel {
                 )
             }
             places = loaded
+            // Warm the cache for the cover photos most likely to be on screen
+            // first, at the shared feed thumbnail size — cards then paint from
+            // memory instead of each kicking off its own download.
+            ImageCache.shared.prefetchThumbnails(
+                loaded.prefix(18).compactMap(\.coverPhoto))
         } catch {
             loadError = error.localizedDescription
         }

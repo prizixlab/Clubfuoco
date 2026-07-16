@@ -2,6 +2,15 @@ import SwiftUI
 import CoreLocation
 import UIKit
 
+/// Natural content height of the location sheet, used to fit the nearby
+/// detent to its content so nothing clips at the bottom.
+private struct SheetContentHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 /// Two-mode pre-prompt for the iOS location ladder.
 ///
 ///   .nearby   — fired the first time the user opens Explore. Asks for
@@ -32,6 +41,16 @@ struct LocationPermissionSheet: View {
     private enum Step { case explain, openSettings }
     @State private var step: Step = .explain
     @State private var requesting = false
+    @State private var contentHeight: CGFloat = 0
+
+    /// Nearby mode is sized to its content so the "Not now" link always clears
+    /// the bottom (a fixed `.medium` detent clipped it on shorter phones /
+    /// larger Dynamic Type). Arrival mode keeps `.large` — it has the longer
+    /// step list and wants the button pinned to the bottom.
+    private var detents: Set<PresentationDetent> {
+        if mode == .arrival { return [.large] }
+        return contentHeight > 0 ? [.height(contentHeight)] : [.medium]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -64,7 +83,15 @@ struct LocationPermissionSheet: View {
 
             if mode == .arrival { stepsList } else { nearbyTip }
 
-            Spacer(minLength: 0)
+            // Arrival (.large) pins the button to the bottom with a flexible
+            // spacer; nearby is content-sized, so a fixed gap keeps its natural
+            // height measurable (a flexible spacer would expand to the detent
+            // and defeat the fit).
+            if mode == .arrival {
+                Spacer(minLength: 0)
+            } else {
+                Spacer().frame(height: 8)
+            }
 
             PrimaryButton(title: locale.t(ctaKey), loading: requesting) { tapPrimary() }
 
@@ -81,7 +108,16 @@ struct LocationPermissionSheet: View {
         }
         .padding(24)
         .background(Theme.cream)
-        .presentationDetents(mode == .arrival ? [.large] : [.medium])
+        .background(
+            // Measure the natural content height so the nearby detent fits it
+            // exactly. The extra inset leaves room for the home indicator.
+            GeometryReader { proxy in
+                Color.clear.preference(key: SheetContentHeightKey.self,
+                                       value: proxy.size.height + 28)
+            }
+        )
+        .onPreferenceChange(SheetContentHeightKey.self) { contentHeight = $0 }
+        .presentationDetents(detents)
         .presentationDragIndicator(.visible)
     }
 

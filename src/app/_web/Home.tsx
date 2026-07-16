@@ -62,7 +62,7 @@ export default function WebHome() {
               <div className="venue-list">
                 {[
                   ['Opium Barcelona',  'Free guestlist',            'linear-gradient(135deg,#3a2a4a,#160f22)'],
-                  ['Pacha Barcelona',  'Free guestlist · VIP table', 'linear-gradient(135deg,#4a2a32,#1d1014)'],
+                  ['Ku (formerly Pacha)', 'Free guestlist · VIP table', 'linear-gradient(135deg,#4a2a32,#1d1014)'],
                   ['Jamboree',         'Free guestlist',            'linear-gradient(135deg,#2a3a4a,#101824)'],
                   ['Shôko Club',       'VIP table',                 'linear-gradient(135deg,#4a3c2a,#211a0e)'],
                   ['CDLC Barcelona',   'Free guestlist · VIP table', 'linear-gradient(135deg,#2a4a3a,#0f211a)'],
@@ -120,7 +120,7 @@ export default function WebHome() {
             city&rsquo;s best venues.
           </p>
           <div className="venues" aria-label="Partner venues">
-            {['Opium','Pacha','Jamboree','CDLC','Shôko','Sutton','Bling Bling','Disco City Hall','Downtown','Twenties','Carpe Diem'].map((name, i, arr) => (
+            {['Opium','Ku','Jamboree','CDLC','Shôko','Sutton','Bling Bling','Disco City Hall','Downtown','Twenties','Carpe Diem'].map((name, i, arr) => (
               <span key={name}>
                 <span>{name}</span>
                 {i < arr.length - 1 && <span className="sep">·</span>}

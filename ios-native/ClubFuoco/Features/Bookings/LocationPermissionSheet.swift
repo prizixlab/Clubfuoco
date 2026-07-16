@@ -54,7 +54,16 @@ struct LocationPermissionSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack {
+            // Icon and close button share the top row — the icon anchors the
+            // left, the X the right. (Previously the X sat alone on its own row
+            // with the icon dropped into the corner below, which read as
+            // misplaced.)
+            HStack(alignment: .top) {
+                Image(systemName: mode == .nearby ? "location.magnifyingglass" : "mappin.and.ellipse")
+                    .font(.system(size: 32, weight: .light))
+                    .foregroundStyle(Theme.wine)
+                    .frame(width: 64, height: 64)
+                    .background(Theme.wine.opacity(0.08), in: .circle)
                 Spacer()
                 Button { dismiss() } label: {
                     Image(systemName: "xmark")
@@ -63,12 +72,6 @@ struct LocationPermissionSheet: View {
                         .frame(width: 32, height: 32)
                 }
             }
-
-            Image(systemName: mode == .nearby ? "location.magnifyingglass" : "mappin.and.ellipse")
-                .font(.system(size: 32, weight: .light))
-                .foregroundStyle(Theme.wine)
-                .frame(width: 64, height: 64)
-                .background(Theme.wine.opacity(0.08), in: .circle)
 
             Text(locale.t(titleKey))
                 .font(.cfSerif(32, italic: true))

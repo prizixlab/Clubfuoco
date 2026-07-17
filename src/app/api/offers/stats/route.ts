@@ -10,8 +10,8 @@ import { ok } from '@/lib/utils'
 // A promoter with no brand yet (never published a public offer) gets zeroes,
 // not a 403 — the Statistics tab is for everyone.
 
-interface Bucket { bookings: number; people: number; arrived: number }
-const empty = (): Bucket => ({ bookings: 0, people: 0, arrived: 0 })
+interface Bucket { bookings: number; people: number; arrived: number; revenue: number }
+const empty = (): Bucket => ({ bookings: 0, people: 0, arrived: 0, revenue: 0 })
 
 export async function GET() {
   const { brand, sb, response } = await brandOrNull()
@@ -34,7 +34,7 @@ export async function GET() {
 
   const { data: purchases, error: pErr } = await sb
     .from('rumbalist_purchases')
-    .select('venue_id, product_kind, event_date, booking:bookings ( checked_in_at, party_size )')
+    .select('venue_id, product_kind, event_date, price_eur, booking:bookings ( checked_in_at, party_size )')
     .in('venue_id', clubIds)
   if (pErr) {
     // Drift-defensive: missing table/column → zeroes, not a broken tab.
@@ -54,7 +54,7 @@ export async function GET() {
 
   for (const p of purchases ?? []) {
     const row = p as {
-      venue_id: string; product_kind: string; event_date: string
+      venue_id: string; product_kind: string; event_date: string; price_eur?: number | string | null
       booking?: { checked_in_at?: string | null; party_size?: number | null }
               | { checked_in_at?: string | null; party_size?: number | null }[]
     }
@@ -64,13 +64,14 @@ export async function GET() {
     const booking = Array.isArray(row.booking) ? row.booking[0] : row.booking
     const people = booking?.party_size ?? 1
     const arrived = booking?.checked_in_at ? people : 0
+    const revenue = Number(row.price_eur ?? 0) || 0
 
-    const add = (b: Bucket) => { b.bookings += 1; b.people += people; b.arrived += arrived }
+    const add = (b: Bucket) => { b.bookings += 1; b.people += people; b.arrived += arrived; b.revenue += revenue }
     add(overview.allTime)
     if ((row.event_date ?? '').startsWith(monthPrefix)) add(overview.thisMonth)
 
     const cur = perOffer.get(offer.id) ?? { ...empty(), title: offer.title, clubId: offer.club_id }
-    cur.bookings += 1; cur.people += people; cur.arrived += arrived
+    cur.bookings += 1; cur.people += people; cur.arrived += arrived; cur.revenue += revenue
     perOffer.set(offer.id, cur)
   }
 

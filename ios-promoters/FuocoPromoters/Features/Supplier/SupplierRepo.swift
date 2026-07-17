@@ -80,7 +80,8 @@ struct OfferStats: Decodable {
         let bookings: Int
         let people: Int
         let arrived: Int
-        static let zero = Bucket(bookings: 0, people: 0, arrived: 0)
+        let revenue: Double
+        static let zero = Bucket(bookings: 0, people: 0, arrived: 0, revenue: 0)
     }
     struct Overview: Decodable {
         let thisMonth: Bucket
@@ -95,6 +96,7 @@ struct OfferStats: Decodable {
         let bookings: Int
         let people: Int
         let arrived: Int
+        let revenue: Double
     }
     let overview: Overview
     let byOffer: [OfferLine]

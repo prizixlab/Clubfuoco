@@ -34,20 +34,27 @@ final class StatisticsModel: ObservableObject {
         let prefix = Self.monthPrefix.string(from: Date())
         return allocations.filter { ($0.night?.nightDate ?? "").hasPrefix(prefix) }
     }
-    var thisMonthEarnings: Decimal { thisMonthAllocations.reduce(Decimal(0)) { $0 + $1.earnings } }
+    var nightPayoutThisMonth: Decimal { thisMonthAllocations.reduce(Decimal(0)) { $0 + $1.earnings } }
     var nightsThisMonth: Int { thisMonthAllocations.count }
-    var hasPayoutData: Bool { allocations.contains { $0.earnings > 0 } }
+
+    /// Earnings = private-night payouts + revenue from paid public offers
+    /// (VIP tables). Free guestlists contribute €0, correctly.
+    var offerRevenueThisMonth: Decimal { Decimal(stats.overview.thisMonth.revenue) }
+    var earningsThisMonth: Decimal { nightPayoutThisMonth + offerRevenueThisMonth }
+    var earningsAllTime: Decimal {
+        allocations.reduce(Decimal(0)) { $0 + $1.earnings } + Decimal(stats.overview.allTime.revenue)
+    }
 
     var lastMonthEarnings: Decimal {
         let last = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
         let prefix = Self.monthPrefix.string(from: last)
         return allocations.filter { ($0.night?.nightDate ?? "").hasPrefix(prefix) }
-            .reduce(Decimal(0)) { $0 + $1.earnings }
+            .reduce(Decimal(0)) { $0 + $1.earnings }   // offer revenue by month not tracked back that far
     }
     var earningsDeltaPercent: Int? {
         let prev = lastMonthEarnings
         guard prev > 0 else { return nil }
-        return NSDecimalNumber(decimal: (thisMonthEarnings - prev) / prev * 100).intValue
+        return NSDecimalNumber(decimal: (earningsThisMonth - prev) / prev * 100).intValue
     }
 
     // ── Combined headline (nights + offers) ──────────────────────────────────
@@ -172,40 +179,51 @@ struct EarningsView: View {   // entry point kept; the tab is now "Stats"
     private var earningsSection: some View {
         Kicker("Earnings", color: Theme.parchmentDim).padding(.top, 12)
 
-        if !model.hasPayoutData {
-            Text("No payout-tracked nights yet. Turn on payout tracking when you create a private event to see your earnings here.")
-                .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
-                .fixedSize(horizontal: false, vertical: true)
-        } else {
-            VStack(alignment: .leading, spacing: 14) {
-                Kicker("This month", color: Theme.parchmentDim)
-                Text(format(model.thisMonthEarnings))
-                    .font(.cfSerif(44)).foregroundStyle(Theme.ember)
-                if let d = model.earningsDeltaPercent {
-                    HStack(spacing: 6) {
-                        Image(systemName: d >= 0 ? "arrow.up.right" : "arrow.down.right")
-                            .font(.system(size: 11, weight: .bold))
-                        Text("\(d >= 0 ? "+" : "")\(d)% FROM LAST MONTH")
-                            .font(.cfMono(10, weight: .medium)).kerning(1)
-                    }
-                    .foregroundStyle(Theme.flame)
+        // Always shown, always a real figure. Earnings = private-night payouts
+        // + revenue from paid public offers. An offers-only account running
+        // free guestlists correctly reads €0 (nothing to pay out on free).
+        VStack(alignment: .leading, spacing: 14) {
+            Kicker("This month", color: Theme.parchmentDim)
+            Text(format(model.earningsThisMonth))
+                .font(.cfSerif(44)).foregroundStyle(Theme.ember)
+            if let d = model.earningsDeltaPercent {
+                HStack(spacing: 6) {
+                    Image(systemName: d >= 0 ? "arrow.up.right" : "arrow.down.right")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("\(d >= 0 ? "+" : "")\(d)% FROM LAST MONTH")
+                        .font(.cfMono(10, weight: .medium)).kerning(1)
                 }
-                if model.nightsThisMonth > 0 {
-                    Text("Avg \(format(model.thisMonthEarnings / Decimal(model.nightsThisMonth))) / night")
-                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
-                }
+                .foregroundStyle(Theme.flame)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(20)
-            .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
-            .overlay(RoundedRectangle(cornerRadius: Theme.radiusCard).stroke(Theme.hairline))
+            // Split so the source is legible when both apply.
+            HStack(spacing: 14) {
+                Text("\(format(model.nightPayoutThisMonth)) nights")
+                    .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                Text("\(format(model.offerRevenueThisMonth)) offers")
+                    .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+            }
+            Text("All-time \(format(model.earningsAllTime))")
+                .font(.cfMono(10, weight: .medium)).kerning(0.5)
+                .foregroundStyle(Theme.parchmentDim)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
+        .overlay(RoundedRectangle(cornerRadius: Theme.radiusCard).stroke(Theme.hairline))
 
+        // Per-night payout rows (private events with payout tracking).
+        let payoutNights = model.allocations.filter { $0.earnings > 0 }
+        if !payoutNights.isEmpty {
             VStack(spacing: 0) {
-                ForEach(model.allocations.filter { $0.earnings > 0 }) { a in
+                ForEach(payoutNights) { a in
                     payoutRow(a)
                     Divider().background(Theme.hairline)
                 }
             }
+        } else if model.earningsThisMonth == 0 {
+            Text("Free guestlists don't earn a payout. Paid offers (VIP tables) and payout-tracked private nights show up here.")
+                .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

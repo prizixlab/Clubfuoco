@@ -1,7 +1,7 @@
 import { brandOrNull } from '@/lib/supplier-auth'
 import { ok, err } from '@/lib/utils'
 
-// GET /api/supplier/clubs — id + name for the club picker when adding a
+// GET /api/offers/clubs — id + name for the venue picker when adding a
 // public offer. Any signed-in promoter may pick a venue (the brand is
 // provisioned on their first offer), so this is auth-gated but not
 // brand-gated.

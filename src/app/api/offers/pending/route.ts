@@ -2,7 +2,7 @@ import { brandOrNull } from '@/lib/supplier-auth'
 import { listOwnPending } from '@/lib/pending-changes'
 import { ok, err } from '@/lib/utils'
 
-// GET /api/supplier/pending — the caller's changes awaiting Club Fuoco review,
+// GET /api/offers/pending — the caller's changes awaiting Club Fuoco review,
 // so the app can show them as "in review" alongside their live offers.
 export async function GET() {
   // Keyed by submitter, so it works before a brand exists.

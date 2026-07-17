@@ -3,7 +3,7 @@ import SwiftUI
 // Tap-a-box detail sheet for supplier offers: pick one of the offer's next
 // valid nights, see who booked through it (name, party size, arrived), and
 // manage the offer (edit / deactivate / delete) without leaving the sheet.
-// Guest data comes from /api/supplier/guests (rumbalist_purchases + linked
+// Guest data comes from /api/offers/guests (rumbalist_purchases + linked
 // booking check-ins), filtered to this offer's product kind.
 struct SupplierOfferDetailSheet: View {
     let offer: SupplierOffer

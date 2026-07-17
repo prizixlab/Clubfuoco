@@ -3,7 +3,7 @@ import Foundation
 // ── Supplier self-service ────────────────────────────────────────────────────
 // A "list" (Rumba, Aashi, …) whose account owns a partner_brand signs in here
 // and manages that brand's guestlist offers. Talks to the Bearer-authed
-// /api/supplier/** routes (the web enforces that every write is scoped to the
+// /api/offers/** routes (the web enforces that every write is scoped to the
 // brand this account owns). Mirrors PromoterRepo's URLRequest + { data, error }
 // envelope pattern.
 
@@ -144,7 +144,7 @@ final class SupplierRepo {
     func me() async throws -> SupplierBrand? {
         struct MeEnv: Decodable { let brand: SupplierBrand? }
         do {
-            let data = try await request("/api/supplier/me", method: "GET")
+            let data = try await request("/api/offers/me", method: "GET")
             return try decode(data, as: MeEnv.self).brand
         } catch SupplierError.message(let m) where m.contains("No brand") || m.contains("Unauthorized") {
             return nil
@@ -152,23 +152,23 @@ final class SupplierRepo {
     }
 
     func offers() async throws -> [SupplierOffer] {
-        try decode(try await request("/api/supplier/offers", method: "GET"), as: [SupplierOffer].self)
+        try decode(try await request("/api/offers", method: "GET"), as: [SupplierOffer].self)
     }
 
     func clubs() async throws -> [SupplierClub] {
-        try decode(try await request("/api/supplier/clubs", method: "GET"), as: [SupplierClub].self)
+        try decode(try await request("/api/offers/clubs", method: "GET"), as: [SupplierClub].self)
     }
 
     /// Changes this supplier has submitted that are awaiting review.
     func pending() async throws -> [SupplierPending] {
-        try decode(try await request("/api/supplier/pending", method: "GET"), as: [SupplierPending].self)
+        try decode(try await request("/api/offers/pending", method: "GET"), as: [SupplierPending].self)
     }
 
     /// Turn one night of an offer off (or back on). Scheduling, not content —
     /// applies immediately rather than going through the review queue.
     @discardableResult
     func setNight(offerId: UUID, date: String, skipped: Bool) async throws -> Bool {
-        _ = try await request("/api/supplier/offers/\(offerId.uuidString.lowercased())/nights",
+        _ = try await request("/api/offers/\(offerId.uuidString.lowercased())/nights",
                               method: "PATCH", body: ["date": date, "skipped": skipped])
         return true
     }
@@ -176,7 +176,7 @@ final class SupplierRepo {
     /// Who booked through this supplier's offers at a venue on a given night.
     func guests(clubId: UUID, date: String) async throws -> [SupplierGuest] {
         try decode(try await request(
-            "/api/supplier/guests?club_id=\(clubId.uuidString.lowercased())&date=\(date)",
+            "/api/offers/guests?club_id=\(clubId.uuidString.lowercased())&date=\(date)",
             method: "GET"), as: [SupplierGuest].self)
     }
 
@@ -186,24 +186,24 @@ final class SupplierRepo {
 
     @discardableResult
     func create(_ d: SupplierOfferDraft) async throws -> Bool {
-        decodePending(try await request("/api/supplier/offers", method: "POST", body: Self.body(from: d, includeClub: true)))
+        decodePending(try await request("/api/offers", method: "POST", body: Self.body(from: d, includeClub: true)))
     }
 
     @discardableResult
     func update(id: UUID, _ d: SupplierOfferDraft) async throws -> Bool {
-        decodePending(try await request("/api/supplier/offers/\(id.uuidString.lowercased())", method: "PATCH",
+        decodePending(try await request("/api/offers/\(id.uuidString.lowercased())", method: "PATCH",
                               body: Self.body(from: d, includeClub: false)))
     }
 
     @discardableResult
     func setActive(id: UUID, active: Bool) async throws -> Bool {
-        decodePending(try await request("/api/supplier/offers/\(id.uuidString.lowercased())", method: "PATCH",
+        decodePending(try await request("/api/offers/\(id.uuidString.lowercased())", method: "PATCH",
                               body: ["is_active": active]))
     }
 
     @discardableResult
     func delete(id: UUID) async throws -> Bool {
-        decodePending(try await request("/api/supplier/offers/\(id.uuidString.lowercased())", method: "DELETE"))
+        decodePending(try await request("/api/offers/\(id.uuidString.lowercased())", method: "DELETE"))
     }
 
     private func decodePending(_ data: Data) -> Bool {

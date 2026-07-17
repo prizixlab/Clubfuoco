@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { resolveSupplierBrand } from '@/lib/supplier-auth'
 import { ok, err } from '@/lib/utils'
 
-// PATCH /api/supplier/offers/:offerId/nights — turn ONE night of an offer off
+// PATCH /api/offers/:offerId/nights — turn ONE night of an offer off
 // or back on. { date: 'yyyy-MM-dd', skipped: boolean }
 //
 // Separate from the offer PATCH on purpose. Every content change to an offer is

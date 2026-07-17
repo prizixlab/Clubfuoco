@@ -1,7 +1,7 @@
 import { resolveSupplierBrand } from '@/lib/supplier-auth'
 import { ok, err } from '@/lib/utils'
 
-// GET /api/supplier/guests?club_id=<uuid>&date=<yyyy-MM-dd>
+// GET /api/offers/guests?club_id=<uuid>&date=<yyyy-MM-dd>
 // The guests booked through this supplier's offers at one venue for one
 // night: name, product, price, party size, and whether they checked in
 // (via the linked bookings row). Powers the offer detail sheet in the app.

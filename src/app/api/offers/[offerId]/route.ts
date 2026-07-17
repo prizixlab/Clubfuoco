@@ -5,7 +5,7 @@ import { enqueueOrApplyDirect } from '@/lib/pending-changes'
 import { ok, err } from '@/lib/utils'
 
 // Verify the offer exists AND belongs to the caller's brand — the ownership
-// boundary for every supplier write. Returns the existing row or an error
+// boundary for every offer write. Returns the existing row or an error
 // response (404 unknown / 403 someone else's offer).
 async function ownedOffer(offerId: string, brandId: string, sb: Awaited<ReturnType<typeof resolveSupplierBrand>>['sb']) {
   const { data } = await sb!
@@ -18,7 +18,7 @@ async function ownedOffer(offerId: string, brandId: string, sb: Awaited<ReturnTy
   return { existing: data }
 }
 
-// PATCH /api/supplier/offers/:offerId — edit one of the caller's own offers.
+// PATCH /api/offers/:offerId — edit one of the caller's own offers.
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ offerId: string }> },
@@ -62,7 +62,7 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/supplier/offers/:offerId — remove one of the caller's own offers.
+// DELETE /api/offers/:offerId — remove one of the caller's own offers.
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ offerId: string }> },

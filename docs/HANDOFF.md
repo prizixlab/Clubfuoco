@@ -8,7 +8,7 @@ architecture, and the known gaps/faults to pick up next._
 > The 17 July session invalidated load-bearing claims below. Where they
 > disagree, the newer memo wins. Most importantly:
 > - **Promoters and suppliers are now ONE role.** There is no separate supplier
->   experience, no supplier tabs, and no `/api/supplier/me` mode switch. Every
+>   experience, no supplier tabs, and no `/api/offers/me` mode switch. Every
 >   account gets the same four tabs; what differs is whether they create a
 >   private event or a public offer. `SupplierHomeView` /
 >   `SupplierTonightView` / `SupplierYouView` are **deleted**.
@@ -68,7 +68,7 @@ will NOT be live until someone pastes them in.
 
 ### The approval system (built this session)
 Two content types, one review surface:
-- **Supplier offers** → `pending_changes` queue. `src/app/api/supplier/offers/**` enqueue instead of writing live (with a **graceful fallback**: if `pending_changes` is missing they write live — see `enqueueOrApplyDirect` in `src/lib/pending-changes.ts`). Approve → `applyChange` runs the real `createOffer/updateOffer/deleteOffer`.
+- **Supplier offers** → `pending_changes` queue. `src/app/api/offers/**` (renamed from `/api/supplier/**`) enqueue instead of writing live (with a **graceful fallback**: if `pending_changes` is missing they write live — see `enqueueOrApplyDirect` in `src/lib/pending-changes.ts`). Approve → `applyChange` runs the real `createOffer/updateOffer/deleteOffer`.
 - **Promoter nights/series** → `review_status` flag + `hold_promoter_submission()` trigger (forces `pending`/`is_published=false` for `authenticated` inserts; exempts `service_role`, so portal approvals and materialized series occurrences publish live). Gated at the **join boundary** (`src/lib/promoter-review.ts` — `nightBlocked/seriesBlocked/allocationBlocked`, all defensive so a missing column no-ops) in `resolveTokenToAllocation` (`src/lib/promoter-series.ts`) and `src/app/i/[token]/page.tsx`.
 - **Portal Changes tab** (`/portal/reviews`) unions both; `POST /api/portal/reviews/[id]` dispatches on `type` (change|night|series).
 
@@ -82,7 +82,7 @@ calls to Next API routes using `Authorization: Bearer <session token>` (see
 `PromoterRepo` `webBase = https://clubfuoco.com`). `RootView` gates:
 `accountKind != "promoter"` → WrongAccount; `!isPromoter` → application-pending;
 else `MainTabs`. `MainTabs` = Tonight / Guestlist / Earnings / You. **Supplier
-accounts** (own a `partner_brand`, detected via `GET /api/supplier/me`) get
+accounts** (own a `partner_brand`, detected via `GET /api/offers/me`) get
 supplier variants of Tonight (venues live tonight) + Guestlist (offer manager)
 + a brand-identity "You"; Earnings is unchanged.
 

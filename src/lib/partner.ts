@@ -196,7 +196,7 @@ export async function getBrand(sb: SB, id: string): Promise<BrandRow | null> {
 }
 
 // Resolve the brand a supplier account owns (owner_user_id = their auth uid).
-// Used by the Bearer-authed /api/supplier/** routes. Returns the raw row (incl.
+// Used by the Bearer-authed /api/offers/** routes. Returns the raw row (incl.
 // id) or null if this user isn't linked to a brand.
 export async function getBrandByOwner(sb: SB, userId: string): Promise<(PartnerBrand & { id: string }) | null> {
   const { data } = await sb

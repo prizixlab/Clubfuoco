@@ -5,9 +5,9 @@ import { listBrandOffers } from '@/lib/partner'
 import { enqueueOrApplyDirect } from '@/lib/pending-changes'
 import { ok, err } from '@/lib/utils'
 
-// GET /api/supplier/offers — the caller's own LIVE offers (all clubs, incl.
+// GET /api/offers — the caller's own LIVE public offers (all venues, incl.
 // archived). Pending (unapproved) changes are served separately from
-// /api/supplier/pending so the app can show them as "in review".
+// /api/offers/pending so the app can show them as "in review".
 export async function GET() {
   const { brand, sb, response } = await brandOrNull()
   if (response) return response
@@ -21,7 +21,7 @@ export async function GET() {
   }
 }
 
-// POST /api/supplier/offers — submit a new offer for review. It does NOT go live
+// POST /api/offers — submit a new public offer for review. It does NOT go live
 // until Club Fuoco staff approve it in the portal; we queue the change instead
 // of writing to the live table. Brand id comes from the resolved account.
 export async function POST(request: NextRequest) {

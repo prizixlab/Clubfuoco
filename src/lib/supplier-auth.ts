@@ -31,7 +31,7 @@ async function resolveCaller(): Promise<
   return { userId: user.id, sb }
 }
 
-// Resolve the caller to the brand they own. Every /api/supplier write must
+// Resolve the caller to the brand they own. Every /api/offers write must
 // scope to the returned brand.
 //
 // Promoters and suppliers are ONE role: a promoter publishes public offers

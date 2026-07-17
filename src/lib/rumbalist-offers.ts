@@ -25,6 +25,14 @@ export interface RumbalistOffer {
   // can publish one), so the booking flow brands itself per offer. Absent on
   // the bundled fallback map below — no live data, so no credit.
   brand?:      OfferBrand
+  // Nights the supplier turned off, even though valid_days covers them
+  // ("normally Monday, but not Monday the 20th").
+  skipped_dates?: string[]
+}
+
+/** Is this offer actually running on `date` ("yyyy-MM-dd")? */
+export function offerRunsOn(offer: RumbalistOffer, date: string): boolean {
+  return !(offer.skipped_dates ?? []).includes(date)
 }
 
 const FREE = (sub: string, music: string, dress: string, days = 'Sun – Fri', time = 'Door open till closing'): RumbalistOffer => ({

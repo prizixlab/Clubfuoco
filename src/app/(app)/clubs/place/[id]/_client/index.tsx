@@ -2,11 +2,12 @@
 import { apiFetch } from '@/lib/api'
 import { getClubById, getPlaceFavorites, savePlaceFavorite, removePlaceFavorite } from '@/lib/supabase/queries'
 import { useAuth } from '@/contexts/AuthContext'
-import { getRumbalistOffers, type RumbalistOffer } from '@/lib/rumbalist-offers'
+import { getRumbalistOffers, offerRunsOn, type RumbalistOffer } from '@/lib/rumbalist-offers'
 import { rumbaScore } from '@/lib/rumba-score'
 import RumbalistBookSheet from '@/components/RumbalistBookSheet'
 import { SupplierMark, SupplierMarkKeyframes } from '@/components/SupplierMark'
 import { usePartner } from '@/contexts/PartnerContext'
+import { usePlan } from '@/contexts/PlanContext'
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
@@ -661,10 +662,15 @@ export default function PlaceDetailPage() {
   // supplier, so a venue can list offers from different brands and each is
   // credited correctly.
   const { getOffers: partnerGetOffers } = usePartner()
+  const { plan } = usePlan()
   const livePartnerOffers = partnerGetOffers(id as string)
-  const rumbalistOffers = livePartnerOffers.length > 0
+  // A supplier can turn a single night off, so an offer that normally runs on
+  // the planned night may not be on — don't show what can't be booked (the
+  // server refuses it anyway).
+  const rumbalistOffers = (livePartnerOffers.length > 0
     ? livePartnerOffers
     : getRumbalistOffers(id as string)
+  ).filter(o => offerRunsOn(o, plan.date))
   const showSupplierMark = rumbalistOffers.some(o => o.brand)
   const { value: ratingValue, boosted: ratingBoosted } = rumbaScore(id as string, place.rating)
   // Rumbalist partner venues only show 4★+ reviews — protects the listing's

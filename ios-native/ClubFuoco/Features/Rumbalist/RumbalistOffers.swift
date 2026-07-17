@@ -21,8 +21,13 @@ struct RumbalistOffer: Identifiable, Hashable {
     /// rather than from a single app-wide supplier. nil = bundled fallback
     /// data, or an offer whose brand didn't resolve — show no credit.
     var brand: PartnerBrand? = nil
+    /// Nights the supplier turned off, even though validDays covers them
+    /// ("normally Monday, but not Monday the 20th").
+    var skippedDates: [String] = []
 
     var isVip: Bool { kind == .vipTable }
+    /// Is this offer actually running on `date` ("yyyy-MM-dd")?
+    func runsOn(_ date: String) -> Bool { !skippedDates.contains(date) }
 }
 
 /// The active offer supplier's identity from GET /api/partner. Suppliers are
@@ -161,13 +166,15 @@ enum RumbalistOffers {
         // Which supplier this offer belongs to. Optional so an API deploy that
         // predates per-offer attribution still decodes.
         let brand: BrandDTO?
+        // Optional for the same reason — an older API sends no exceptions.
+        let skippedDates: [String]?
 
         var model: RumbalistOffer {
             RumbalistOffer(
                 kind: kind == "vip_table" ? .vipTable : .freeGuestlist,
                 title: title, subtitle: subtitle, priceEur: priceEur, partySize: partySize,
                 timeWindow: timeWindow, validDays: validDays, dressCode: dressCode, music: music,
-                brand: brand?.model)
+                brand: brand?.model, skippedDates: skippedDates ?? [])
         }
     }
 

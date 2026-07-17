@@ -19,7 +19,12 @@ struct ClubDetailView: View {
     @State private var planGroup: GroupRef?
     @State private var photoViewer: PhotoIndex?
 
-    private var offers: [RumbalistOffer] { RumbalistOffers.offers(for: place.placeId) }
+    /// Offers running on the night the user has planned. A supplier can turn a
+    /// single night off, so an offer that normally runs today may not be on —
+    /// don't show what can't be booked (the server refuses it anyway).
+    private var offers: [RumbalistOffer] {
+        RumbalistOffers.offers(for: place.placeId).filter { $0.runsOn(plan.date) }
+    }
 
     private let heroHeight: CGFloat = 360
 

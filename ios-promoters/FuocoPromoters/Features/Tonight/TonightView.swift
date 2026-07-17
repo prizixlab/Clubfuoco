@@ -127,10 +127,10 @@ struct TonightView: View {
     }
 
     var body: some View {
+        VStack(spacing: 0) {
+        FuocoHeader(initials: headerInitials)
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                header
-
                 if model.loading {
                     ProgressView().tint(Theme.parchment).padding(.top, 40)
                 } else if let err = model.error {
@@ -187,6 +187,8 @@ struct TonightView: View {
             .padding(.top, 16)
         }
         .background(Theme.night)
+        }
+        .background(Theme.night.ignoresSafeArea())
         .task {
             await offers.load()
             await model.load()
@@ -374,18 +376,11 @@ struct TonightView: View {
         }
     }
 
-    private var header: some View {
-        HStack {
-            if case .signedIn(let p) = auth.state {
-                Text("Hola, \(p.displayName)")
-                    .font(.cfSerif(22))
-                    .foregroundStyle(Theme.parchment)
-            }
-            Spacer()
-            Image(systemName: "bell")
-                .foregroundStyle(Theme.flame)
-                .font(.system(size: 18))
+    private var headerInitials: String {
+        if case .signedIn(let p) = auth.state {
+            return String(p.displayName.prefix(1)).uppercased()
         }
+        return ""
     }
 
     /// "Tonight" + today's date. Always shown, so the tab reads as tonight even

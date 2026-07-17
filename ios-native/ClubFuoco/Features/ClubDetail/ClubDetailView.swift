@@ -388,11 +388,11 @@ struct ClubDetailView: View {
                         .foregroundStyle(offer.isVip ? ink : Theme.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
-                    // Credit the supplier — restores the pre-swappable-partner
-                    // look ("Free Guestlist with [Rumbalist mark]"). Only when
-                    // Rumba is the currently active brand, so a future supplier
-                    // swap doesn't leave stale Rumbalist branding on the card.
-                    if let brand = RumbalistOffers.brand, brand.key == "rumba" {
+                    // Credit the supplier behind THIS offer ("Free Guestlist
+                    // with [Rumbalist mark]"). Per-offer, so a venue can list
+                    // offers from different suppliers and each is credited
+                    // correctly — and a supplier swap never leaves a stale mark.
+                    if let brand = offer.brand {
                         Text("with")
                             .font(.cfSans(11))
                             .foregroundStyle((offer.isVip ? ink : Theme.ink).opacity(0.75))

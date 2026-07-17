@@ -16,6 +16,11 @@ struct RumbalistOffer: Identifiable, Hashable {
     let validDays: String
     let dressCode: String
     let music: String
+    /// The supplier behind THIS offer. Offers come from many brands (any
+    /// promoter can publish one), so the booking flow brands itself per offer
+    /// rather than from a single app-wide supplier. nil = bundled fallback
+    /// data, or an offer whose brand didn't resolve — show no credit.
+    var brand: PartnerBrand? = nil
 
     var isVip: Bool { kind == .vipTable }
 }
@@ -107,9 +112,9 @@ enum RumbalistOffers {
     /// on each app-foreground).
     nonisolated(unsafe) private(set) static var byClub: [String: [RumbalistOffer]] = bundledByClub
 
-    /// The active supplier's brand (credit line data). nil until the first
-    /// successful refresh — no bundled fallback: with no live data we show no
-    /// supplier credit rather than risk crediting the wrong partner.
+    /// The primary/featured supplier, kept only for surfaces that still want an
+    /// app-wide brand. Per-offer attribution lives on `RumbalistOffer.brand` —
+    /// prefer that. nil until the first successful refresh.
     nonisolated(unsafe) private(set) static var brand: PartnerBrand?
 
     static func offers(for clubId: String) -> [RumbalistOffer] {
@@ -121,7 +126,7 @@ enum RumbalistOffers {
     // editable (and swappable) without an app release; falls back to the bundle.
 
     private struct Response: Decodable, Sendable {
-        let brand: BrandDTO?
+        let brand: BrandDTO?          // primary supplier (legacy field)
         let offersByClub: [String: [OfferDTO]]
     }
     private struct BrandDTO: Decodable, Sendable {
@@ -153,12 +158,16 @@ enum RumbalistOffers {
         let validDays: String
         let dressCode: String
         let music: String
+        // Which supplier this offer belongs to. Optional so an API deploy that
+        // predates per-offer attribution still decodes.
+        let brand: BrandDTO?
 
         var model: RumbalistOffer {
             RumbalistOffer(
                 kind: kind == "vip_table" ? .vipTable : .freeGuestlist,
                 title: title, subtitle: subtitle, priceEur: priceEur, partySize: partySize,
-                timeWindow: timeWindow, validDays: validDays, dressCode: dressCode, music: music)
+                timeWindow: timeWindow, validDays: validDays, dressCode: dressCode, music: music,
+                brand: brand?.model)
         }
     }
 

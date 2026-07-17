@@ -1,19 +1,11 @@
-import { usePartner } from '@/contexts/PartnerContext'
-
-/** The active offer supplier when one is live — the 'clubfuoco' key is the
- *  no-supplier fallback baked into PartnerContext. */
-export function useSupplier() {
-  const { brand } = usePartner()
-  return brand.key !== 'clubfuoco' ? brand : null
-}
+import type { OfferBrand } from '@/lib/rumbalist-offers'
 
 /** The supplier's mark, restoring the branding it had before the swappable-
  *  partner refactor. Rumba gets the bundled wordmark masking a gloss sweep in
  *  the brand color; other suppliers get their logo, or their name in the
  *  brand color. Used on the offer buttons + booking sheet — anywhere an offer
  *  needs to read as "this comes from Rumbalist/whoever", never in app chrome. */
-export function SupplierMark({ size = 18 }: { size?: number }) {
-  const { brand } = usePartner()
+export function SupplierMark({ brand, size = 18 }: { brand: OfferBrand; size?: number }) {
   if (brand.key === 'rumba') {
     const mask = 'url(/rumbalist-logo.png) no-repeat left center / contain'
     return (

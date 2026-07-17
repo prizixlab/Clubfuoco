@@ -5,10 +5,12 @@ import { apiFetch } from '@/lib/api'
 import { RUMBALIST_OFFERS, type RumbalistOffer } from '@/lib/rumbalist-offers'
 
 // ── PartnerContext ─────────────────────────────────────────────────────────
-// The active guestlist partner's brand + per-club offers, fetched from
-// /api/partner at runtime so a partner switch propagates without a redeploy.
-// Seeded synchronously with the current values as a fallback, so first paint
-// (and offline / Capacitor cold start) is always exactly today's data.
+// Every live guestlist offer, per club, fetched from /api/partner at runtime so
+// changes propagate without a redeploy. Offers come from MANY brands (any
+// promoter can publish one) and each carries its own supplier for attribution —
+// `brand` here is just the primary/featured supplier. Seeded synchronously with
+// the bundled catalog as a fallback, so first paint (and offline / Capacitor
+// cold start) always shows something.
 
 export interface PartnerBrand {
   key:      string
@@ -46,8 +48,10 @@ export function PartnerProvider({ children }: { children: React.ReactNode }) {
     apiFetch('/api/partner')
       .then(r => r.json())
       .then(({ data }) => {
-        if (!alive || !data?.brand) return
-        cache = { brand: data.brand, offersByClub: data.offersByClub ?? {} }
+        // `brand` is only the primary supplier and may be null; the offers
+        // themselves each carry their own brand, so don't gate on it.
+        if (!alive || !data) return
+        cache = { brand: data.brand ?? FALLBACK_BRAND, offersByClub: data.offersByClub ?? {} }
         setState(cache)
       })
       .catch(() => { /* keep fallback */ })

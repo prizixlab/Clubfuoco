@@ -31,6 +31,11 @@ export interface PartnerOffer {
   valid_days:  string
   dress_code:  string
   music:       string
+  // Who supplies this offer. Offers come from MANY brands now (any promoter
+  // can publish one), so attribution rides on the offer itself rather than a
+  // single app-wide "active brand" — that's what lets the booking flow brand
+  // itself per offer.
+  brand?:      PartnerBrand & { id: string }
 }
 
 // Archived offers (20260711_partner_offer_archive.sql) keep their data but
@@ -38,7 +43,7 @@ export interface PartnerOffer {
 // public endpoints never break on drift — same select('*') trick as brands.
 const isActiveOffer = (r: Record<string, unknown>) => r.is_active !== false
 
-function toOffer(r: Record<string, unknown>): PartnerOffer {
+function toOffer(r: Record<string, unknown>, brand?: PartnerBrand & { id: string }): PartnerOffer {
   return {
     kind:        r.kind as PartnerOffer['kind'],
     title:       r.title as string,
@@ -49,6 +54,7 @@ function toOffer(r: Record<string, unknown>): PartnerOffer {
     valid_days:  r.valid_days as string,
     dress_code:  r.dress_code as string,
     music:       r.music as string,
+    ...(brand ? { brand } : {}),
   }
 }
 
@@ -76,36 +82,55 @@ export async function getActiveBrand(sb: SB): Promise<(PartnerBrand & { id: stri
   return data ? toBrand(data) : null
 }
 
-// All of the active brand's offers, grouped by club id (the RUMBALIST_OFFERS map).
+/// Every brand keyed by id, so offers can be attributed without an N+1 lookup.
+async function brandsById(sb: SB): Promise<Map<string, PartnerBrand & { id: string }>> {
+  const { data } = await sb.from('partner_brands').select('*')
+  const map = new Map<string, PartnerBrand & { id: string }>()
+  for (const r of data ?? []) {
+    const b = toBrand(r as Record<string, unknown>)
+    map.set(b.id, b)
+  }
+  return map
+}
+
+// Every LIVE offer across EVERY brand, grouped by club id, each carrying its
+// own brand for attribution.
+//
+// Visibility is the OFFER's own is_active flag, not its brand's: promoters and
+// suppliers are one role, so any promoter can publish an offer, and each one is
+// already gated by Club Fuoco review before a live partner_offers row exists.
+// Brand.is_active still marks the primary supplier (getActiveBrand) but no
+// longer decides what consumers see — gating on it would mean a promoter's
+// approved offer passed review and still never appeared.
 export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, PartnerOffer[]>> {
-  const brand = await getActiveBrand(sb)
-  if (!brand) return {}
+  const brands = await brandsById(sb)
   const { data } = await sb
     .from('partner_offers')
     .select('*')
-    .eq('brand_id', brand.id)
     .order('club_id', { ascending: true })
     .order('sort_order', { ascending: true })
   const map: Record<string, PartnerOffer[]> = {}
   for (const r of data ?? []) {
     if (!isActiveOffer(r)) continue
-    (map[(r as { club_id: string }).club_id] ??= []).push(toOffer(r))
+    const row = r as Record<string, unknown> & { club_id: string; brand_id: string }
+    ;(map[row.club_id] ??= []).push(toOffer(row, brands.get(row.brand_id)))
   }
   return map
 }
 
-// The active brand's offers for one club (replacement for getRumbalistOffers).
+// Every live offer for one club, across all brands.
 export async function getPartnerOffers(sb: SB, clubId: string | null | undefined): Promise<PartnerOffer[]> {
   if (!clubId) return []
-  const brand = await getActiveBrand(sb)
-  if (!brand) return []
+  const brands = await brandsById(sb)
   const { data } = await sb
     .from('partner_offers')
     .select('*')
-    .eq('brand_id', brand.id)
     .eq('club_id', clubId)
     .order('sort_order', { ascending: true })
-  return (data ?? []).filter(isActiveOffer).map(toOffer)
+  return (data ?? [])
+    .filter(isActiveOffer)
+    .map(r => toOffer(r as Record<string, unknown>,
+                      brands.get((r as unknown as { brand_id: string }).brand_id)))
 }
 
 // ── Portal write helpers ─────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { apiFetch } from '@/lib/api'
 import { usePlan } from '@/contexts/PlanContext'
 import { usePartner } from '@/contexts/PartnerContext'
-import { useSupplier, SupplierMark, SupplierMarkKeyframes, hexToRgba } from '@/components/SupplierMark'
+import { SupplierMark, SupplierMarkKeyframes, hexToRgba } from '@/components/SupplierMark'
 import { RumbalistOffer } from '@/lib/rumbalist-offers'
 
 /**
@@ -280,14 +280,15 @@ function ReviewStep({ offer, venueName, venueAddress, error, paying, onConfirm, 
 }) {
   const isFree = offer.kind === 'free_guestlist'
   const total  = offer.price_eur ? `€${offer.price_eur.toFixed(2)}` : 'Free'
-  const supplier = useSupplier()
+  // The supplier behind THIS offer — not an app-wide brand.
+  const supplier = offer.brand ?? null
   return (
     <div style={{ padding: '0 22px', color: '#F5F5F7', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         {isFree
           ? <span style={{ fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(245,245,247,0.7)', fontFamily: 'ui-monospace, monospace', display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
-              Free Guestlist{supplier && <> · <SupplierMark size={12} /></>}
+              Free Guestlist{supplier && <> · <SupplierMark brand={supplier} size={12} /></>}
             </span>
           : <ApplePayLogo />}
         <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#fff', borderRadius: 999, width: 30, height: 30, fontSize: 16, cursor: 'pointer' }}>×</button>
@@ -313,9 +314,9 @@ function ReviewStep({ offer, venueName, venueAddress, error, paying, onConfirm, 
       {/* Items */}
       <div style={{ marginTop: 22, background: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: '14px 16px' }}>
         {isFree ? (
-          <Row label="Operator" value={supplier ? <>Club Fuoco · via <SupplierMark size={11} /></> : 'Club Fuoco'} />
+          <Row label="Operator" value={supplier ? <>Club Fuoco · via <SupplierMark brand={supplier} size={11} /></> : 'Club Fuoco'} />
         ) : (
-          <Row label="Pay to" value={supplier ? <>Club Fuoco · via <SupplierMark size={11} /></> : 'Club Fuoco'} />
+          <Row label="Pay to" value={supplier ? <>Club Fuoco · via <SupplierMark brand={supplier} size={11} /></> : 'Club Fuoco'} />
         )}
         <Hr />
         <Row label="Venue"   value={venueName} />
@@ -421,9 +422,9 @@ function PassStep({ offer, venueName, venueAddress, date, code, bookingId, onClo
   offer: RumbalistOffer; venueName: string; venueAddress: string;
   date: string; code: string; bookingId: string | null; onClose: () => void
 }) {
-  // Accent follows the active supplier (Rumba pink, as before); the soft
+  // Accent follows THIS offer's supplier (Rumba pink, as before); the soft
   // salmon stays as the no-supplier fallback.
-  const supplier  = useSupplier()
+  const supplier  = offer.brand ?? null
   const PINK      = supplier?.color || '#FFB4A2'
   const PINK_DIM  = hexToRgba(PINK, 0.14)
   const PINK_RULE = hexToRgba(PINK, 0.32)
@@ -449,7 +450,7 @@ function PassStep({ offer, venueName, venueAddress, date, code, bookingId, onClo
         </div>
         {supplier && (
           <p style={{ margin: '6px 0 0', fontSize: 11, color: 'rgba(245,245,247,0.55)' }}>
-            via <SupplierMark size={11} />
+            via <SupplierMark brand={supplier} size={11} />
           </p>
         )}
       </div>

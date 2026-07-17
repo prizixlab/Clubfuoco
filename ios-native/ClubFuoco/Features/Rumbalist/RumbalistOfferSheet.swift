@@ -31,8 +31,10 @@ struct RumbalistOfferSheet: View {
     private static let ink = Color(hex: 0x141416)
     private static let textColor = Color(hex: 0xF5F5F7)
 
-    /// The active offer supplier — drives the sheet's branding.
-    private var brand: PartnerBrand? { RumbalistOffers.brand }
+    /// The supplier behind THIS offer — drives the sheet's branding. Per-offer,
+    /// not app-wide: two venues' offers can come from different suppliers, and
+    /// each checkout must carry the right one.
+    private var brand: PartnerBrand? { offer.brand }
     private var accent: Color {
         brand.flatMap { Color(hexString: $0.color) } ?? Theme.ember
     }

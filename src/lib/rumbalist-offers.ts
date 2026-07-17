@@ -4,6 +4,13 @@
 
 export type OfferKind = 'free_guestlist' | 'vip_table'
 
+export interface OfferBrand {
+  key:      string
+  name:     string
+  logo_url: string | null
+  color:    string
+}
+
 export interface RumbalistOffer {
   kind:        OfferKind
   title:       string
@@ -14,6 +21,10 @@ export interface RumbalistOffer {
   valid_days:  string
   dress_code:  string
   music:       string
+  // The supplier behind THIS offer. Offers come from many brands (any promoter
+  // can publish one), so the booking flow brands itself per offer. Absent on
+  // the bundled fallback map below — no live data, so no credit.
+  brand?:      OfferBrand
 }
 
 const FREE = (sub: string, music: string, dress: string, days = 'Sun – Fri', time = 'Door open till closing'): RumbalistOffer => ({

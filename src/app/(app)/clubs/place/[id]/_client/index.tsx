@@ -5,7 +5,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getRumbalistOffers, type RumbalistOffer } from '@/lib/rumbalist-offers'
 import { rumbaScore } from '@/lib/rumba-score'
 import RumbalistBookSheet from '@/components/RumbalistBookSheet'
-import { useSupplier, SupplierMark, SupplierMarkKeyframes } from '@/components/SupplierMark'
+import { SupplierMark, SupplierMarkKeyframes } from '@/components/SupplierMark'
+import { usePartner } from '@/contexts/PartnerContext'
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
@@ -655,13 +656,16 @@ export default function PlaceDetailPage() {
 
   const genre = (place.music_genres ?? [])[0] ?? null
   const allTags = [...(place.music_genres ?? []), ...(place.tags ?? []).slice(0, 4)]
-  const rumbalistOffers = getRumbalistOffers(id as string)
-  // These offers are always sourced from the static Rumbalist catalog above,
-  // but the "with <mark>" credit only renders while Rumba is the active
-  // partner brand — if the operator ever swaps suppliers, stale Rumbalist
-  // branding shouldn't linger on a catalog nobody's running anymore.
-  const supplier = useSupplier()
-  const showSupplierMark = supplier?.key === 'rumba'
+  // Live offers from the aggregated feed (every brand), falling back to the
+  // bundled catalog before the first fetch lands. Each offer carries its own
+  // supplier, so a venue can list offers from different brands and each is
+  // credited correctly.
+  const { getOffers: partnerGetOffers } = usePartner()
+  const livePartnerOffers = partnerGetOffers(id as string)
+  const rumbalistOffers = livePartnerOffers.length > 0
+    ? livePartnerOffers
+    : getRumbalistOffers(id as string)
+  const showSupplierMark = rumbalistOffers.some(o => o.brand)
   const { value: ratingValue, boosted: ratingBoosted } = rumbaScore(id as string, place.rating)
   // Rumbalist partner venues only show 4★+ reviews — protects the listing's
   // perceived quality the same way the Rumba Score does for the headline rating.
@@ -988,10 +992,10 @@ export default function PlaceDetailPage() {
                                   color: isVip ? 'rgb(42,27,8)' : C.ink,
                                   display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
                         {o.title}
-                        {showSupplierMark && (
+                        {o.brand && (
                           <>
                             <span style={{ fontWeight: 400, fontSize: 12, opacity: 0.75 }}>with</span>
-                            <SupplierMark size={13} />
+                            <SupplierMark brand={o.brand} size={13} />
                           </>
                         )}
                       </p>

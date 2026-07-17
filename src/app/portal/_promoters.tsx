@@ -38,11 +38,16 @@ export function PromoterApprovals() {
 
   async function decide(app: Application, decision: 'approve' | 'reject' | 'revoke') {
     const who = app.full_name || app.email || `@${app.instagram}`
-    const msg = decision === 'approve'
+    let msg = decision === 'approve'
       ? `Approve ${who} as a promoter? They get full access to the FuocoPromoters app.`
       : decision === 'revoke'
         ? `Revoke ${who}'s promoter access? They'll be locked out of the app.`
         : `Reject ${who}'s application?`
+    // Approving is what grants access — make an unverified Instagram an
+    // explicit choice rather than something you skip past by accident.
+    if (decision === 'approve' && !app.ig_verified) {
+      msg = `Instagram NOT verified — you haven't confirmed the DM'd code came from @${(app.instagram ?? '').replace(/^@/, '')}.\n\n${msg}`
+    }
     if (!confirm(msg)) return
     setBusy(app.id)
     try {
@@ -53,6 +58,39 @@ export function PromoterApprovals() {
     } finally {
       setBusy(null)
     }
+  }
+
+  // Instagram verification + adjustment. Verification is its own step: confirm
+  // the DM'd code came from the claimed account, then decide on access.
+  async function patch(app: Application, body: { instagram?: string; ig_verified?: boolean }) {
+    setBusy(app.id)
+    try {
+      await api(`/api/portal/promoters/${app.id}`, { method: 'PATCH', body: JSON.stringify(body) })
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Action failed')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  function toggleVerified(app: Application) {
+    if (!app.ig_verified && !confirm(
+      `Confirm the code ${app.ig_code ?? ''} was DM'd from @${(app.instagram ?? '').replace(/^@/, '')}?`
+    )) return
+    patch(app, { ig_verified: !app.ig_verified })
+  }
+
+  function editHandle(app: Application) {
+    const current = (app.instagram ?? '').replace(/^@/, '')
+    const next = prompt(
+      'Instagram handle (no @).\n\nChanging it clears verification — the code was proved against the old account.',
+      current,
+    )
+    if (next === null) return
+    const handle = next.trim().replace(/^@+/, '')
+    if (!handle || handle === current) return
+    patch(app, { instagram: handle })
   }
 
   return (
@@ -91,6 +129,9 @@ export function PromoterApprovals() {
                         @{a.instagram.replace(/^@/, '')} ↗
                       </a>
                     )}
+                    <Badge color={a.ig_verified ? C.green : C.faint}>
+                      {a.ig_verified ? 'IG verified' : 'IG unverified'}
+                    </Badge>
                   </div>
                   {a.email && <p style={{ margin: '3px 0 0', fontFamily: mono, fontSize: 11.5, color: C.dim }}>{a.email}</p>}
                   <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
@@ -100,8 +141,16 @@ export function PromoterApprovals() {
                     <Fact label="Applied" value={new Date(a.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} />
                   </div>
                   <p style={{ margin: '8px 0 0', fontSize: 11.5, color: C.faint, fontFamily: font }}>
-                    Check their IG DMs for the code above before approving.
+                    {a.ig_verified
+                      ? 'Instagram confirmed — safe to decide on access.'
+                      : 'Check their IG DMs for the code above, then Verify.'}
                   </p>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    <Btn small onClick={() => toggleVerified(a)} disabled={busy === a.id}>
+                      {a.ig_verified ? 'Unverify IG' : 'Verify IG'}
+                    </Btn>
+                    <Btn small onClick={() => editHandle(a)} disabled={busy === a.id}>Edit handle</Btn>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <Btn kind="primary" onClick={() => decide(a, 'approve')} disabled={busy === a.id}>
@@ -131,7 +180,12 @@ export function PromoterApprovals() {
                     @{(a.instagram ?? '').replace(/^@/, '')}
                   </span>
                 </div>
+                {!a.ig_verified && <Badge color={C.faint}>IG unverified</Badge>}
                 <Badge color={a.is_promoter ? C.green : C.faint}>{a.is_promoter ? 'Active' : 'No access'}</Badge>
+                <Btn small onClick={() => editHandle(a)} disabled={busy === a.id}>Edit handle</Btn>
+                <Btn small onClick={() => toggleVerified(a)} disabled={busy === a.id}>
+                  {a.ig_verified ? 'Unverify' : 'Verify'}
+                </Btn>
                 {a.is_promoter
                   ? <Btn small kind="danger" onClick={() => decide(a, 'revoke')} disabled={busy === a.id}>Revoke</Btn>
                   : <Btn small onClick={() => decide(a, 'approve')} disabled={busy === a.id}>Grant access</Btn>}

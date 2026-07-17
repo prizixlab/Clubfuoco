@@ -4,6 +4,74 @@ import { requirePortal } from '@/lib/portal-auth'
 import { logAudit } from '@/lib/portal-audit'
 import { ok, err } from '@/lib/utils'
 
+// Instagram handles: letters, numbers, dots, underscores; 30 max. Stored bare
+// (no leading @) — the UI adds it back.
+const IG_HANDLE = /^[A-Za-z0-9._]{1,30}$/
+const normalizeHandle = (s: string) => s.trim().replace(/^@+/, '').trim()
+
+// PATCH /api/portal/promoters/:id — Instagram verification + adjustment.
+// { instagram?: string, ig_verified?: boolean }
+//
+// Verification is its own step, deliberately separate from approval: staff
+// confirm the DM'd code came from the claimed account, THEN decide on access.
+// Adjustment fixes a handle the applicant typo'd (or DM'd from a different
+// account) without making them re-apply — changing the handle clears
+// ig_verified, because the code was proved against the OLD account.
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const denied = await requirePortal()
+  if (denied) return denied
+  const { id } = await params
+  const body = await request.json().catch(() => null)
+  if (!body || typeof body !== 'object') return err('Bad request')
+
+  const sb = await createServiceClient()
+  const { data: app } = await sb
+    .from('promoter_applications')
+    .select('id, user_id, instagram, ig_verified')
+    .eq('id', id)
+    .maybeSingle()
+  if (!app) return err('Application not found', 404)
+  const a = app as { user_id: string; instagram: string | null; ig_verified: boolean | null }
+
+  const patch: Record<string, unknown> = {}
+  const notes: string[] = []
+
+  if (typeof body.instagram === 'string') {
+    const handle = normalizeHandle(body.instagram)
+    if (!IG_HANDLE.test(handle)) return err('Not a valid Instagram handle')
+    if (handle !== (a.instagram ?? '')) {
+      patch.instagram = handle
+      notes.push(`handle @${a.instagram ?? '—'} → @${handle}`)
+      // The code was proved against the previous account — re-verify.
+      if (a.ig_verified) {
+        patch.ig_verified = false
+        notes.push('verification reset')
+      }
+    }
+  }
+
+  // An explicit ig_verified in the body wins over the reset above.
+  if (typeof body.ig_verified === 'boolean' && body.ig_verified !== a.ig_verified) {
+    patch.ig_verified = body.ig_verified
+    notes.push(body.ig_verified ? 'Instagram verified' : 'Instagram unverified')
+  }
+
+  if (!Object.keys(patch).length) return ok({ unchanged: true })
+
+  const { error } = await sb.from('promoter_applications').update(patch).eq('id', id)
+  if (error) return err(error.message, 500)
+
+  await logAudit(sb, {
+    action: 'promoter.instagram',
+    summary: `@${(patch.instagram as string) ?? a.instagram ?? a.user_id}: ${notes.join(', ')}`,
+    target_type: 'promoter', target_id: a.user_id,
+  })
+  return ok({ updated: true, ...patch })
+}
+
 // POST /api/portal/promoters/:id — decide a promoter application.
 // { decision: 'approve' | 'reject' | 'revoke' }
 //   approve → application approved + ig_verified, account gains is_promoter

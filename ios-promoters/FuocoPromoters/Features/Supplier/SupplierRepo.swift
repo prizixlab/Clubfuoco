@@ -29,8 +29,12 @@ struct SupplierOffer: Decodable, Identifiable, Hashable {
     let music: String
     let sortOrder: Int
     let isActive: Bool
+    /// Specific dates this offer is NOT running, even though validDays covers
+    /// them. Optional so a client on an older API still decodes.
+    let skippedDates: [String]?
 
     var isVip: Bool { kind == "vip_table" }
+    func isSkipped(_ date: String) -> Bool { (skippedDates ?? []).contains(date) }
 }
 
 struct SupplierClub: Decodable, Identifiable, Hashable {
@@ -158,6 +162,15 @@ final class SupplierRepo {
     /// Changes this supplier has submitted that are awaiting review.
     func pending() async throws -> [SupplierPending] {
         try decode(try await request("/api/supplier/pending", method: "GET"), as: [SupplierPending].self)
+    }
+
+    /// Turn one night of an offer off (or back on). Scheduling, not content —
+    /// applies immediately rather than going through the review queue.
+    @discardableResult
+    func setNight(offerId: UUID, date: String, skipped: Bool) async throws -> Bool {
+        _ = try await request("/api/supplier/offers/\(offerId.uuidString.lowercased())/nights",
+                              method: "PATCH", body: ["date": date, "skipped": skipped])
+        return true
     }
 
     /// Who booked through this supplier's offers at a venue on a given night.

@@ -36,6 +36,9 @@ export interface PartnerOffer {
   // single app-wide "active brand" — that's what lets the booking flow brand
   // itself per offer.
   brand?:      PartnerBrand & { id: string }
+  // Specific dates this offer is NOT running, even though valid_days covers
+  // them. Clients must treat it as unavailable on these dates.
+  skipped_dates?: string[]
 }
 
 // Archived offers (20260711_partner_offer_archive.sql) keep their data but
@@ -54,6 +57,9 @@ function toOffer(r: Record<string, unknown>, brand?: PartnerBrand & { id: string
     valid_days:  r.valid_days as string,
     dress_code:  r.dress_code as string,
     music:       r.music as string,
+    // Drift-defensive: the column ships in a manual migration, so treat a
+    // missing value as "no nights skipped" rather than breaking the feed.
+    skipped_dates: (r.skipped_dates as string[] | null) ?? [],
     ...(brand ? { brand } : {}),
   }
 }
@@ -315,4 +321,20 @@ export async function duplicateOffers(sb: SB, fromBrandId: string, toBrandId: st
   const { error } = await sb.from('partner_offers').insert(rows)
   if (error) throw new Error(error.message)
   return rows.length
+}
+
+/// Is this club's offer of `kind` actually running on `date`? Client filtering
+/// is presentation; this is the enforcement the booking routes use, so a stale
+/// or hand-rolled client can't claim a night the supplier turned off.
+export async function offerRunsOn(
+  sb: SB, clubId: string, kind: string, date: string,
+): Promise<boolean> {
+  const { data, error } = await sb
+    .from('partner_offers')
+    .select('skipped_dates')
+    .eq('club_id', clubId)
+    .eq('kind', kind)
+  // Column/table not applied yet, or no such offer — don't block the booking.
+  if (error || !data?.length) return true
+  return !data.some(r => ((r as { skipped_dates?: string[] | null }).skipped_dates ?? []).includes(date))
 }

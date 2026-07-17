@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { ok, err, resolveBookingDate } from '@/lib/utils'
 import { generateReferenceCode } from '@/lib/rumbalist-reference'
+import { offerRunsOn } from '@/lib/partner'
 
 // Add the authenticated user to a Rumbalist free guestlist for a club.
 // Writes two rows:
@@ -23,6 +24,13 @@ export async function POST(req: Request) {
   if (!bookingDate) return err('booking_date must be today or within the next 14 days')
 
   const supabase = await createServiceClient()
+
+  // The supplier can turn off a single night of an otherwise-running offer.
+  // Client-side filtering is presentation; this is the enforcement, so a stale
+  // or hand-rolled client can't put someone on a list that isn't happening.
+  if (!(await offerRunsOn(supabase, clubId, 'free_guestlist', bookingDate))) {
+    return err('This guestlist isn\'t running on that night.', 409)
+  }
 
   // 1. Booking row — retry on the (vanishingly rare) reference-code collision.
   //    Postgres unique violation = code 23505. Five attempts is plenty since

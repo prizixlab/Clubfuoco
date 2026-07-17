@@ -11,11 +11,19 @@ struct SupplierOfferDetailSheet: View {
     var onEdit: (() -> Void)?
     var onToggle: (() -> Void)?
     var onDelete: (() -> Void)?
+    /// Fired after a per-night toggle, so the list behind the sheet refreshes.
+    var onChanged: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var selectedDate: String = ""
     @State private var confirmDeactivate = false
     @State private var confirmDelete = false
+    @State private var confirmSkipNight = false
+    /// Local copy of the offer's per-night exceptions so the sheet updates the
+    /// moment a night is toggled (the parent list reloads behind it).
+    @State private var skipped: Set<String> = []
+    @State private var nightBusy = false
+    @State private var nightError: String?
     @State private var guests: [SupplierGuest] = []
     @State private var loading = true
     @State private var loadError: String?
@@ -47,6 +55,15 @@ struct SupplierOfferDetailSheet: View {
         } message: {
             Text("\"\(offer.title)\" at \(clubName) stops being offered on the Club Fuoco app. You can reactivate it any time, and the change goes to Club Fuoco for review first.")
         }
+        .alert("Deactivate this night?", isPresented: $confirmSkipNight) {
+            Button("No", role: .cancel) { }
+            Button("Yes", role: .destructive) {
+                Haptics.tap()
+                Task { await setNight(skipped: true) }
+            }
+        } message: {
+            Text("\"\(offer.title)\" won't run at \(clubName) on \(Self.longLabel(selectedDate)). The offer keeps running on its other nights, and you can turn this one back on any time.")
+        }
         .alert("Delete this offer?", isPresented: $confirmDelete) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
@@ -58,6 +75,7 @@ struct SupplierOfferDetailSheet: View {
             Text("\"\(offer.title)\" at \(clubName) is removed for good. Deactivate instead if you only want to hide it — that keeps the offer's details. The change goes to Club Fuoco for review first.")
         }
         .task {
+            if skipped.isEmpty { skipped = Set(offer.skippedDates ?? []) }
             if selectedDate.isEmpty { selectedDate = upcomingDates.first ?? Self.dayString(Date()) }
             await load()
         }
@@ -80,6 +98,23 @@ struct SupplierOfferDetailSheet: View {
             d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         }
         return out
+    }
+
+    /// Toggle the selected night. Applies immediately — this is scheduling, not
+    /// a content change, so it doesn't go through the review queue.
+    private func setNight(skipped want: Bool) async {
+        guard !selectedDate.isEmpty else { return }
+        nightBusy = true; nightError = nil
+        do {
+            try await repo.setNight(offerId: offer.id, date: selectedDate, skipped: want)
+            if want { skipped.insert(selectedDate) } else { skipped.remove(selectedDate) }
+            Haptics.success()
+            onChanged?()
+        } catch {
+            nightError = (error as? LocalizedError)?.errorDescription ?? "Couldn't update that night."
+            Haptics.error()
+        }
+        nightBusy = false
     }
 
     private func load() async {
@@ -118,6 +153,9 @@ struct SupplierOfferDetailSheet: View {
     private var dayPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
             Kicker("Night", color: Theme.parchmentDim)
+            if let nightError {
+                Text(nightError).font(.cfSans(12)).foregroundStyle(Theme.wine)
+            }
             if upcomingDates.isEmpty {
                 Text("No valid nights parsed from \"\(offer.validDays)\".")
                     .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
@@ -126,19 +164,29 @@ struct SupplierOfferDetailSheet: View {
                     HStack(spacing: 8) {
                         ForEach(upcomingDates, id: \.self) { date in
                             let on = date == selectedDate
+                            let off = skipped.contains(date)
                             Button {
                                 Haptics.tap()
                                 selectedDate = date
                                 Task { await load() }
                             } label: {
-                                Text(Self.chipLabel(date))
-                                    .font(.cfMono(11, weight: .medium))
-                                    .foregroundStyle(on ? Theme.emberCream : Theme.parchmentDim)
-                                    .padding(.horizontal, 13).padding(.vertical, 8)
-                                    .background(RoundedRectangle(cornerRadius: 10)
-                                        .fill(on ? Theme.ember : Color.clear))
-                                    .overlay(RoundedRectangle(cornerRadius: 10)
-                                        .stroke(on ? Color.clear : Theme.parchmentFaint))
+                                VStack(spacing: 2) {
+                                    Text(Self.chipLabel(date))
+                                        .font(.cfMono(11, weight: .medium))
+                                        .strikethrough(off, color: Theme.parchmentDim)
+                                    if off {
+                                        Text("OFF")
+                                            .font(.cfMono(8, weight: .medium)).kerning(1)
+                                            .foregroundStyle(Theme.wine)
+                                    }
+                                }
+                                .foregroundStyle(on ? Theme.emberCream : Theme.parchmentDim)
+                                .padding(.horizontal, 13).padding(.vertical, 8)
+                                .background(RoundedRectangle(cornerRadius: 10)
+                                    .fill(on ? Theme.ember : Color.clear))
+                                .overlay(RoundedRectangle(cornerRadius: 10)
+                                    .stroke(on ? Color.clear : Theme.parchmentFaint))
+                                .opacity(off && !on ? 0.55 : 1)
                             }
                         }
                     }
@@ -223,6 +271,20 @@ struct SupplierOfferDetailSheet: View {
                 }
                 Divider().background(Theme.hairline)
             }
+            // Turn just the SELECTED night off, leaving the offer itself alone.
+            // Whichever chip is picked above is the night this acts on.
+            if !selectedDate.isEmpty {
+                let isOff = skipped.contains(selectedDate)
+                actionRow(icon: isOff ? "calendar.badge.plus" : "calendar.badge.minus",
+                          title: isOff
+                            ? "Reactivate \(Self.longLabel(selectedDate))"
+                            : "Deactivate \(Self.longLabel(selectedDate))",
+                          tint: Theme.parchment) {
+                    if isOff { Task { await setNight(skipped: false) } }
+                    else { confirmSkipNight = true }
+                }
+                Divider().background(Theme.hairline)
+            }
             if let onToggle {
                 actionRow(icon: offer.isActive ? "eye.slash" : "eye",
                           title: offer.isActive ? "Deactivate offer" : "Reactivate offer",
@@ -271,6 +333,14 @@ struct SupplierOfferDetailSheet: View {
 
     private static func dayString(_ d: Date) -> String {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: d)
+    }
+
+    /// "Monday 20 July" — the action names the exact night it acts on.
+    static func longLabel(_ s: String) -> String {
+        let inF = DateFormatter(); inF.dateFormat = "yyyy-MM-dd"
+        guard let d = inF.date(from: s) else { return s }
+        let outF = DateFormatter(); outF.dateFormat = "EEEE d MMMM"
+        return outF.string(from: d)
     }
 
     private static func chipLabel(_ s: String) -> String {

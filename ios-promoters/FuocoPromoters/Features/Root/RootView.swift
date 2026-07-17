@@ -307,7 +307,8 @@ struct GuestlistTabRoot: View {
                 clubName: offers.clubName(offer.clubId),
                 onEdit: { afterSheetDismiss { editingOffer = offer } },
                 onToggle: { Task { await offers.setActive(offer, !offer.isActive) } },
-                onDelete: { Task { await offers.delete(offer) } })
+                onDelete: { Task { await offers.delete(offer) } },
+                onChanged: { Task { await offers.load() } })
                 .presentationBackground(Theme.night)
         }
         .alert("Submitted for review", isPresented: $offers.reviewNotice) {

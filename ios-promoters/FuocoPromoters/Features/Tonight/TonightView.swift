@@ -223,7 +223,8 @@ struct TonightView: View {
                 clubName: offers.clubName(offer.clubId),
                 onEdit: { afterSheetDismiss { editingOffer = offer } },
                 onToggle: { Task { await offers.setActive(offer, !offer.isActive) } },
-                onDelete: { Task { await offers.delete(offer) } })
+                onDelete: { Task { await offers.delete(offer) } },
+                onChanged: { Task { await offers.load() } })
                 .presentationBackground(Theme.night)
         }
         .sheet(item: $detailAllocation) { a in

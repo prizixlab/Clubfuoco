@@ -274,6 +274,12 @@ function OfferItem({ offer, onChanged }: { offer: OfferRow; onChanged: () => voi
   // Archive toggle — the data-preserving alternative to Delete. Inactive
   // offers vanish from /api/partner but stay editable here.
   async function setActive(active: boolean) {
+    // Deactivating here writes LIVE (no review queue on the admin surface), so
+    // one mis-click pulls the offer off the app immediately. Confirm it;
+    // reactivating is additive and goes straight through.
+    if (!active && !confirm(
+      `Deactivate "${offer.title}"?\n\nIt stops being offered on the Club Fuoco app immediately. You can reactivate it any time — the offer's data is kept.`
+    )) return
     setBusy(true)
     try {
       await api(`/api/portal/offers/${offer.id}`, { method: 'PATCH', body: JSON.stringify({ is_active: active }) })

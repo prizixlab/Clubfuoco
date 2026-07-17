@@ -14,6 +14,7 @@ struct SupplierOfferDetailSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var selectedDate: String = ""
+    @State private var confirmDeactivate = false
     @State private var guests: [SupplierGuest] = []
     @State private var loading = true
     @State private var loadError: String?
@@ -35,6 +36,16 @@ struct SupplierOfferDetailSheet: View {
         .background(Theme.night.ignoresSafeArea())
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+        .alert("Deactivate this offer?", isPresented: $confirmDeactivate) {
+            Button("No", role: .cancel) { }
+            Button("Yes", role: .destructive) {
+                Haptics.tap()
+                dismiss()
+                onToggle?()
+            }
+        } message: {
+            Text("\"\(offer.title)\" at \(clubName) stops being offered on the Club Fuoco app. You can reactivate it any time, and the change goes to Club Fuoco for review first.")
+        }
         .task {
             if selectedDate.isEmpty { selectedDate = upcomingDates.first ?? Self.dayString(Date()) }
             await load()
@@ -205,7 +216,14 @@ struct SupplierOfferDetailSheet: View {
                 actionRow(icon: offer.isActive ? "eye.slash" : "eye",
                           title: offer.isActive ? "Deactivate offer" : "Reactivate offer",
                           tint: Theme.parchment) {
-                    dismiss(); onToggle()
+                    // Deactivating pulls the offer off the Club Fuoco app, and
+                    // it's one tap next to Edit — confirm it. Reactivating is
+                    // additive, so it goes straight through.
+                    if offer.isActive {
+                        confirmDeactivate = true
+                    } else {
+                        dismiss(); onToggle()
+                    }
                 }
                 Divider().background(Theme.hairline)
             }

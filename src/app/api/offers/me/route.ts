@@ -1,5 +1,6 @@
-import { brandOrNull } from '@/lib/supplier-auth'
-import { ok } from '@/lib/utils'
+import { NextRequest } from 'next/server'
+import { brandOrNull, resolveSupplierBrand } from '@/lib/supplier-auth'
+import { ok, err } from '@/lib/utils'
 
 // GET /api/offers/me — the brand this promoter publishes public offers
 // under, or null if they haven't published one yet (the brand is provisioned
@@ -16,4 +17,38 @@ export async function GET() {
         }
       : null,
   })
+}
+
+// PATCH /api/offers/me — edit the caller's own public brand identity (name +
+// logo). This is what the promoter app's "You" tab saves for a brand-owning
+// account: the brand is their public identity on the consumer app, not the
+// `promoter_profiles` row (which is the private-events profile). Owner-scoped
+// via resolveSupplierBrand. `key` and `color` are NOT editable here — `key`
+// is the stable slug/storage path, and `color` is part of the brand contract
+// (set by an operator in the portal).
+export async function PATCH(request: NextRequest) {
+  const { brand, sb, response } = await resolveSupplierBrand()
+  if (response) return response
+
+  const body = await request.json().catch(() => null)
+  if (!body || typeof body !== 'object') return err('Bad request')
+
+  const patch: Record<string, unknown> = {}
+  if (typeof body.name === 'string') {
+    const name = body.name.trim()
+    if (!name) return err('Brand name cannot be empty')
+    if (name.length > 60) return err('Brand name is too long')
+    patch.name = name
+  }
+  if ('logo_url' in body) {
+    const url = body.logo_url
+    if (url !== null && typeof url !== 'string') return err('logo_url must be a string or null')
+    patch.logo_url = url === '' ? null : url
+  }
+  if (!Object.keys(patch).length) return ok({ unchanged: true })
+
+  const { error } = await sb.from('partner_brands').update(patch).eq('id', brand.id)
+  if (error) return err(error.message, 500)
+
+  return ok({ updated: true, ...patch })
 }

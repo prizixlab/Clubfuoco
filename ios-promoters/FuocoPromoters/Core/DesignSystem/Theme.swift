@@ -61,6 +61,14 @@ extension Color {
             blue: Double(hex & 0xFF) / 255
         )
     }
+
+    /// Parse "#RRGGBB" / "RRGGBB" (the partner_brands.color format). nil on
+    /// anything else — callers fall back to a theme colour.
+    init?(hexString: String) {
+        let s = hexString.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "#", with: "")
+        guard s.count == 6, let v = UInt32(s, radix: 16) else { return nil }
+        self.init(hex: v)
+    }
 }
 
 enum Haptics {

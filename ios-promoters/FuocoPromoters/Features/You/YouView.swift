@@ -12,17 +12,34 @@ final class ProfileModel: ObservableObject {
     @Published var saving = false
     @Published var saved = false
     @Published var billing: PromoterRepo.BillingStatus?
+    /// The account's public brand, when it owns one. Its name/logo ARE the
+    /// promoter's public identity on the consumer app — so the You tab shows
+    /// and edits the brand, not just the private `promoter_profiles` row (which
+    /// is empty for brand-first accounts like Rumba). nil = no public brand yet.
+    @Published var publicBrand: SupplierBrand?
 
     let repo = PromoterRepo()
+    let brandRepo = SupplierRepo()
+
+    var hasPublicBrand: Bool { publicBrand != nil }
+    /// Read-only accent from the brand contract, for a swatch on the You tab.
+    var brandColor: Color? { publicBrand.flatMap { Color(hexString: $0.color) } }
 
     func load() async {
         loading = true
-        if let p = try? await repo.getProfile() {
-            brandName = p.brandName ?? ""
-            instagram = p.instagram ?? ""
-            bio = p.bio ?? ""
-            logoURL = p.logoUrl
-        }
+        async let profile = repo.getProfile()
+        async let brand = try? await brandRepo.me()
+        let p = try? await profile
+        publicBrand = await brand ?? nil
+
+        // Brand is the source of truth for the public identity when it exists;
+        // fall back to the private profile otherwise.
+        brandName = publicBrand?.name ?? p?.brandName ?? ""
+        logoURL   = publicBrand?.logoUrl ?? p?.logoUrl
+        // Bio + Instagram only live on the profile.
+        instagram = p?.instagram ?? ""
+        bio       = p?.bio ?? ""
+
         billing = try? await repo.billingStatus()
         loading = false
     }
@@ -41,11 +58,21 @@ final class ProfileModel: ObservableObject {
 
     func save() async throws {
         saving = true; defer { saving = false }
+        let name = brandName.trimmingCharacters(in: .whitespaces)
+        // The private-events profile always gets the write (bio/instagram live
+        // only here, and it seeds a future brand's name/logo).
         try await repo.saveProfile(
-            brandName: brandName.isEmpty ? nil : brandName,
+            brandName: name.isEmpty ? nil : name,
             logoUrl: logoURL,
             bio: bio.isEmpty ? nil : bio,
             instagram: instagram.isEmpty ? nil : instagram)
+        // If they own a public brand, its name/logo ARE their consumer-facing
+        // identity — keep it in sync so the You tab isn't editing a dead copy.
+        if hasPublicBrand {
+            try await brandRepo.updateBrand(
+                name: name.isEmpty ? nil : name, logoURL: logoURL)
+            publicBrand = try? await brandRepo.me()
+        }
         saved = true
     }
 }
@@ -124,6 +151,20 @@ struct YouView: View {
                         ProgressView().tint(.white)
                     }
                 }
+            }
+
+            if model.hasPublicBrand {
+                HStack(spacing: 8) {
+                    if let c = model.brandColor {
+                        Circle().fill(c).frame(width: 10, height: 10)
+                            .overlay(Circle().stroke(Theme.hairline))
+                    }
+                    Text("PUBLIC BRAND · shown on the Fuoco app")
+                        .font(.cfMono(9, weight: .medium)).kerning(1)
+                        .foregroundStyle(Theme.parchmentDim)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             VStack(spacing: 12) {

@@ -187,6 +187,16 @@ final class SupplierRepo {
         try decode(try await request("/api/offers", method: "GET"), as: [SupplierOffer].self)
     }
 
+    /// Update the caller's public brand identity (name / logo). No-op fields
+    /// are omitted. Only meaningful when the account owns a brand.
+    func updateBrand(name: String?, logoURL: String?) async throws {
+        var body: [String: Any] = [:]
+        if let name { body["name"] = name }
+        if let logoURL { body["logo_url"] = logoURL }
+        guard !body.isEmpty else { return }
+        _ = try await request("/api/offers/me", method: "PATCH", body: body)
+    }
+
     func clubs() async throws -> [SupplierClub] {
         try decode(try await request("/api/offers/clubs", method: "GET"), as: [SupplierClub].self)
     }

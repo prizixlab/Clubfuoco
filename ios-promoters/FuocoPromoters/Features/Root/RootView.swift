@@ -179,13 +179,11 @@ struct GuestlistTabRoot: View {
                     }
                 }
 
+                // No nights/series empty-state line: it only looked at nights and
+                // series, so it claimed "nothing here" while sitting on top of a
+                // full list of public offers. The header + "+" are the guidance.
                 if model.loading {
                     ProgressView().tint(Theme.parchment).padding(.top, 40)
-                } else if model.allocations.isEmpty && model.series.isEmpty {
-                    Text("No nights assigned yet.")
-                        .font(.cfSans(14))
-                        .foregroundStyle(Theme.parchmentDim)
-                        .padding(.top, 24)
                 } else if !model.allocations.isEmpty {
                     Text("Tap a night for guests and options. Swipe left to delete, right to edit.")
                         .font(.cfMono(10))

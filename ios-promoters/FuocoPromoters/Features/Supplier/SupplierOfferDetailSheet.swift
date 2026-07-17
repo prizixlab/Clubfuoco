@@ -15,6 +15,7 @@ struct SupplierOfferDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedDate: String = ""
     @State private var confirmDeactivate = false
+    @State private var confirmDelete = false
     @State private var guests: [SupplierGuest] = []
     @State private var loading = true
     @State private var loadError: String?
@@ -45,6 +46,16 @@ struct SupplierOfferDetailSheet: View {
             }
         } message: {
             Text("\"\(offer.title)\" at \(clubName) stops being offered on the Club Fuoco app. You can reactivate it any time, and the change goes to Club Fuoco for review first.")
+        }
+        .alert("Delete this offer?", isPresented: $confirmDelete) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                Haptics.tap()
+                dismiss()
+                onDelete?()
+            }
+        } message: {
+            Text("\"\(offer.title)\" at \(clubName) is removed for good. Deactivate instead if you only want to hide it — that keeps the offer's details. The change goes to Club Fuoco for review first.")
         }
         .task {
             if selectedDate.isEmpty { selectedDate = upcomingDates.first ?? Self.dayString(Date()) }
@@ -227,9 +238,9 @@ struct SupplierOfferDetailSheet: View {
                 }
                 Divider().background(Theme.hairline)
             }
-            if let onDelete {
+            if onDelete != nil {
                 actionRow(icon: "trash", title: "Delete offer", tint: Theme.wine) {
-                    dismiss(); onDelete()
+                    confirmDelete = true
                 }
             }
         }

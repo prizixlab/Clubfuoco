@@ -69,6 +69,7 @@ struct TonightView: View {
     // The promoter's PUBLIC offers — same tab as their private nights.
     @StateObject private var offers = SupplierHomeModel()
     @State private var detailOffer: SupplierOffer?
+    @State private var editingOffer: SupplierOffer?
     @State private var seriesOccurrence: SeriesOccurrence?
     @State private var opening = false
 
@@ -220,7 +221,9 @@ struct TonightView: View {
             SupplierOfferDetailSheet(
                 offer: offer,
                 clubName: offers.clubName(offer.clubId),
-                onToggle: { Task { await offers.setActive(offer, !offer.isActive) } })
+                onEdit: { afterSheetDismiss { editingOffer = offer } },
+                onToggle: { Task { await offers.setActive(offer, !offer.isActive) } },
+                onDelete: { Task { await offers.delete(offer) } })
                 .presentationBackground(Theme.night)
         }
         .sheet(item: $detailAllocation) { a in
@@ -231,6 +234,11 @@ struct TonightView: View {
                 onDelete: { afterSheetDismiss { pendingDelete = a } },
                 onChanged: { Task { await model.load() } })
                 .presentationBackground(Theme.night)
+        }
+        .sheet(item: $editingOffer) { offer in
+            SupplierOfferSheet(model: offers, existing: offer, clubId: offer.clubId) {
+                await offers.load()
+            }
         }
         .sheet(item: $editingAllocation) { a in
             if case .signedIn(let p) = auth.state {

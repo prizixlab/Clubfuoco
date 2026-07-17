@@ -22,9 +22,29 @@ final class TonightModel: ObservableObject {
         loading = false
     }
 
-    var todays: PromoterAllocation? {
+    /// EVERY one-off night tonight — not just the first. A second night on the
+    /// same date used to be invisible (it isn't in `upcoming` either, which
+    /// only covers future dates).
+    var todaysAll: [PromoterAllocation] {
         let today = Self.dateFormatter.string(from: Date())
-        return allocations.first { $0.night?.nightDate == today }
+        return allocations.filter { $0.night?.nightDate == today }
+    }
+
+    var todays: PromoterAllocation? { todaysAll.first }
+
+    /// Recurring series running tonight. Series occurrences materialize lazily
+    /// (no night/allocation exists until someone opens the link), so they can't
+    /// be found via `allocations` — a promoter whose only night is a weekly
+    /// series would otherwise see an empty Tonight on the night it runs.
+    /// `weekdays` is 1=Sun…7=Sat, matching Calendar.weekday.
+    var seriesTonight: [PromoterSeries] {
+        let today = Self.dateFormatter.string(from: Date())
+        let weekday = Calendar.current.component(.weekday, from: Date())
+        return series.filter {
+            $0.isActive
+                && $0.weekdays.contains(weekday)
+                && !($0.skippedDates ?? []).contains(today)   // week taken off
+        }
     }
 
     var upcoming: [PromoterAllocation] {
@@ -49,6 +69,13 @@ struct TonightView: View {
     // The promoter's PUBLIC offers — same tab as their private nights.
     @StateObject private var offers = SupplierHomeModel()
     @State private var detailOffer: SupplierOffer?
+    @State private var seriesOccurrence: SeriesOccurrence?
+    @State private var opening = false
+
+    /// Nothing running tonight at all — no one-off night, no series, no offer.
+    private var nothingTonight: Bool {
+        model.todaysAll.isEmpty && model.seriesTonight.isEmpty && offersTonight.isEmpty
+    }
 
     /// 0 = Sunday … 6 = Saturday, matching ValidDays' indices.
     private var todayIndex: Int { Calendar.current.component(.weekday, from: Date()) - 1 }
@@ -68,11 +95,41 @@ struct TonightView: View {
                 } else if let err = model.error {
                     Text(err).font(.cfSans(14)).foregroundStyle(Theme.wine)
                 } else {
+                    tonightHeading
+
                     if let tonight = model.todays {
                         featured(tonight)
-                    } else {
-                        emptyTonight
                     }
+
+                    // Any FURTHER one-off nights tonight beyond the featured
+                    // one — these fall outside `upcoming` (future dates only),
+                    // so without this they'd never render anywhere.
+                    if model.todaysAll.count > 1 {
+                        VStack(spacing: 0) {
+                            ForEach(model.todaysAll.dropFirst()) { a in
+                                Button { Haptics.tap(); detailAllocation = a } label: {
+                                    upcomingRow(a)
+                                }
+                                .buttonStyle(.plain)
+                                Divider().background(Theme.hairline)
+                            }
+                        }
+                    }
+
+                    // Recurring series running tonight.
+                    if !model.seriesTonight.isEmpty {
+                        Kicker("Your permanent links tonight").padding(.top, 8)
+                        VStack(spacing: 10) {
+                            ForEach(model.seriesTonight) { s in
+                                Button { Haptics.tap(); Task { await openSeries(s) } } label: {
+                                    seriesTonightRow(s)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+
+                    if nothingTonight { emptyTonight }
 
                     if !offersTonight.isEmpty {
                         HStack {
@@ -113,6 +170,7 @@ struct TonightView: View {
         }
         .background(Theme.night)
         .task {
+            await offers.load()
             await model.load()
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 15_000_000_000)
@@ -129,6 +187,17 @@ struct TonightView: View {
         }
         .navigationDestination(item: $navigateTo) { a in
             GuestlistView(allocation: a)
+        }
+        .navigationDestination(item: $seriesOccurrence) { occ in
+            GuestlistView(allocation: occ.allocation, shareTokenOverride: occ.token, seriesId: occ.seriesId)
+        }
+        .overlay {
+            if opening {
+                ZStack {
+                    Color.black.opacity(0.4).ignoresSafeArea()
+                    ProgressView().tint(Theme.parchment)
+                }
+            }
         }
         .sheet(item: $detailOffer) { offer in
             SupplierOfferDetailSheet(
@@ -175,6 +244,48 @@ struct TonightView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: action)
     }
 
+    /// Resolve + materialize tonight's occurrence of a series and open its list.
+    private func openSeries(_ s: PromoterSeries) async {
+        opening = true
+        defer { opening = false }
+        if let alloc = try? await PromoterRepo().currentAllocation(forSeries: s.id) {
+            seriesOccurrence = SeriesOccurrence(allocation: alloc, token: s.inviteToken, seriesId: s.id)
+        }
+    }
+
+    /// Compact row for a series running tonight. Carries its review badge, so a
+    /// series still awaiting approval reads as pending rather than live.
+    private func seriesTonightRow(_ s: PromoterSeries) -> some View {
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10).fill(Theme.ember.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                Image(systemName: "repeat")
+                    .font(.system(size: 15)).foregroundStyle(Theme.ember)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text(s.displayTitle)
+                        .font(.cfSans(15, weight: .medium))
+                        .foregroundStyle(Theme.parchment)
+                        .lineLimit(1)
+                    if let state = s.reviewState { ReviewBadge(state: state) }
+                }
+                Text(s.venueName)
+                    .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11)).foregroundStyle(Theme.parchmentDim)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.nightLift))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
+        .contentShape(Rectangle())
+    }
+
     private func delete(_ a: PromoterAllocation) async {
         defer { pendingDelete = nil }
         do {
@@ -200,15 +311,23 @@ struct TonightView: View {
         }
     }
 
-    private var emptyTonight: some View {
-        VStack(alignment: .leading, spacing: 12) {
+    /// "Tonight" + today's date. Always shown, so the tab reads as tonight even
+    /// when what's running is a series or an offer rather than a one-off night.
+    private var tonightHeading: some View {
+        VStack(alignment: .leading, spacing: 4) {
             Text("Tonight")
                 .font(.cfSerif(48))
                 .foregroundStyle(Theme.parchment)
-            Text("No night assigned to you tonight.")
-                .font(.cfSans(15))
+            Text(formattedDate(TonightModel.dateFormatter.string(from: Date())))
+                .font(.cfSerif(18, italic: true))
                 .foregroundStyle(Theme.parchmentDim)
         }
+    }
+
+    private var emptyTonight: some View {
+        Text("Nothing running tonight.")
+            .font(.cfSans(15))
+            .foregroundStyle(Theme.parchmentDim)
     }
 
     private func featured(_ a: PromoterAllocation) -> some View {

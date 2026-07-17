@@ -132,14 +132,21 @@ struct YouView: View {
 
     private var profileCard: some View {
         VStack(spacing: 16) {
+            // A logo can be a square mark OR a wide wordmark (Rumba's is
+            // 1600×325). A circle + scaledToFill cropped wordmarks to an
+            // unreadable slice — use a wide rounded card + scaledToFit so the
+            // whole logo shows either way.
             PhotosPicker(selection: $logoItem, matching: .images) {
                 ZStack {
-                    Circle().fill(Theme.nightLift).frame(width: 96, height: 96)
-                        .overlay(Circle().stroke(Theme.hairline))
+                    RoundedRectangle(cornerRadius: 16).fill(Theme.nightLift)
+                        .frame(maxWidth: .infinity).frame(height: 96)
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.hairline))
                     if let url = model.logoURL, let u = URL(string: url) {
-                        AsyncImage(url: u) { img in img.resizable().scaledToFill() }
+                        AsyncImage(url: u) { img in img.resizable().scaledToFit() }
                             placeholder: { ProgressView().tint(Theme.parchmentDim) }
-                            .frame(width: 96, height: 96).clipShape(Circle())
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 96)
+                            .padding(.horizontal, 24).padding(.vertical, 18)
                     } else {
                         VStack(spacing: 4) {
                             Image(systemName: "camera").font(.system(size: 22)).foregroundStyle(Theme.flame)
@@ -147,11 +154,13 @@ struct YouView: View {
                         }
                     }
                     if model.uploadingLogo {
-                        Circle().fill(.black.opacity(0.5)).frame(width: 96, height: 96)
+                        RoundedRectangle(cornerRadius: 16).fill(.black.opacity(0.5)).frame(height: 96)
                         ProgressView().tint(.white)
                     }
                 }
+                .frame(height: 96)
             }
+            .buttonStyle(.plain)
 
             if model.hasPublicBrand {
                 HStack(spacing: 8) {

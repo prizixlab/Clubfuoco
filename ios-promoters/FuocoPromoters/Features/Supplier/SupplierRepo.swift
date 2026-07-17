@@ -74,6 +74,36 @@ struct SupplierGuest: Decodable, Identifiable, Hashable {
     }
 }
 
+/// Booking rollup for the Statistics tab (GET /api/offers/stats).
+struct OfferStats: Decodable {
+    struct Bucket: Decodable, Hashable {
+        let bookings: Int
+        let people: Int
+        let arrived: Int
+        static let zero = Bucket(bookings: 0, people: 0, arrived: 0)
+    }
+    struct Overview: Decodable {
+        let thisMonth: Bucket
+        let allTime: Bucket
+        let liveOffers: Int
+        let venues: Int
+    }
+    struct OfferLine: Decodable, Identifiable, Hashable {
+        let id: UUID
+        let title: String
+        let clubId: UUID
+        let bookings: Int
+        let people: Int
+        let arrived: Int
+    }
+    let overview: Overview
+    let byOffer: [OfferLine]
+
+    static let empty = OfferStats(
+        overview: .init(thisMonth: .zero, allTime: .zero, liveOffers: 0, venues: 0),
+        byOffer: [])
+}
+
 /// Draft used for create + edit. Nil price ⇒ free guestlist.
 struct SupplierOfferDraft {
     var clubId: UUID
@@ -171,6 +201,11 @@ final class SupplierRepo {
         _ = try await request("/api/offers/\(offerId.uuidString.lowercased())/nights",
                               method: "PATCH", body: ["date": date, "skipped": skipped])
         return true
+    }
+
+    /// Booking rollup across all the caller's public offers.
+    func stats() async throws -> OfferStats {
+        try decode(try await request("/api/offers/stats", method: "GET"), as: OfferStats.self)
     }
 
     /// Who booked through this supplier's offers at a venue on a given night.

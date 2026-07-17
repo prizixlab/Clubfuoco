@@ -80,7 +80,7 @@ struct MainTabs: View {
                 .tag(Tab.guestlist)
 
             NavigationStack { EarningsView() }
-                .tabItem { Label("Earnings", systemImage: "creditcard") }
+                .tabItem { Label("Stats", systemImage: "chart.bar") }
                 .tag(Tab.earnings)
 
             NavigationStack { YouView() }

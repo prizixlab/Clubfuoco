@@ -85,6 +85,46 @@ struct TonightView: View {
         offers.offers.filter { $0.isActive && ValidDays.parse($0.validDays).contains(todayIndex) }
     }
 
+    /// Everything running tonight at one venue. Tonight is grouped by WHERE
+    /// you'll be, not by what kind of thing it is — a promoter thinks "Opium",
+    /// not "series vs offer", and the offer rows carried no venue at all.
+    private struct VenueGroup: Identifiable {
+        let id: String            // club id, or the custom pin's name
+        let name: String
+        var nights: [PromoterAllocation] = []
+        var series: [PromoterSeries] = []
+        var offers: [SupplierOffer] = []
+    }
+
+    /// A custom pin has no club id, so key it by name — two different pins with
+    /// the same name are the same venue for grouping purposes.
+    private func venueKey(clubId: UUID?, name: String) -> String {
+        clubId.map { "club:\($0.uuidString)" } ?? "pin:\(name.lowercased())"
+    }
+
+    private var tonightByVenue: [VenueGroup] {
+        var groups: [String: VenueGroup] = [:]
+        func group(_ key: String, _ name: String) -> VenueGroup {
+            groups[key] ?? VenueGroup(id: key, name: name)
+        }
+
+        for a in model.todaysAll {
+            let name = a.night?.venueName ?? "Venue"
+            let key = venueKey(clubId: a.night?.clubId, name: name)
+            var g = group(key, name); g.nights.append(a); groups[key] = g
+        }
+        for s in model.seriesTonight {
+            let key = venueKey(clubId: s.clubId, name: s.venueName)
+            var g = group(key, s.venueName); g.series.append(s); groups[key] = g
+        }
+        for o in offersTonight {
+            let name = offers.clubName(o.clubId)
+            let key = venueKey(clubId: o.clubId, name: name)
+            var g = group(key, name); g.offers.append(o); groups[key] = g
+        }
+        return groups.values.sorted { $0.name < $1.name }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
@@ -97,56 +137,33 @@ struct TonightView: View {
                 } else {
                     tonightHeading
 
-                    if let tonight = model.todays {
-                        featured(tonight)
-                    }
+                    if nothingTonight { emptyTonight }
 
-                    // Any FURTHER one-off nights tonight beyond the featured
-                    // one — these fall outside `upcoming` (future dates only),
-                    // so without this they'd never render anywhere.
-                    if model.todaysAll.count > 1 {
-                        VStack(spacing: 0) {
-                            ForEach(model.todaysAll.dropFirst()) { a in
+                    // Everything running tonight, grouped by venue.
+                    ForEach(tonightByVenue) { g in
+                        VStack(alignment: .leading, spacing: 10) {
+                            venueHeader(g.name)
+
+                            ForEach(g.nights) { a in
                                 Button { Haptics.tap(); detailAllocation = a } label: {
-                                    upcomingRow(a)
+                                    nightTonightRow(a)
                                 }
                                 .buttonStyle(.plain)
-                                Divider().background(Theme.hairline)
                             }
-                        }
-                    }
-
-                    // Recurring series running tonight.
-                    if !model.seriesTonight.isEmpty {
-                        Kicker("Your permanent links tonight").padding(.top, 8)
-                        VStack(spacing: 10) {
-                            ForEach(model.seriesTonight) { s in
+                            ForEach(g.series) { s in
                                 Button { Haptics.tap(); Task { await openSeries(s) } } label: {
                                     seriesTonightRow(s)
                                 }
                                 .buttonStyle(.plain)
                             }
-                        }
-                    }
-
-                    if nothingTonight { emptyTonight }
-
-                    if !offersTonight.isEmpty {
-                        HStack {
-                            Kicker("Your public offers tonight")
-                            Spacer()
-                            Text("Live on the Fuoco app")
-                                .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
-                        }
-                        .padding(.top, 8)
-                        VStack(spacing: 10) {
-                            ForEach(offersTonight) { offer in
+                            ForEach(g.offers) { offer in
                                 Button { Haptics.tap(); detailOffer = offer } label: {
                                     PublicOfferRow(offer: offer)
                                 }
                                 .buttonStyle(.plain)
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
                     if !model.upcoming.isEmpty {
@@ -253,6 +270,57 @@ struct TonightView: View {
         }
     }
 
+    private func venueHeader(_ name: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "building.2.fill")
+                .font(.system(size: 12)).foregroundStyle(Theme.ember)
+            Text(name)
+                .font(.cfSerif(22)).foregroundStyle(Theme.parchment)
+                .lineLimit(1)
+        }
+        .padding(.top, 8)
+    }
+
+    /// A one-off night tonight, inside its venue group. No club name or date —
+    /// the group header says where, and everything here is tonight.
+    private func nightTonightRow(_ a: PromoterAllocation) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10).fill(Theme.ember.opacity(0.15))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: "moon.stars")
+                        .font(.system(size: 15)).foregroundStyle(Theme.ember)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 8) {
+                        Text(a.night?.displayTitle ?? "Night")
+                            .font(.cfSans(15, weight: .medium))
+                            .foregroundStyle(Theme.parchment)
+                            .lineLimit(1)
+                        if let state = a.night?.reviewState { ReviewBadge(state: state) }
+                    }
+                    Text("Private event")
+                        .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
+                }
+                Spacer(minLength: 8)
+                Text(a.usedLabel)
+                    .font(.cfMono(10, weight: .medium)).kerning(0.5)
+                    .foregroundStyle(Theme.flame)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11)).foregroundStyle(Theme.parchmentDim)
+            }
+            if a.night?.reviewState == .rejected {
+                RejectionNotice(reason: a.night?.rejectionReason)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.nightLift))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
+        .contentShape(Rectangle())
+    }
+
     /// Compact row for a series running tonight. Carries its review badge, so a
     /// series still awaiting approval reads as pending rather than live.
     private func seriesTonightRow(_ s: PromoterSeries) -> some View {
@@ -271,7 +339,7 @@ struct TonightView: View {
                         .lineLimit(1)
                     if let state = s.reviewState { ReviewBadge(state: state) }
                 }
-                Text(s.venueName)
+                Text("Permanent link · \(s.weekdayLabel)")
                     .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
                     .lineLimit(1)
             }
@@ -328,51 +396,6 @@ struct TonightView: View {
         Text("Nothing running tonight.")
             .font(.cfSans(15))
             .foregroundStyle(Theme.parchmentDim)
-    }
-
-    private func featured(_ a: PromoterAllocation) -> some View {
-        let n = a.night
-        return VStack(alignment: .leading, spacing: 16) {
-            Text("Tonight")
-                .font(.cfSerif(48))
-                .foregroundStyle(Theme.parchment)
-            Text(formattedDate(n?.nightDate))
-                .font(.cfSerif(18, italic: true))
-                .foregroundStyle(Theme.parchmentDim)
-
-            Button { Haptics.tap(); detailAllocation = a } label: {
-                ZStack(alignment: .bottomLeading) {
-                    RoundedRectangle(cornerRadius: Theme.radiusCard)
-                        .fill(LinearGradient(
-                            colors: [Theme.nightLift, Theme.ember.opacity(0.35)],
-                            startPoint: .top, endPoint: .bottom))
-                        .frame(height: 220)
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 10) {
-                            Kicker("Currently featured")
-                            if let state = n?.reviewState { ReviewBadge(state: state) }
-                        }
-                        HStack(alignment: .lastTextBaseline) {
-                            Text(n?.displayTitle ?? "Tonight")
-                                .font(.cfSerif(34))
-                                .foregroundStyle(Theme.parchment)
-                            Spacer()
-                            Capsule().fill(Theme.ember)
-                                .frame(width: 120, height: 32)
-                                .overlay(
-                                    Text("\(a.usedLabel) used")
-                                        .font(.cfMono(11, weight: .medium))
-                                        .foregroundStyle(Theme.emberCream))
-                        }
-                    }.padding(16)
-                }
-            }
-            .buttonStyle(.plain)
-
-            if n?.reviewState == .rejected {
-                RejectionNotice(reason: n?.rejectionReason)
-            }
-        }
     }
 
     private func upcomingRow(_ a: PromoterAllocation) -> some View {

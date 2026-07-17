@@ -4,6 +4,21 @@ _Last updated: 2026-07-13. Covers the three client surfaces (consumer app,
 Fuoco for Promoters, staff Partner Portal), their shared backend, current
 architecture, and the known gaps/faults to pick up next._
 
+> ## ⚠️ PARTLY SUPERSEDED — read `docs/HANDOFF-2026-07-17.md` first
+> The 17 July session invalidated load-bearing claims below. Where they
+> disagree, the newer memo wins. Most importantly:
+> - **Promoters and suppliers are now ONE role.** There is no separate supplier
+>   experience, no supplier tabs, and no `/api/supplier/me` mode switch. Every
+>   account gets the same four tabs; what differs is whether they create a
+>   private event or a public offer. `SupplierHomeView` /
+>   `SupplierTonightView` / `SupplierYouView` are **deleted**.
+> - **The consumer offer feed aggregates ALL brands**, each offer carrying its
+>   own brand. `brand.is_active` no longer gates visibility — the offer's own
+>   `is_active` does. Never activate a second brand (`getActiveBrand` uses
+>   `.maybeSingle()` and will throw).
+> - Three further migrations are applied (rejection reasons, device_tokens,
+>   skipped_dates on series + offers, location_consent).
+
 ---
 
 ## 0. System map

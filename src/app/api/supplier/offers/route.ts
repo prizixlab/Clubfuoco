@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { resolveSupplierBrand } from '@/lib/supplier-auth'
+import { brandOrNull, resolveOrProvisionBrand } from '@/lib/supplier-auth'
 import { OfferSchema } from '@/lib/portal-schemas'
 import { listBrandOffers } from '@/lib/partner'
 import { enqueueOrApplyDirect } from '@/lib/pending-changes'
@@ -9,8 +9,11 @@ import { ok, err } from '@/lib/utils'
 // archived). Pending (unapproved) changes are served separately from
 // /api/supplier/pending so the app can show them as "in review".
 export async function GET() {
-  const { brand, sb, response } = await resolveSupplierBrand()
+  const { brand, sb, response } = await brandOrNull()
   if (response) return response
+  // No brand yet = this promoter has never published a public offer. That's
+  // an empty list, not an error.
+  if (!brand) return ok([])
   try {
     return ok(await listBrandOffers(sb, brand.id))
   } catch (e) {
@@ -22,7 +25,8 @@ export async function GET() {
 // until Club Fuoco staff approve it in the portal; we queue the change instead
 // of writing to the live table. Brand id comes from the resolved account.
 export async function POST(request: NextRequest) {
-  const { brand, userId, sb, response } = await resolveSupplierBrand()
+  // Provisions the promoter's brand on their first public offer.
+  const { brand, userId, sb, response } = await resolveOrProvisionBrand()
   if (response) return response
   const parsed = OfferSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return err(parsed.error.issues[0]?.message ?? 'Invalid offer')

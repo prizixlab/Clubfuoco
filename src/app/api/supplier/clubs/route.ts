@@ -1,11 +1,12 @@
-import { resolveSupplierBrand } from '@/lib/supplier-auth'
+import { brandOrNull } from '@/lib/supplier-auth'
 import { ok, err } from '@/lib/utils'
 
-// GET /api/supplier/clubs — id + name for the supplier app's club picker when
-// adding an offer. Auth-gated to a linked brand (same shape the portal picker
-// uses), so an unlinked account can't enumerate the catalog here.
+// GET /api/supplier/clubs — id + name for the club picker when adding a
+// public offer. Any signed-in promoter may pick a venue (the brand is
+// provisioned on their first offer), so this is auth-gated but not
+// brand-gated.
 export async function GET() {
-  const { sb, response } = await resolveSupplierBrand()
+  const { sb, response } = await brandOrNull()
   if (response) return response
   const { data, error } = await sb
     .from('clubs')

@@ -1,8 +1,9 @@
 import SwiftUI
 
-// Supplier home — the list's own guestlist offers, grouped by venue, with
-// add / edit / deactivate / delete. Shown instead of the promoter tabs when the
-// signed-in account owns a partner_brand (see RootView).
+// Public-offer data + venue picker, shared by the unified Guestlist tab.
+// Promoters and suppliers are ONE role: any promoter can publish public
+// offers, and their partner_brand is provisioned on their first one — so
+// there is no separate "supplier" screen any more.
 
 @MainActor
 final class SupplierHomeModel: ObservableObject {
@@ -54,216 +55,56 @@ final class SupplierHomeModel: ObservableObject {
     }
 }
 
-// The "Offers" tab content. Lives inside SupplierTabs' NavigationStack — no
-// standalone NavigationStack/TabView of its own, so the app keeps its normal
-// tab-bar chrome (sign-out moved to the Account tab).
-struct SupplierHomeView: View {
-    @StateObject private var model = SupplierHomeModel()
-    @State private var editing: SupplierOffer?
-    @State private var creatingClub: UUID?
-    @State private var showClubPicker = false
-    @State private var pendingDelete: SupplierOffer?
-    @State private var detailOffer: SupplierOffer?
-
-    var body: some View {
-        ZStack {
-            Theme.night.ignoresSafeArea()
-            if model.loading {
-                SupplierSkeleton(title: "Guestlist", subtitle: "All your offers, by venue")
-            } else {
-                content
-            }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .navigationBar)
-        .task { await model.load() }
-        .sheet(item: $editing) { offer in
-            SupplierOfferSheet(model: model, existing: offer, clubId: offer.clubId) { await model.load() }
-        }
-        .sheet(item: $detailOffer) { offer in
-            SupplierOfferDetailSheet(
-                offer: offer,
-                clubName: model.clubName(offer.clubId),
-                onEdit: { afterSheetDismiss { editing = offer } },
-                onToggle: { Task { await model.setActive(offer, !offer.isActive) } },
-                onDelete: { afterSheetDismiss { pendingDelete = offer } })
-                .presentationBackground(Theme.night)
-        }
-        .sheet(isPresented: Binding(get: { creatingClub != nil }, set: { if !$0 { creatingClub = nil } })) {
-            if let cid = creatingClub {
-                SupplierOfferSheet(model: model, existing: nil, clubId: cid) { await model.load() }
-            }
-        }
-        .sheet(isPresented: $showClubPicker) {
-            SupplierClubPicker(clubs: model.clubs) { picked in
-                showClubPicker = false
-                creatingClub = picked
-            }
-        }
-        .alert("Delete this offer?", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
-            Button("Cancel", role: .cancel) { pendingDelete = nil }
-            Button("Delete", role: .destructive) { if let o = pendingDelete { Task { await model.delete(o) } } }
-        } message: {
-            Text("Deactivate instead if you just want to hide it — that keeps the offer’s details.")
-        }
-        .alert("Submitted for review", isPresented: $model.reviewNotice) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Your change will be reviewed and approved by Club Fuoco within 3 business days. It goes live once approved.")
-        }
-    }
-
-    /// Run after the detail sheet finishes dismissing — presenting a new
-    /// sheet/alert in the same tick gets dropped.
-    private func afterSheetDismiss(_ action: @escaping () -> Void) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: action)
-    }
-
-    // Changes the supplier has submitted that are waiting on Club Fuoco.
-    private var reviewCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: "clock.badge").font(.system(size: 13)).foregroundStyle(Theme.ember)
-                Text("IN REVIEW").font(.cfMono(10, weight: .medium)).kerning(1.5).foregroundStyle(Theme.ember)
-                Spacer()
-                Text("~3 business days").font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
-            }
-            ForEach(model.pending) { p in
-                Text(p.summary)
-                    .font(.cfSans(13)).foregroundStyle(Theme.parchment)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.ember.opacity(0.08)))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.ember.opacity(0.3)))
-    }
-
-    private var content: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Guestlist")
-                            .font(.cfSerif(38)).foregroundStyle(Theme.parchment)
-                        Text("All your offers, by venue")
-                            .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
-                    }
-                    Spacer()
-                    Button {
-                        Haptics.tap(); showClubPicker = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(Theme.emberCream)
-                            .frame(width: 52, height: 52)
-                            .background(Circle().fill(Theme.ember))
-                    }
-                }
-                .padding(.top, 8)
-
-                if let error = model.error {
-                    Text(error).font(.cfSans(13)).foregroundStyle(Theme.flame)
-                }
-
-                if !model.pending.isEmpty {
-                    reviewCard
-                }
-
-                if model.offers.isEmpty {
-                    Text("No offers yet. Tap + to add your first one at a venue.")
-                        .font(.cfSans(14)).foregroundStyle(Theme.parchmentDim).padding(.top, 24)
-                }
-
-                ForEach(model.byClub, id: \.club) { group in
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Kicker(model.clubName(group.club).uppercased(), color: Theme.flame)
-                            Spacer()
-                            Button {
-                                Haptics.tap(); creatingClub = group.club
-                            } label: {
-                                Text("Add").font(.cfMono(11, weight: .medium)).kerning(1.5)
-                                    .foregroundStyle(Theme.ember)
-                            }
-                        }
-                        ForEach(group.offers) { offer in
-                            SupplierOfferRow(
-                                offer: offer,
-                                onTap: { detailOffer = offer },
-                                onEdit: { editing = offer },
-                                onToggle: { Task { await model.setActive(offer, !offer.isActive) } },
-                                onDelete: { pendingDelete = offer }
-                            )
-                        }
-                    }
-                }
-                Spacer(minLength: 60)
-            }
-            .padding(20)
-        }
-        .refreshable { await model.load() }
-    }
-}
-
-private struct SupplierOfferRow: View {
+/// Compact public-offer row for the unified Guestlist tab, sitting under the
+/// promoter's private nights. Tap opens SupplierOfferDetailSheet (bookings +
+/// actions); the review badge mirrors the private-night rows.
+struct PublicOfferRow: View {
     let offer: SupplierOffer
-    let onTap: () -> Void
-    let onEdit: () -> Void
-    let onToggle: () -> Void
-    let onDelete: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Info area opens the detail sheet (guests + stats); the buttons
-            // below keep their direct shortcuts.
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Text(offer.title).font(.cfSerif(20)).foregroundStyle(Theme.parchment)
-                        Text(offer.isVip ? "VIP · €\(Int(offer.priceEur ?? 0))" : "FREE")
-                            .font(.cfMono(10, weight: .medium)).kerning(1.2)
-                            .foregroundStyle(offer.isVip ? Theme.flame : Theme.ember)
-                        if !offer.isActive {
-                            Text("INACTIVE").font(.cfMono(9, weight: .medium)).kerning(1.2)
-                                .foregroundStyle(Theme.parchmentDim)
-                        }
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10).fill(Theme.ember.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                Image(systemName: offer.isVip ? "wineglass" : "list.bullet.rectangle")
+                    .font(.system(size: 15))
+                    .foregroundStyle(Theme.ember)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text(offer.title)
+                        .font(.cfSans(15, weight: .medium))
+                        .foregroundStyle(Theme.parchment)
+                        .lineLimit(1)
+                    if !offer.isActive {
+                        Text("INACTIVE")
+                            .font(.cfMono(8, weight: .medium)).kerning(1.2)
+                            .foregroundStyle(Theme.parchmentDim)
                     }
-                    Text("\(offer.subtitle) · \(offer.validDays)")
-                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
-                        .lineLimit(2)
                 }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13)).foregroundStyle(Theme.parchmentDim)
+                Text(offer.validDays)
+                    .font(.cfSans(11))
+                    .foregroundStyle(Theme.parchmentDim)
+                    .lineLimit(1)
             }
-            .contentShape(Rectangle())
-            .onTapGesture { Haptics.tap(); onTap() }
-            HStack(spacing: 18) {
-                Button { Haptics.tap(); onEdit() } label: {
-                    Label("Edit", systemImage: "pencil").font(.cfSans(13)).foregroundStyle(Theme.parchment)
-                }
-                Button { Haptics.tap(); onToggle() } label: {
-                    Label(offer.isActive ? "Deactivate" : "Reactivate",
-                          systemImage: offer.isActive ? "eye.slash" : "eye")
-                        .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
-                }
-                Spacer()
-                Button(role: .destructive) { Haptics.tap(); onDelete() } label: {
-                    Image(systemName: "trash").font(.system(size: 14)).foregroundStyle(Theme.flame)
-                }
-            }
+            Spacer(minLength: 8)
+            Text(offer.isVip ? "€\(Int(offer.priceEur ?? 0))" : "FREE")
+                .font(.cfMono(10, weight: .medium)).kerning(0.5)
+                .foregroundStyle(offer.isVip ? Theme.flame : Theme.ember)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.parchmentDim)
         }
-        .padding(16)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 16).fill(Theme.nightLift))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.hairline))
+        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.nightLift))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
         .opacity(offer.isActive ? 1 : 0.6)
+        .contentShape(Rectangle())
     }
 }
 
-private struct SupplierClubPicker: View {
+struct SupplierClubPicker: View {
     let clubs: [SupplierClub]
     let onPick: (UUID) -> Void
     @Environment(\.dismiss) private var dismiss

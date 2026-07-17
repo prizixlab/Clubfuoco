@@ -108,7 +108,7 @@ struct SupplierOfferSheet: View {
     private let dayLabels: [Int: String] = [0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"]
 
     private var validDaysPicker: some View {
-        let selected = SupplierTonightView.nights(validDays)
+        let selected = ValidDays.parse(validDays)
         let every = selected.count >= 7
         return VStack(alignment: .leading, spacing: 8) {
             Text("VALID DAYS").font(.cfMono(10, weight: .medium)).kerning(1.5).foregroundStyle(Theme.parchmentDim)

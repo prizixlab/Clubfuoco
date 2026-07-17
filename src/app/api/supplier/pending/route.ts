@@ -1,11 +1,12 @@
-import { resolveSupplierBrand } from '@/lib/supplier-auth'
+import { brandOrNull } from '@/lib/supplier-auth'
 import { listOwnPending } from '@/lib/pending-changes'
 import { ok, err } from '@/lib/utils'
 
 // GET /api/supplier/pending — the caller's changes awaiting Club Fuoco review,
 // so the app can show them as "in review" alongside their live offers.
 export async function GET() {
-  const { userId, sb, response } = await resolveSupplierBrand()
+  // Keyed by submitter, so it works before a brand exists.
+  const { userId, sb, response } = await brandOrNull()
   if (response) return response
   try {
     const rows = await listOwnPending(sb, userId)

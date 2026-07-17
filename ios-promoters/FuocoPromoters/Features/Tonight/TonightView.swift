@@ -46,6 +46,17 @@ struct TonightView: View {
     @State private var navigateTo: PromoterAllocation?
     @State private var editingAllocation: PromoterAllocation?
     @State private var pendingDelete: PromoterAllocation?
+    // The promoter's PUBLIC offers — same tab as their private nights.
+    @StateObject private var offers = SupplierHomeModel()
+    @State private var detailOffer: SupplierOffer?
+
+    /// 0 = Sunday … 6 = Saturday, matching ValidDays' indices.
+    private var todayIndex: Int { Calendar.current.component(.weekday, from: Date()) - 1 }
+
+    /// Active public offers whose valid_days cover tonight.
+    private var offersTonight: [SupplierOffer] {
+        offers.offers.filter { $0.isActive && ValidDays.parse($0.validDays).contains(todayIndex) }
+    }
 
     var body: some View {
         ScrollView {
@@ -61,6 +72,24 @@ struct TonightView: View {
                         featured(tonight)
                     } else {
                         emptyTonight
+                    }
+
+                    if !offersTonight.isEmpty {
+                        HStack {
+                            Kicker("Your public offers tonight")
+                            Spacer()
+                            Text("Live on the Fuoco app")
+                                .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                        }
+                        .padding(.top, 8)
+                        VStack(spacing: 10) {
+                            ForEach(offersTonight) { offer in
+                                Button { Haptics.tap(); detailOffer = offer } label: {
+                                    PublicOfferRow(offer: offer)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
 
                     if !model.upcoming.isEmpty {
@@ -100,6 +129,13 @@ struct TonightView: View {
         }
         .navigationDestination(item: $navigateTo) { a in
             GuestlistView(allocation: a)
+        }
+        .sheet(item: $detailOffer) { offer in
+            SupplierOfferDetailSheet(
+                offer: offer,
+                clubName: offers.clubName(offer.clubId),
+                onToggle: { Task { await offers.setActive(offer, !offer.isActive) } })
+                .presentationBackground(Theme.night)
         }
         .sheet(item: $detailAllocation) { a in
             NightDetailSheet(

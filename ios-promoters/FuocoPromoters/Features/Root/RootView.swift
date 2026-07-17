@@ -60,43 +60,32 @@ struct WrongAccountView: View {
     }
 }
 
+// Promoters and suppliers are ONE role — there is no separate "supplier
+// experience". Every account gets the same four tabs; what differs is only
+// what a promoter chooses to create: a private event (guestlist night) or a
+// public offer listed on the consumer app. Both show up side by side in
+// Tonight and Guestlist.
 struct MainTabs: View {
     @State private var selection: Tab = .tonight
-    // Non-nil when this account manages a partner_brand (a supplier/"list").
-    // For those accounts the Tonight + Guestlist tabs show supplier content
-    // instead of the promoter views; Earnings + You stay the same.
-    @State private var supplierBrand: SupplierBrand?
     enum Tab: Hashable { case tonight, guestlist, earnings, you }
-
-    private var isSupplier: Bool { supplierBrand != nil }
 
     var body: some View {
         TabView(selection: $selection) {
-            NavigationStack {
-                if isSupplier { SupplierTonightView() } else { TonightView() }
-            }
-            .tabItem { Label("Tonight", systemImage: "moon") }
-            .tag(Tab.tonight)
+            NavigationStack { TonightView() }
+                .tabItem { Label("Tonight", systemImage: "moon") }
+                .tag(Tab.tonight)
 
-            NavigationStack {
-                if isSupplier { SupplierHomeView() } else { GuestlistTabRoot() }
-            }
-            .tabItem { Label("Guestlist", systemImage: "list.bullet") }
-            .tag(Tab.guestlist)
+            NavigationStack { GuestlistTabRoot() }
+                .tabItem { Label("Guestlist", systemImage: "list.bullet") }
+                .tag(Tab.guestlist)
 
-            // Earnings is promoter payout/billing — irrelevant to a supplier
-            // account (a brand like Rumba), so the tab disappears for them.
-            if !isSupplier {
-                NavigationStack { EarningsView() }
-                    .tabItem { Label("Earnings", systemImage: "creditcard") }
-                    .tag(Tab.earnings)
-            }
+            NavigationStack { EarningsView() }
+                .tabItem { Label("Earnings", systemImage: "creditcard") }
+                .tag(Tab.earnings)
 
-            NavigationStack {
-                if isSupplier { SupplierYouView() } else { YouView() }
-            }
-            .tabItem { Label("You", systemImage: "person") }
-            .tag(Tab.you)
+            NavigationStack { YouView() }
+                .tabItem { Label("You", systemImage: "person") }
+                .tag(Tab.you)
         }
         .tint(Theme.ember)
         .toolbarBackground(Theme.night, for: .tabBar)
@@ -104,10 +93,6 @@ struct MainTabs: View {
             // Push: prompt (first time) + register, and store the APNs token
             // so review outcomes can reach this promoter.
             PushManager.shared.enable()
-            supplierBrand = try? await SupplierRepo().me()
-            // The supplier check resolves async — if the user was already on
-            // Earnings when the tab vanished, land them somewhere real.
-            if supplierBrand != nil && selection == .earnings { selection = .tonight }
         }
     }
 }
@@ -117,7 +102,13 @@ struct MainTabs: View {
 struct GuestlistTabRoot: View {
     @EnvironmentObject var auth: AuthStore
     @StateObject private var model = TonightModel()
-    @State private var showCreate = false
+    @State private var showCreateChooser = false
+    @State private var showCreate = false          // private event form
+    @State private var showOfferClubPicker = false // public offer: pick venue
+    @State private var creatingOfferClub: UUID?    // public offer: form
+    @StateObject private var offers = SupplierHomeModel()
+    @State private var detailOffer: SupplierOffer?
+    @State private var editingOffer: SupplierOffer?
     @State private var navigateTo: PromoterAllocation?
     @State private var seriesOccurrence: SeriesOccurrence?
     @State private var pendingDelete: PromoterAllocation?
@@ -146,7 +137,7 @@ struct GuestlistTabRoot: View {
                     Spacer()
                     Button {
                         Haptics.tap()
-                        showCreate = true
+                        showCreateChooser = true
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 20, weight: .semibold))
@@ -232,6 +223,9 @@ struct GuestlistTabRoot: View {
                     .background(Theme.night)
                     .frame(minHeight: listHeight)
                 }
+
+                publicOffersSection
+
                 Spacer(minLength: 80)
             }
             .padding(20)
@@ -250,6 +244,7 @@ struct GuestlistTabRoot: View {
             }
         }
         .task {
+            await offers.load()
             await model.load()
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 15_000_000_000)
@@ -275,6 +270,49 @@ struct GuestlistTabRoot: View {
                     ProgressView().tint(Theme.parchment)
                 }
             }
+        }
+        .sheet(isPresented: $showCreateChooser) {
+            CreateTypeChooser { kind in
+                showCreateChooser = false
+                afterSheetDismiss {
+                    switch kind {
+                    case .privateEvent: showCreate = true
+                    case .publicOffer:  showOfferClubPicker = true
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showOfferClubPicker) {
+            SupplierClubPicker(clubs: offers.clubs) { picked in
+                showOfferClubPicker = false
+                afterSheetDismiss { creatingOfferClub = picked }
+            }
+        }
+        .sheet(isPresented: Binding(get: { creatingOfferClub != nil },
+                                    set: { if !$0 { creatingOfferClub = nil } })) {
+            if let cid = creatingOfferClub {
+                SupplierOfferSheet(model: offers, existing: nil, clubId: cid) {
+                    await offers.load()
+                }
+            }
+        }
+        .sheet(item: $editingOffer) { offer in
+            SupplierOfferSheet(model: offers, existing: offer, clubId: offer.clubId) {
+                await offers.load()
+            }
+        }
+        .sheet(item: $detailOffer) { offer in
+            SupplierOfferDetailSheet(
+                offer: offer,
+                clubName: offers.clubName(offer.clubId),
+                onEdit: { afterSheetDismiss { editingOffer = offer } },
+                onToggle: { Task { await offers.setActive(offer, !offer.isActive) } })
+                .presentationBackground(Theme.night)
+        }
+        .alert("Submitted for review", isPresented: $offers.reviewNotice) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Your change will be reviewed and approved by Club Fuoco within 3 business days. It goes live once approved.")
         }
         .sheet(isPresented: $showCreate) {
             if case .signedIn(let p) = auth.state {
@@ -343,6 +381,36 @@ struct GuestlistTabRoot: View {
         } message: {
             if let s = pendingDeleteSeries {
                 Text("\(s.displayTitle) and its permanent invite link stop working immediately. This can't be undone.")
+            }
+        }
+    }
+
+    /// The promoter's PUBLIC offers, listed under their private nights — same
+    /// tab, same promoter, just the other thing they can create.
+    @ViewBuilder
+    private var publicOffersSection: some View {
+        if !offers.offers.isEmpty {
+            HStack {
+                Kicker("Public offers", color: Theme.parchmentDim)
+                Spacer()
+                Text("Listed on the Fuoco app")
+                    .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+            }
+            .padding(.top, 20)
+
+            VStack(spacing: 12) {
+                ForEach(offers.byClub, id: \.club) { group in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Kicker(offers.clubName(group.club).uppercased(), color: Theme.flame, size: 9)
+                        ForEach(group.offers) { offer in
+                            Button { Haptics.tap(); detailOffer = offer } label: {
+                                PublicOfferRow(offer: offer)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
     }

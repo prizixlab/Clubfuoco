@@ -2,13 +2,15 @@
 import {
   getNearbyClubs,
   getPlaceFavorites, savePlaceFavorite, removePlaceFavorite,
-  getUserPreferences, getSurveyPreferences, getTasteProfile,
+  getUserPreferences, getTasteProfile,
   getEvents, getRumbas,
 } from '@/lib/supabase/queries'
 
 import { apiFetch } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
-import { RUMBALIST_OFFERS } from '@/lib/rumbalist-offers'
+import type { RumbalistOffer } from '@/lib/rumbalist-offers'
+import { offerLiveOn } from '@/lib/valid-days'
+import { usePartner } from '@/contexts/PartnerContext'
 import { rumbaScore } from '@/lib/rumba-score'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
@@ -140,9 +142,14 @@ function timeGreeting() {
 // --- Algorithmic shelf builder ---
 // `places` is the chip-filtered set that drives most shelves. `curatedPool` is
 // the full set (night-scoped, but ignoring the active filter chip) used for the
-// always-on curated shelves — Rumbalist partners + rumbas — so selecting a chip
+// always-on curated shelves — deal partners + rumbas — so selecting a chip
 // like "Cocktails" never collapses those promotional rows.
-function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [], rumbas: Rumba[] = [], surveyPrefs: any = null, tasteProfile: any = null, curatedPool: Place[] = places): Shelf[] {
+// `offersByClub` is the LIVE offer set (partner_offers via /api/partner) and
+// `planDate` the night being planned — together they drive the deal-first
+// tiering that dominates every shelf's order. The deal set is volatile, so
+// everything here derives from whatever is live at build time; nothing may
+// assume a particular venue or set size.
+function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [], rumbas: Rumba[] = [], surveyPrefs: any = null, tasteProfile: any = null, curatedPool: Place[] = places, offersByClub: Record<string, RumbalistOffer[]> = {}, planDate: string = '', customShelves: CustomShelfRecord[] = []): Shelf[] {
   if (!places.length && !curatedPool.length) return []
   const shelves: Shelf[] = []
 
@@ -184,8 +191,9 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
     if (surveyPrefs.likesWine      && anyHas(p, ['wine', 'bodega', 'vinoteca', 'vino']))                 score += 3
     if (surveyPrefs.likesShots     && anyHas(p, ['club', 'disco', 'party', 'night']))                    score += 2
 
-    // Preferred price level
-    if (surveyPrefs.preferredPriceLevel !== null && p.price_level !== null) {
+    // Preferred price level (`!= null` — an absent field must not poison the
+    // score with NaN; scores now drive the feed-wide sort)
+    if (surveyPrefs.preferredPriceLevel != null && p.price_level !== null) {
       const diff = Math.abs(p.price_level - surveyPrefs.preferredPriceLevel)
       score += Math.max(0, 3 - diff)
     }
@@ -268,23 +276,71 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
     return score
   }
 
-  const top  = (arr: Place[], n = 12) => arr.slice(0, n)
   const byRating   = (a: Place, b: Place) => (b.rating ?? 0) - (a.rating ?? 0)
   const byPopular  = (a: Place, b: Place) => b.ratings_total - a.ratings_total
   const shuffle    = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5)
 
-  // ── 1. CURATED TONIGHT — Rumbalist's partner clubs ───────────────────────
-  // The featured shelf is locked to the venues our Rumbalist partnership covers.
-  const rumbalistIds = new Set(Object.keys(RUMBALIST_OFFERS))
-  const forYou = curatedPool
-    .filter(p => rumbalistIds.has(p.place_id))
-    .sort((a, b) => {
-      const open = (b.is_open ? 1 : 0) - (a.is_open ? 1 : 0)
-      return open !== 0 ? open : (b.rating ?? 0) - (a.rating ?? 0)
-    })
-    .slice(0, 12)
+  // ── Monetisable-first tiering (the dominant sort term) ───────────────────
+  // Derived per build from live data — a venue gaining or losing an offer or
+  // an event re-tiers on the next build with no code or config change.
+  //   tier 0  live offer running on the planned night (valid_days enforced,
+  //           skipped_dates respected).  sub: vip_table before free_guestlist
+  //   tier 1  live offer, but not that night
+  //   tier 2  ticketed event.            sub: event on the planned night first
+  //   tier 3  nothing to sell
+  // Deals outrank events and events outrank plain venues, always: a lower
+  // tier can never be beaten by personalisation score.
+  //
+  // Venues with a matched upcoming event, and whether one falls on the
+  // planned night. Built once per feed build (not per shelf) — the name match
+  // is O(places × events) and there are ~100 events.
+  const eventDates = new Map<string, Set<string>>()
+  for (const p of curatedPool.length >= places.length ? curatedPool : places) {
+    const matched = raEvents.filter(e => venueMatchClient(e.venue_name, p.name))
+    if (matched.length > 0) {
+      eventDates.set(p.place_id, new Set(matched.map(e => e.date.slice(0, 10))))
+    }
+  }
+
+  const dealRanks = new Map<string, { tier: number; subRank: number; score: number }>()
+  const dealRank = (p: Place) => {
+    let r = dealRanks.get(p.place_id)
+    if (!r) {
+      const offers = offersByClub[p.place_id] ?? []
+      const live   = offers.filter(o => offerLiveOn(o, planDate))
+      const dates  = eventDates.get(p.place_id)
+      let tier: number, subRank: number
+      if (live.length > 0) {
+        tier = 0
+        subRank = live.some(o => o.kind === 'vip_table') ? 0 : 1
+      } else if (offers.length > 0) {
+        tier = 1; subRank = 0
+      } else if (dates) {
+        tier = 2; subRank = dates.has(planDate) ? 0 : 1
+      } else {
+        tier = 3; subRank = 0
+      }
+      r = { tier, subRank, score: prefScore(p) }
+      dealRanks.set(p.place_id, r)
+    }
+    return r
+  }
+  // Stable re-sort: tier first, sub-rank within tier, then personalisation
+  // score; equal entries keep the shelf's own order (rating, shuffle, …).
+  const rank = (arr: Place[]) => [...arr].sort((a, b) => {
+    const ra = dealRank(a), rb = dealRank(b)
+    if (ra.tier !== rb.tier) return ra.tier - rb.tier
+    if (ra.subRank !== rb.subRank) return ra.subRank - rb.subRank
+    return rb.score - ra.score
+  })
+  const top  = (arr: Place[], n = 12) => rank(arr).slice(0, n)
+
+  // ── 1. CURATED TONIGHT — venues with a live offer running tonight ────────
+  // Sourced from the live offer set: exactly the tier-0 venues for the planned
+  // night. Deal venues appear here AND boosted in the main ordering — the
+  // double surface is intended. Empty tier-0 set → no shelf at all.
+  const forYou = rank(curatedPool.filter(p => dealRank(p).tier === 0)).slice(0, 12)
   if (forYou.length > 0) {
-    // Featured "curated tonight" shelf — the venues with guestlist / VIP offers.
     shelves.push({ id: 'rumbalist_partners', title: 'Curated Tonight', subtitle: 'Free guestlists & VIP tables', places: forYou, featured: true })
   }
 
@@ -299,12 +355,12 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   if (surveyPrefs && surveyPrefs.surveyCount >= 1) {
     // Rank all places by survey score, exclude venues they want to avoid
     const avoidNorms = new Set((surveyPrefs.avoidPlaceNames ?? []).map(normV))
-    const surveyed = [...places]
+    const surveyed = rank([...places]
       .filter(p => !avoidNorms.has(normV(p.name)))
       .map(p => ({ p, score: surveyScore(p) }))
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score || (b.p.rating ?? 0) - (a.p.rating ?? 0))
-      .map(({ p }) => p)
+      .map(({ p }) => p))
       .slice(0, 12)
 
     if (surveyed.length >= 2) {
@@ -337,7 +393,7 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
       })
     }
     if (eventPlaces.length >= 2)
-      shelves.push({ id: 'events_tonight', title: 'Events Tonight', subtitle: 'Tickets available through Club Fuoco', places: eventPlaces.slice(0, 12) })
+      shelves.push({ id: 'events_tonight', title: 'Events Tonight', subtitle: 'Tickets available through Club Fuoco', places: top(eventPlaces) })
   }
 
   // The whole feed is pre-filtered to venues open on the selected night
@@ -419,7 +475,7 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   // ── 6. LGBTQ+ ────────────────────────────────────────────────────────────
   if (prefs?.crowd === 'lgbtq') {
     const spots = places.filter(p => anyHas(p, ['arena','metro','pride','gay','freedom','rainbow','lesbian','eixample']))
-    if (spots.length) shelves.push({ id: 'lgbtq', title: 'LGBTQ+ Spaces', subtitle: 'Safe, proud & loud', places: spots })
+    if (spots.length) shelves.push({ id: 'lgbtq', title: 'LGBTQ+ Spaces', subtitle: 'Safe, proud & loud', places: rank(spots) })
   }
 
   // ── 7. ROTATING POOL — built fresh every reload ───────────────────────────
@@ -504,7 +560,7 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   // Budget fit — personalised, added after shuffle so it stays relevant
   if (prefs?.budget && prefs.budget < 999) {
     const target = budgetToPriceLevel(prefs.budget)
-    const fits   = [...places].filter(p => p.price_level !== null && p.price_level <= target).sort(byRating).slice(0, 12)
+    const fits   = top([...places].filter(p => p.price_level !== null && p.price_level <= target).sort(byRating))
     if (fits.length >= 2)
       shelves.push({ id: 'budget', title: 'Fits Your Budget', subtitle: `Under €${prefs.budget} per night`, places: fits })
   }
@@ -516,17 +572,29 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
 
   // Stagger: ensure each shelf leads with a place not yet seen at the front of a prior shelf
   const usedAsLead = new Set<string>()
-  return validShelves.map(shelf => {
+  const staggered = validShelves.map(shelf => {
     if (shelf.featured) {
       shelf.places.slice(0, 4).forEach(p => usedAsLead.add(p.place_id))
       return shelf
     }
     const fresh    = shelf.places.filter(p => !usedAsLead.has(p.place_id))
     const repeat   = shelf.places.filter(p =>  usedAsLead.has(p.place_id))
-    const reordered = [...fresh, ...repeat]
+    // The stagger would happily pull a no-deal venue ahead of a deal venue
+    // just because the deal venue already led another shelf. Re-assert tier
+    // order afterwards — a stable sort, so the stagger still decides the
+    // order WITHIN a tier, it just can't cross tiers.
+    const reordered = [...fresh, ...repeat].sort((a, b) => {
+      const ra = dealRank(a), rb = dealRank(b)
+      return ra.tier - rb.tier || ra.subRank - rb.subRank
+    })
     reordered.slice(0, 3).forEach(p => usedAsLead.add(p.place_id))
     return { ...shelf, places: reordered }
   })
+
+  // Admin-managed shelves are merged here (rather than by the caller) so they
+  // go through the same ranker as every other row — a custom shelf must put
+  // deal venues first too.
+  return mergeCustomShelves(staggered, customShelves, places, rank)
 }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -553,6 +621,7 @@ const C = {
 
 function HeroCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; onSave: (id: string) => void }) {
   const router = useRouter()
+  const { getOffers } = usePartner()
   const genre = (place.music_genres?.length > 0 ? place.music_genres[0] : 'Featured').replace(/_/g, ' ')
   const meta: string[] = []
   if (place.neighborhood) meta.push(place.neighborhood)
@@ -589,9 +658,9 @@ function HeroCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; 
             <span className="material-symbols-outlined" style={{ fontSize: 17, color: isSaved ? '#E05252' : 'white', fontVariationSettings: isSaved ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
           </span>
 
-          {/* Rating badge — boosted to "Rumba Score" for weak-rated Rumbalist partner venues */}
+          {/* Rating badge — boosted to "Rumba Score" for weak-rated deal venues (live offer set) */}
           {(() => {
-            const r = rumbaScore(place.place_id, place.rating)
+            const r = rumbaScore(place.place_id, place.rating, getOffers(place.place_id).length > 0)
             if (!r.value) return null
             return (
               <div style={{ position: 'absolute', bottom: 12, right: 12, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(0,0,0,0.55)', borderRadius: 99, padding: '3px 8px' }}>
@@ -929,7 +998,7 @@ let _loaderShownThisSession = false
 // Default rows are never removed; custom shelves are spliced in at their
 // `position` (1 = near the top, after the hero). Auto shelves resolve from a
 // rule; manual shelves use an explicit, ordered venue list.
-function mergeCustomShelves(base: Shelf[], records: CustomShelfRecord[], places: Place[]): Shelf[] {
+function mergeCustomShelves(base: Shelf[], records: CustomShelfRecord[], places: Place[], rank: (arr: Place[]) => Place[] = a => a): Shelf[] {
   if (!records.length) return base
   const result   = [...base]
   const byRating  = (a: Place, b: Place) => (b.rating ?? 0) - (a.rating ?? 0)
@@ -964,6 +1033,11 @@ function mergeCustomShelves(base: Shelf[], records: CustomShelfRecord[], places:
     // Skip a shelf that has nothing (or too little) to show.
     if (picks.length < (rec.mode === 'manual' ? 1 : 2)) continue
 
+    // Deal/event venues lead every row, custom shelves included. This also
+    // reorders a MANUAL shelf's hand-picked list: the commercial ordering
+    // outranks the admin's arrangement (the admin still controls membership).
+    picks = rank(picks)
+
     const shelf: Shelf = { id: `custom_${rec.id}`, title: rec.title, subtitle: rec.subtitle, places: picks }
     const at = Math.min(Math.max(rec.position, 1), result.length)
     result.splice(at, 0, shelf)
@@ -975,6 +1049,7 @@ export default function ExplorePage() {
   const router = useRouter()
   const { user } = useAuth()
   const { plan } = usePlan()
+  const { offersByClub, refresh: refreshOffers } = usePartner()
   const [places,       setPlaces]       = useState<Place[]>([])
   const [loading,      setLoading]      = useState(true)
   // Skip the cinematic loader if it already played this session
@@ -1060,12 +1135,19 @@ export default function ExplorePage() {
   }
 
   useEffect(() => {
+    // The deal set is volatile — re-pull live offers on every feed mount so a
+    // venue signed/dropped since the last visit re-tiers without a redeploy.
+    refreshOffers()
     getUserPreferences()
       .then(d => { setPrefs(d?.preferences ?? null); setOnboardingDone(d?.onboarding_done ?? false) })
       .catch(() => {})
-    // Survey-derived preference profile for personalised recommendations
-    getSurveyPreferences()
-      .then(d => setSurveyPrefs(d ?? null))
+    // Survey-derived preference profile for personalised recommendations —
+    // the API route owns the derivation (deriveSurveyPreferences) and is what
+    // the iOS app consumes too, so both platforms score identical signals.
+    // Guests get a 401 → null → unpersonalised feed.
+    apiFetch('/api/surveys/preferences')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setSurveyPrefs(d?.data ?? null))
       .catch(() => {})
     // Computed taste profile from bookings + surveys + tags
     getTasteProfile()
@@ -1155,10 +1237,11 @@ export default function ExplorePage() {
   // stay put when a chip like "Cocktails" is selected.
   const nightAll    = places.filter(p => isOpenOnDate(p.weekday_hours, plan.date) !== false)
   const nightPlaces = filterPlaces(nightAll, activeFilter)
-  const shelves = mergeCustomShelves(
-    buildShelves(nightPlaces, prefs, raEvents, rumbas, surveyPrefs, tasteProfile, nightAll),
-    customShelves,
-    nightPlaces,
+  // Custom shelves are merged inside buildShelves so they run through the
+  // same deal/event ranker as every other row.
+  const shelves = buildShelves(
+    nightPlaces, prefs, raEvents, rumbas, surveyPrefs, tasteProfile,
+    nightAll, offersByClub, plan.date, customShelves,
   )
 
   const searchResults = search
@@ -1410,7 +1493,7 @@ export default function ExplorePage() {
       {!showSaved && (!showSearch || !search) && !loading && (
         <>
 
-          {/* Curated Tonight — the featured shelf, now locked to Rumbalist's partner clubs */}
+          {/* Curated Tonight — the featured shelf: venues with a live offer on the planned night (absent when none) */}
           {shelves.length > 0 && shelves[0].featured && (
             <ShelfRow key={shelves[0].id} shelf={shelves[0]} saved={saved} onSave={handleSave} index={0} />
           )}

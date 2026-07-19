@@ -1,14 +1,22 @@
-import { RUMBALIST_OFFERS } from './rumbalist-offers'
-
-// Rumbalist partner venues with a weak Google rating get a "Rumba Score" —
+// Deal-partner venues with a weak Google rating get a "Rumba Score" —
 // a deterministic, believable 4.5–4.9 derived from the club id so it never
-// changes between loads. Anything else is unchanged.
+// changes between loads (or when unrelated venues join/leave the deal set).
+// Anything else is unchanged.
+//
+// Whether a venue IS a deal venue comes from the LIVE offer set (/api/partner
+// via PartnerContext), not a hardcoded map — callers pass `hasLiveOffer` from
+// whatever set is current, so a venue signing or dropping out re-scores on the
+// next load with no redeploy.
 
 const OPTS = [4.5, 4.6, 4.7, 4.8, 4.9]
 
-export function rumbaScore(clubId: string | null | undefined, realRating: number | null | undefined) {
+export function rumbaScore(
+  clubId: string | null | undefined,
+  realRating: number | null | undefined,
+  hasLiveOffer: boolean,
+) {
   const real = realRating ?? 0
-  if (!clubId || !(clubId in RUMBALIST_OFFERS) || real >= 4.5) {
+  if (!clubId || !hasLiveOffer || real >= 4.5) {
     return { value: real || null, label: 'Rating' as const, boosted: false }
   }
   const seed = clubId.split('').reduce((s, c) => s + c.charCodeAt(0), 0)

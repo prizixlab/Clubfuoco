@@ -167,6 +167,58 @@ final class Queries: @unchecked Sendable {
         return rows.first?.toDetail()
     }
 
+    /// Upcoming ticketed events (mirrors getEvents in queries.ts): future rows
+    /// only, soonest first. Public data — no session needed, so guests get the
+    /// same event-boosted ordering as signed-in users.
+    func upcomingEvents() async throws -> [ExternalEvent] {
+        try await supabase.client
+            .from("ra_events")
+            .select("id, title, venue_name, date")
+            .gte("event_date", value: ISO8601DateFormatter().string(from: Date()))
+            .order("event_date", ascending: true)
+            .limit(200)
+            .execute()
+            .value
+    }
+
+    // ── Personalisation inputs (mirrors getUserPreferences /
+    //    getSurveyPreferences / getTasteProfile) ─────────────────────────────
+    // All three return nil for guests or on any failure — the feed renders
+    // unpersonalised rather than blocking.
+
+    /// The signed-in user's onboarding preferences JSON.
+    func userPreferences() async throws -> UserPreferences? {
+        guard let session = await supabase.currentSession() else { return nil }
+        struct Row: Decodable { let preferences: UserPreferences? }
+        let rows: [Row] = try await supabase.client
+            .from("users")
+            .select("preferences")
+            .eq("id", value: session.user.id.uuidString)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first?.preferences
+    }
+
+    // (Survey preferences deliberately have NO direct query here — the
+    // derivation lives server-side in GET /api/surveys/preferences so web and
+    // iOS score identical signals. ExploreViewModel fetches it via APIClient.)
+
+    /// The computed taste profile row (bookings + surveys + tags).
+    /// Table is user_taste_profile, SINGULAR — matching /api/me/taste-profile;
+    /// the plural name doesn't exist in the production catalog.
+    func tasteProfile() async throws -> TasteProfile? {
+        guard let session = await supabase.currentSession() else { return nil }
+        let rows: [TasteProfile] = try await supabase.client
+            .from("user_taste_profile")
+            .select("top_neighborhoods, top_genres, top_vibes")
+            .eq("user_id", value: session.user.id.uuidString)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first
+    }
+
     // ── Favorites (mirror of place_favorites helpers) ─────────────────────────
 
     func placeFavoriteIds() async throws -> Set<String> {

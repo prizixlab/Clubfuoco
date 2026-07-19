@@ -127,11 +127,14 @@ struct HeroCard: View {
                         .kerning(1.3)
                         .foregroundStyle(Theme.fadedSand)
 
-                    (Text("\(plan.nightPhrase(locale: locale)): ")
-                        + Text(place.name).italic().foregroundColor(Theme.wine))
-                        .font(.cfSerif(30))
-                        .foregroundStyle(Theme.ink)
+                    // Venue name alone — the kicker above already carries the
+                    // night, and a "Tonight:" prefix forced long names into an
+                    // awkward two-line wrap.
+                    Text(place.name)
+                        .font(.cfSerif(30, italic: true))
+                        .foregroundStyle(Theme.wine)
                         .lineLimit(2)
+                        .minimumScaleFactor(0.8)
 
                     if !place.address.isEmpty {
                         Text(place.address.prefix(90))
@@ -270,10 +273,14 @@ struct PosterCard: View {
                 .frame(height: 168)
 
                 VStack(alignment: .leading, spacing: 2) {
+                    // Two lines with reserved height: "Opium Barcelona R…"
+                    // truncating mid-word read badly, and the fixed frame
+                    // keeps every card in the row the same height.
                     Text(place.name)
                         .font(.cfSans(13, weight: .semibold))
                         .foregroundStyle(Theme.ink)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .frame(height: 34, alignment: .topLeading)
                     Text(place.neighborhood ?? place.address)
                         .font(.cfSans(10))
                         .foregroundStyle(Theme.fadedSand)
@@ -301,8 +308,10 @@ struct ShelfRowView: View {
     @Environment(LocaleStore.self) private var locale
     @Environment(PlanStore.self) private var plan
 
-    // The Rumbalist featured shelf is grouped inside a pink-bordered box so it
+    // The featured deal shelf is grouped inside a soft gold-framed box so it
     // reads as one distinct section; everything else flows edge-to-edge.
+    // Gold (#C09950) is the brand accent — the frame must never drift warm
+    // enough to read pink.
     private var isRumba: Bool { shelf.id == "hero" }
     private var hPad: CGFloat { isRumba ? 16 : 20 }
 
@@ -315,8 +324,8 @@ struct ShelfRowView: View {
                     .foregroundStyle(Theme.fadedSand)
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     if isRumba {
-                        // Featured "curated tonight" header — tracks the When
-                        // planner date (e.g. "Tonight", "Next Thursday").
+                        // Featured header — tracks the When planner date
+                        // (e.g. "Tonight", "Next Thursday").
                         Text(plan.nightPhrase(locale: locale))
                             .font(.cfSans(18, weight: .medium))
                             .foregroundStyle(Theme.ink)
@@ -358,25 +367,25 @@ struct ShelfRowView: View {
                 cardScroller(shelf.places, landscape: index % 2 != 0)
             }
         }
-        // Asymmetric padding inside the Rumbalist box — the bottom row of
+        // Asymmetric padding inside the featured box — the bottom row of
         // venue thumbnails has its address subtitle right at the card's lower
         // edge, plus a soft shadow that extends another ~10pt below the card
-        // bounds. 18pt of bottom buffer pressed it all against the pink
-        // outline; 44pt gives an unambiguous breathing zone.
+        // bounds. 18pt of bottom buffer pressed it all against the outline;
+        // 44pt gives an unambiguous breathing zone.
         .padding(.top, isRumba ? 20 : 0)
         .padding(.bottom, isRumba ? 44 : 0)
         .background {
             if isRumba {
                 RoundedRectangle(cornerRadius: 22)
-                    .fill(Theme.ember.opacity(0.05))
+                    .fill(Theme.gold.opacity(0.06))
                     .overlay(
                         RoundedRectangle(cornerRadius: 22)
-                            .strokeBorder(Theme.ember.opacity(0.35), lineWidth: 1.5)
+                            .strokeBorder(Theme.gold.opacity(0.35), lineWidth: 1)
                     )
             }
         }
         .padding(.horizontal, isRumba ? 12 : 0)
-        // Extra gap below the pink container so the next shelf header
+        // Extra gap below the featured container so the next shelf header
         // ("FOR THE 4/4 FAITHFUL" etc.) doesn't visually press into the box.
         .padding(.bottom, isRumba ? 40 : 32)
     }

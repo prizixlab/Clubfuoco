@@ -28,7 +28,12 @@ struct ClubFuocoApp: App {
                 }
                 .task { await env.authStore.start() }
                 // Pull the live partner offer catalog (falls back to the bundle).
-                .task { await RumbalistOffers.refresh(api: env.api) }
+                .task {
+                    #if DEBUG
+                    ValidDays.runSelfChecks()
+                    #endif
+                    await RumbalistOffers.refresh(api: env.api)
+                }
                 // Re-pull on foreground so a partner switch made in the portal
                 // shows up without a cold start.
                 .onChange(of: scenePhase) { _, phase in

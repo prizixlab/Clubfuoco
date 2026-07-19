@@ -219,41 +219,10 @@ export async function saveUserPreferences(preferences: Record<string, unknown>) 
 }
 
 // ─── Survey preferences ───────────────────────────────────────────────────────
-
-export async function getSurveyPreferences() {
-  const user = await currentUser()
-  if (!user) return null
-  const supabase = createClient()
-
-  const { data: surveys, error } = await supabase
-    .from('booking_surveys')
-    .select(`
-      rating, drinks, vibe_rating, crowd_rating, would_return,
-      bookings ( booking_date, clubs ( id, name, price_level ) )
-    `)
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-
-  if (error || !surveys?.length) return null
-
-  const drinkCounts: Record<string, number> = {}
-  for (const s of surveys) {
-    for (const d of (s.drinks ?? []) as string[]) {
-      drinkCounts[d] = (drinkCounts[d] ?? 0) + 1
-    }
-  }
-
-  const avgRating   = surveys.reduce((s: number, r: any) => s + r.rating,       0) / surveys.length
-  const avgVibe     = surveys.reduce((s: number, r: any) => s + r.vibe_rating,  0) / surveys.length
-  const avgCrowd    = surveys.reduce((s: number, r: any) => s + r.crowd_rating, 0) / surveys.length
-  const wouldReturn = surveys.filter((s: any) => s.would_return).length / surveys.length
-
-  return {
-    avgRating, avgVibe, avgCrowd, wouldReturn,
-    topDrinks:   Object.entries(drinkCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([d]) => d),
-    surveyCount: surveys.length,
-  }
-}
+// (Derived server-side now — GET /api/surveys/preferences, backed by
+// deriveSurveyPreferences() in src/lib/survey-preferences.ts. The old client
+// query here selected clubs.price_level, which doesn't exist in production,
+// so it errored on every call and the profile was always null.)
 
 // ─── Taste profile ────────────────────────────────────────────────────────────
 
@@ -262,11 +231,14 @@ export async function getTasteProfile() {
   if (!user) return null
   const supabase = createClient()
 
+  // Table is user_taste_profile, SINGULAR — the plural name this used to
+  // query doesn't exist in production, which silently nulled the profile.
+  // maybeSingle: a user who has never booked simply has no row yet.
   const { data } = await supabase
-    .from('user_taste_profiles')
+    .from('user_taste_profile')
     .select('*')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   return data ?? null
 }

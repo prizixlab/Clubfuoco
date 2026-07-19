@@ -672,7 +672,11 @@ export default function PlaceDetailPage() {
     : getRumbalistOffers(id as string)
   ).filter(o => offerRunsOn(o, plan.date))
   const showSupplierMark = rumbalistOffers.some(o => o.brand)
-  const { value: ratingValue, boosted: ratingBoosted } = rumbaScore(id as string, place.rating)
+  // Deal membership for the score boost is ANY offer for this venue (live set,
+  // bundled fallback while the fetch is in flight) — not date-filtered: the
+  // score shouldn't flicker with the planned night.
+  const hasAnyOffer = livePartnerOffers.length > 0 || getRumbalistOffers(id as string).length > 0
+  const { value: ratingValue, boosted: ratingBoosted } = rumbaScore(id as string, place.rating, hasAnyOffer)
   // Rumbalist partner venues only show 4★+ reviews — protects the listing's
   // perceived quality the same way the Rumba Score does for the headline rating.
   const visibleReviews = rumbalistOffers.length > 0

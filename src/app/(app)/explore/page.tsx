@@ -447,10 +447,15 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   ;(prefs?.music ?? []).slice(0, 3).forEach((genre: string) => {
     const cfg = musicKwMap[genre]
     if (!cfg) return
-    // looser: if no name matches, fall back to top-rated clubs for that genre
+    // Genuine genre matches only. This used to fall back to the city's
+    // top-rated venues when fewer than 2 matched, which filled a genre shelf
+    // with venues that have nothing to do with the genre — and since deal
+    // venues now lead every row, that read as a deal venue being ADDED to a
+    // category it doesn't belong to. No matches, no shelf. (iOS never had
+    // this fallback, so dropping it also puts the two platforms in step.)
     const matched = places.filter(p => anyHas(p, cfg.kws))
-    const pool    = matched.length >= 2 ? matched : [...places].sort(byRating).slice(0, 8)
-    shelves.push({ id: `music_${genre}`, title: cfg.label, subtitle: cfg.sub, places: top(pool.sort(byRating)) })
+    if (matched.length < 2) return
+    shelves.push({ id: `music_${genre}`, title: cfg.label, subtitle: cfg.sub, places: top(matched.sort(byRating)) })
   })
 
   // ── 5. VIBE (preference-based, looser matching) ───────────────────────────
@@ -467,9 +472,10 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   ;(prefs?.vibes ?? []).slice(0, 3).forEach((vibe: string) => {
     const cfg = vibeConfig[vibe]
     if (!cfg) return
+    // Genuine vibe matches only — same reasoning as the genre shelves above.
     const matched = places.filter(p => anyHas(p, cfg.kws))
-    const pool    = matched.length >= 2 ? matched : [...places].sort(byRating).slice(0, 8)
-    shelves.push({ id: `vibe_${vibe}`, title: cfg.label, subtitle: cfg.sub, places: top(pool.sort(byRating)) })
+    if (matched.length < 2) return
+    shelves.push({ id: `vibe_${vibe}`, title: cfg.label, subtitle: cfg.sub, places: top(matched.sort(byRating)) })
   })
 
   // ── 6. LGBTQ+ ────────────────────────────────────────────────────────────

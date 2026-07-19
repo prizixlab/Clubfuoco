@@ -207,6 +207,13 @@ struct ClubDetailView: View {
                     .padding(.init(top: 20, leading: 20, bottom: 0, trailing: 20))
             }
 
+            // Photos sit between the pitch/chips and the booking sections:
+            // the venue sells itself visually, then we ask for the booking.
+            if photos.count > 1 {
+                photosStrip
+                    .padding(.top, 24)
+            }
+
             if !offers.isEmpty {
                 rumbalistSection
                     .padding(.init(top: 24, leading: 20, bottom: 0, trailing: 20))
@@ -215,11 +222,6 @@ struct ClubDetailView: View {
             if !events.isEmpty {
                 eventsSection
                     .padding(.init(top: 24, leading: 20, bottom: 0, trailing: 20))
-            }
-
-            if photos.count > 1 {
-                photosStrip
-                    .padding(.top, 24)
             }
 
             if !weekdayHours.isEmpty {

@@ -117,6 +117,26 @@ async function fetchAll(path) {
 const splitList = s => (s ? s.split('|').map(v => v.trim()).filter(Boolean) : [])
 const intOr0 = s => { const n = parseInt(s, 10); return Number.isFinite(n) ? n : 0 }
 
+// RA reports start times as NAIVE LOCAL Barcelona wall-clock ("...T23:00:00.000").
+// Handing that to a timestamptz column makes Postgres read it as UTC, which
+// stores a 23:00 door as 01:00 the next morning — every event 2h late in
+// summer, 1h in winter. Stamp the real Europe/Madrid offset instead so the
+// stored instant is correct year-round (the zone handles its own DST).
+//
+// The offset is resolved AT that date, so it follows CET/CEST automatically.
+// Within the one ambiguous hour of a DST fall-back this can pick the wrong
+// side; that is a twice-a-year, one-hour edge case on nightlife listings.
+function toMadridISO(naive) {
+  if (!naive) return null
+  const base = naive.replace(/\.\d+$/, '').replace(/[Zz]$|[+-]\d{2}:?\d{2}$/, '')
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Madrid', timeZoneName: 'longOffset',
+  }).formatToParts(new Date(`${base}Z`))
+  const tz = parts.find(p => p.type === 'timeZoneName')?.value ?? ''
+  const m = /GMT([+-])(\d{2}):(\d{2})/.exec(tz)
+  return `${base}${m ? `${m[1]}${m[2]}:${m[3]}` : 'Z'}`
+}
+
 async function main() {
   const csv = fileArg !== -1
     ? readFileSync(args[fileArg + 1], 'utf8')
@@ -155,7 +175,7 @@ async function main() {
       ra_event_id: r.ra_event_id,
       title:       r.title,
       date:        r.date,
-      start_time:  r.start_time || null,
+      start_time:  toMadridISO(r.start_time),
       venue_name:  r.venue,
       club_id:     club?.id ?? null,
       club_match:  how,

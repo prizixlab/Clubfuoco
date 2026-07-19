@@ -167,6 +167,25 @@ final class Queries: @unchecked Sendable {
         return rows.first?.toDetail()
     }
 
+    /// Upcoming events at ONE venue, for the club detail screen (mirrors
+    /// getClubEvents in queries.ts). Joined on club_id — resolved at ingest —
+    /// not on venue name, so one rooftop's event can't appear on another's
+    /// page. Past events stay in the table as history and are filtered here.
+    func clubEvents(clubId: String) async throws -> [ClubEvent] {
+        let today = DateFormatter()
+        today.dateFormat = "yyyy-MM-dd"
+        today.timeZone = TimeZone(identifier: "Europe/Madrid")
+        return try await supabase.client
+            .from("events")
+            .select("ra_event_id, title, date, start_time, venue_name, promoters, artists, interested, attending, ra_url")
+            .eq("club_id", value: clubId)
+            .gte("date", value: today.string(from: Date()))
+            .order("date", ascending: true)
+            .limit(20)
+            .execute()
+            .value
+    }
+
     /// Upcoming ticketed events (mirrors getEvents in queries.ts): future rows
     /// only, soonest first. Public data — no session needed, so guests get the
     /// same event-boosted ordering as signed-in users.

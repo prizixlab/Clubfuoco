@@ -11,7 +11,10 @@ struct ClubDetailView: View {
     @Environment(LocaleStore.self) private var locale
     @Environment(PlanStore.self) private var plan
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @Environment(\.api) private var api
     @State private var detail: PlaceDetail?
+    @State private var events: [ClubEvent] = []
     @State private var hoursOpen = false
     @State private var showBookSheet = false
     @State private var showGuestGate = false
@@ -70,7 +73,11 @@ struct ClubDetailView: View {
             PhotoViewer(photos: photos, startIndex: idx.value)
         }
         .task {
+            // Events are independent of the detail row, so a failure on either
+            // side leaves the other rendering.
+            async let upcoming = (try? auth.queries.clubEvents(clubId: place.placeId)) ?? []
             detail = try? await auth.queries.clubById(place.placeId)
+            events = await upcoming
             #if DEBUG
             if ProcessInfo.processInfo.environment["CF_TEST_BOOK"] == "1", detail != nil {
                 showBookSheet = true
@@ -205,6 +212,11 @@ struct ClubDetailView: View {
                     .padding(.init(top: 24, leading: 20, bottom: 0, trailing: 20))
             }
 
+            if !events.isEmpty {
+                eventsSection
+                    .padding(.init(top: 24, leading: 20, bottom: 0, trailing: 20))
+            }
+
             if photos.count > 1 {
                 photosStrip
                     .padding(.top, 24)
@@ -326,6 +338,139 @@ struct ClubDetailView: View {
                     .background(Theme.cream, in: .capsule)
             }
         }
+    }
+
+    // ── Upcoming events ───────────────────────────────────────────────────────
+    // One box per event at this venue. We do NOT sell these: Resident Advisor
+    // has no purchase API, so the row opens RA's own page in Safari. The click
+    // is logged first for partner attribution.
+    //
+    // No price is shown — the source's `cost` is free text and unreliable.
+
+    private var eventsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(locale.t("detail.upcomingEvents").uppercased())
+                    .font(.cfMono(9))
+                    .kerning(1.8)
+                    .foregroundStyle(Theme.fadedSand)
+                Text(locale.t("detail.whatsOn"))
+                    .font(.cfSerif(22, italic: true))
+                    .foregroundStyle(Theme.ink)
+            }
+
+            VStack(spacing: 10) {
+                ForEach(events) { event in
+                    eventBox(event)
+                }
+            }
+        }
+    }
+
+    private func eventBox(_ event: ClubEvent) -> some View {
+        let parts = event.dateParts
+        return VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 14) {
+                // Date block — the thing people scan for
+                VStack(spacing: 1) {
+                    Text(parts.weekday)
+                        .font(.cfMono(9))
+                        .kerning(1.2)
+                        .foregroundStyle(Theme.gold)
+                    Text(parts.day)
+                        .font(.cfSans(22, weight: .bold))
+                        .foregroundStyle(Theme.ink)
+                    Text(parts.month)
+                        .font(.cfMono(9))
+                        .kerning(1)
+                        .foregroundStyle(Theme.fadedSand)
+                }
+                .frame(width: 46)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(event.title)
+                        .font(.cfSans(14, weight: .semibold))
+                        .foregroundStyle(Theme.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
+
+                    HStack(spacing: 12) {
+                        if let start = event.startLabel {
+                            Label(start, systemImage: "clock")
+                                .font(.cfSans(12))
+                                .foregroundStyle(Theme.fadedSand)
+                        }
+                        if let interested = event.interested, interested > 0 {
+                            Label(String(format: locale.t("detail.interestedCount"), interested),
+                                  systemImage: "person.2")
+                                .font(.cfSans(12))
+                                .foregroundStyle(Theme.fadedSand)
+                        }
+                    }
+
+                    if !event.lineup.isEmpty {
+                        Text(event.lineup.joined(separator: " · ")
+                             + (event.extraArtists > 0 ? " +\(event.extraArtists)" : ""))
+                            .font(.cfSans(12))
+                            .foregroundStyle(Theme.stone)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    if let promoters = event.promoters, !promoters.isEmpty {
+                        Text(String(format: locale.t("detail.presentedBy"),
+                                    promoters.joined(separator: " · ")))
+                            .font(.cfSans(11))
+                            .foregroundStyle(Theme.fadedSand)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+
+            if let url = event.ticketsURL {
+                Divider().overlay(Theme.hairline)
+                Button {
+                    Haptics.tap()
+                    logTicketClick(event)
+                    openURL(url)
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(locale.t("detail.ticketsOnRA"))
+                            .font(.cfSans(13, weight: .semibold))
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.wine)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.cream, in: .rect(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
+    }
+
+    /// Attribution telemetry — fire and forget, never blocks opening the link.
+    private func logTicketClick(_ event: ClubEvent) {
+        // Encodable keys are converted to snake_case by APIClient's encoder.
+        struct Click: Encodable, Sendable {
+            let eventId: String
+            let platform: String
+            let eventTitle: String
+            let venueName: String
+            let venuePlaceId: String
+            let eventDate: String
+        }
+        struct Ack: Decodable, Sendable { let logged: Bool? }
+
+        let click = Click(
+            eventId: event.raEventId, platform: "ra", eventTitle: event.title,
+            venueName: event.venueName ?? place.name, venuePlaceId: place.placeId,
+            eventDate: event.date)
+        Task { let _: Ack? = try? await api.post("/api/ticket-clicks", body: click) }
     }
 
     // ── Rumbalist offers ──────────────────────────────────────────────────────

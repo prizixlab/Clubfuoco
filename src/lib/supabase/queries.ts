@@ -329,6 +329,29 @@ export async function getClubById(id: string) {
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 
+// Upcoming events at one venue, from public.events. Joined on club_id (resolved
+// at ingest), NOT by venue name — the old name matching surfaced one rooftop's
+// event on every other rooftop's page. Past events stay in the table as history
+// and are filtered out here.
+export async function getClubEvents(clubId: string | null | undefined) {
+  if (!clubId) return []
+  const supabase = createClient()
+
+  const today = new Date()
+  const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+  const { data, error } = await supabase
+    .from('events')
+    .select('ra_event_id, title, date, start_time, venue_name, promoters, artists, interested, attending, ra_url')
+    .eq('club_id', clubId)
+    .gte('date', localToday)
+    .order('date', { ascending: true })
+    .limit(20)
+
+  if (error) return []
+  return (data ?? []) as import('@/lib/events').ClubEvent[]
+}
+
 export async function getEvents() {
   const supabase = createClient()
 

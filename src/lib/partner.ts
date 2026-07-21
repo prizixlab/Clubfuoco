@@ -1,4 +1,5 @@
 import type { createServiceClient } from '@/lib/supabase/server'
+import { parseValidDays, weekdayOf } from '@/lib/valid-days'
 
 type SB = Awaited<ReturnType<typeof createServiceClient>>
 
@@ -365,7 +366,7 @@ export async function offerRunsOn(
 ): Promise<boolean> {
   const { data, error } = await sb
     .from('partner_offers')
-    .select('skipped_dates, brand_id')
+    .select('skipped_dates, brand_id, valid_days')
     .eq('club_id', clubId)
     .eq('kind', kind)
   // Column/table not applied yet, or no such offer — don't block the booking.
@@ -375,9 +376,26 @@ export async function offerRunsOn(
   // switch would be cosmetic: the offer would vanish from the feed but a
   // stale client (or a native app that hasn't refreshed) could still book it.
   const { hidden } = await brandsById(sb)
-  const rows = data as { skipped_dates?: string[] | null; brand_id?: string }[]
+  const rows = data as { skipped_dates?: string[] | null; brand_id?: string; valid_days?: string | null }[]
   const visible = hidden.size ? rows.filter(r => !hidden.has(r.brand_id ?? '')) : rows
   if (!visible.length) return false
 
-  return !visible.some(r => (r.skipped_dates ?? []).includes(date))
+  // valid_days is enforced HERE, not only in the clients. It is descriptive
+  // free text that nothing used to check, so a "Sun – Fri" offer could be
+  // booked on a Saturday: the feed hid it, but the booking still went through.
+  //
+  // An absent or unparseable value is treated as "no weekday restriction"
+  // rather than a refusal — bad data must not block a legitimate booking,
+  // which is the same leniency the error path above applies. All 15 live
+  // offers parse, so in practice this is the strict path.
+  const weekday = weekdayOf(date)
+  const permitted = weekday === null ? visible : visible.filter(r => {
+    const days = parseValidDays(r.valid_days ?? '')
+    return days.size === 0 || days.has(weekday)
+  })
+  if (!permitted.length) return false
+
+  // skipped_dates keeps its original strictness: any matching offer skipped on
+  // this date refuses the booking.
+  return !permitted.some(r => (r.skipped_dates ?? []).includes(date))
 }

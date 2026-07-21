@@ -22,11 +22,13 @@ struct ClubDetailView: View {
     @State private var planGroup: GroupRef?
     @State private var photoViewer: PhotoIndex?
 
-    /// Offers running on the night the user has planned. A supplier can turn a
-    /// single night off, so an offer that normally runs today may not be on —
-    /// don't show what can't be booked (the server refuses it anyway).
+    /// Offers actually running on the night the user has planned: the night
+    /// must fall within the offer's validDays AND not be one of the supplier's
+    /// skipped dates. `liveOn` covers both — `runsOn` checks only skipped
+    /// dates, which showed a "Sun – Fri" offer on a Saturday here while the
+    /// feed correctly hid it. The server now refuses that booking too.
     private var offers: [RumbalistOffer] {
-        RumbalistOffers.offers(for: place.placeId).filter { $0.runsOn(plan.date) }
+        RumbalistOffers.offers(for: place.placeId).filter { $0.liveOn(plan.date) }
     }
 
     private let heroHeight: CGFloat = 360

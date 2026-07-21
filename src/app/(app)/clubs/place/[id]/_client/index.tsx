@@ -6,7 +6,8 @@ import { useAuth } from '@/contexts/AuthContext'
 // No getRumbalistOffers here any more — this page reads offers only through
 // PartnerContext, so the bundled map can never override a live empty set.
 // (RUMBALIST_OFFERS survives solely as that context's pre-fetch seed.)
-import { offerRunsOn, type RumbalistOffer } from '@/lib/rumbalist-offers'
+import { type RumbalistOffer } from '@/lib/rumbalist-offers'
+import { offerLiveOn } from '@/lib/valid-days'
 import { rumbaScore } from '@/lib/rumba-score'
 import RumbalistBookSheet from '@/components/RumbalistBookSheet'
 import { SupplierMark, SupplierMarkKeyframes } from '@/components/SupplierMark'
@@ -772,10 +773,11 @@ export default function PlaceDetailPage() {
   // from the portal), and falling back to the bundle on empty made hidden
   // offers keep rendering on this page after they'd vanished from the feed.
   const livePartnerOffers = partnerGetOffers(id as string)
-  // A supplier can turn a single night off, so an offer that normally runs on
-  // the planned night may not be on — don't show what can't be booked (the
-  // server refuses it anyway).
-  const rumbalistOffers = livePartnerOffers.filter(o => offerRunsOn(o, plan.date))
+  // offerLiveOn, not the old skipped-dates-only check: an offer must both fall
+  // on a night its valid_days covers AND not be a supplier's skipped date.
+  // This page used to show a "Sun – Fri" offer on a Saturday while the feed
+  // correctly hid it; the server now refuses that booking too.
+  const rumbalistOffers = livePartnerOffers.filter(o => offerLiveOn(o, plan.date))
   const showSupplierMark = rumbalistOffers.some(o => o.brand)
   // Deal membership for the score boost is ANY offer for this venue — not
   // date-filtered, so the score doesn't flicker with the planned night.

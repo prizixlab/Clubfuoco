@@ -1,0 +1,707 @@
+{
+  "supplier": "Aashi List",
+  "source_url": "https://barcelonaclubs.com",
+  "scraped_at": "2026-07-11",
+  "notes": "Guest-list promoter. 'Price' on this site = entry type (free / discount / online tickets); no euro prices are published. 'schedule' is the venue's opening window in their format (e.g. '0.00h – 5.30h' = 00:00–05:30). cta_type 'guestlist' = free/discount list join; 'tickets' = external paid ticketing.",
+  "status": "COMPLETE — all 7 days captured (mon+fri via browser, tue/wed/thu/sat/sun via server HTML). A few ticket-only cards have host-derived slugs; see each row url.",
+  "days": {
+    "monday": [
+      {
+        "venue_slug": "opium-barcelona",
+        "entrance": "Free Entrance + Live Saxo",
+        "music": "R&B / House",
+        "schedule": "0.00h – 5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/opium-barcelona/monday/"
+      },
+      {
+        "venue_slug": "pacha-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h – 5.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/pacha-barcelona/monday"
+      },
+      {
+        "venue_slug": "shoko-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h – 5.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.notikumi.com/channel/aashi-shoko-barcelona"
+      },
+      {
+        "venue_slug": "hotel-w-noxe",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h – 6.00h",
+        "age": "+21",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/hotel-w-noxe/"
+      },
+      {
+        "venue_slug": "jamboree-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h – 5.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/jamboree-barcelona/monday/"
+      },
+      {
+        "venue_slug": "ovella-negra",
+        "entrance": "Free Entrance + FREE BEER / SANGRIA",
+        "music": "R&B / House",
+        "schedule": "21.00h – 12.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/bars/ovella-negra/"
+      }
+    ],
+    "tuesday": [
+      {
+        "venue_slug": "pacha-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/pacha-barcelona/tuesday"
+      },
+      {
+        "venue_slug": "downtownbarcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / Top Hits / House",
+        "schedule": "0.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://barcelonaclubs.com/nightclubs/downtownbarcelona/foam-party-downtown/"
+      },
+      {
+        "venue_slug": "shoko-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://barcelonaclubs.com/nightclubs/shoko-barcelona/wednesday/"
+      },
+      {
+        "venue_slug": "sutton-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://barcelonaclubs.com/nightclubs/sutton-barcelona/thursday/"
+      },
+      {
+        "venue_slug": "jamboree-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/jamboree-barcelona/tuesday"
+      },
+      {
+        "venue_slug": "hotel-w-noxe",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–3.00h",
+        "age": "+21",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/hotel-w-noxe/"
+      },
+      {
+        "venue_slug": "opium-barcelona",
+        "entrance": "Discount entrance",
+        "music": "R&B / House",
+        "schedule": "1.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://barcelonaclubs.com/nightclubs/opium-barcelona/tuesday"
+      },
+      {
+        "venue_slug": "ovella-negra",
+        "entrance": "Free Entrance + FREE BEER / SANGRIA",
+        "music": "R&B / House",
+        "schedule": "21.00h–12.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/bars/ovella-negra/"
+      }
+    ],
+    "wednesday": [
+      {
+        "venue_slug": "shoko-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/shoko-barcelona/wednesday/"
+      },
+      {
+        "venue_slug": "bling-bling-barcelona",
+        "entrance": "Free Entrance + SKIP LINE",
+        "music": "R&B / House",
+        "schedule": "0.30h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/bling-bling-barcelona/wednesday"
+      },
+      {
+        "venue_slug": "opium-barcelona",
+        "entrance": "Discount Entrance",
+        "music": "R&B / House",
+        "schedule": "23.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://barcelonaclubs.com/nightclubs/opium-barcelona/wednesday/"
+      },
+      {
+        "venue_slug": "pacha-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "23.00h–6.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/pacha-barcelona/wednesday"
+      },
+      {
+        "venue_slug": "razzmatazz",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "0.00h–6.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://www.barcelonaclubs.com/nightclubs/razzmatazz/el-dirty-wednesday/"
+      },
+      {
+        "venue_slug": "jamboree-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/jamboree-barcelona/wednesday"
+      },
+      {
+        "venue_slug": "hotel-w-noxe",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–6.00h",
+        "age": "+21",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/hotel-w-noxe/"
+      },
+      {
+        "venue_slug": "cdlc-carpe-diem-lounge-club-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/cdlc-carpe-diem-lounge-club-barcelona/monday/"
+      },
+      {
+        "venue_slug": "apolo-barcelona",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "0.00h–6.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://www.barcelonaclubs.com/nightclubs/apolo-barcelona/"
+      }
+    ],
+    "thursday": [
+      {
+        "venue_slug": "sutton-barcelona",
+        "entrance": "Free Entrance + SKIP LINES",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://barcelonaclubs.com/nightclubs/sutton-barcelona/jason-derulo-thursday/"
+      },
+      {
+        "venue_slug": "twenties",
+        "entrance": "Free Entrance",
+        "music": "R&B / Top Hits / House",
+        "schedule": "0.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/twenties/thursday"
+      },
+      {
+        "venue_slug": "opium-barcelona",
+        "entrance": "Discount Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/opium-barcelona/thursday"
+      },
+      {
+        "venue_slug": "pacha-barcelona",
+        "entrance": "Free Entrance",
+        "music": "Hits / House / Reggaeton",
+        "schedule": "",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/pacha-barcelona/thursday"
+      },
+      {
+        "venue_slug": "hotel-w-noxe",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–6.00h",
+        "age": "+21",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/hotel-w-noxe/"
+      },
+      {
+        "venue_slug": "shoko-barcelona",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "0.00h–6.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://www.notikumi.com/channel/aashi-shoko-barcelona/"
+      },
+      {
+        "venue_slug": "jamboree-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/jamboree-barcelona/thursday"
+      },
+      {
+        "venue_slug": "downtown",
+        "entrance": "Free Entrance",
+        "music": "R&B / Top Hits / House",
+        "schedule": "0.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/downtown/thursday"
+      },
+      {
+        "venue_slug": "bling-bling-barcelona",
+        "entrance": "Discount Entrance",
+        "music": "R&B / House",
+        "schedule": "0.30h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/bling-bling-barcelona/thursday/"
+      },
+      {
+        "venue_slug": "bastian-beach",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "11h–20h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://site.fourvenues.com/en/aashilist@bastian-beach/events"
+      }
+    ],
+    "friday": [
+      {
+        "venue_slug": "downtown",
+        "entrance": "Free Entrance + SKIP LINE",
+        "music": "R&B / Top Hits / House",
+        "schedule": "0.00h – 5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/downtown/friday/"
+      },
+      {
+        "venue_slug": "pacha-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h – 6.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/pacha-barcelona/friday"
+      },
+      {
+        "venue_slug": "opium-barcelona",
+        "entrance": "Discount Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h – 6.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://barcelonaclubs.com/nightclubs/opium-barcelona/friday"
+      },
+      {
+        "venue_slug": "twenties",
+        "entrance": "Free Entrance",
+        "music": "Top Hits / Reggaeton",
+        "schedule": "0.30h – 6.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://barcelonaclubs.com/nightclubs/twenties/saturday"
+      },
+      {
+        "venue_slug": "shoko-barcelona",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "0.00h – 6.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://www.notikumi.com/channel/aashi-shoko-barcelona/"
+      },
+      {
+        "venue_slug": "sutton-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h – 6.00h",
+        "age": "+21",
+        "cta_type": "guestlist",
+        "url": "https://www.fourvenues.com/es/aashilist@sutton-barcelona"
+      },
+      {
+        "venue_slug": "la-biblio-bcn",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h – 6.00h",
+        "age": "+20",
+        "cta_type": "guestlist",
+        "url": "https://www.fourvenues.com/es/aashilist@la-biblio-bcn"
+      },
+      {
+        "venue_slug": "hotel-w-noxe",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h – 6.00h",
+        "age": "+21",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/hotel-w-noxe/"
+      },
+      {
+        "venue_slug": "lafira-villarroel",
+        "entrance": "Free Entrance to Fira Provença / Fira Villarroel / Fira Casanova",
+        "music": "",
+        "schedule": "",
+        "age": "",
+        "cta_type": "guestlist",
+        "url": "https://www.fourvenues.com/en/aashilist@lafira-villarroel&lafira-casanova&lafira-provenca"
+      },
+      {
+        "venue_slug": "colors-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h – 5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/colors-barcelona/"
+      },
+      {
+        "venue_slug": "bling-bling-barcelona",
+        "entrance": "Discount Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h – 6.00h",
+        "age": "+23",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/bling-bling-barcelona/friday"
+      },
+      {
+        "venue_slug": "bastian-beach",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "11h – 20h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://site.fourvenues.com/en/aashilist@bastian-beach/events"
+      },
+      {
+        "venue_slug": "input",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "0.00h – 6.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://inputbcn.com/events/"
+      },
+      {
+        "venue_slug": "apolo-barcelona",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "0.00h – 6.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://www.barcelonaclubs.com/nightclubs/apolo-barcelona/"
+      },
+      {
+        "venue_slug": "razzmatazz",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "0.00h – 6.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://www.notikumi.com/venue/razzmatazz"
+      }
+    ],
+    "saturday": [
+      {
+        "venue_slug": "downtown",
+        "entrance": "Free Entrance",
+        "music": "R&B / Top Hits / House",
+        "schedule": "0.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://barcelonaclubs.com/nightclubs/downtown/saturday"
+      },
+      {
+        "venue_slug": "pacha-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–6.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/pacha-barcelona/saturday/"
+      },
+      {
+        "venue_slug": "twenties",
+        "entrance": "Free Entrance + FREE VIP for girls",
+        "music": "Top Hits / Reggaeton",
+        "schedule": "0.30h–6.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://barcelonaclubs.com/nightclubs/twenties/saturday"
+      },
+      {
+        "venue_slug": "made2party",
+        "entrance": "",
+        "music": "R&B / Top Hits / House",
+        "schedule": "18.00h–21.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://www.fourvenues.com/es/aashilist@made2party"
+      },
+      {
+        "venue_slug": "opium-barcelona",
+        "entrance": "Discount Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–6.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/opium-barcelona/saturday"
+      },
+      {
+        "venue_slug": "la-biblio-bcn",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–6.00h",
+        "age": "+20",
+        "cta_type": "guestlist",
+        "url": "https://www.fourvenues.com/es/aashilist@la-biblio-bcn"
+      },
+      {
+        "venue_slug": "sutton-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.30h",
+        "age": "+23",
+        "cta_type": "guestlist",
+        "url": "https://barcelonaclubs.com/nightclubs/sutton-barcelona/thursday/"
+      },
+      {
+        "venue_slug": "la-fira-group1",
+        "entrance": "Free Entrance + FREE SHOT",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.fourvenues.com/en/aashilist@la-fira-group1"
+      },
+      {
+        "venue_slug": "hotel-w-noxe",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "23.00h–3.00h",
+        "age": "+21",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/hotel-w-noxe/"
+      },
+      {
+        "venue_slug": "shoko-barcelona",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.30h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://www.notikumi.com/channel/aashi-shoko-barcelona/"
+      },
+      {
+        "venue_slug": "gobeachclub",
+        "entrance": "Online Tickets",
+        "music": "AfroHouse",
+        "schedule": "17.30h–23.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://xceed.me/world/events/all/all-events/channel--aashi-gobeachclub"
+      },
+      {
+        "venue_slug": "tickets",
+        "entrance": "Online Tickets",
+        "music": "Techno",
+        "schedule": "0.00h–6.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://tickets.youbarcelona.com/es/barcelona/la-terrrazza/?prom=aashilist"
+      },
+      {
+        "venue_slug": "bastian-beach",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "11h–20h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://site.fourvenues.com/en/aashilist@bastian-beach/events"
+      },
+      {
+        "venue_slug": "apolo-barcelona",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "0.00h–6.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://www.barcelonaclubs.com/nightclubs/apolo-barcelona/"
+      },
+      {
+        "venue_slug": "inputbcn",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "0.00h–6.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://www.inputbcn.com/en/tickets#/en/events"
+      },
+      {
+        "venue_slug": "razzmatazz",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "0.00h–6.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://www.barcelonaclubs.com/nightclubs/razzmatazz/"
+      }
+    ],
+    "sunday": [
+      {
+        "venue_slug": "sutton-barcelona",
+        "entrance": "Free Entrance + SKIP LINE",
+        "music": "Top Hits / House",
+        "schedule": "0.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://barcelonaclubs.com/nightclubs/sutton-barcelona/thursday/"
+      },
+      {
+        "venue_slug": "shoko-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/shoko-barcelona/sunday"
+      },
+      {
+        "venue_slug": "made2party",
+        "entrance": "Online Tickets",
+        "music": "R&B / Top Hits / House",
+        "schedule": "18.00h–21.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://www.fourvenues.com/es/aashilist@made2party"
+      },
+      {
+        "venue_slug": "pacha-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.00h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/pacha-barcelona/sunday"
+      },
+      {
+        "venue_slug": "opium-barcelona",
+        "entrance": "Online Tickets",
+        "music": "Hip Hop",
+        "schedule": "0.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://site.fourvenues.com/es/aashilist@opium-barcelona"
+      },
+      {
+        "venue_slug": "wet-deck-pool-hotel-w",
+        "entrance": "Free Entrance",
+        "music": "Tech House",
+        "schedule": "19.00h–1.00h",
+        "age": "+21",
+        "cta_type": "guestlist",
+        "url": "https://barcelonaclubs.com/nightclubs/wet-deck-pool-hotel-w/"
+      },
+      {
+        "venue_slug": "rito-barcelona",
+        "entrance": "Free Entrance",
+        "music": "Tech House",
+        "schedule": "18.00h–0.00h",
+        "age": "+21",
+        "cta_type": "guestlist",
+        "url": "https://site.fourvenues.com/en/aashilist@rito-barcelona"
+      },
+      {
+        "venue_slug": "jamboree-barcelona",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–5.30h",
+        "age": "+18",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/jamboree-barcelona/sunday"
+      },
+      {
+        "venue_slug": "hotel-w-noxe",
+        "entrance": "Free Entrance",
+        "music": "R&B / House",
+        "schedule": "0.00h–6.00h",
+        "age": "+21",
+        "cta_type": "guestlist",
+        "url": "https://www.barcelonaclubs.com/nightclubs/hotel-w-noxe/"
+      },
+      {
+        "venue_slug": "bastian-beach",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "11h–20h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://site.fourvenues.com/en/aashilist@bastian-beach/events"
+      },
+      {
+        "venue_slug": "apolo-barcelona",
+        "entrance": "Online Tickets",
+        "music": "R&B / House",
+        "schedule": "0.00h–6.00h",
+        "age": "+18",
+        "cta_type": "tickets",
+        "url": "https://www.barcelonaclubs.com/nightclubs/apolo-barcelona/"
+      }
+    ]
+  },
+  "offer_counts": {
+    "monday": 6,
+    "tuesday": 8,
+    "wednesday": 9,
+    "thursday": 10,
+    "friday": 15,
+    "saturday": 16,
+    "sunday": 11
+  }
+}

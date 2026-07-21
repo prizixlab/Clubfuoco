@@ -1,6 +1,7 @@
 'use client'
 import { apiFetch } from '@/lib/api'
-import { getClubById, getPlaceFavorites, savePlaceFavorite, removePlaceFavorite } from '@/lib/supabase/queries'
+import { getClubById, getClubEvents, getPlaceFavorites, savePlaceFavorite, removePlaceFavorite } from '@/lib/supabase/queries'
+import { type ClubEvent, formatEventDate, formatEventTime } from '@/lib/events'
 import { useAuth } from '@/contexts/AuthContext'
 import { getRumbalistOffers, offerRunsOn, type RumbalistOffer } from '@/lib/rumbalist-offers'
 import { rumbaScore } from '@/lib/rumba-score'
@@ -556,6 +557,100 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
   )
 }
 
+// ── Club event box ────────────────────────────────────────────────────────────
+// One box per upcoming event at this venue, from public.events. We do NOT sell
+// these: there is no purchase API for Resident Advisor, so the button opens
+// RA's own page. The click is logged first for partner attribution.
+//
+// No price is shown. The source's `cost` field is free text ("0", "10€", "",
+// "€") and unreliable, and the old card rendered a hardcoded €0 as "Free
+// event" — which told users every event was free when we simply had no price.
+function ClubEventCard({ event, placeId }: { event: ClubEvent; placeId: string }) {
+  const day     = formatEventDate(event.date)
+  const time    = formatEventTime(event.start_time)
+  const lineup  = event.artists.slice(0, 6)
+  const hasLink = !!event.ra_url
+
+  function openTickets() {
+    apiFetch('/api/ticket-clicks', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        event_id:       event.ra_event_id,
+        platform:       'ra',
+        event_title:    event.title,
+        venue_name:     event.venue_name,
+        venue_place_id: placeId,
+        event_date:     event.date,
+      }),
+    }).catch(() => {})
+    if (typeof window !== 'undefined') window.open(event.ra_url!, '_blank', 'noopener,noreferrer')
+  }
+
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', gap: 14, padding: 14 }}>
+        {/* Date block — the thing people scan for */}
+        <div style={{ flexShrink: 0, width: 52, textAlign: 'center', paddingTop: 2 }}>
+          <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.accent3, margin: '0 0 2px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontWeight: 600 }}>
+            {day.split(' ')[0]}
+          </p>
+          <p style={{ fontSize: 22, fontWeight: 700, color: C.ink, margin: 0, lineHeight: 1, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+            {day.split(' ')[1]}
+          </p>
+          <p style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.ink3, margin: '2px 0 0', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+            {day.split(' ')[2]}
+          </p>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontWeight: 600, color: C.ink, fontSize: 14, margin: '0 0 6px', lineHeight: 1.35, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+            {event.title}
+          </p>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: lineup.length || event.promoters.length ? 8 : 0 }}>
+            {time && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: C.ink3, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>schedule</span>
+                {time}
+              </span>
+            )}
+            {event.interested > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: C.ink3, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>group</span>
+                {event.interested.toLocaleString('en-GB')} interested
+              </span>
+            )}
+          </div>
+
+          {lineup.length > 0 && (
+            <p style={{ fontSize: 12, color: C.ink2, margin: '0 0 4px', lineHeight: 1.45, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+              {lineup.join(' · ')}
+              {event.artists.length > lineup.length && ` +${event.artists.length - lineup.length}`}
+            </p>
+          )}
+
+          {event.promoters.length > 0 && (
+            <p style={{ fontSize: 11, color: C.ink3, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
+              Presented by {event.promoters.join(' · ')}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {hasLink && (
+        <button
+          onClick={openTickets}
+          style={{ width: '100%', padding: '11px 14px', background: 'transparent', border: 'none', borderTop: `1px solid ${C.line}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: C.accent, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}
+        >
+          Tickets on Resident Advisor
+          <span className="material-symbols-outlined" style={{ fontSize: 15 }}>arrow_outward</span>
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PlaceDetailPage() {
   const params       = useParams<{ id: string }>()
@@ -566,11 +661,22 @@ export default function PlaceDetailPage() {
   const id = searchParams.get('id') ?? params.id
   const router   = useRouter()
   const { user } = useAuth()
+  // Live offers from the aggregated feed (every brand), falling back to the
+  // bundled catalog before the first fetch lands. Each offer carries its own
+  // supplier, so a venue can list offers from different brands and each is
+  // credited correctly.
+  //
+  // These MUST sit above the `if (loading) return` / `if (!place) return`
+  // early returns below. They used to live after them, so the first render
+  // (loading) called 16 hooks and the next called 18 — a Rules of Hooks
+  // violation that React reported on every load of this page.
+  const { getOffers: partnerGetOffers } = usePartner()
+  const { plan } = usePlan()
   const [activeOffer,   setActiveOffer]   = useState<RumbalistOffer | null>(null)
   const [place,         setPlace]         = useState<PlaceDetail | null>(null)
   const [loading,       setLoading]       = useState(true)
   const [hoursOpen,     setHoursOpen]     = useState(false)
-  const [events,        setEvents]        = useState<ExternalEvent[]>([])
+  const [events,        setEvents]        = useState<ClubEvent[]>([])
   const [eventsLoading, setEventsLoading] = useState(false)
   const [saved,         setSaved]         = useState(false)
   const [savingToggle,  setSavingToggle]  = useState(false)
@@ -607,15 +713,14 @@ export default function PlaceDetailPage() {
     setSavingToggle(false)
   }
 
+  // Events for THIS venue, joined on club_id (resolved at ingest) rather than
+  // matched on venue name. The old /api/events?venue=<name> call matched
+  // loosely enough that one rooftop's event appeared on every other rooftop.
   useEffect(() => {
     if (!place) return
     setEventsLoading(true)
-    apiFetch(`/api/events?venue=${encodeURIComponent(place.name)}&lat=${place.lat}&lng=${place.lng}`)
-      .then(r => r.json())
-      .then(d => {
-        const matched = (d.data ?? []).filter((e: { venue_matched: boolean }) => e.venue_matched)
-        setEvents(matched)
-      })
+    getClubEvents(place.place_id)
+      .then(setEvents)
       .catch(() => setEvents([]))
       .finally(() => setEventsLoading(false))
   }, [place])
@@ -657,12 +762,6 @@ export default function PlaceDetailPage() {
 
   const genre = (place.music_genres ?? [])[0] ?? null
   const allTags = [...(place.music_genres ?? []), ...(place.tags ?? []).slice(0, 4)]
-  // Live offers from the aggregated feed (every brand), falling back to the
-  // bundled catalog before the first fetch lands. Each offer carries its own
-  // supplier, so a venue can list offers from different brands and each is
-  // credited correctly.
-  const { getOffers: partnerGetOffers } = usePartner()
-  const { plan } = usePlan()
   const livePartnerOffers = partnerGetOffers(id as string)
   // A supplier can turn a single night off, so an offer that normally runs on
   // the planned night may not be on — don't show what can't be booked (the
@@ -672,7 +771,11 @@ export default function PlaceDetailPage() {
     : getRumbalistOffers(id as string)
   ).filter(o => offerRunsOn(o, plan.date))
   const showSupplierMark = rumbalistOffers.some(o => o.brand)
-  const { value: ratingValue, boosted: ratingBoosted } = rumbaScore(id as string, place.rating)
+  // Deal membership for the score boost is ANY offer for this venue (live set,
+  // bundled fallback while the fetch is in flight) — not date-filtered: the
+  // score shouldn't flicker with the planned night.
+  const hasAnyOffer = livePartnerOffers.length > 0 || getRumbalistOffers(id as string).length > 0
+  const { value: ratingValue, boosted: ratingBoosted } = rumbaScore(id as string, place.rating, hasAnyOffer)
   // Rumbalist partner venues only show 4★+ reviews — protects the listing's
   // perceived quality the same way the Rumba Score does for the headline rating.
   const visibleReviews = rumbalistOffers.length > 0
@@ -943,14 +1046,7 @@ export default function PlaceDetailPage() {
               </>
             )}
             {events.map(ev => (
-              <EventCard
-                key={ev.id}
-                event={ev}
-                placeId={place.place_id}
-                placeLat={place.lat}
-                placeLng={place.lng}
-                placeName={place.name}
-              />
+              <ClubEventCard key={ev.ra_event_id} event={ev} placeId={place.place_id} />
             ))}
           </div>
         )}
@@ -1187,13 +1283,7 @@ export default function PlaceDetailPage() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end' }}>
           <div style={{ width: '100%', background: C.surface, borderRadius: '24px 24px 0 0', padding: 20, paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ width: 36, height: 4, background: C.line, borderRadius: 99, margin: '0 auto 20px' }} />
-            <EventCard
-              event={activeEvent}
-              placeId={place.place_id}
-              placeLat={place.lat}
-              placeLng={place.lng}
-              placeName={place.name}
-            />
+            <ClubEventCard event={activeEvent} placeId={place.place_id} />
             <button
               onClick={() => setShowCheckout(false)}
               style={{ width: '100%', marginTop: 16, padding: '12px 0', background: 'none', border: 'none', fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.ink3, cursor: 'pointer', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}

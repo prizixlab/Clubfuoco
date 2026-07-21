@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { RUMBALIST_OFFERS, type RumbalistOffer } from '@/lib/rumbalist-offers'
 
@@ -27,6 +27,10 @@ interface PartnerValue {
   brand:        PartnerBrand
   offersByClub: Record<string, RumbalistOffer[]>
   getOffers:    (clubId: string | null | undefined) => RumbalistOffer[]
+  // Re-pull the live offer set. The explore feed calls this on mount so a
+  // venue gaining/losing an offer re-tiers on the next feed build without a
+  // redeploy — the deal set is volatile (offers toggled daily).
+  refresh:      () => void
 }
 
 const FALLBACK_BRAND: PartnerBrand = {
@@ -41,10 +45,12 @@ const PartnerContext = createContext<PartnerValue | null>(null)
 
 export function PartnerProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState(() => cache ?? { brand: FALLBACK_BRAND, offersByClub: RUMBALIST_OFFERS })
+  const [refreshTick, setRefreshTick] = useState(0)
 
   useEffect(() => {
-    if (cache) return
     let alive = true
+    // Always fetch — even when the cache is warm — so a stale set from an
+    // earlier navigation refreshes; the cache only prevents a fallback flash.
     apiFetch('/api/partner')
       .then(r => r.json())
       .then(({ data }) => {
@@ -56,13 +62,15 @@ export function PartnerProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => { /* keep fallback */ })
     return () => { alive = false }
-  }, [])
+  }, [refreshTick])
 
   const getOffers = (clubId: string | null | undefined) =>
     clubId ? (state.offersByClub[clubId] ?? []) : []
 
+  const refresh = useCallback(() => setRefreshTick(t => t + 1), [])
+
   return (
-    <PartnerContext.Provider value={{ brand: state.brand, offersByClub: state.offersByClub, getOffers }}>
+    <PartnerContext.Provider value={{ brand: state.brand, offersByClub: state.offersByClub, getOffers, refresh }}>
       {children}
     </PartnerContext.Provider>
   )
@@ -76,5 +84,6 @@ export function usePartner(): PartnerValue {
     brand: FALLBACK_BRAND,
     offersByClub: RUMBALIST_OFFERS,
     getOffers: (clubId) => (clubId ? (RUMBALIST_OFFERS[clubId] ?? []) : []),
+    refresh: () => {},
   }
 }

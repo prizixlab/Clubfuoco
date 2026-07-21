@@ -1,6 +1,11 @@
-// Rumbalist's booking offers, keyed by clubs.id so the venue detail page can
-// show the appropriate offers. Sourced from our Rumbalist partnership; will
-// move to a `club_offers` table once the live feed is wired.
+// FALLBACK ONLY — a bundled snapshot of offers, keyed by clubs.id. The live
+// source of truth is partner_offers via GET /api/partner (PartnerContext);
+// this map only seeds first paint / offline / pre-fetch states, and the venue
+// detail page falls back to it while the live set is in flight. It carries NO
+// ranking signal: the explore feed tiers and scores exclusively off the live
+// set. Removal path: once an offline-capable cache of /api/partner exists
+// (or offline seeding is dropped), delete this map and the getRumbalistOffers
+// fallback in clubs/place/[id]/_client and PartnerContext.
 
 export type OfferKind = 'free_guestlist' | 'vip_table'
 

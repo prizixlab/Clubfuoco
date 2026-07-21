@@ -22,6 +22,20 @@ final class ExploreViewModel {
     private(set) var saved: Set<String> = []
     private(set) var rumbas: [Rumba] = []
 
+    /// The LIVE offer set, keyed by lowercased club id — fetched per load, the
+    /// only deal signal the ranking may use. Empty when the request failed or
+    /// nothing is live: everything drops a tier and the feed still renders.
+    private(set) var offersByClub: [String: [RumbalistOffer]] = [:]
+
+    /// Upcoming ticketed events, used as the secondary commercial signal
+    /// (ranked below deals). Empty on failure — the feed still renders.
+    private(set) var events: [ExternalEvent] = []
+
+    // Personalisation inputs (nil for guests / on error → unpersonalised feed).
+    private(set) var userPrefs: UserPreferences?
+    private(set) var surveyPrefs: SurveyPreferences?
+    private(set) var tasteProfile: TasteProfile?
+
     /// Built once per (places, filter, plan-date) change — NOT per render.
     /// The shelf pool is shuffled, so rebuilding in `body` would change view
     /// identity every evaluation and restart every AsyncImage mid-flight.
@@ -51,6 +65,16 @@ final class ExploreViewModel {
         async let favorites = (try? queries.placeFavoriteIds()) ?? []
         async let shelves: [CustomShelfRecord]? = try? await api.get("/api/explore/shelves")
         async let activeRumbas: [Rumba]? = try? await api.get("/api/rumbas")
+        // Live offers + personalisation inputs ride the same group so nothing
+        // serialises; all are awaited below, BEFORE rebuildShelves(), so the
+        // first build already ranks deal-first with no empty-shelf flash.
+        async let liveOffers = RumbalistOffers.fetchLive(api: api)
+        async let upcoming = (try? queries.upcomingEvents()) ?? []
+        async let prefs = try? queries.userPreferences()
+        // Survey profile comes from the API route — the derivation lives once,
+        // server-side, and is shared with the web feed. Guests 401 → nil.
+        async let survey: SurveyPreferences? = try? await api.get("/api/surveys/preferences")
+        async let taste = try? queries.tasteProfile()
 
         var loadError: String?
         do {
@@ -75,6 +99,13 @@ final class ExploreViewModel {
         saved = await favorites
         customShelves = await shelves ?? []
         rumbas = await activeRumbas ?? []
+        // nil = the offers request FAILED → no deal signal (tier 2 for
+        // everything); the feed must still render, never block on offers.
+        offersByClub = await liveOffers ?? [:]
+        events = await upcoming
+        userPrefs = await prefs ?? nil
+        surveyPrefs = await survey ?? nil
+        tasteProfile = await taste ?? nil
 
         if let loadError {
             state = .failed(loadError)
@@ -89,7 +120,17 @@ final class ExploreViewModel {
     func rebuildShelves(planDate: String, t: (String) -> String) {
         let nightAll = places.filter { Hours.isOpenOnDate($0.weekdayHours, date: planDate) != false }
         let filtered = ShelfBuilder.filter(nightAll, chip: activeFilter)
-        shelves = ShelfBuilder.build(places: filtered, custom: customShelves, t: t)
+        shelves = ShelfBuilder.build(
+            places: filtered,
+            custom: customShelves,
+            offersByClub: offersByClub,
+            events: events,
+            planDate: planDate,
+            prefs: userPrefs,
+            survey: surveyPrefs,
+            taste: tasteProfile,
+            t: t
+        )
     }
 
     var searchResults: [Place] {

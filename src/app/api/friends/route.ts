@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
         .update({ status: 'accepted', updated_at: new Date().toISOString() })
         .eq('id', existing.id)
       if (upErr) return err(upErr.message)
-      await notify({ user_id: other, type: 'friend_accept', title: `${myName} accepted your friend request`, link: '/friends' })
+      await notify({ user_id: other, type: 'friend_accept', title: `${myName} accepted your friend request`, link: '/friends', push: 'clubfuoco' })
       return ok({ status: 'accepted', friendship_id: existing.id })
     }
     // I already requested them
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     return err(insErr.message)
   }
 
-  await notify({ user_id: other, type: 'friend_request', title: `${myName} sent you a friend request`, link: '/friends' })
+  await notify({ user_id: other, type: 'friend_request', title: `${myName} sent you a friend request`, link: '/friends', push: 'clubfuoco' })
   return ok({ status: 'pending', friendship_id: created.id }, 201)
 }
 

@@ -23,21 +23,94 @@ struct CustomShelfRecord: Decodable, Sendable {
     let position: Int
 }
 
-/// Native port of the explore shelf algorithm. Phase 1 ports the structural
-/// core: featured partner hero + the rotating candidate pool (keyword shelves)
-/// + admin custom shelves + the lead-staggering pass. The survey/taste-profile
-/// personalisation scoring and events/rumbas shelves land in Phase 2.
+/// Native port of the explore shelf algorithm: featured deal hero + the
+/// rotating candidate pool (keyword shelves) + admin custom shelves + the
+/// lead-staggering pass, with the web's deal-first tiering and
+/// survey/taste-profile personalisation scoring (PersonalizationScore).
+/// The events/rumbas shelves still land in Phase 2.
 enum ShelfBuilder {
     typealias Localize = (String) -> String
 
-    static func build(places: [Place], custom: [CustomShelfRecord], t: Localize) -> [Shelf] {
+    /// Monetisable-first tiering (the dominant sort term), derived per build
+    /// from live data — a venue gaining or losing an offer or an event
+    /// re-tiers on the next build with no code or config change.
+    ///   tier 0  live offer running on the planned night (validDays enforced,
+    ///           skippedDates respected).  sub: vipTable before freeGuestlist
+    ///   tier 1  live offer, but not that night
+    ///   tier 2  ticketed event.           sub: event on the planned night first
+    ///   tier 3  nothing to sell
+    /// Deals outrank events and events outrank plain venues, always — a lower
+    /// tier can never be beaten by personalisation score.
+    /// Mirrors the web's dealRank() in explore/page.tsx; change both together.
+    private struct DealRank {
+        let tier: Int
+        let subRank: Int
+        let score: Double
+    }
+
+    static func build(
+        places: [Place],
+        custom: [CustomShelfRecord],
+        offersByClub: [String: [RumbalistOffer]] = [:],
+        events: [ExternalEvent] = [],
+        planDate: String = "",
+        prefs: UserPreferences? = nil,
+        survey: SurveyPreferences? = nil,
+        taste: TasteProfile? = nil,
+        t: Localize
+    ) -> [Shelf] {
         var shelves: [Shelf] = []
 
-        // ── Featured hero — Rumbalist clubs only (those with a Rumbalist offer) ─
-        // Shuffled per build like the rotating pool: feed order is
-        // most-rated-first, which made Pacha the big hero card on every
-        // single load. Every partner gets its turn as the lead.
-        let partners = places.filter { !RumbalistOffers.offers(for: $0.placeId).isEmpty }.shuffled()
+        var dealRanks: [String: DealRank] = [:]
+        dealRanks.reserveCapacity(places.count)
+        for p in places {
+            let offers = offersByClub[p.placeId.lowercased()] ?? []
+            let live = offers.filter { $0.liveOn(planDate) }
+            // Event days for this venue (fuzzy name match, like the web).
+            let eventDays = Set(events
+                .filter { VenueMatch.matches($0.venueName, p.name) }
+                .compactMap(\.calendarDay))
+
+            let tier: Int
+            let subRank: Int
+            if !live.isEmpty {
+                tier = 0
+                subRank = live.contains(where: \.isVip) ? 0 : 1
+            } else if !offers.isEmpty {
+                tier = 1; subRank = 0
+            } else if !eventDays.isEmpty {
+                tier = 2; subRank = eventDays.contains(planDate) ? 0 : 1
+            } else {
+                tier = 3; subRank = 0
+            }
+
+            dealRanks[p.placeId] = DealRank(
+                tier: tier,
+                subRank: subRank,
+                score: PersonalizationScore.prefScore(p, prefs: prefs, survey: survey, taste: taste)
+            )
+        }
+        let fallback = DealRank(tier: 3, subRank: 0, score: 0)
+        func rank(_ p: Place) -> DealRank { dealRanks[p.placeId] ?? fallback }
+
+        /// Stable re-sort: tier first, sub-rank within tier, then score; equal
+        /// entries keep the incoming order (rating, shuffle, …) — Swift's
+        /// sorted(by:) is documented stable.
+        func ranked(_ arr: [Place]) -> [Place] {
+            arr.sorted { a, b in
+                let ra = rank(a), rb = rank(b)
+                if ra.tier != rb.tier { return ra.tier < rb.tier }
+                if ra.subRank != rb.subRank { return ra.subRank < rb.subRank }
+                return ra.score > rb.score
+            }
+        }
+
+        // ── Featured hero — venues with a live offer on the planned night ────
+        // Exactly the tier-0 set; empty set → no shelf at all. Shuffled per
+        // build like the rotating pool: feed order is most-rated-first, which
+        // made Pacha the big hero card on every single load. Every partner
+        // gets its turn as the lead.
+        let partners = places.filter { rank($0).tier == 0 }.shuffled()
         if !partners.isEmpty {
             shelves.append(Shelf(
                 id: "hero",
@@ -49,6 +122,8 @@ enum ShelfBuilder {
         }
 
         // ── Rotating pool — keyword/quality candidates, shuffled per load ────
+        // Every candidate goes deal-first via ranked(); its own sort order
+        // (rating/popularity/shuffle) survives as the within-tier tie-break.
         var pool: [Shelf] = []
         func candidate(_ id: String, _ pts: [Place], min: Int = 2) {
             if pts.count >= min {
@@ -56,7 +131,7 @@ enum ShelfBuilder {
                     id: id,
                     title: t("shelf.\(id).title"),
                     subtitle: t("shelf.\(id).sub"),
-                    places: Array(pts.prefix(12))
+                    places: Array(ranked(pts).prefix(12))
                 ))
             }
         }
@@ -112,17 +187,31 @@ enum ShelfBuilder {
             }
             let fresh = shelf.places.filter { !usedAsLead.contains($0.placeId) }
             let repeats = shelf.places.filter { usedAsLead.contains($0.placeId) }
-            shelf.places = fresh + repeats
+            // The stagger would happily pull a no-deal venue ahead of a deal
+            // venue just because the deal venue already led another shelf.
+            // Re-assert tier order afterwards — a stable sort, so the stagger
+            // still decides the order WITHIN a tier, it just can't cross tiers.
+            shelf.places = (fresh + repeats).sorted { a, b in
+                let ra = rank(a), rb = rank(b)
+                if ra.tier != rb.tier { return ra.tier < rb.tier }
+                return ra.subRank < rb.subRank
+            }
             shelf.places.prefix(3).forEach { usedAsLead.insert($0.placeId) }
             staggered.append(shelf)
         }
 
-        return mergeCustomShelves(base: staggered, records: custom, places: places)
+        // Admin shelves run through the same ranker as every other row.
+        return mergeCustomShelves(base: staggered, records: custom, places: places, rank: ranked)
     }
 
     /// Port of mergeCustomShelves(): default rows stay; custom shelves splice
     /// in at their `position` (1 = right after the hero).
-    static func mergeCustomShelves(base: [Shelf], records: [CustomShelfRecord], places: [Place]) -> [Shelf] {
+    static func mergeCustomShelves(
+        base: [Shelf],
+        records: [CustomShelfRecord],
+        places: [Place],
+        rank: ([Place]) -> [Place] = { $0 }
+    ) -> [Shelf] {
         guard !records.isEmpty else { return base }
         var result = base
         let index = Dictionary(uniqueKeysWithValues: places.map { ($0.placeId, $0) })
@@ -151,6 +240,11 @@ enum ShelfBuilder {
             }
 
             guard picks.count >= (rec.mode == "manual" ? 1 : 2) else { continue }
+            // Deal/event venues lead every row, custom shelves included. This
+            // also reorders a MANUAL shelf's hand-picked list: the commercial
+            // ordering outranks the admin's arrangement (the admin still
+            // controls membership).
+            picks = rank(picks)
             let shelf = Shelf(id: "custom_\(rec.id)", title: rec.title, subtitle: rec.subtitle ?? "", places: picks)
             let at = min(max(rec.position, 1), result.count)
             result.insert(shelf, at: at)

@@ -27,7 +27,33 @@ struct RumbalistOffer: Identifiable, Hashable {
 
     var isVip: Bool { kind == .vipTable }
     /// Is this offer actually running on `date` ("yyyy-MM-dd")?
+    /// Only checks the skipped-dates exceptions — see `liveOn(_:)` for the
+    /// full liveness predicate that also enforces `validDays`.
     func runsOn(_ date: String) -> Bool { !skippedDates.contains(date) }
+
+    /// The shared liveness predicate (spec 1.3): live on `date` when the
+    /// offer's valid days cover that weekday AND the supplier hasn't skipped
+    /// that specific night. (is_active is implicit — /api/partner only returns
+    /// live offers.) CLIENT-SIDE ONLY: booking enforcement stays server-side
+    /// in offerRunsOn() (src/lib/partner.ts).
+    func liveOn(_ date: String) -> Bool {
+        guard let weekday = Self.weekdayIndex(of: date) else { return false }
+        return ValidDays.parse(validDays).contains(weekday) && runsOn(date)
+    }
+
+    /// Weekday (0=Sun…6=Sat) of a "yyyy-MM-dd" calendar date via Sakamoto's
+    /// algorithm — pure integer arithmetic, so no timezone can shift the day.
+    /// Matches weekdayOf() in the web's src/lib/valid-days.ts exactly.
+    static func weekdayIndex(of date: String) -> Int? {
+        let parts = date.split(separator: "-")
+        guard parts.count == 3,
+              var y = Int(parts[0]), let m = Int(parts[1]), let d = Int(parts[2]),
+              (1...12).contains(m), (1...31).contains(d)
+        else { return nil }
+        let t = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4]
+        if m < 3 { y -= 1 }
+        return (y + y / 4 - y / 100 + y / 400 + t[m - 1] + d) % 7
+    }
 }
 
 /// The active offer supplier's identity from GET /api/partner. Suppliers are
@@ -122,6 +148,21 @@ enum RumbalistOffers {
     /// prefer that. nil until the first successful refresh.
     nonisolated(unsafe) private(set) static var brand: PartnerBrand?
 
+    /// Lowercased club ids with at least one LIVE offer, from the last
+    /// successful fetch — overwritten even when the answer is "none" (unlike
+    /// `byClub`, which keeps the bundle as an offline seed for the detail
+    /// sheets). nil until the first successful fetch. This is the membership
+    /// signal for deal-derived cosmetics like RumbaScore.
+    nonisolated(unsafe) private(set) static var liveClubIds: Set<String>?
+
+    /// Does this club have a live offer? Falls back to the bundled catalog
+    /// only before the first successful fetch (mirrors the web's
+    /// PartnerContext seeding).
+    static func hasLiveOffer(_ clubId: String) -> Bool {
+        if let liveClubIds { return liveClubIds.contains(clubId.lowercased()) }
+        return !offers(for: clubId).isEmpty
+    }
+
     static func offers(for clubId: String) -> [RumbalistOffer] {
         byClub[clubId.lowercased()] ?? []
     }
@@ -180,12 +221,26 @@ enum RumbalistOffers {
 
     @MainActor
     static func refresh(api: APIClient) async {
-        guard let resp: Response = try? await api.get("/api/partner") else { return }
+        _ = await fetchLive(api: api)
+    }
+
+    /// One fetch of the live offer set, keyed by lowercased club id. Returns
+    /// nil on a FAILED request (network/decode) so callers that rank venues
+    /// can degrade to no-deal-signal; an empty map is a real answer ("nothing
+    /// is live"). Also refreshes the shared catalog so the detail sheets and
+    /// RumbaScore see the same set — the bundle stays as an offline fallback
+    /// there, but ranking must never key off it.
+    @MainActor
+    static func fetchLive(api: APIClient) async -> [String: [RumbalistOffer]]? {
+        guard let resp: Response = try? await api.get("/api/partner") else { return nil }
         brand = resp.brand?.model
         let mapped = resp.offersByClub.reduce(into: [String: [RumbalistOffer]]()) { acc, pair in
             acc[pair.key.lowercased()] = pair.value.map(\.model)
         }
-        guard !mapped.isEmpty else { return }   // keep bundle if backend is empty
-        byClub = mapped
+        // Keep the bundle for the DETAIL surfaces when the backend is empty
+        // (their offline seed), but still report the truthful empty set.
+        if !mapped.isEmpty { byClub = mapped }
+        liveClubIds = Set(mapped.keys)
+        return mapped
     }
 }

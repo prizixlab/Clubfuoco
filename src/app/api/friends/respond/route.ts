@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
   const { data: meRow } = await sb.from('users').select('full_name').eq('id', me).maybeSingle()
   const myName = meRow?.full_name?.trim() || 'Someone'
-  await notify({ user_id: row.requester_id, type: 'friend_accept', title: `${myName} accepted your friend request`, link: '/friends' })
+  await notify({ user_id: row.requester_id, type: 'friend_accept', title: `${myName} accepted your friend request`, link: '/friends', push: 'clubfuoco' })
 
   return ok({ status: 'accepted' })
 }

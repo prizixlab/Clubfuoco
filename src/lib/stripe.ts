@@ -1,8 +1,33 @@
 import Stripe from 'stripe'
 import type { MembershipPlan, OrderSummary } from '@/types'
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  typescript: true,
+// Lazily constructed on first use, NOT at import.
+//
+// This used to be `new Stripe(process.env.STRIPE_SECRET_KEY!, …)` at module
+// scope. `next build` imports every route to collect page data, so any
+// deployment without STRIPE_SECRET_KEY died on the whole build — which is
+// exactly what happened to every preview deployment, where the key is scoped
+// to Production only. A missing key should break the billing routes that need
+// it, at request time, not the entire site.
+//
+// The Proxy keeps every existing `stripe.x.y()` call site working unchanged.
+// Methods are bound to the real client so `this` stays correct.
+let client: Stripe | null = null
+
+function stripeClient(): Stripe {
+  if (!client) {
+    const key = process.env.STRIPE_SECRET_KEY
+    if (!key) throw new Error('STRIPE_SECRET_KEY is not configured')
+    client = new Stripe(key, { typescript: true })
+  }
+  return client
+}
+
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, prop) {
+    const value = Reflect.get(stripeClient(), prop) as unknown
+    return typeof value === 'function' ? value.bind(stripeClient()) : value
+  },
 })
 
 export const PLATFORM_FEE_PERCENT = 0.12 // 12% take rate

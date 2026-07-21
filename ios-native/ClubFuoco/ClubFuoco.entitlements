@@ -10,6 +10,13 @@
 	<array>
 		<string>merchant.com.clubfuoco.app</string>
 	</array>
+	<!-- Remote push. `development` targets the APNs sandbox, which is what a
+	     Debug build signed with a development profile must use; App Store /
+	     TestFlight builds are re-signed with `production` automatically.
+	     PushRegistrar records which one it registered under so the server
+	     sends to the matching APNs host. -->
+	<key>aps-environment</key>
+	<string>development</string>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:clubfuoco.com</string>

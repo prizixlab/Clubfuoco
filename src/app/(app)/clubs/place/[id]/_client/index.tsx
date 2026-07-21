@@ -3,7 +3,10 @@ import { apiFetch } from '@/lib/api'
 import { getClubById, getClubEvents, getPlaceFavorites, savePlaceFavorite, removePlaceFavorite } from '@/lib/supabase/queries'
 import { type ClubEvent, formatEventDate, formatEventTime } from '@/lib/events'
 import { useAuth } from '@/contexts/AuthContext'
-import { getRumbalistOffers, offerRunsOn, type RumbalistOffer } from '@/lib/rumbalist-offers'
+// No getRumbalistOffers here any more — this page reads offers only through
+// PartnerContext, so the bundled map can never override a live empty set.
+// (RUMBALIST_OFFERS survives solely as that context's pre-fetch seed.)
+import { offerRunsOn, type RumbalistOffer } from '@/lib/rumbalist-offers'
 import { rumbaScore } from '@/lib/rumba-score'
 import RumbalistBookSheet from '@/components/RumbalistBookSheet'
 import { SupplierMark, SupplierMarkKeyframes } from '@/components/SupplierMark'
@@ -762,19 +765,21 @@ export default function PlaceDetailPage() {
 
   const genre = (place.music_genres ?? [])[0] ?? null
   const allTags = [...(place.music_genres ?? []), ...(place.tags ?? []).slice(0, 4)]
+  // PartnerContext already seeds itself with the bundled catalog and swaps in
+  // the live set once /api/partner answers, so this is the bundle before the
+  // first fetch and live data after. There must be NO extra fallback here: an
+  // empty live set is a real answer (an operator can hide a supplier's offers
+  // from the portal), and falling back to the bundle on empty made hidden
+  // offers keep rendering on this page after they'd vanished from the feed.
   const livePartnerOffers = partnerGetOffers(id as string)
   // A supplier can turn a single night off, so an offer that normally runs on
   // the planned night may not be on — don't show what can't be booked (the
   // server refuses it anyway).
-  const rumbalistOffers = (livePartnerOffers.length > 0
-    ? livePartnerOffers
-    : getRumbalistOffers(id as string)
-  ).filter(o => offerRunsOn(o, plan.date))
+  const rumbalistOffers = livePartnerOffers.filter(o => offerRunsOn(o, plan.date))
   const showSupplierMark = rumbalistOffers.some(o => o.brand)
-  // Deal membership for the score boost is ANY offer for this venue (live set,
-  // bundled fallback while the fetch is in flight) — not date-filtered: the
-  // score shouldn't flicker with the planned night.
-  const hasAnyOffer = livePartnerOffers.length > 0 || getRumbalistOffers(id as string).length > 0
+  // Deal membership for the score boost is ANY offer for this venue — not
+  // date-filtered, so the score doesn't flicker with the planned night.
+  const hasAnyOffer = livePartnerOffers.length > 0
   const { value: ratingValue, boosted: ratingBoosted } = rumbaScore(id as string, place.rating, hasAnyOffer)
   // Rumbalist partner venues only show 4★+ reviews — protects the listing's
   // perceived quality the same way the Rumba Score does for the headline rating.

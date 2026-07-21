@@ -237,9 +237,14 @@ enum RumbalistOffers {
         let mapped = resp.offersByClub.reduce(into: [String: [RumbalistOffer]]()) { acc, pair in
             acc[pair.key.lowercased()] = pair.value.map(\.model)
         }
-        // Keep the bundle for the DETAIL surfaces when the backend is empty
-        // (their offline seed), but still report the truthful empty set.
-        if !mapped.isEmpty { byClub = mapped }
+        // A successful response is authoritative — INCLUDING an empty one.
+        // "Nothing is live" is a real answer (an operator can hide a supplier's
+        // offers from the portal), so the bundled seed must not paper over it:
+        // it previously did, and a hidden supplier's offers kept rendering on
+        // the venue detail screen after they had vanished from the feed.
+        // A FAILED request is the only case that keeps the last known set, and
+        // that path returns nil above without touching anything.
+        byClub = mapped
         liveClubIds = Set(mapped.keys)
         return mapped
     }

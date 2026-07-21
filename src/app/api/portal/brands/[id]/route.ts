@@ -27,6 +27,10 @@ const PatchBrand = z.object({
   attribution_label:    z.string().trim().min(1).max(40).nullable().optional(),
   // Supplier's login email for the FuocoPromoters app. Empty → null.
   login_email:          z.string().trim().email('Enter a valid email').max(160).nullable().optional(),
+  // Kill switch: hide every offer from this supplier from the public feed and
+  // refuse it at the booking gate. Reversible and non-destructive — the offer
+  // rows keep their own is_active, sort_order and skipped_dates.
+  offers_hidden:        z.boolean().optional(),
 }).strict()   // rejects `key` — the slug is immutable after create
 
 // PATCH /api/portal/brands/:id — edit identity + attribution. Never `key`.
@@ -45,7 +49,17 @@ export async function PATCH(
   try {
     await updateBrand(sb, id, parsed.data)
     const brand = await getBrand(sb, id)
-    await logAudit(sb, { action: 'brand.update', summary: `Edited brand “${brand?.name ?? id}” (${Object.keys(parsed.data).join(', ')})`, target_type: 'brand', target_id: id, meta: parsed.data })
+    // Hiding/unhiding a supplier pulls their offers out of the public feed, so
+    // it gets its own audit line rather than being buried in a field list.
+    const keys = Object.keys(parsed.data)
+    const isHideToggle = keys.length === 1 && keys[0] === 'offers_hidden'
+    await logAudit(sb, {
+      action: isHideToggle ? 'brand.offers_visibility' : 'brand.update',
+      summary: isHideToggle
+        ? `${parsed.data.offers_hidden ? 'Hid' : 'Restored'} all offers from “${brand?.name ?? id}”`
+        : `Edited brand “${brand?.name ?? id}” (${keys.join(', ')})`,
+      target_type: 'brand', target_id: id, meta: parsed.data,
+    })
     return ok(brand)
   } catch (e) {
     return err(e instanceof Error ? e.message : 'Could not update brand', 500)

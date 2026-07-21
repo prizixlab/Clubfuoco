@@ -52,10 +52,15 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
             <span style={{ fontFamily: mono, fontSize: 12, color: C.faint }}>/{brand.key}</span>
           </p>
         </div>
-        {brand.is_active
-          ? <Badge color={C.gold}>Live now</Badge>
-          : <ActivateButton brand={brand} onDone={load} currentLive={currentLive} />}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {brand.offers_hidden && <Badge color={C.danger}>Offers hidden</Badge>}
+          {brand.is_active
+            ? <Badge color={C.gold}>Live now</Badge>
+            : <ActivateButton brand={brand} onDone={load} currentLive={currentLive} />}
+        </div>
       </div>
+
+      <VisibilityCard brand={brand} onChanged={load} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 18, alignItems: 'start' }}>
         <IdentityCard brand={brand} onSaved={load} onDraft={setDraft} />
@@ -64,6 +69,52 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
 
       <OffersEditor brand={brand} onOffersChanged={load} />
     </>
+  )
+}
+
+// Supplier-level kill switch. Pulls every offer from this supplier out of the
+// public feed AND refuses them at the booking gate, without touching a single
+// offer row — each keeps its own active/archived state, order and skipped
+// dates, so restoring puts things back exactly as they were.
+//
+// Deliberately separate from "Live now" (is_active), which picks the primary
+// featured supplier. A supplier can be hidden without disturbing that.
+function VisibilityCard({ brand, onChanged }: { brand: BrandRow; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const hidden = brand.offers_hidden
+
+  async function toggle() {
+    setBusy(true); setError(null)
+    try {
+      await api(`/api/portal/brands/${brand.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ offers_hidden: !hidden }),
+      })
+      onChanged()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not change visibility')
+    }
+    setBusy(false)
+  }
+
+  return (
+    <Card style={{ marginTop: 18, borderColor: hidden ? `${C.danger}55` : C.line }}>
+      <SectionLabel right={hidden ? <Badge color={C.danger}>Hidden</Badge> : <Badge color={C.green}>Public</Badge>}>
+        Offer visibility
+      </SectionLabel>
+      <p style={{ margin: '12px 0 0', fontSize: 13.5, lineHeight: 1.55, color: C.dim, fontFamily: font }}>
+        {hidden
+          ? `All ${brand.offer_count} offer${brand.offer_count === 1 ? '' : 's'} from ${brand.name} are hidden from the app and cannot be booked. Nothing was deleted — restoring puts them back exactly as they were.`
+          : `Temporarily hide every offer from ${brand.name}. They stop appearing in the app and can’t be booked, but nothing is deleted and each offer keeps its own settings.`}
+      </p>
+      <ErrorLine error={error} />
+      <div style={{ marginTop: 16 }}>
+        <Btn kind={hidden ? 'primary' : 'danger'} onClick={toggle} disabled={busy}>
+          {busy ? 'Saving…' : hidden ? 'Restore offers' : 'Hide all offers'}
+        </Btn>
+      </div>
+    </Card>
   )
 }
 

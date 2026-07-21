@@ -88,15 +88,28 @@ export async function getActiveBrand(sb: SB): Promise<(PartnerBrand & { id: stri
   return data ? toBrand(data) : null
 }
 
-/// Every brand keyed by id, so offers can be attributed without an N+1 lookup.
-async function brandsById(sb: SB): Promise<Map<string, PartnerBrand & { id: string }>> {
+/// Every brand keyed by id, so offers can be attributed without an N+1 lookup,
+/// plus the set of suppliers whose offers are currently hidden.
+///
+/// `hidden` is the portal's supplier-level kill switch (partner_brands
+/// .offers_hidden) — NOT is_active, which marks the primary/featured supplier
+/// and is deliberately false for auto-provisioned promoter brands whose offers
+/// must still show. Reading it via select('*') keeps this working before the
+/// migration is applied: a missing column reads as "not hidden".
+async function brandsById(sb: SB): Promise<{
+  brands: Map<string, PartnerBrand & { id: string }>
+  hidden: Set<string>
+}> {
   const { data } = await sb.from('partner_brands').select('*')
-  const map = new Map<string, PartnerBrand & { id: string }>()
+  const brands = new Map<string, PartnerBrand & { id: string }>()
+  const hidden = new Set<string>()
   for (const r of data ?? []) {
-    const b = toBrand(r as Record<string, unknown>)
-    map.set(b.id, b)
+    const row = r as Record<string, unknown>
+    const b = toBrand(row)
+    brands.set(b.id, b)
+    if (row.offers_hidden === true) hidden.add(b.id)
   }
-  return map
+  return { brands, hidden }
 }
 
 // Every LIVE offer across EVERY brand, grouped by club id, each carrying its
@@ -109,7 +122,7 @@ async function brandsById(sb: SB): Promise<Map<string, PartnerBrand & { id: stri
 // longer decides what consumers see — gating on it would mean a promoter's
 // approved offer passed review and still never appeared.
 export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, PartnerOffer[]>> {
-  const brands = await brandsById(sb)
+  const { brands, hidden } = await brandsById(sb)
   const { data } = await sb
     .from('partner_offers')
     .select('*')
@@ -119,6 +132,10 @@ export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, Par
   for (const r of data ?? []) {
     if (!isActiveOffer(r)) continue
     const row = r as Record<string, unknown> & { club_id: string; brand_id: string }
+    // Supplier hidden by the portal — the rows stay untouched, they just
+    // don't surface. A club whose ONLY offers come from a hidden supplier
+    // drops out of the map entirely, so the feed re-tiers it as no-deal.
+    if (hidden.has(row.brand_id)) continue
     ;(map[row.club_id] ??= []).push(toOffer(row, brands.get(row.brand_id)))
   }
   return map
@@ -127,7 +144,7 @@ export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, Par
 // Every live offer for one club, across all brands.
 export async function getPartnerOffers(sb: SB, clubId: string | null | undefined): Promise<PartnerOffer[]> {
   if (!clubId) return []
-  const brands = await brandsById(sb)
+  const { brands, hidden } = await brandsById(sb)
   const { data } = await sb
     .from('partner_offers')
     .select('*')
@@ -135,6 +152,7 @@ export async function getPartnerOffers(sb: SB, clubId: string | null | undefined
     .order('sort_order', { ascending: true })
   return (data ?? [])
     .filter(isActiveOffer)
+    .filter(r => !hidden.has((r as unknown as { brand_id: string }).brand_id))
     .map(r => toOffer(r as Record<string, unknown>,
                       brands.get((r as unknown as { brand_id: string }).brand_id)))
 }
@@ -149,6 +167,10 @@ export interface BrandRow extends PartnerBrand {
   is_active:   boolean
   created_at:  string
   offer_count: number
+  // Operator kill switch: every offer from this supplier is hidden from the
+  // public feed and refused by the booking gate, without touching the rows.
+  // Distinct from is_active, which marks the primary/featured supplier.
+  offers_hidden: boolean
   // The supplier's own login email for the FuocoPromoters app. Operator-only —
   // deliberately NOT part of the consumer-facing PartnerBrand, and the public
   // /api/partner never emits it.
@@ -176,6 +198,9 @@ export async function listBrands(sb: SB): Promise<BrandRow[]> {
     is_active:   (r as { is_active: boolean }).is_active,
     created_at:  (r as { created_at: string }).created_at,
     offer_count: counts[(r as { id: string }).id] ?? 0,
+    // Missing column (pre-migration) reads as "not hidden", so the portal
+    // renders correctly before the SQL is applied.
+    offers_hidden: (r as { offers_hidden?: boolean }).offers_hidden === true,
     login_email: ((r as { login_email?: string | null }).login_email) ?? null,
     login_provisioned: !!(r as { owner_user_id?: string | null }).owner_user_id,
   }))
@@ -190,6 +215,7 @@ export async function getBrand(sb: SB, id: string): Promise<BrandRow | null> {
     is_active:   (data as { is_active: boolean }).is_active,
     created_at:  (data as { created_at: string }).created_at,
     offer_count: (offers ?? []).filter(isActiveOffer).length,
+    offers_hidden: (data as { offers_hidden?: boolean }).offers_hidden === true,
     login_email: ((data as { login_email?: string | null }).login_email) ?? null,
     login_provisioned: !!(data as { owner_user_id?: string | null }).owner_user_id,
   }
@@ -217,7 +243,7 @@ export async function createBrand(
     .select('*')
     .single()
   if (error) throw new Error(error.message)
-  return { ...toBrand(data), is_active: false, created_at: (data as { created_at: string }).created_at, offer_count: 0, login_email: null, login_provisioned: false }
+  return { ...toBrand(data), is_active: false, created_at: (data as { created_at: string }).created_at, offer_count: 0, offers_hidden: false, login_email: null, login_provisioned: false }
 }
 
 // `key` is deliberately not updatable — it's the stable slug / storage path.
@@ -225,10 +251,18 @@ export async function updateBrand(
   sb: SB,
   id: string,
   patch: Partial<Pick<PartnerBrand, 'name' | 'color' | 'logo_url' | 'attribution_required' | 'attribution_label'>>
-    & { login_email?: string | null },
+    & { login_email?: string | null; offers_hidden?: boolean },
 ): Promise<void> {
   const { error } = await sb.from('partner_brands').update(patch).eq('id', id)
-  if (error) throw new Error(error.message)
+  if (error) {
+    // The hide switch is the one field that can predate its migration.
+    if ('offers_hidden' in patch && /offers_hidden/.test(error.message)) {
+      throw new Error(
+        'Hiding offers needs a schema change that has not been applied yet — run ' +
+        'supabase/migrations/20260721_supplier_hide_offers.sql in the SQL editor.')
+    }
+    throw new Error(error.message)
+  }
 }
 
 // The switch. Prefer the transactional RPC (20260711_partner_attribution.sql);
@@ -331,10 +365,19 @@ export async function offerRunsOn(
 ): Promise<boolean> {
   const { data, error } = await sb
     .from('partner_offers')
-    .select('skipped_dates')
+    .select('skipped_dates, brand_id')
     .eq('club_id', clubId)
     .eq('kind', kind)
   // Column/table not applied yet, or no such offer — don't block the booking.
   if (error || !data?.length) return true
-  return !data.some(r => ((r as { skipped_dates?: string[] | null }).skipped_dates ?? []).includes(date))
+
+  // A supplier hidden in the portal is hidden here too. Without this the
+  // switch would be cosmetic: the offer would vanish from the feed but a
+  // stale client (or a native app that hasn't refreshed) could still book it.
+  const { hidden } = await brandsById(sb)
+  const rows = data as { skipped_dates?: string[] | null; brand_id?: string }[]
+  const visible = hidden.size ? rows.filter(r => !hidden.has(r.brand_id ?? '')) : rows
+  if (!visible.length) return false
+
+  return !visible.some(r => (r.skipped_dates ?? []).includes(date))
 }

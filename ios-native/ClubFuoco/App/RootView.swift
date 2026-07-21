@@ -40,10 +40,17 @@ struct RootView: View {
     /// Fires the iOS notification permission dialog directly on app open —
     /// no in-app explainer, just the system prompt. Once per install,
     /// only when status is .notDetermined.
+    ///
+    /// Either way we then ask APNs for a push token: the prompt only runs once,
+    /// so a user who granted permission on an earlier launch (or a fresh
+    /// install of an already-permitted app) still gets registered. Both calls
+    /// are no-ops when permission was denied.
     private func maybePromptNotifications() async {
-        guard !UserDefaults.standard.bool(forKey: Self.notifPromptKey) else { return }
-        UserDefaults.standard.set(true, forKey: Self.notifPromptKey)
-        _ = await NotificationService.shared.requestAuthorization()
+        if !UserDefaults.standard.bool(forKey: Self.notifPromptKey) {
+            UserDefaults.standard.set(true, forKey: Self.notifPromptKey)
+            _ = await NotificationService.shared.requestAuthorization()
+        }
+        await PushRegistrar.shared.registerIfAuthorized()
     }
 }
 

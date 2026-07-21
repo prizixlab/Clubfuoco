@@ -23,6 +23,9 @@ final class AppEnvironment {
         self.planStore = PlanStore()
 
         UNUserNotificationCenter.current().delegate = NotificationForegroundDelegate.shared
+        // Remote push needs the Supabase client to store the APNs token
+        // against the signed-in user.
+        PushRegistrar.shared.supabase = supabase
         bootstrapLocation()
     }
 

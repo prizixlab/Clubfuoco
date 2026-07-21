@@ -5,6 +5,9 @@ import GoogleSignIn
 struct ClubFuocoApp: App {
     @State private var env = AppEnvironment()
     @Environment(\.scenePhase) private var scenePhase
+    // SwiftUI exposes no hook for the APNs device-token callback, so a minimal
+    // app delegate is adopted purely to receive it (see PushRegistrar).
+    @UIApplicationDelegateAdaptor(PushAppDelegate.self) private var pushDelegate
 
     var body: some Scene {
         WindowGroup {

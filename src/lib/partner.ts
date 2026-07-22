@@ -80,13 +80,26 @@ function toBrand(r: Record<string, unknown>): PartnerBrand & { id: string } {
   }
 }
 
+/// The single brand old clients fall back to when they can't read per-offer
+/// branding. Everything current attributes per offer, so this is a legacy
+/// courtesy, not a gate — see getPartnerOffersByClub.
+///
+/// Tolerates SEVERAL featured brands. It used to be .maybeSingle(), which
+/// errors on more than one row and would have blanked the brand for old
+/// clients the moment a second was featured. A hidden supplier is skipped —
+/// pointing legacy clients at a brand whose offers are muted is the one
+/// genuinely wrong answer — and the rest are ordered by key so the choice is
+/// stable between requests rather than whatever Postgres returns first.
 export async function getActiveBrand(sb: SB): Promise<(PartnerBrand & { id: string }) | null> {
   const { data } = await sb
     .from('partner_brands')
     .select('*')
     .eq('is_active', true)
-    .maybeSingle()
-  return data ? toBrand(data) : null
+  const rows = (data ?? []) as Record<string, unknown>[]
+  const usable = rows.filter(r => r.offers_hidden !== true)
+  const pick = (usable.length ? usable : rows)
+    .sort((a, b) => String(a.key ?? '').localeCompare(String(b.key ?? '')))[0]
+  return pick ? toBrand(pick) : null
 }
 
 /// Every brand keyed by id, so offers can be attributed without an N+1 lookup,
@@ -317,14 +330,25 @@ export async function updateBrand(
 // The switch. Prefer the transactional RPC (20260711_partner_attribution.sql);
 // fall back to two sequential updates if the function isn't applied yet —
 // unset-then-set never trips the one-active partial-unique index.
-export async function activateBrand(sb: SB, id: string): Promise<void> {
-  const { error } = await sb.rpc('set_active_brand', { brand: id })
-  if (!error) return
-  const missingFn = error.code === 'PGRST202' || /set_active_brand/.test(error.message)
-  if (!missingFn) throw new Error(error.message)
-
+/// Feature or unfeature one brand, WITHOUT disturbing the others.
+///
+/// Deliberately a plain update rather than the set_active_brand RPC, which
+/// unsets every other brand — that exclusivity is what we're removing.
+///
+/// The unique index that enforced one-featured is dropped by
+/// 20260722_multi_featured_brands.sql. Until that has been applied a second
+/// feature raises 23505, so fall back to the old unset-then-set. That keeps
+/// this correct on both sides of the migration and makes it start allowing
+/// several the moment the index goes, with no second deploy.
+export async function setBrandFeatured(sb: SB, id: string, featured = true): Promise<void> {
   const { data: target } = await sb.from('partner_brands').select('id').eq('id', id).maybeSingle()
   if (!target) throw new Error('brand not found')
+
+  const { error } = await sb.from('partner_brands').update({ is_active: featured }).eq('id', id)
+  if (!error) return
+  // 23505 = unique_violation: the one-featured index is still in place.
+  if (!featured || error.code !== '23505') throw new Error(error.message)
+
   const off = await sb.from('partner_brands').update({ is_active: false }).eq('is_active', true).neq('id', id)
   if (off.error) throw new Error(off.error.message)
   const on = await sb.from('partner_brands').update({ is_active: true }).eq('id', id)

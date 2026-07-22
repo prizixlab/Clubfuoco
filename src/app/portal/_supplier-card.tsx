@@ -79,7 +79,7 @@ export function SupplierCard({ b, live, onDone }: {
                 </span>
                 {!b.is_active && (
                   <span style={{ flex: '1 1 100%', display: 'flex' }}>
-                    <ActivateButton brand={b} onDone={onDone} wide currentLive={live?.name ?? null} />
+                    <ActivateButton brand={b} onDone={onDone} wide />
                   </span>
                 )}
               </div>

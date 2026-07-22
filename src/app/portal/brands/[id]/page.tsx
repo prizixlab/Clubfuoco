@@ -17,7 +17,6 @@ const LABEL_PRESETS = ['Guestlist by', 'Powered by', 'via']
 export default function BrandEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const [brand, setBrand] = useState<BrandRow | null>(null)
-  const [currentLive, setCurrentLive] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Unsaved attribution edits, mirrored up from the identity form so the
   // preview is live — the operator sees the credit before committing it.
@@ -27,10 +26,6 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
     api<BrandRow>(`/api/portal/brands/${id}`)
       .then(setBrand)
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load'))
-    // Who's live right now — shown in the activation ceremony.
-    api<BrandRow[]>('/api/portal/brands')
-      .then(all => setCurrentLive(all.find(b => b.is_active)?.name ?? null))
-      .catch(() => setCurrentLive(null))
   }, [id])
   useEffect(load, [load])
 
@@ -54,9 +49,8 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {brand.offers_hidden && <Badge color={C.danger}>Offers hidden</Badge>}
-          {brand.is_active
-            ? <Badge color={C.gold}>Live now</Badge>
-            : <ActivateButton brand={brand} onDone={load} currentLive={currentLive} />}
+          {brand.is_active && <Badge color={C.gold}>Featured</Badge>}
+          <ActivateButton brand={brand} onDone={load} small />
         </div>
       </div>
 

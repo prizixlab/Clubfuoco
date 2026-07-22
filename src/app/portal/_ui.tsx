@@ -308,114 +308,41 @@ export function HideOffersButton({ brand, onDone, wide }: {
   )
 }
 
-export function ActivateButton({ brand, onDone, small, wide, currentLive }: {
+/// Feature / unfeature one brand.
+///
+/// No confirmation step any more: featuring is not exclusive and nothing
+/// consumer-facing hangs off it, so the old "production state transition"
+/// modal was ceremony around a reversible one-field write.
+export function ActivateButton({ brand, onDone, small, wide }: {
   brand: { id: string; name: string; is_active: boolean; offer_count: number }
   onDone: () => void
   small?: boolean
   wide?: boolean
-  currentLive?: string | null
 }) {
-  const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function activate() {
-    setBusy(true)
-    setError(null)
+  async function toggle() {
+    setBusy(true); setError(null)
     try {
-      await api(`/api/portal/brands/${brand.id}/activate`, { method: 'POST' })
-      setConfirming(false)
+      await api(`/api/portal/brands/${brand.id}/activate`, {
+        method: 'POST',
+        body: JSON.stringify({ featured: !brand.is_active }),
+      })
       onDone()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Activation failed')
-    } finally {
-      setBusy(false)
+      setError(e instanceof Error ? e.message : 'Could not change featured brand')
     }
+    setBusy(false)
   }
-
-  if (brand.is_active) return null   // status chips mark the live brand
 
   return (
     <>
-      <Btn kind="primary" small={small} wide={wide} onClick={() => setConfirming(true)}>Make featured</Btn>
-      {confirming && (
-        <Modal onClose={() => busy ? null : setConfirming(false)} width={520}>
-          <div style={{ textAlign: 'center', padding: '6px 0 2px' }}>
-            <div style={{
-              width: 52, height: 52, borderRadius: 8, margin: '0 auto 18px',
-              background: 'rgba(192,153,80,0.1)', border: '1px solid rgba(192,153,80,0.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill={C.goldHi} aria-hidden>
-                <path d="M13 2 4.5 13.5H11L9.5 22 19 10h-6.5L13 2z" />
-              </svg>
-            </div>
-            <h2 style={{ margin: 0, fontFamily: serif, fontSize: 24, fontWeight: 400, color: C.text }}>
-              Feature <em style={{ color: C.goldHi, fontStyle: 'italic' }}>{brand.name}</em>?
-            </h2>
-            <p style={{ ...caps, color: C.faint, margin: '10px 0 0', letterSpacing: '0.18em' }}>
-              Fallback brand for older app versions
-            </p>
-          </div>
-
-          <div style={{
-            margin: '22px 0 0', background: C.lifted, borderRadius: 6,
-            borderLeft: `2px solid ${C.gold}`, padding: '16px 18px',
-          }}>
-            <p style={{ margin: 0, fontSize: 13.5, color: C.text, lineHeight: 1.6, fontFamily: font }}>
-              Only one supplier can be featured, so this un-features{' '}
-              <span style={{ color: C.text }}>{currentLive ?? 'the current one'}</span>.{' '}
-              <span style={{ color: C.dim }}>
-                It does not turn any supplier on or off — every supplier&rsquo;s offers stay live
-                either way. Use the hide switch in Edit to stop one showing.
-              </span>
-            </p>
-            {brand.offer_count === 0 && (
-              <div style={{
-                marginTop: 14, background: 'rgba(147,0,10,0.18)',
-                border: '1px solid rgba(255,180,166,0.25)', borderRadius: 6, padding: '13px 15px',
-              }}>
-                <p style={{ ...caps, color: C.danger, margin: '0 0 7px', letterSpacing: '0.12em' }}>
-                  No live offers
-                </p>
-                <p style={{ margin: 0, fontSize: 13, color: C.text, lineHeight: 1.55, fontFamily: font }}>
-                  {brand.name} has <strong>zero</strong> live offers. Featuring it is still
-                  safe — the feed is built from every supplier&rsquo;s offers, not this one&rsquo;s —
-                  but older app versions will fall back to a brand with nothing to show.
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div style={{
-            display: 'flex', justifyContent: 'space-around', gap: 16,
-            borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}`,
-            margin: '20px 0', padding: '15px 0', textAlign: 'center',
-          }}>
-            <div>
-              <p style={{ ...caps, color: C.gold, margin: '0 0 7px' }}>Target environment</p>
-              <p style={{ margin: 0, fontFamily: serif, fontSize: 16, color: C.text }}>Production</p>
-            </div>
-            <div>
-              <p style={{ ...caps, color: C.gold, margin: '0 0 7px' }}>Currently featured</p>
-              <p style={{ margin: 0, fontFamily: serif, fontSize: 16, color: C.text }}>{currentLive ?? '—'}</p>
-            </div>
-          </div>
-
-          <ErrorLine error={error} />
-          <div style={{ marginTop: 16 }}>
-            <Btn kind="primary" wide onClick={activate} disabled={busy}>
-              {busy ? 'Switching…' : 'Confirm'}
-            </Btn>
-            <button onClick={() => setConfirming(false)} disabled={busy} style={{
-              ...caps, background: 'none', border: 'none', color: C.dim, cursor: 'pointer',
-              display: 'block', margin: '16px auto 0', padding: 6, letterSpacing: '0.14em',
-            }}>
-              Cancel action
-            </button>
-          </div>
-        </Modal>
-      )}
+      <Btn kind={brand.is_active ? undefined : 'primary'} small={small} wide={wide}
+           onClick={toggle} disabled={busy}>
+        {busy ? '…' : brand.is_active ? 'Unfeature' : 'Make featured'}
+      </Btn>
+      <ErrorLine error={error} />
     </>
   )
 }

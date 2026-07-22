@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Badge, Btn, Card, ErrorLine, SectionLabel, api, C, caps, font, mono, serif } from '../_ui'
+import { shownSuppliers, toggleSupplier } from '@/lib/conflict-rule'
 
 // Venues more than one supplier covers, and who is allowed to show there.
 //
@@ -67,20 +68,21 @@ export default function ConflictsPage() {
 
 function ConflictCard({ item, onSaved }: { item: Conflict; onSaved: () => void }) {
   const [mode, setMode] = useState(item.rule.mode)
-  const [picked, setPicked] = useState<string[]>(
-    item.rule.mode === 'selected' ? item.rule.brand_ids : item.suppliers.map(s => s.id),
-  )
+  const [picked, setPicked] = useState<string[]>(item.rule.brand_ids)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+
+  const shown = shownSuppliers({ mode, brand_ids: picked }, item.suppliers.map(s => s.id))
 
   const dirty = mode !== item.rule.mode
     || (mode === 'selected' && picked.slice().sort().join() !== item.rule.brand_ids.slice().sort().join())
 
   function toggle(id: string) {
     setSaved(false)
-    setMode('selected')
-    setPicked(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id]))
+    const next = toggleSupplier(shown, id)
+    setMode(next.mode)
+    setPicked(next.brand_ids)
   }
 
   async function save() {
@@ -119,7 +121,7 @@ function ConflictCard({ item, onSaved }: { item: Conflict; onSaved: () => void }
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {item.suppliers.map(s => {
-          const on = mode === 'all' || (mode === 'selected' && picked.includes(s.id))
+          const on = shown.includes(s.id)
           return (
             <button
               key={s.id}
@@ -129,7 +131,6 @@ function ConflictCard({ item, onSaved }: { item: Conflict; onSaved: () => void }
                 background: on ? C.lifted : 'transparent',
                 border: `1px solid ${on ? C.lineHi : C.line}`,
                 borderRadius: 8, padding: '10px 12px', cursor: 'pointer',
-                opacity: mode === 'none' ? 0.45 : 1,
               }}
             >
               <span style={{

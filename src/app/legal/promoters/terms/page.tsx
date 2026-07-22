@@ -10,10 +10,15 @@ import LegalDoc, { type LegalSection } from '../../_doc'
  * Linked from the Promoters app → You → Settings → Support & legal, and
  * entered in App Store Connect for the FuocoPromoters app record.
  *
- * HAVE A LAWYER REVIEW BEFORE RELYING ON THIS. Specifically: the guest-data
- * clause (07) takes a position on controller roles under GDPR, and the payout
- * and fee clauses describe money moving in both directions between a US entity
- * and EU-based promoters.
+ * HAVE A LAWYER REVIEW BEFORE RELYING ON THIS. Specifically:
+ *   - the guest-data clause takes a position on controller roles under GDPR;
+ *   - the payout and fee clauses move money in both directions between a US
+ *     entity and EU-based promoters;
+ *   - "False offers" fixes a sum per affected guest. It is drafted as
+ *     liquidated damages, with a stated rationale and a cap, because a clause
+ *     that reads as a PENALTY is unenforceable under the Wyoming law this
+ *     document chooses, and a Spanish court can moderate a cláusula penal it
+ *     considers disproportionate. The wording matters to whether it works.
  */
 
 const SECTIONS: LegalSection[] = [
@@ -60,6 +65,18 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
+    heading: 'False offers',
+    body: [
+      'An offer is false where you publish it without the venue\'s authorisation, where you knew or ought reasonably to have known it could not be honoured on the night, or where the terms actually applied at the door are materially worse than the terms shown to the guest in the Club Fuoco app.',
+      'Where you publish a false offer, we reserve the right to charge you EUR 50 for each affected guest. An affected guest is a person who signed up through Club Fuoco in reliance on that offer and who was then refused it, or admitted only on materially worse terms, on the night it was valid.',
+      'This amount is a genuine pre-estimate of the loss a false offer causes us, not a punishment. A guest turned away at a door holding a Club Fuoco confirmation costs us the goodwill of that guest, the support handling to make it right, any refund or compensation we choose to offer them, and damage to the trust the service depends on. Those losses are real but awkward to quantify per guest, which is why they are fixed in advance at a single figure.',
+      'This does not apply where the offer was genuine and the failure was operational or outside your control. In particular it does not apply where the venue was at capacity, where entry was lawfully refused for age, dress code, conduct, or safety, where the night was cancelled or changed and you updated it in the app as early as you reasonably could, or where performance was prevented by an event outside your control.',
+      'Process. Before charging anything we will tell you which offer and which guests are affected, give you our evidence, and give you 14 days to respond. We will not charge for a guest you show was not in fact refused the published terms. Any amount that remains due after that may be invoiced through Stripe or set off against payouts owed to you. The total we may charge in respect of any single night is capped at EUR 2,000.',
+      'We do not currently charge this amount. This clause exists so that we may introduce the charge without amending these Terms. Before we begin charging we will notify you in the app at least 30 days in advance and publish the activation date, and we will apply it only to offers published after that date.',
+      'This is separate from, and in addition to, our right to unpublish an offer, withhold a disputed payout, or suspend or terminate your account for repeatedly failing to honour published terms.',
+    ],
+  },
+  {
     heading: 'Earnings, payouts, and fees',
     body: [
       'Two separate flows of money can exist on a promoter account, and they are accounted for separately.',
@@ -67,6 +84,7 @@ const SECTIONS: LegalSection[] = [
       '• Fees you pay us. Front-page promotion is a paid placement, billed through our payment provider, Stripe. Nothing else is charged for a standard promoter account. If your balance falls past due, promotion is paused until it is settled; your existing nights and guest lists continue to work.',
       'You are responsible for your own taxes, social contributions, invoicing, and any licences or permits your promotional activity requires. Nothing in these Terms creates an employment relationship, partnership, or agency between you and Club Fuoco. You are an independent contractor.',
       'If you believe a payout figure is wrong, contact partners@clubfuoco.com within 60 days of the night in question. We will review our records with the venue. We may withhold a payout we reasonably believe is connected to fraudulent attendance, fabricated guests, or manipulated check-ins, while we investigate.',
+      'We may also set off against payouts owed to you any amount you owe us under "False offers" above, once the process in that clause has been followed.',
     ],
   },
   {

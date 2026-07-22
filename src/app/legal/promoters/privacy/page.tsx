@@ -10,12 +10,16 @@ import LegalDoc, { type LegalSection } from '../../_doc'
  * of that changes, this document has to change with it — and so does the App
  * Privacy answers in App Store Connect.
  *
- * Section 04 is the one that has no analogue in the consumer policy: promoters
- * RECEIVE guest personal data, so their role has to be explained here and
- * their obligations are set in the Promoter Terms, clause 07.
+ * "Guest data you see" is the section with no analogue in the consumer policy:
+ * promoters RECEIVE guest personal data, so their role is explained here and
+ * their obligations are set under "Guest data" in the Promoter Terms.
+ *
+ * Cross-reference sections by NAME, never by number — LegalDoc numbers them
+ * from array position, so inserting a clause silently renumbers every one
+ * after it and turns any numbered pointer into a wrong pointer.
  *
  * HAVE A LAWYER / DPO REVIEW — a US entity processing EU personal data, with a
- * controller-role position taken in section 04.
+ * controller-role position taken under "Guest data you see".
  */
 
 const SECTIONS: LegalSection[] = [
@@ -50,7 +54,7 @@ const SECTIONS: LegalSection[] = [
     body: [
       'To run a door, the Promoter App shows you personal data about guests: their name, party size, any note on the booking, and whether they have checked in. This is disclosed to you so you can admit those guests to the specific night they signed up for and reconcile attendance for it.',
       'Where you use that data only for that purpose and only within the Promoter App, you are acting on our instructions and we remain the controller. If you use guest data for any other purpose — contacting guests, exporting them, building your own list — you are acting as an independent controller for that use and you take on the responsibilities that come with it.',
-      'Your obligations here are set out in clause 07 of the Promoter Terms of Service, and they are binding. In short: use it for the door and nothing else, do not export it, do not market to guests, keep it confidential, and tell us at privacy@clubfuoco.com within 24 hours if it is lost or exposed.',
+      'Your obligations here are set out under "Guest data — your obligations" in the Promoter Terms of Service, and they are binding. In short: use it for the door and nothing else, do not export it, do not market to guests, keep it confidential, and tell us at privacy@clubfuoco.com within 24 hours if it is lost or exposed.',
       'Guests can exercise their own privacy rights against us at any time. If a guest asks us to delete their data, we may require you to delete any copy you hold.',
     ],
   },

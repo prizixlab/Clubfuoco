@@ -100,13 +100,11 @@ struct YouView: View {
                     if let b = model.billing, b.status != "active" {
                         pastDueBanner(b)
                     }
-                    // Payment, account, legal, and sign-out now live under the
-                    // gear → Settings; the You tab is the profile editor.
-                    Text("FUOCO INTERNO")
-                        .font(.cfMono(10)).kerning(3)
-                        .foregroundStyle(Theme.parchmentFaint)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 8)
+                    // Payment, account, and sign-out live under the gear →
+                    // Settings; the You tab is the profile editor. The legal
+                    // documents are the exception: they are reachable in one
+                    // tap from the profile, not buried a screen deeper.
+                    legalFooter
                 }
                 .padding(20)
             }
@@ -126,6 +124,34 @@ struct YouView: View {
         // ProfileModel was created with a placeholder id; rebuild load against
         // the signed-in promoter (the repo uses the session id internally).
         await model.load()
+    }
+
+    // MARK: Legal
+
+    private var legalFooter: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 10) {
+                legalLink("Terms of Service", url: LegalLinks.terms)
+                Text("·").font(.cfMono(10)).foregroundStyle(Theme.parchmentFaint)
+                legalLink("Privacy Policy", url: LegalLinks.privacy)
+            }
+            Text("FUOCO INTERNO")
+                .font(.cfMono(10)).kerning(3)
+                .foregroundStyle(Theme.parchmentFaint)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 8)
+    }
+
+    private func legalLink(_ title: String, url: URL) -> some View {
+        Button { openURL(url) } label: {
+            Text(title)
+                .font(.cfSans(12))
+                .foregroundStyle(Theme.parchmentDim)
+                .underline()
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(.isLink)
     }
 
     // MARK: Profile

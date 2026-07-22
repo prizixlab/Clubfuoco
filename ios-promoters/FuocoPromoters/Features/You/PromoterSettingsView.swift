@@ -136,12 +136,15 @@ struct PromoterSettingsView: View {
                 }
             }
             divider
+            // The PROMOTER documents, not the consumer ones. Different in kind:
+            // they cover payouts, the review workflow, and the guest-data
+            // obligations that come with running a door.
             actionRow(icon: "hand.raised", title: "Privacy Policy", chevron: true) {
-                openURL(URL(string: "https://clubfuoco.com/legal/privacy")!)
+                openURL(LegalLinks.privacy)
             }
             divider
             actionRow(icon: "doc.text", title: "Terms of Service", chevron: true) {
-                openURL(URL(string: "https://clubfuoco.com/legal/terms")!)
+                openURL(LegalLinks.terms)
             }
         }
     }

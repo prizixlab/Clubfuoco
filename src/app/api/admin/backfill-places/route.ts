@@ -2,10 +2,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireCronOrRole } from '@/lib/auth'
 import { filterHotelPhotos, isHotel } from '@/lib/photo-filter'
-import { venueShouldBeVisible, isFreeEntryVenue } from '@/lib/venue-classify'
+import {
+  activeAfterBackfill, isFreeEntryVenue, nameMatch, distanceMeters,
+} from '@/lib/venue-classify'
 
 const KEY  = process.env.GOOGLE_PLACES_API_KEY!
 const BASE = 'https://maps.googleapis.com/maps/api/place'
+
+// A name match is only trusted when the hit is also physically where we already
+// believe the venue is. Name alone produces confident nonsense — "L'ideal" (a
+// bar) strong-matches "IDEAL Centre d'Arts Digitals", and an exact "Bitàcora"
+// sits 2.5 km from ours. In a dry run every TRUE match was ≤6 m and every false
+// one ≥2.5 km, so the gate is generous without admitting the impostors. Applies
+// to strong matches too, not just fuzzy ones.
+const MATCH_MAX_METERS = 150
+
+// Store photos as proxy paths, never the raw Google URL: the raw URL embeds the
+// API key and is served straight to clients (that leaked the old key into 244
+// rows). /api/places/photo resolves the ref server-side and 302s to the CDN.
+const photoPath = (ref: string) => `/api/places/photo?ref=${ref}&maxwidth=800`
 
 /**
  * GET /api/admin/backfill-places?batch=50&offset=0
@@ -29,10 +44,11 @@ export async function GET(req: NextRequest) {
 
   const supabase = await createServiceClient()
 
-  // Fetch clubs without a google_place_id (and no photos)
+  // Clubs still missing a google_place_id. is_active + cover come along so we
+  // never demote a curated venue, nor clobber a hand-picked cover image.
   const { data: clubs, error, count } = await supabase
     .from('clubs')
-    .select('id, name, lat, lng', { count: 'exact' })
+    .select('id, name, lat, lng, is_active, cover_image_url', { count: 'exact' })
     .eq('is_active', true)
     .is('google_place_id', null)
     .order('name')
@@ -40,7 +56,8 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const results = { found: 0, not_found: 0, errors: 0, total_remaining: count ?? 0 }
+  const results = { found: 0, not_found: 0, rejected: 0, duplicate: 0, errors: 0, total_remaining: count ?? 0 }
+  const duplicates: { club: string; place_id: string }[] = []
 
   for (const club of clubs ?? []) {
     try {
@@ -53,12 +70,21 @@ export async function GET(req: NextRequest) {
 
       if (!hit?.place_id) { results.not_found++; continue }
 
-      // Sanity-check: the returned name should share at least one significant
-      // word with our club name to avoid saving a completely wrong venue
-      const ourWords = club.name.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3)
-      const hitName  = (hit.name ?? '').toLowerCase()
-      const nameMatch = ourWords.length === 0 || ourWords.some((w: string) => hitName.includes(w))
-      if (!nameMatch) { results.not_found++; continue }
+      // Two independent signals must agree: the name has to plausibly match AND
+      // the hit has to be where we already place the venue. Either alone saves
+      // the wrong place_id + photos onto a real club.
+      const tier = nameMatch(club.name, hit.name ?? '')
+      if (tier === 'none') { results.rejected++; continue }
+
+      const hitLoc = hit.geometry?.location
+      const haveCoords = club.lat != null && club.lng != null && hitLoc
+      if (haveCoords) {
+        const d = distanceMeters({ lat: club.lat, lng: club.lng }, { lat: hitLoc.lat, lng: hitLoc.lng })
+        if (d > MATCH_MAX_METERS) { results.rejected++; continue }
+      } else if (tier !== 'strong') {
+        // No coordinates to confirm with — only trust an exact/prefix name.
+        results.rejected++; continue
+      }
 
       const placeId = hit.place_id as string
 
@@ -68,33 +94,50 @@ export async function GET(req: NextRequest) {
       )
       const dtData = await dtRes.json()
       const refs: string[] = (dtData.result?.photos ?? []).slice(0, 9).map((p: any) => p.photo_reference)
-      let allUrls = refs.map(
-        r => `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${r}&key=${KEY}`
-      )
+      let allPaths = refs.map(photoPath)
 
       // For hotels, filter out room/pool/lobby photos — keep only bar photos
       if (isHotel(dtData.result?.types ?? [])) {
-        allUrls = await filterHotelPhotos(allUrls)
+        allPaths = await filterHotelPhotos(allPaths)
       }
-
-      const coverUrl  = allUrls[0] ?? null
-      const extraUrls = allUrls.slice(1)
 
       const placeTypes: string[] = dtData.result?.types ?? []
 
-      await supabase.from('clubs').update({
+      // Preserve a hand-picked cover (anything already set that isn't a Google
+      // URL); only fall back to Google's first photo when there's nothing.
+      const hasCuratedCover = !!club.cover_image_url &&
+        !club.cover_image_url.includes('maps.googleapis.com')
+      const cover = hasCuratedCover ? club.cover_image_url : (allPaths[0] ?? null)
+      const gallery = hasCuratedCover ? allPaths : allPaths.slice(1)
+
+      const { error: writeErr } = await supabase.from('clubs').update({
         google_place_id: placeId,
-        cover_image_url: coverUrl,
-        gallery_urls:    extraUrls,
-        photos:          extraUrls,
+        cover_image_url: cover,
+        gallery_urls:    gallery,
+        photos:          allPaths,
         rating:          dtData.result?.rating               ?? null,
         ratings_total:   dtData.result?.user_ratings_total   ?? 0,
         opening_hours:   dtData.result?.opening_hours?.weekday_text ?? null,
         last_synced_at:  new Date().toISOString(),
-        // Auto-classify the newly-identified venue.
-        is_active:       venueShouldBeVisible(placeTypes),
+        places_synced_at: new Date().toISOString(),
+        // Enrichment may promote a hidden venue it now recognises as nightlife,
+        // but must never turn OFF one a human already curated as active.
+        is_active:       activeAfterBackfill(club.is_active, placeTypes),
         ...(isFreeEntryVenue(placeTypes) ? { general_entry_price: 0 } : {}),
       }).eq('id', club.id)
+
+      if (writeErr) {
+        // 23505: this place_id is already on another club — this row is a
+        // DUPLICATE of a venue we hold. Surface it for a merge rather than
+        // miscounting it as enriched or forcing a wrong place_id.
+        if (writeErr.code === '23505') {
+          results.duplicate++
+          duplicates.push({ club: club.name, place_id: placeId })
+        } else {
+          results.errors++
+        }
+        continue
+      }
 
       results.found++
     } catch {
@@ -115,5 +158,6 @@ export async function GET(req: NextRequest) {
     next_offset: done ? null : nextOffset,
     done,
     ...results,
+    duplicates,
   })
 }

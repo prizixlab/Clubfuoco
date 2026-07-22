@@ -429,7 +429,7 @@ const NATIVE_KEYS = {
   'rumbalist.payClubFuoco': { en: 'Pay Club Fuoco', es: 'Paga a Club Fuoco' },
   'rumbalist.operator': { en: 'Operator', es: 'Operador' },
   'rumbalist.payTo': { en: 'Pay to', es: 'Pagar a' },
-  'rumbalist.via': { en: 'Club Fuoco · via', es: 'Club Fuoco · vía' },
+  'rumbalist.via': { en: 'via', es: 'vía' },
   'rumbalist.venue': { en: 'Venue', es: 'Local' },
   'rumbalist.address': { en: 'Address', es: 'Dirección' },
   'rumbalist.valid': { en: 'Valid', es: 'Válido' },
@@ -450,7 +450,7 @@ const NATIVE_KEYS = {
   },
   'rumbalist.total': { en: 'Total', es: 'Total' },
   'rumbalist.free': { en: 'Free', es: 'Gratis' },
-  'rumbalist.freeGuestlistWith': { en: 'Join Free Guestlist', es: 'Únete a la lista gratis' },
+  'rumbalist.freeGuestlist': { en: 'Join Free Guestlist', es: 'Únete a la lista gratis' },
   'rumbalist.openingApplePay': { en: 'Opening Apple Pay…', es: 'Abriendo Apple Pay…' },
   'rumbalist.pay': { en: 'Pay', es: 'Pagar' },
   'rumbalist.freeFooter': {
@@ -505,6 +505,12 @@ const NATIVE_KEYS = {
   'detail.openNow': { en: 'Open now', es: 'Abierto ahora' },
   'detail.closedNow': { en: 'Closed now', es: 'Cerrado ahora' },
   'detail.seeHours': { en: 'See hours', es: 'Ver horario' },
+  // Event cards on the venue page.
+  'detail.whatsOn': { en: "What's on", es: 'Qué hay' },
+  'detail.upcomingEvents': { en: 'Upcoming events', es: 'Próximos eventos' },
+  'detail.presentedBy': { en: 'Presented by %@', es: 'Presentado por %@' },
+  'detail.interestedCount': { en: '%d interested', es: '%d interesados' },
+  'detail.ticketsOnRA': { en: 'Tickets on Resident Advisor', es: 'Entradas en Resident Advisor' },
 
   // Shelf titles/subtitles (hardcoded EN on web; native subset)
   'shelf.hero.title': { en: 'Tonight', es: 'Esta noche' },

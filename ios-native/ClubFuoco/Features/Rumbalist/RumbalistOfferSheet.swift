@@ -126,7 +126,7 @@ struct RumbalistOfferSheet: View {
                         HStack(spacing: 5) {
                             Text("Club Fuoco").foregroundStyle(Self.textColor)
                             if let brand {
-                                Text(locale.t("rumbalist.via"))
+                                Text("· \(locale.t("rumbalist.via"))")
                                     .foregroundStyle(Self.textColor.opacity(0.5))
                                 SupplierMark(brand: brand, height: 11, animated: false)
                             }
@@ -175,12 +175,11 @@ struct RumbalistOfferSheet: View {
                                 Label(locale.t("rumbalist.pay"), systemImage: "applelogo")
                             }
                         } else {
-                            HStack(spacing: 8) {
-                                Text(locale.t("rumbalist.freeGuestlistWith"))
-                                if let brand {
-                                    SupplierMark(brand: brand, height: 17, animated: false)
-                                }
-                            }
+                            // Label only. The supplier is already established
+                            // twice above (lockup + operator row), and its mark
+                            // can't render here anyway: logos are light-ink PNGs
+                            // drawn as-is, so they vanish on the cream fill.
+                            Text(locale.t("rumbalist.freeGuestlist"))
                         }
                     }
                     .font(.cfSans(16, weight: .semibold))

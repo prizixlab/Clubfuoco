@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireCronOrRole } from '@/lib/auth'
 import { filterHotelPhotos, isHotel } from '@/lib/photo-filter'
+import { toProxyPhotoUrl } from '@/lib/photo-url'
 
 const KEY  = process.env.GOOGLE_PLACES_API_KEY!
 const BASE = 'https://maps.googleapis.com/maps/api/place'
@@ -60,6 +61,10 @@ export async function GET(req: NextRequest) {
       if (isHotel(d.types ?? [])) {
         allUrls = await filterHotelPhotos(allUrls)
       }
+
+      // Proxy paths, never the raw Google URL: this cron writes to clubs
+      // nightly, so storing the key here re-leaks it into every synced row.
+      allUrls = allUrls.map(toProxyPhotoUrl)
 
       // Store cover separately; gallery_urls and photos hold only the extras
       // so merging them at read-time never produces duplicates

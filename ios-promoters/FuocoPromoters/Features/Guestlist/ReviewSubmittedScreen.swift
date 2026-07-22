@@ -2,8 +2,12 @@ import SwiftUI
 
 // Shown after a promoter or supplier submits something queued for review — a
 // guestlist night, a recurring series, or an offer change. Sets the
-// expectation: reviewed and approved within 3 business days, live only once
-// approved.
+// expectation: reviewed as soon as possible, live only once approved.
+//
+// Deliberately no fixed turnaround. A stated "3 business days" is a promise
+// the queue has to keep, and a promoter whose Friday night is still pending on
+// Thursday has been told they can wait. "As soon as we can" is honest at this
+// volume and can be tightened into a real SLA later.
 struct ReviewSubmittedScreen: View {
     var onDone: () -> Void
 
@@ -18,7 +22,7 @@ struct ReviewSubmittedScreen: View {
             Text("Submitted for review")
                 .font(.cfSerif(28)).foregroundStyle(Theme.parchment)
                 .multilineTextAlignment(.center)
-            Text("Club Fuoco will review and approve this within **3 business days**. It goes live — and your invite link starts working — once approved.")
+            Text("Club Fuoco will review and approve this **as soon as possible**. It goes live — and your invite link starts working — once approved.")
                 .font(.cfSans(14)).foregroundStyle(Theme.parchmentDim)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 34)

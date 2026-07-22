@@ -312,7 +312,7 @@ struct GuestlistTabRoot: View {
         .alert("Submitted for review", isPresented: $offers.reviewNotice) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("Your change will be reviewed and approved by Club Fuoco within 3 business days. It goes live once approved.")
+            Text("Your change will be reviewed and approved by Club Fuoco as soon as possible. It goes live once approved.")
         }
         .sheet(isPresented: $showCreate) {
             if case .signedIn(let p) = auth.state {

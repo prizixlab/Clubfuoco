@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { PKPass } from 'passkit-generator'
+import { nightPassDates } from '@/lib/wallet/expiry'
 import path from 'path'
 import fs from 'fs'
 
@@ -69,6 +70,8 @@ export async function GET(
     formatVersion:      1,
     passTypeIdentifier: process.env.APPLE_PASS_TYPE_ID!,
     serialNumber:       `invite-${guest.id}`,
+    // Relevant on the night, filed under "Expired Passes" the next morning.
+    ...nightPassDates(nightRow.night_date),
     teamIdentifier:     process.env.APPLE_TEAM_ID!,
     organizationName:   'Club Fuoco',
     description:        `${nightRow.title ?? clubName} guestlist`,

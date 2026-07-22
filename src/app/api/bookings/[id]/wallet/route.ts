@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { PKPass } from 'passkit-generator'
+import { nightPassDates } from '@/lib/wallet/expiry'
 import path from 'path'
 import fs from 'fs'
 import { RUMBALIST_OFFERS } from '@/lib/rumbalist-offers'
@@ -73,6 +74,10 @@ export async function GET(
     passTypeIdentifier: process.env.APPLE_PASS_TYPE_ID!,
     serialNumber:       booking.id,
     teamIdentifier:     process.env.APPLE_TEAM_ID!,
+    // Surfaces on the lock screen on the night itself, then files itself under
+    // "Expired Passes" the next morning instead of sitting in the wallet
+    // looking as current as tonight's booking.
+    ...nightPassDates(booking.booking_date),
     organizationName:   isRumbalist ? 'Rumbalist' : 'Club Fuoco',
     description:        isRumbalist ? `${clubName} with Rumbalist` : `${clubName} ticket`,
     foregroundColor:    'rgb(255, 255, 255)',

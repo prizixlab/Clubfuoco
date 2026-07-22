@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { PKPass } from 'passkit-generator'
+import { nightPassDates } from '@/lib/wallet/expiry'
 import path from 'path'
 import fs from 'fs'
 
@@ -53,6 +54,10 @@ export async function GET(
     formatVersion:      1,
     passTypeIdentifier: process.env.APPLE_PASS_TYPE_ID!,
     serialNumber:       `gl-${signup.id}`,
+    // Relevant on the night, filed under "Expired Passes" the next morning.
+    // No date on the guest list → no keys, so the pass behaves as before
+    // rather than arriving already expired.
+    ...nightPassDates(gl?.event_date),
     teamIdentifier:     process.env.APPLE_TEAM_ID!,
     organizationName:   'Club Fuoco',
     description:        `Guest List — ${clubName}`,

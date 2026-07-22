@@ -118,7 +118,27 @@ export async function getActiveBrand(sb: SB): Promise<(PartnerBrand & { id: stri
  */
 export interface ClubVisibility { mode: 'all' | 'none' | 'selected'; brand_ids: string[] }
 
-function allowsBrand(rule: ClubVisibility | undefined, brandId: string): boolean {
+/// Rules are per venue AND per offer kind: a venue can run Rumba's VIP tables
+/// and Aashi's guestlist at the same time, which one rule for the whole venue
+/// could not express.
+///
+/// ANY_KIND is the venue-wide fallback. Rules written before the per-kind
+/// migration carry it, and a row for a specific kind wins over it — so the old
+/// rules keep working untouched and only the kinds you actually split need a
+/// decision.
+export const ANY_KIND = '*'
+
+export type VisibilityRules = Map<string, ClubVisibility>
+
+const ruleKey = (clubId: string, kind: string) => `${clubId}|${kind}`
+
+/** The rule governing one club+kind: the specific one, else the venue-wide one. */
+function ruleFor(rules: VisibilityRules, clubId: string, kind: string): ClubVisibility | undefined {
+  return rules.get(ruleKey(clubId, kind)) ?? rules.get(ruleKey(clubId, ANY_KIND))
+}
+
+function allowsBrand(rules: VisibilityRules, clubId: string, kind: string, brandId: string): boolean {
+  const rule = ruleFor(rules, clubId, kind)
   if (!rule || rule.mode === 'all') return true
   if (rule.mode === 'none') return false
   return rule.brand_ids.includes(brandId)
@@ -129,28 +149,38 @@ function toVisibility(r: Record<string, unknown>): ClubVisibility {
   return { mode, brand_ids: ((r.brand_ids as string[] | null) ?? []).map(String) }
 }
 
-/** Every venue rule, keyed by club id. Empty map when the table isn't applied. */
-async function visibilityByClub(sb: SB): Promise<Map<string, ClubVisibility>> {
-  const map = new Map<string, ClubVisibility>()
+/// Every rule, keyed club|kind. Empty map when the table isn't applied.
+///
+/// A row with no `kind` is read as ANY_KIND, so this is correct before the
+/// per-kind migration too — every existing row simply stays venue-wide.
+async function visibilityByClub(sb: SB): Promise<VisibilityRules> {
+  const map: VisibilityRules = new Map()
   try {
     const { data, error } = await sb.from('club_offer_visibility').select('*')
     if (error) return map
     for (const r of data ?? []) {
       const row = r as Record<string, unknown>
-      map.set(String(row.club_id), toVisibility(row))
+      const kind = typeof row.kind === 'string' && row.kind ? row.kind : ANY_KIND
+      map.set(ruleKey(String(row.club_id), kind), toVisibility(row))
     }
   } catch { /* table missing → no rules → everything shows */ }
   return map
 }
 
-/** One venue's rule. Undefined when unset or unavailable — both mean "all". */
-async function visibilityForClub(sb: SB, clubId: string): Promise<ClubVisibility | undefined> {
+/** One venue's rules, across kinds. Empty map means "all". */
+async function visibilityForClub(sb: SB, clubId: string): Promise<VisibilityRules> {
+  const map: VisibilityRules = new Map()
   try {
     const { data, error } = await sb
-      .from('club_offer_visibility').select('*').eq('club_id', clubId).maybeSingle()
-    if (error || !data) return undefined
-    return toVisibility(data as Record<string, unknown>)
-  } catch { return undefined }
+      .from('club_offer_visibility').select('*').eq('club_id', clubId)
+    if (error) return map
+    for (const r of data ?? []) {
+      const row = r as Record<string, unknown>
+      const kind = typeof row.kind === 'string' && row.kind ? row.kind : ANY_KIND
+      map.set(ruleKey(String(row.club_id), kind), toVisibility(row))
+    }
+  } catch { /* fall through to "all" */ }
+  return map
 }
 
 async function brandsById(sb: SB): Promise<{
@@ -194,8 +224,8 @@ export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, Par
     // don't surface. A club whose ONLY offers come from a hidden supplier
     // drops out of the map entirely, so the feed re-tiers it as no-deal.
     if (hidden.has(row.brand_id)) continue
-    // Operator's per-venue supplier choice (see club_offer_visibility).
-    if (!allowsBrand(rules.get(row.club_id), row.brand_id)) continue
+    // Operator's per-venue, per-kind supplier choice (club_offer_visibility).
+    if (!allowsBrand(rules, row.club_id, String(row.kind ?? ''), row.brand_id)) continue
     ;(map[row.club_id] ??= []).push(toOffer(row, brands.get(row.brand_id)))
   }
   return map
@@ -214,7 +244,9 @@ export async function getPartnerOffers(sb: SB, clubId: string | null | undefined
   return (data ?? [])
     .filter(isActiveOffer)
     .filter(r => !hidden.has((r as unknown as { brand_id: string }).brand_id))
-    .filter(r => allowsBrand(rule, (r as unknown as { brand_id: string }).brand_id))
+    .filter(r => allowsBrand(rule, clubId,
+                             String((r as unknown as { kind?: string }).kind ?? ''),
+                             (r as unknown as { brand_id: string }).brand_id))
     .map(r => toOffer(r as Record<string, unknown>,
                       brands.get((r as unknown as { brand_id: string }).brand_id)))
 }
@@ -461,7 +493,7 @@ export async function supplyingBrandId(
     (data as Record<string, unknown>[])
       .filter(isActiveOffer)
       .filter(r => !hidden.has(String(r.brand_id ?? '')))
-      .filter(r => allowsBrand(rule, String(r.brand_id ?? '')))
+      .filter(r => allowsBrand(rule, clubId, kind, String(r.brand_id ?? '')))
       .filter(r => {
         if (weekday === null) return true
         const days = parseValidDays(String(r.valid_days ?? ''))
@@ -500,7 +532,7 @@ export async function offerRunsOn(
   // a list we've stopped showing.
   const visible = rows
     .filter(r => !hidden.has(r.brand_id ?? ''))
-    .filter(r => allowsBrand(rule, r.brand_id ?? ''))
+    .filter(r => allowsBrand(rule, clubId, kind, r.brand_id ?? ''))
   if (!visible.length) return false
 
   // valid_days is enforced HERE, not only in the clients. It is descriptive

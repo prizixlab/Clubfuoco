@@ -1,27 +1,29 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Badge, Btn, Card, ErrorLine, SectionLabel, api, C, caps, font, mono, serif } from '../_ui'
+import { Badge, Btn, Card, ErrorLine, SectionLabel, api, C, caps, font, serif } from '../_ui'
 import { shownSuppliers, toggleSupplier } from '@/lib/conflict-rule'
 
-// Venues more than one supplier covers, and who is allowed to show there.
+// Where two suppliers compete for the same product at the same venue.
 //
-// Per venue rather than per offer: the decision is commercial ("at Opium we
-// run Aashi"), and doubling the decisions per venue would not pay for itself.
+// Keyed by venue AND kind. One rule per venue meant picking a supplier for the
+// guestlist silently took the VIP tables with it, which is never what the
+// operator meant. A venue-wide rule ('*') still applies to any kind that has
+// no rule of its own, so existing decisions carry forward.
+//
 // The selection is a SET, not a winner — with more promoters coming, "show
 // these three of five" has to be expressible.
 
-interface Supplier { id: string; name: string; color: string; kinds: string[] }
+interface Supplier { id: string; name: string; color: string }
 interface Conflict {
-  club_id: string
-  club_name: string
+  club_id:    string
+  club_name:  string
+  kind:       string
+  kind_label: string
+  /** Still governed by the venue-wide rule; saving narrows it to this kind. */
+  inherited:  boolean
   rule: { mode: 'all' | 'none' | 'selected'; brand_ids: string[] }
   suppliers: Supplier[]
-}
-
-const KIND_LABEL: Record<string, string> = {
-  free_guestlist: 'Guestlist',
-  vip_table: 'VIP table',
 }
 
 export default function ConflictsPage() {
@@ -41,8 +43,9 @@ export default function ConflictsPage() {
         Offer <em style={{ fontStyle: 'italic', color: C.goldHi }}>conflicts</em>
       </h1>
       <p style={{ margin: '8px 0 24px', fontSize: 14, color: C.dim, fontFamily: font, maxWidth: 620, lineHeight: 1.55 }}>
-        Venues more than one supplier covers. Choose who the app shows there — all of them,
-        none, or a specific set. Venues without a conflict need no decision and aren’t listed.
+        Where two suppliers compete for the SAME product at the same venue. A guestlist and a
+        VIP table are different products, so they are decided separately — Rumba can run the
+        tables while Aashi runs the door. Anything without a genuine clash isn’t listed.
       </p>
 
       <ErrorLine error={error} />
@@ -60,7 +63,7 @@ export default function ConflictsPage() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {items?.map(c => <ConflictCard key={c.club_id} item={c} onSaved={load} />)}
+        {items?.map(c => <ConflictCard key={`${c.club_id}|${c.kind}`} item={c} onSaved={load} />)}
       </div>
     </>
   )
@@ -90,7 +93,7 @@ function ConflictCard({ item, onSaved }: { item: Conflict; onSaved: () => void }
     try {
       await api('/api/portal/conflicts', {
         method: 'PUT',
-        body: JSON.stringify({ club_id: item.club_id, mode, brand_ids: picked }),
+        body: JSON.stringify({ club_id: item.club_id, kind: item.kind, mode, brand_ids: picked }),
       })
       setSaved(true)
       onSaved()
@@ -108,8 +111,15 @@ function ConflictCard({ item, onSaved }: { item: Conflict; onSaved: () => void }
   return (
     <Card>
       <SectionLabel right={<Badge color={mode === 'none' ? C.danger : C.gold}>{showing} showing</Badge>}>
-        {item.club_name}
+        {item.club_name} · <span style={{ color: C.goldHi }}>{item.kind_label}</span>
       </SectionLabel>
+
+      {item.inherited && (
+        <p style={{ margin: '0 0 12px', fontFamily: font, fontSize: 12.5, color: C.faint, lineHeight: 1.5 }}>
+          Currently following this venue&rsquo;s overall rule. Saving here applies to
+          {' '}{item.kind_label.toLowerCase()} only and leaves the other products alone.
+        </p>
+      )}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
         <Choice active={mode === 'all'} onClick={() => { setMode('all'); setSaved(false) }}>All suppliers</Choice>
@@ -142,9 +152,6 @@ function ConflictCard({ item, onSaved }: { item: Conflict; onSaved: () => void }
               }}>{on ? '✓' : ''}</span>
               <span style={{ width: 8, height: 8, borderRadius: 4, background: s.color, flexShrink: 0 }} />
               <span style={{ fontFamily: font, fontSize: 14, color: C.text }}>{s.name}</span>
-              <span style={{ fontFamily: mono, fontSize: 11, color: C.faint, marginLeft: 'auto' }}>
-                {s.kinds.map(k => KIND_LABEL[k] ?? k).join(' · ')}
-              </span>
             </button>
           )
         })}

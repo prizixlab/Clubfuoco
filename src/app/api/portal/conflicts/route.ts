@@ -3,16 +3,25 @@ import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
 import { logAudit } from '@/lib/portal-audit'
+import { ANY_KIND } from '@/lib/partner'
 import { ok, err } from '@/lib/utils'
 
 // Venues covered by more than one supplier, and the operator's rule for each.
 //
-// A conflict is "two or more visible suppliers have a live offer at this
-// venue" — deliberately counted per VENUE, not per venue+kind, because the
-// decision is made per venue. Suppliers muted brand-wide (offers_hidden) are
-// excluded: they aren't competing for anything.
+// Counted per VENUE **AND KIND**: a guestlist and a VIP table are different
+// products, so two suppliers only conflict when they compete for the same one.
+// Rumba running the tables while Aashi runs the door is not a conflict at all
+// and no longer appears here — nor does choosing one drag the other with it.
+//
+// Suppliers muted brand-wide (offers_hidden) are excluded: they aren't
+// competing for anything.
 
 interface Row { club_id: string; brand_id: string; kind: string; is_active?: boolean }
+
+const KIND_LABEL: Record<string, string> = {
+  free_guestlist: 'Guestlist',
+  vip_table:      'VIP table',
+}
 
 export async function GET() {
   const denied = await requirePortal()
@@ -34,21 +43,20 @@ export async function GET() {
     })
   }
 
-  // club -> brand -> the offer kinds that supplier runs there
-  const byClub = new Map<string, Map<string, Set<string>>>()
+  // club|kind -> the brands supplying that product there
+  const byClubKind = new Map<string, Set<string>>()
   for (const o of (offers ?? []) as Row[]) {
     if (o.is_active === false) continue
     const brand = brandById.get(o.brand_id)
     if (!brand || brand.hidden) continue
-    const perBrand = byClub.get(o.club_id) ?? new Map<string, Set<string>>()
-    const kinds = perBrand.get(o.brand_id) ?? new Set<string>()
-    kinds.add(o.kind)
-    perBrand.set(o.brand_id, kinds)
-    byClub.set(o.club_id, perBrand)
+    const key = `${o.club_id}|${o.kind}`
+    const set = byClubKind.get(key) ?? new Set<string>()
+    set.add(o.brand_id)
+    byClubKind.set(key, set)
   }
 
-  const conflicted = [...byClub.entries()].filter(([, perBrand]) => perBrand.size > 1)
-  const clubIds = conflicted.map(([clubId]) => clubId)
+  const conflicted = [...byClubKind.entries()].filter(([, brandIds]) => brandIds.size > 1)
+  const clubIds = [...new Set(conflicted.map(([key]) => key.split('|')[0]))]
 
   const clubNames = new Map<string, string>()
   if (clubIds.length) {
@@ -56,41 +64,53 @@ export async function GET() {
     for (const c of clubs ?? []) clubNames.set(String((c as { id: string }).id), String((c as { name: string }).name))
   }
 
-  const ruleByClub = new Map<string, { mode: string; brand_ids: string[] }>()
+  // Rules keyed club|kind. A row with no `kind` (pre-migration) is venue-wide.
+  const ruleBy = new Map<string, { mode: string; brand_ids: string[] }>()
   for (const r of rules ?? []) {
     const row = r as Record<string, unknown>
-    ruleByClub.set(String(row.club_id), {
+    const kind = typeof row.kind === 'string' && row.kind ? row.kind : ANY_KIND
+    ruleBy.set(`${String(row.club_id)}|${kind}`, {
       mode: String(row.mode ?? 'all'),
       brand_ids: ((row.brand_ids as string[] | null) ?? []).map(String),
     })
   }
 
-  const items = conflicted.map(([clubId, perBrand]) => ({
-    club_id: clubId,
-    club_name: clubNames.get(clubId) ?? 'Unknown venue',
-    rule: ruleByClub.get(clubId) ?? { mode: 'all', brand_ids: [] },
-    suppliers: [...perBrand.entries()].map(([brandId, kinds]) => ({
-      ...brandById.get(brandId)!,
-      kinds: [...kinds].sort(),
-    })).sort((a, b) => a.name.localeCompare(b.name)),
-  })).sort((a, b) => a.club_name.localeCompare(b.club_name))
+  const items = conflicted.map(([key, brandIds]) => {
+    const [clubId, kind] = key.split('|')
+    // The venue-wide rule still governs until this kind is given its own.
+    const rule = ruleBy.get(key) ?? ruleBy.get(`${clubId}|${ANY_KIND}`) ?? { mode: 'all', brand_ids: [] }
+    return {
+      club_id:    clubId,
+      club_name:  clubNames.get(clubId) ?? 'Unknown venue',
+      kind,
+      kind_label: KIND_LABEL[kind] ?? kind,
+      // True when this kind is still riding the venue-wide rule — the UI says
+      // so, because saving here narrows the rule to this kind only.
+      inherited:  !ruleBy.has(key) && ruleBy.has(`${clubId}|${ANY_KIND}`),
+      rule,
+      suppliers: [...brandIds]
+        .map(id => brandById.get(id)!)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }
+  }).sort((a, b) => a.club_name.localeCompare(b.club_name) || a.kind.localeCompare(b.kind))
 
   return ok(items)
 }
 
 const PutRule = z.object({
   club_id:   z.string().uuid(),
+  kind:      z.string().min(1).default(ANY_KIND),
   mode:      z.enum(['all', 'none', 'selected']),
   brand_ids: z.array(z.string().uuid()).default([]),
 }).strict()
 
-// PUT /api/portal/conflicts — set one venue's supplier rule.
+// PUT /api/portal/conflicts — set one venue+kind's supplier rule.
 export async function PUT(request: NextRequest) {
   const denied = await requirePortal()
   if (denied) return denied
   const parsed = PutRule.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return err(parsed.error.issues[0]?.message ?? 'Invalid rule')
-  const { club_id, mode, brand_ids } = parsed.data
+  const { club_id, kind, mode, brand_ids } = parsed.data
   // 'selected' with an empty set would silently mean the same as 'none' —
   // make the operator say which one they meant.
   if (mode === 'selected' && brand_ids.length === 0) {
@@ -99,27 +119,28 @@ export async function PUT(request: NextRequest) {
 
   const sb = await createServiceClient()
   const { error } = await sb.from('club_offer_visibility').upsert({
-    club_id, mode,
+    club_id, kind, mode,
     brand_ids: mode === 'selected' ? brand_ids : [],
     updated_at: new Date().toISOString(),
-  }, { onConflict: 'club_id' })
+  }, { onConflict: 'club_id,kind' })
 
   if (error) {
-    if (/club_offer_visibility|schema cache/i.test(error.message)) {
-      return err('Conflict rules need a schema change that has not been applied yet — run ' +
-                 'supabase/migrations/20260721_club_offer_visibility.sql in the SQL editor.', 503)
+    if (/kind|club_offer_visibility|schema cache|constraint/i.test(error.message)) {
+      return err('Per-kind rules need a schema change that has not been applied yet — run ' +
+                 'supabase/migrations/20260722_visibility_per_kind.sql in the SQL editor.', 503)
     }
     return err(error.message)
   }
 
   const { data: club } = await sb.from('clubs').select('name').eq('id', club_id).maybeSingle()
   const label = (club as { name?: string } | null)?.name ?? club_id
+  const what = kind === ANY_KIND ? label : `${label} · ${KIND_LABEL[kind] ?? kind}`
   await logAudit(sb, {
     action: 'club.offer_visibility',
-    summary: mode === 'all'  ? `All suppliers show at “${label}”`
-           : mode === 'none' ? `No supplier offers show at “${label}”`
-           : `Limited “${label}” to ${brand_ids.length} supplier${brand_ids.length === 1 ? '' : 's'}`,
-    target_type: 'club', target_id: club_id, meta: { mode, brand_ids },
+    summary: mode === 'all'  ? `All suppliers show at “${what}”`
+           : mode === 'none' ? `No supplier offers show at “${what}”`
+           : `Limited “${what}” to ${brand_ids.length} supplier${brand_ids.length === 1 ? '' : 's'}`,
+    target_type: 'club', target_id: club_id, meta: { kind, mode, brand_ids },
   })
-  return ok({ club_id, mode, brand_ids })
+  return ok({ club_id, kind, mode, brand_ids })
 }

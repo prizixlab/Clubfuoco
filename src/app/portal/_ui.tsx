@@ -269,6 +269,45 @@ export function SupplierCredit({ name, label, logoUrl }: {
 // with the brand name in ember, an ember-ruled warning panel, a critical panel
 // when the brand has zero live offers (warn — don't block), and the target
 // environment spelled out. Shared by the suppliers list and the brand editor.
+/// The real per-supplier on/off: flips partner_brands.offers_hidden.
+///
+/// Unlike "featured" this is NOT exclusive — every supplier can be on at the
+/// same time, which is the normal state. It lived only inside Edit, so the
+/// Partners page appeared to offer no way to turn a supplier on or off and
+/// "Make featured" got mistaken for one.
+export function HideOffersButton({ brand, onDone, wide }: {
+  brand: { id: string; name: string; offers_hidden: boolean }
+  onDone: () => void
+  wide?: boolean
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const hidden = brand.offers_hidden
+
+  async function toggle() {
+    setBusy(true); setError(null)
+    try {
+      await api(`/api/portal/brands/${brand.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ offers_hidden: !hidden }),
+      })
+      onDone()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not change visibility')
+    }
+    setBusy(false)
+  }
+
+  return (
+    <>
+      <Btn wide={wide} onClick={toggle} disabled={busy}>
+        {busy ? '…' : hidden ? 'Show offers' : 'Hide offers'}
+      </Btn>
+      <ErrorLine error={error} />
+    </>
+  )
+}
+
 export function ActivateButton({ brand, onDone, small, wide, currentLive }: {
   brand: { id: string; name: string; is_active: boolean; offer_count: number }
   onDone: () => void

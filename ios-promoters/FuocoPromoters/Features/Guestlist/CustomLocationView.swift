@@ -19,6 +19,14 @@ struct CustomLocationView: View {
     @State private var candidates: [CLPlacemark] = []
     @State private var showCandidates = false
     @State private var geoError: String?
+    /// True while the address field is ours to rewrite as the pin moves. Once
+    /// the promoter types in it themselves we stop touching it — a hand-typed
+    /// "side door, buzzer 3" must survive a nudge of the map.
+    @State private var addressIsAuto = true
+    /// Reverse-geocode of the pin, debounced. CLGeocoder is aggressively rate
+    /// limited, so this runs when the map SETTLES, not on every frame.
+    @State private var pinLookup: Task<Void, Never>?
+    @State private var resolvingPin = false
 
     var body: some View {
         ScrollView {
@@ -42,6 +50,12 @@ struct CustomLocationView: View {
                             .focused($focused, equals: .address)
                             .submitLabel(.search)
                             .onSubmit { geocode() }
+                            // Only a change made while the field has focus is
+                            // the promoter typing; our own writes land when it
+                            // doesn't. Once they type, the pin stops rewriting it.
+                            .onChange(of: model.customAddress) { _, _ in
+                                if focused == .address { addressIsAuto = false }
+                            }
                         Button {
                             Haptics.tap(); geocode()
                         } label: {
@@ -67,6 +81,13 @@ struct CustomLocationView: View {
                         .onMapCameraChange(frequency: .continuous) { ctx in
                             centerCoord = ctx.region.center
                         }
+                        // The address follows the pin. Previously nothing
+                        // re-geocoded on a drag, so the field kept whatever it
+                        // had and the move looked like it hadn't registered.
+                        .onMapCameraChange(frequency: .onEnd) { ctx in
+                            centerCoord = ctx.region.center
+                            lookUpPin(ctx.region.center)
+                        }
                     // Fixed centre pin (sits slightly above true centre so the
                     // tip points at the centre coordinate).
                     Image(systemName: "mappin")
@@ -83,10 +104,16 @@ struct CustomLocationView: View {
                 }
 
                 HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 12)).foregroundStyle(Theme.flame)
-                    Text("Drag the map so the pin sits exactly on the entrance — guests check in here.")
-                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                    if resolvingPin {
+                        ProgressView().tint(Theme.flame).scaleEffect(0.7).frame(width: 12, height: 12)
+                        Text("Reading the address at the pin…")
+                            .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                    } else {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12)).foregroundStyle(Theme.flame)
+                        Text("Drag the map so the pin sits exactly on the entrance — guests check in here.")
+                            .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                    }
                 }
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: 12).fill(Theme.flame.opacity(0.08)))
@@ -179,21 +206,55 @@ struct CustomLocationView: View {
         }
     }
 
-    /// Confirm the dropped pin. If no name was typed, reverse-geocode the pin
-    /// to label it (and fill the address if blank), so a manual drag still
-    /// produces a readable location.
+    /// Reverse-geocode the pin and write the address, debounced.
+    ///
+    /// This is what makes the pin feel connected to the form: drag the map,
+    /// the address field follows. It only runs while `addressIsAuto`, so a
+    /// hand-typed address is never clobbered, and it always cancels the
+    /// previous lookup — CLGeocoder rate-limits hard, and a pan generates a
+    /// lot of settle events.
+    private func lookUpPin(_ coord: CLLocationCoordinate2D) {
+        guard addressIsAuto else { return }
+        pinLookup?.cancel()
+        pinLookup = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
+            resolvingPin = true
+            defer { resolvingPin = false }
+            let marks = try? await CLGeocoder().reverseGeocodeLocation(
+                CLLocation(latitude: coord.latitude, longitude: coord.longitude))
+            guard !Task.isCancelled, let m = marks?.first else { return }
+            model.customAddress = describe(m)
+            geoError = nil
+        }
+    }
+
+    /// Confirm the dropped pin.
+    ///
+    /// The coordinate is written first and synchronously — it is the part that
+    /// actually matters for check-in, and it must not depend on a network
+    /// round trip. Naming/addressing is best effort on top.
+    ///
+    /// This used to skip the reverse geocode entirely whenever a name had been
+    /// typed, and to fill the address only when it was blank, so moving the pin
+    /// left a stale address on screen and the move looked ignored.
     private func confirmLocation() {
+        pinLookup?.cancel()
         model.customCoord = centerCoord
-        if model.customName.trimmingCharacters(in: .whitespaces).isEmpty {
-            CLGeocoder().reverseGeocodeLocation(
-                CLLocation(latitude: centerCoord.latitude, longitude: centerCoord.longitude)
-            ) { marks, _ in
+
+        let needsName = model.customName.trimmingCharacters(in: .whitespaces).isEmpty
+        let needsAddress = addressIsAuto || model.customAddress.trimmingCharacters(in: .whitespaces).isEmpty
+
+        if needsName || needsAddress {
+            Task {
+                let marks = try? await CLGeocoder().reverseGeocodeLocation(
+                    CLLocation(latitude: centerCoord.latitude, longitude: centerCoord.longitude))
                 if let m = marks?.first {
-                    model.customName = [m.name, m.thoroughfare].compactMap { $0 }.first ?? "Custom location"
-                    if model.customAddress.trimmingCharacters(in: .whitespaces).isEmpty {
-                        model.customAddress = describe(m)
+                    if needsName {
+                        model.customName = [m.name, m.thoroughfare].compactMap { $0 }.first ?? "Custom location"
                     }
-                } else {
+                    if needsAddress { model.customAddress = describe(m) }
+                } else if needsName {
                     model.customName = "Custom location"
                 }
             }

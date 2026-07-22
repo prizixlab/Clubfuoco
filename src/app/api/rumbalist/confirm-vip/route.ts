@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth'
 import { stripe } from '@/lib/stripe'
 import { ok, err, resolveBookingDate } from '@/lib/utils'
 import { generateReferenceCode } from '@/lib/rumbalist-reference'
+import { supplyingBrandId } from '@/lib/partner'
 import { z } from 'zod'
 
 // Verify with Stripe that the Apple Pay confirmation actually succeeded,
@@ -53,8 +54,11 @@ export async function POST(req: Request) {
   const bookingDate = resolveBookingDate(parsed.data.booking_date)
   if (!bookingDate) return err('booking_date must be today or within the next 14 days')
   const total = intent.amount / 100   // cents → euros
+  // Supplier behind this table, so the ticket brands itself correctly.
+  const brandId = await supplyingBrandId(supabase, parsed.data.club_id, 'vip_table', bookingDate)
   let booking: any = null
   let insertErr: any = null
+  let withBrand = true
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateReferenceCode()
     const res  = await supabase
@@ -71,12 +75,15 @@ export async function POST(req: Request) {
         platform_fee:              0,
         stripe_payment_intent_id:  intent.id,
         qr_code_token:             code,
+        ...(withBrand && brandId ? { brand_id: brandId } : {}),
       })
       .select('*')
       .single()
     booking   = res.data
     insertErr = res.error
     if (!insertErr) break
+    // Attribution must never cost someone a table they just paid for.
+    if (/brand_id/.test(insertErr.message ?? '') && withBrand) { withBrand = false; continue }
     if (insertErr.code !== '23505') break
   }
   if (insertErr) return err(insertErr.message)

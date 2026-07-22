@@ -358,6 +358,48 @@ export async function duplicateOffers(sb: SB, fromBrandId: string, toBrandId: st
   return rows.length
 }
 
+/**
+ * Which supplier is providing this club's `kind` offer on `date`?
+ *
+ * Recorded on the booking so the ticket can brand itself — a booking made
+ * through Aashi must not print a Rumba pass. Applies exactly the same gates as
+ * the feed: archived offers, hidden suppliers and valid_days are all excluded,
+ * so this can only ever name a supplier the guest could actually have booked.
+ *
+ * Returns null when it CANNOT be certain — no live offer, or more than one
+ * supplier serving the same club that night. Guessing between two suppliers
+ * would print the wrong brand on someone's ticket, and a neutral Club Fuoco
+ * pass is the honest fallback. (Clients that know which offer the guest tapped
+ * should send the brand explicitly; this is the server-side best effort.)
+ */
+export async function supplyingBrandId(
+  sb: SB, clubId: string, kind: string, date: string,
+): Promise<string | null> {
+  const { data, error } = await sb
+    .from('partner_offers')
+    .select('*')
+    .eq('club_id', clubId)
+    .eq('kind', kind)
+  if (error || !data?.length) return null
+
+  const { hidden } = await brandsById(sb)
+  const weekday = weekdayOf(date)
+  const ids = new Set(
+    (data as Record<string, unknown>[])
+      .filter(isActiveOffer)
+      .filter(r => !hidden.has(String(r.brand_id ?? '')))
+      .filter(r => {
+        if (weekday === null) return true
+        const days = parseValidDays(String(r.valid_days ?? ''))
+        return days.size === 0 || days.has(weekday)
+      })
+      .filter(r => !((r.skipped_dates as string[] | null) ?? []).includes(date))
+      .map(r => String(r.brand_id ?? ''))
+      .filter(Boolean),
+  )
+  return ids.size === 1 ? [...ids][0] : null
+}
+
 /// Is this club's offer of `kind` actually running on `date`? Client filtering
 /// is presentation; this is the enforcement the booking routes use, so a stale
 /// or hand-rolled client can't claim a night the supplier turned off.

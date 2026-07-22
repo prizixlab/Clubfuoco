@@ -2,7 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { ok, err, resolveBookingDate } from '@/lib/utils'
 import { generateReferenceCode } from '@/lib/rumbalist-reference'
-import { offerRunsOn } from '@/lib/partner'
+import { offerRunsOn, supplyingBrandId } from '@/lib/partner'
 
 // Add the authenticated user to a Rumbalist free guestlist for a club.
 // Writes two rows:
@@ -35,8 +35,13 @@ export async function POST(req: Request) {
   // 1. Booking row — retry on the (vanishingly rare) reference-code collision.
   //    Postgres unique violation = code 23505. Five attempts is plenty since
   //    each attempt re-rolls 8 chars from a 36-char alphabet.
+  // Which supplier's list this is, so the ticket brands itself correctly.
+  // Null when it can't be certain (see supplyingBrandId) — never a guess.
+  const brandId = await supplyingBrandId(supabase, clubId, 'free_guestlist', bookingDate)
+
   let booking: any = null
   let bookingErr: any = null
+  let withBrand = true
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateReferenceCode()
     const res  = await supabase
@@ -52,12 +57,16 @@ export async function POST(req: Request) {
         total_amount:   0,
         platform_fee:   0,
         qr_code_token:  code,
+        ...(withBrand && brandId ? { brand_id: brandId } : {}),
       })
       .select('*')
       .single()
     booking    = res.data
     bookingErr = res.error
     if (!bookingErr) break
+    // brand_id migration not applied yet → drop the column and keep going.
+    // Attribution is a nicety; never fail someone's guestlist over it.
+    if (/brand_id/.test(bookingErr.message ?? '') && withBrand) { withBrand = false; continue }
     if (bookingErr.code !== '23505') break  // not a unique conflict — give up
   }
   if (bookingErr) return err(bookingErr.message)

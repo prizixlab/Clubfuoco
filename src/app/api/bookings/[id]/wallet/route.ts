@@ -15,6 +15,48 @@ import { RUMBALIST_OFFERS } from '@/lib/rumbalist-offers'
 //   APPLE_SIGNER_KEY_PEM    — private key for the cert (base64-encoded)
 //   APPLE_SIGNER_KEY_PASS   — passphrase for the key (optional)
 
+type SB = Awaited<ReturnType<typeof createServiceClient>>
+
+/** The supplier stamped on this booking, or null. Never throws — a pass must
+ *  still generate if the brand row or the column is missing. */
+async function brandForBooking(sb: SB, brandId: string | null | undefined) {
+  if (!brandId) return null
+  try {
+    const { data } = await sb.from('partner_brands').select('*').eq('id', brandId).maybeSingle()
+    if (!data) return null
+    const r = data as Record<string, unknown>
+    return { name: String(r.name ?? ''), color: (r.color as string) ?? null, logo_url: (r.logo_url as string) ?? null }
+  } catch { return null }
+}
+
+/** "#RRGGBB" → "rgb(r, g, b)". PassKit rejects hex. */
+function hexToPassRgb(hex: string): string | null {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return null
+  const n = parseInt(m[1], 16)
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`
+}
+
+/**
+ * The supplier's logo bytes for the pass logo slot.
+ *
+ * Fetched from the brand's own logo_url rather than a per-supplier file
+ * checked into the repo, so onboarding a supplier stays a portal action and
+ * never a deploy. Bounded and best-effort: a slow or broken logo falls back to
+ * the Club Fuoco mark instead of failing the pass.
+ */
+async function fetchBrandLogo(url: string | null): Promise<Buffer | null> {
+  if (!url) return null
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000), cache: 'no-store' })
+    if (!res.ok) return null
+    const type = res.headers.get('content-type') ?? ''
+    if (!type.includes('png')) return null    // PassKit needs PNG; SVG renders blank
+    const buf = Buffer.from(await res.arrayBuffer())
+    return buf.length > 0 && buf.length < 1_500_000 ? buf : null
+  } catch { return null }
+}
+
 const CONFIGURED =
   !!process.env.APPLE_PASS_TYPE_ID &&
   !!process.env.APPLE_TEAM_ID &&
@@ -36,12 +78,11 @@ export async function GET(
   }
 
   const supabase = await createServiceClient()
+  // select('*') for the booking so brand_id can be absent (pre-migration rows
+  // and pre-migration databases both read as "no supplier recorded").
   const { data: booking, error } = await supabase
     .from('bookings')
-    .select(`
-      id, booking_type, party_size, booking_date, status, total_amount, qr_code_token, club_id,
-      clubs (id, name, address, neighborhood)
-    `)
+    .select(`*, clubs (id, name, address, neighborhood)`)
     .eq('id', id)
     .single()
 
@@ -61,13 +102,21 @@ export async function GET(
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })
 
-  // Rumbalist partner bookings get a Miami-pink pass with the Rumbalist
-  // wordmark in the logo slot. Detected by club id, so this stays in sync
-  // with the rest of the app's Rumbalist routing (the join-guestlist /
-  // create-vip-intent flows only ever book clubs in this same static
-  // catalog) — a historical receipt, so it doesn't chase whichever supplier
-  // brand is active today.
-  const isRumbalist = booking.club_id != null && booking.club_id in RUMBALIST_OFFERS
+  // Who supplied this booking, for the pass's branding.
+  //
+  // Preferred source is bookings.brand_id, stamped at booking time. Falling
+  // back to "is this club in RUMBALIST_OFFERS" was safe only while Rumba was
+  // the sole supplier; now that several suppliers cover the same venues, that
+  // guess would print a Rumba pass on another supplier's guestlist. So the
+  // fallback is only used for rows booked before attribution existed.
+  const brand = await brandForBooking(supabase, (booking as { brand_id?: string | null }).brand_id)
+  const isRumbalist = !brand
+    && booking.club_id != null && booking.club_id in RUMBALIST_OFFERS
+
+  // Supplier-branded when we know the supplier, Club Fuoco otherwise.
+  const orgName = brand?.name ?? (isRumbalist ? 'Rumbalist' : 'Club Fuoco')
+  const bgColor = brand?.color ? hexToPassRgb(brand.color) ?? 'rgb(18, 20, 20)'
+                : isRumbalist ? 'rgb(255, 45, 146)' : 'rgb(18, 20, 20)'
 
   const passJson = {
     formatVersion:      1,
@@ -78,10 +127,10 @@ export async function GET(
     // "Expired Passes" the next morning instead of sitting in the wallet
     // looking as current as tonight's booking.
     ...nightPassDates(booking.booking_date),
-    organizationName:   isRumbalist ? 'Rumbalist' : 'Club Fuoco',
-    description:        isRumbalist ? `${clubName} with Rumbalist` : `${clubName} ticket`,
+    organizationName:   orgName,
+    description:        brand || isRumbalist ? `${clubName} with ${orgName}` : `${clubName} ticket`,
     foregroundColor:    'rgb(255, 255, 255)',
-    backgroundColor:    isRumbalist ? 'rgb(255, 45, 146)' : 'rgb(18, 20, 20)',
+    backgroundColor:    bgColor,
     labelColor:         isRumbalist ? 'rgb(255, 226, 240)' : 'rgb(255, 180, 166)',
     // Rumbalist passes show the wordmark in the logo image — duplicating it
     // as logoText would be redundant. We OMIT the key entirely for it;
@@ -145,6 +194,13 @@ export async function GET(
   const logoRumbalist   = fs.readFileSync(path.join(assetsDir, 'logo-rumbalist.png'))
   const logoRumbalist2x = fs.readFileSync(path.join(assetsDir, 'logo-rumbalist@2x.png'))
 
+  // The supplier's own logo, when they have one. Same image in both slots:
+  // hosted marks are already @2x-sized, and Wallet downsamples cleanly.
+  const brandLogo = brand ? await fetchBrandLogo(brand.logo_url) : null
+
+  const logo1x = brandLogo ?? (isRumbalist ? logoRumbalist   : logoFuoco)
+  const logo2x = brandLogo ?? (isRumbalist ? logoRumbalist2x : logoFuoco2x)
+
   try {
     const pass = new PKPass(
       {
@@ -152,8 +208,8 @@ export async function GET(
         'icon.png':    fs.readFileSync(path.join(assetsDir, 'icon.png')),
         'icon@2x.png': fs.readFileSync(path.join(assetsDir, 'icon@2x.png')),
         'icon@3x.png': fs.readFileSync(path.join(assetsDir, 'icon@3x.png')),
-        'logo.png':    isRumbalist ? logoRumbalist   : logoFuoco,
-        'logo@2x.png': isRumbalist ? logoRumbalist2x : logoFuoco2x,
+        'logo.png':    logo1x,
+        'logo@2x.png': logo2x,
       },
       {
         wwdr:                Buffer.from(process.env.APPLE_WWDR_PEM!,        'base64'),

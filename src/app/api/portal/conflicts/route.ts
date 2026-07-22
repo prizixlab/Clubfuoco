@@ -6,15 +6,19 @@ import { logAudit } from '@/lib/portal-audit'
 import { ANY_KIND } from '@/lib/partner'
 import { ok, err } from '@/lib/utils'
 
-// Venues covered by more than one supplier, and the operator's rule for each.
+// Every venue + product that has a supplier, and the operator's rule for each.
 //
-// Counted per VENUE **AND KIND**: a guestlist and a VIP table are different
-// products, so two suppliers only conflict when they compete for the same one.
-// Rumba running the tables while Aashi runs the door is not a conflict at all
-// and no longer appears here — nor does choosing one drag the other with it.
+// Keyed per VENUE **AND KIND**: a guestlist and a VIP table are different
+// products, so Rumba can run the tables while Aashi runs the door and choosing
+// one never drags the other with it.
 //
-// Suppliers muted brand-wide (offers_hidden) are excluded: they aren't
-// competing for anything.
+// Deliberately lists products covered by a SINGLE supplier too. Only listing
+// genuine clashes meant a venue's VIP table simply vanished from the page,
+// leaving no way to see it or switch it off. `conflict` marks the rows where
+// suppliers actually compete, so those still stand out.
+//
+// Suppliers muted brand-wide (offers_hidden) are excluded — they aren't
+// showing anywhere, so they aren't a choice here.
 
 interface Row { club_id: string; brand_id: string; kind: string; is_active?: boolean }
 
@@ -55,8 +59,8 @@ export async function GET() {
     byClubKind.set(key, set)
   }
 
-  const conflicted = [...byClubKind.entries()].filter(([, brandIds]) => brandIds.size > 1)
-  const clubIds = [...new Set(conflicted.map(([key]) => key.split('|')[0]))]
+  const entries = [...byClubKind.entries()]
+  const clubIds = [...new Set(entries.map(([key]) => key.split('|')[0]))]
 
   const clubNames = new Map<string, string>()
   if (clubIds.length) {
@@ -75,7 +79,7 @@ export async function GET() {
     })
   }
 
-  const items = conflicted.map(([key, brandIds]) => {
+  const items = entries.map(([key, brandIds]) => {
     const [clubId, kind] = key.split('|')
     // The venue-wide rule still governs until this kind is given its own.
     const rule = ruleBy.get(key) ?? ruleBy.get(`${clubId}|${ANY_KIND}`) ?? { mode: 'all', brand_ids: [] }
@@ -84,6 +88,8 @@ export async function GET() {
       club_name:  clubNames.get(clubId) ?? 'Unknown venue',
       kind,
       kind_label: KIND_LABEL[kind] ?? kind,
+      /** Two or more suppliers competing for this product — a real decision. */
+      conflict:   brandIds.size > 1,
       // True when this kind is still riding the venue-wide rule — the UI says
       // so, because saving here narrows the rule to this kind only.
       inherited:  !ruleBy.has(key) && ruleBy.has(`${clubId}|${ANY_KIND}`),

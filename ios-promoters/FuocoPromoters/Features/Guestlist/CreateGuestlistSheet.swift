@@ -385,10 +385,26 @@ final class CreateGuestlistModel: ObservableObject {
                 onResult(.allocation(alloc))
             }
         } catch {
-            self.error = "Couldn't create guestlist. Ask an admin to enable promoter inserts."
+            // Surface what actually failed. This used to be a fixed string
+            // guessing at the cause, which hid a real RLS rejection (42501)
+            // behind advice that didn't say what to enable, or on which table.
+            self.error = Self.createFailureMessage(error)
             Haptics.error()
         }
         submitting = false
+    }
+
+    /// Turn a PostgREST/network failure into something the promoter can act on,
+    /// while keeping the underlying detail visible for a screenshot.
+    static func createFailureMessage(_ error: Error) -> String {
+        let raw = String(describing: error)
+        if raw.contains("42501") || raw.lowercased().contains("row-level security") {
+            return "Couldn't create guestlist — the server refused the write "
+                 + "(row-level security). An admin needs to allow promoter "
+                 + "inserts on promoter_nights and promoter_allocations."
+        }
+        let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        return "Couldn't create guestlist. \(message)"
     }
 
     /// Save an edit to an existing night/series. Edits never write live —

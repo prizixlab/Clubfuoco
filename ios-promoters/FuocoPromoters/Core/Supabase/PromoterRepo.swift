@@ -1,6 +1,21 @@
 import Foundation
 import Supabase
 
+/// Failures worth telling the promoter about in their own words.
+enum PromoterRepoError: LocalizedError {
+    /// The insert was accepted but returned no row — normally an RLS SELECT
+    /// policy hiding the row it just created.
+    case insertReturnedNothing
+
+    var errorDescription: String? {
+        switch self {
+        case .insertReturnedNothing:
+            return "The guestlist was saved but couldn't be read back. "
+                 + "This usually means a permissions policy is hiding it."
+        }
+    }
+}
+
 @MainActor
 final class PromoterRepo: ObservableObject {
     private let sb = SupabaseService.shared
@@ -617,8 +632,18 @@ final class PromoterRepo: ObservableObject {
                 .value
         }
 
-        // Return the earliest by night_date
-        return allocs.sorted { ($0.night?.nightDate ?? "") < ($1.night?.nightDate ?? "") }.first
-            ?? allocs.first!
+        // Return the earliest by night_date.
+        //
+        // `allocs.first!` used to be the fallback here, which crashes when the
+        // insert returns nothing. That is a real state, not a theoretical one:
+        // an INSERT whose row the SELECT policy hides comes back as an empty
+        // array rather than an error. Fail with a readable message instead.
+        guard let earliest = allocs
+            .sorted(by: { ($0.night?.nightDate ?? "") < ($1.night?.nightDate ?? "") })
+            .first
+        else {
+            throw PromoterRepoError.insertReturnedNothing
+        }
+        return earliest
     }
 }

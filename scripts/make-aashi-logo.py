@@ -1,80 +1,78 @@
 #!/usr/bin/env python3
-"""Render the Aashi Guest List lockup for the app's small logo slots.
+"""Render the Aashi wordmark for the app's supplier-credit slots.
 
     python3 scripts/make-aashi-logo.py
 
 Writes transparent PNGs to public/pass-assets/:
-    logo-aashi.png      160x32   wallet pass logo slot (matches logo-rumbalist)
-    logo-aashi@2x.png   320x65
-    logo-aashi@3x.png   480x98
+    logo-aashi.png         160x32   wallet pass logo slot
+    logo-aashi@2x.png      320x65
+    logo-aashi@3x.png      480x98
     logo-aashi-hosted.png  640x130  for partner_brands.logo_url
 
-Why a horizontal lockup and not the circular badge: every slot this lands in
-is a thin strip — the booking sheet renders it at 12pt tall inside 84pt of
-width, and Apple's pass logo slot is 160x50pt. A circular avatar scaled into
-that becomes an unreadable dot, so the mark is re-laid-out as hearts + wordmark.
+Built to sit beside logo-rumbalist, which it is measured against:
 
-Transparent background, light-on-dark: the pass is dark, the checkout credit
-sits on a dark sheet, and a baked-in black disc would show as a rectangle on
-anything else.
+  * LETTERS ONLY. The supplier's own mark pairs twin hearts with the wordmark,
+    but this lands on top of coloured surfaces — the "Join guest list" button,
+    the offer row, a wallet pass — where a second colour competes with the
+    button and a small icon turns to mush. Rumba solves it the same way.
+  * ONE INK, #F4F4F4, sampled from logo-rumbalist so the two suppliers read as
+    siblings rather than as two unrelated brands.
+  * Futura: geometric and slightly wide, so it holds its own next to Rumba's
+    display face without being loud. Neutral enough not to fight the venue
+    photography behind it.
+  * Letterspaced to FILL the frame edge to edge, like Rumba's, so whatever
+    scales it gets a consistent optical weight instead of a small word adrift
+    in a wide box.
 
-NOTE: this is a faithful RENDITION built from the supplier's profile image,
-not their master artwork. Ask Aashi for the original vector before anything
-goes to print or to the App Store listing.
+NOTE: a rendition for in-app use, not Aashi's master artwork. Ask them for the
+original before it goes to print.
 """
 
-import math
 import pathlib
 from PIL import Image, ImageDraw, ImageFont
 
-RED = (229, 28, 36, 255)      # sampled from the supplier's mark
-WHITE = (255, 255, 255, 255)
+INK = (244, 244, 244, 255)      # sampled from logo-rumbalist@2x.png
+WORD = 'AASHI'
+FONT = '/System/Library/Fonts/Supplemental/Futura.ttc'
+FONT_INDEX = 2                  # Futura Bold — upright, matching Rumba's solid weight
 OUT = pathlib.Path('public/pass-assets')
 
-BOLD = '/System/Library/Fonts/Supplemental/Arial Bold.ttf'
-REG = '/System/Library/Fonts/Supplemental/Arial.ttf'
-
-
-def heart_points(cx, cy, scale, n=220):
-    """Classic parametric heart, centred on (cx, cy)."""
-    pts = []
-    for i in range(n + 1):
-        t = 2 * math.pi * i / n
-        x = 16 * math.sin(t) ** 3
-        y = 13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t)
-        pts.append((cx + x * scale, cy - y * scale))
-    return pts
+# Fraction of the canvas left as breathing room, matched to Rumba's (its
+# glyphs run x 4-315 of 320, y 2-61 of 65).
+PAD_X = 0.012
+PAD_Y = 0.03
 
 
 def render(w, h):
-    """Draw the lockup at 4x then downsample — gives clean antialiased strokes."""
+    """Draw at 4x and downsample — keeps the geometric curves clean."""
     S = 4
-    im = Image.new('RGBA', (w * S, h * S), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
     W, H = w * S, h * S
+    im = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
 
-    # ── Hearts: one large, one smaller overlapping low-right (outline style) ──
-    big_s = H / 46
-    d.line(heart_points(H * 0.46, H * 0.42, big_s), fill=RED, width=max(2, int(H * 0.055)), joint='curve')
-    small_s = big_s * 0.52
-    d.line(heart_points(H * 0.78, H * 0.60, small_s), fill=RED, width=max(2, int(H * 0.05)), joint='curve')
+    avail_w = W * (1 - 2 * PAD_X)
+    avail_h = H * (1 - 2 * PAD_Y)
 
-    # ── Wordmark ─────────────────────────────────────────────────────────────
-    text_x = H * 1.06
-    aashi = ImageFont.truetype(BOLD, int(H * 0.46))
-    d.text((text_x, H * 0.30), 'AASHI', font=aashi, fill=WHITE, anchor='lm')
-    aw = d.textlength('AASHI', font=aashi)
+    # Grow the type until it fills the height, then letterspace to the width.
+    size = 8
+    while True:
+        f = ImageFont.truetype(FONT, size, index=FONT_INDEX)
+        box = d.textbbox((0, 0), WORD, font=f)
+        if box[3] - box[1] >= avail_h or size > H * 2:
+            break
+        size += 2
+    font = ImageFont.truetype(FONT, size, index=FONT_INDEX)
 
-    # "GUEST LIST" is letterspaced to the width of AASHI above it.
-    sub_txt = 'GUEST LIST'
-    sub = ImageFont.truetype(REG, int(H * 0.235))
-    base = d.textlength(sub_txt, font=sub)
-    gaps = len(sub_txt) - 1
-    extra = max(0.0, (aw - base) / gaps) if gaps else 0.0
-    x = text_x
-    for ch in sub_txt:
-        d.text((x, H * 0.72), ch, font=sub, fill=WHITE, anchor='lm')
-        x += d.textlength(ch, font=sub) + extra
+    widths = [d.textlength(c, font=font) for c in WORD]
+    gaps = len(WORD) - 1
+    track = max(0.0, (avail_w - sum(widths)) / gaps) if gaps else 0.0
+
+    box = d.textbbox((0, 0), WORD, font=font)
+    x = W * PAD_X
+    y = (H - (box[3] - box[1])) / 2 - box[1]
+    for ch, cw in zip(WORD, widths):
+        d.text((x, y), ch, font=font, fill=INK)
+        x += cw + track
 
     return im.resize((w, h), Image.LANCZOS)
 
@@ -87,8 +85,7 @@ def main():
         'logo-aashi@3x.png': (480, 98),
         'logo-aashi-hosted.png': (640, 130),
     }.items():
-        img = render(w, h)
-        img.save(OUT / name)
+        render(w, h).save(OUT / name)
         print(f'  {name:24s} {w}x{h}')
 
 

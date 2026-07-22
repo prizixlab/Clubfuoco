@@ -14,6 +14,12 @@ export interface OfferBrand {
   name:     string
   logo_url: string | null
   color:    string
+  // /api/partner already sends these on every offer's brand; the type just
+  // never admitted it, which is why the booking sheet's credit line fell back
+  // to the app-wide featured brand. Optional so the bundled fallback catalogue
+  // (which has no attribution) still satisfies the type.
+  attribution_required?: boolean
+  attribution_label?:    string | null
 }
 
 export interface RumbalistOffer {

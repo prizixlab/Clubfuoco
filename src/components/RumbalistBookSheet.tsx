@@ -6,9 +6,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { apiFetch } from '@/lib/api'
 import { usePlan } from '@/contexts/PlanContext'
-import { usePartner } from '@/contexts/PartnerContext'
 import { SupplierMark, SupplierMarkKeyframes, hexToRgba } from '@/components/SupplierMark'
-import { RumbalistOffer } from '@/lib/rumbalist-offers'
+import { RumbalistOffer, type OfferBrand } from '@/lib/rumbalist-offers'
 
 /**
  * Apple Pay booking sheet for a Rumbalist offer.
@@ -333,7 +332,7 @@ function ReviewStep({ offer, venueName, venueAddress, error, paying, onConfirm, 
         )}
       </div>
 
-      <SupplierCreditLine />
+      <SupplierCreditLine brand={supplier} />
 
       {error && (
         <p style={{ margin: '12px 0 0', fontSize: 12, color: '#FFB4A2', textAlign: 'center' }}>{error}</p>
@@ -496,7 +495,7 @@ function PassStep({ offer, venueName, venueAddress, date, code, bookingId, onClo
         Show this on the door, or open it any time from your Tickets.
       </p>
 
-      <SupplierCreditLine />
+      <SupplierCreditLine brand={supplier} />
 
       {/* Add to Apple Wallet — black pill, native PassKit visual language.
           Only renders once the server-confirmed booking id is in hand. */}
@@ -536,9 +535,12 @@ function PassStep({ offer, venueName, venueAddress, date, code, bookingId, onClo
 // requires it (brand.attribution_required), as a small subordinate line —
 // Club Fuoco stays the dominant brand on the sheet. The supplier's logo/color
 // live only inside this credit.
-function SupplierCreditLine() {
-  const { brand } = usePartner()
-  if (!brand.attribution_required) return null
+// Credits the brand behind THIS offer. It used to read the app-wide "active"
+// supplier, which is only the primary/featured one — so booking an offer from
+// any other supplier printed the wrong credit, or none at all when the
+// supplier that required attribution wasn't the featured one.
+function SupplierCreditLine({ brand }: { brand: OfferBrand | null }) {
+  if (!brand?.attribution_required) return null
   return (
     <p style={{
       margin: '14px 0 0', textAlign: 'center', fontSize: 11,

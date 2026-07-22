@@ -30,7 +30,9 @@ export default function BrandsPage() {
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ margin: 0, fontFamily: serif, fontSize: 34, fontWeight: 400, color: C.text }}>Partners</h1>
         <p style={{ margin: '8px 0 0', fontSize: 14, color: C.dim, fontFamily: font, lineHeight: 1.5 }}>
-          Suppliers &amp; promoters. The active supplier&rsquo;s offers fill the front-page guestlist shelf; promoter access is approved below.
+          Suppliers &amp; promoters. Every supplier&rsquo;s offers are live at once — to stop one showing,
+          use its hide switch in Edit, or pick who runs a shared venue under Conflicts. &ldquo;Featured&rdquo;
+          only names the single supplier older app versions fall back to. Promoter access is approved below.
         </p>
       </div>
 
@@ -40,8 +42,10 @@ export default function BrandsPage() {
       {brands && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 28 }}>
           <StatTile label="Total suppliers" value={brands.length} />
-          <StatTile label="Live partner" value={live?.name ?? 'None'} />
-          <StatTile label="Live offers" value={live?.offer_count ?? 0} />
+          <StatTile label="Featured" value={live?.name ?? 'None'} />
+          {/* Every supplier's offers are live, so count them all — showing only
+              the featured brand's hid the rest of the catalogue. */}
+          <StatTile label="Live offers" value={brands.reduce((n, b) => n + (b.offer_count ?? 0), 0)} />
         </div>
       )}
 
@@ -62,7 +66,11 @@ export default function BrandsPage() {
                   ? <img src={b.logo_url} alt={b.name} style={{ maxWidth: '80%', maxHeight: '70%', objectFit: 'contain' }} />
                   : <span style={{ ...caps, fontSize: 9, color: C.faint }}>No logo</span>}
               </div>
-              <Badge color={b.is_active ? C.gold : C.faint}>{b.is_active ? 'Active' : 'Inactive'}</Badge>
+              {/* Not Active/Inactive — that read as an on/off switch for the
+                  supplier, when an unfeatured supplier's offers are just as live. */}
+              <Badge color={b.is_active ? C.gold : C.faint}>
+                {b.is_active ? 'Featured' : b.offers_hidden ? 'Hidden' : 'Live'}
+              </Badge>
             </div>
 
             <p style={{ margin: '16px 0 0', fontSize: 16.5, fontWeight: 700, fontFamily: font, color: C.text }}>{b.name}</p>

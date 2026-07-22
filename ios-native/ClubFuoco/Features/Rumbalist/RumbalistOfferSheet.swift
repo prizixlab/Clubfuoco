@@ -266,7 +266,11 @@ struct RumbalistOfferSheet: View {
     /// to this credit.
     @ViewBuilder
     private var supplierCredit: some View {
-        if let brand = RumbalistOffers.brand, brand.attributionRequired {
+        // The brand behind THIS offer, not RumbalistOffers.brand — that is only
+        // the app-wide "featured" supplier, so it printed the wrong credit on
+        // any other supplier's offer, and none at all when the supplier that
+        // requires attribution wasn't the featured one.
+        if let brand, brand.attributionRequired {
             HStack(spacing: 6) {
                 Text(brand.attributionLabel ?? "Guestlist by")
                     .font(.cfSans(11))

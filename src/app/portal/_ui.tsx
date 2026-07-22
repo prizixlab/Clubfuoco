@@ -298,7 +298,7 @@ export function ActivateButton({ brand, onDone, small, wide, currentLive }: {
 
   return (
     <>
-      <Btn kind="primary" small={small} wide={wide} onClick={() => setConfirming(true)}>Activate</Btn>
+      <Btn kind="primary" small={small} wide={wide} onClick={() => setConfirming(true)}>Make featured</Btn>
       {confirming && (
         <Modal onClose={() => busy ? null : setConfirming(false)} width={520}>
           <div style={{ textAlign: 'center', padding: '6px 0 2px' }}>
@@ -312,10 +312,10 @@ export function ActivateButton({ brand, onDone, small, wide, currentLive }: {
               </svg>
             </div>
             <h2 style={{ margin: 0, fontFamily: serif, fontSize: 24, fontWeight: 400, color: C.text }}>
-              Make <em style={{ color: C.goldHi, fontStyle: 'italic' }}>{brand.name}</em> the live partner?
+              Feature <em style={{ color: C.goldHi, fontStyle: 'italic' }}>{brand.name}</em>?
             </h2>
             <p style={{ ...caps, color: C.faint, margin: '10px 0 0', letterSpacing: '0.18em' }}>
-              Production state transition
+              Fallback brand for older app versions
             </p>
           </div>
 
@@ -324,8 +324,12 @@ export function ActivateButton({ brand, onDone, small, wide, currentLive }: {
             borderLeft: `2px solid ${C.gold}`, padding: '16px 18px',
           }}>
             <p style={{ margin: 0, fontSize: 13.5, color: C.text, lineHeight: 1.6, fontFamily: font }}>
-              This changes the consumer app immediately.{' '}
-              <span style={{ color: C.dim }}>Web updates on next load, the app on next open.</span>
+              Only one supplier can be featured, so this un-features{' '}
+              <span style={{ color: C.text }}>{currentLive ?? 'the current one'}</span>.{' '}
+              <span style={{ color: C.dim }}>
+                It does not turn any supplier on or off — every supplier&rsquo;s offers stay live
+                either way. Use the hide switch in Edit to stop one showing.
+              </span>
             </p>
             {brand.offer_count === 0 && (
               <div style={{
@@ -336,8 +340,9 @@ export function ActivateButton({ brand, onDone, small, wide, currentLive }: {
                   No live offers
                 </p>
                 <p style={{ margin: 0, fontSize: 13, color: C.text, lineHeight: 1.55, fontFamily: font }}>
-                  {brand.name} has <strong>zero</strong> live offers. Activating it
-                  will blank the front-page partner shelf until offers are added.
+                  {brand.name} has <strong>zero</strong> live offers. Featuring it is still
+                  safe — the feed is built from every supplier&rsquo;s offers, not this one&rsquo;s —
+                  but older app versions will fall back to a brand with nothing to show.
                 </p>
               </div>
             )}
@@ -353,7 +358,7 @@ export function ActivateButton({ brand, onDone, small, wide, currentLive }: {
               <p style={{ margin: 0, fontFamily: serif, fontSize: 16, color: C.text }}>Production</p>
             </div>
             <div>
-              <p style={{ ...caps, color: C.gold, margin: '0 0 7px' }}>Currently live</p>
+              <p style={{ ...caps, color: C.gold, margin: '0 0 7px' }}>Currently featured</p>
               <p style={{ margin: 0, fontFamily: serif, fontSize: 16, color: C.text }}>{currentLive ?? '—'}</p>
             </div>
           </div>
@@ -361,7 +366,7 @@ export function ActivateButton({ brand, onDone, small, wide, currentLive }: {
           <ErrorLine error={error} />
           <div style={{ marginTop: 16 }}>
             <Btn kind="primary" wide onClick={activate} disabled={busy}>
-              {busy ? 'Switching…' : 'Confirm & activate brand'}
+              {busy ? 'Switching…' : 'Confirm'}
             </Btn>
             <button onClick={() => setConfirming(false)} disabled={busy} style={{
               ...caps, background: 'none', border: 'none', color: C.dim, cursor: 'pointer',

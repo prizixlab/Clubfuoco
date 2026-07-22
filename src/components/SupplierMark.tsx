@@ -5,7 +5,15 @@ import type { OfferBrand } from '@/lib/rumbalist-offers'
  *  the brand color; other suppliers get their logo, or their name in the
  *  brand color. Used on the offer buttons + booking sheet — anywhere an offer
  *  needs to read as "this comes from Rumbalist/whoever", never in app chrome. */
-export function SupplierMark({ brand, size = 18 }: { brand: OfferBrand; size?: number }) {
+export function SupplierMark({ brand, size = 18, tint }: {
+  brand: OfferBrand
+  size?: number
+  /** Repaint the mark in this color. Supplier logos are single-ink wordmarks
+   *  drawn with their ink baked in, so a light mark is invisible on a light
+   *  surface. Pass the surrounding text color on light cards; leave unset on
+   *  dark ones, where the logo's own ink is what the supplier intended. */
+  tint?: string
+}) {
   if (brand.key === 'rumba') {
     const mask = 'url(/rumbalist-logo.png) no-repeat left center / contain'
     return (
@@ -28,10 +36,30 @@ export function SupplierMark({ brand, size = 18 }: { brand: OfferBrand; size?: n
     )
   }
   if (brand.logo_url) {
+    if (tint) {
+      // Paint the tint and clip it to the logo's own alpha. The hidden <img>
+      // is what gives the span its intrinsic width — a mask alone can't size
+      // its box, and hardcoding a width would letterbox every logo whose
+      // aspect ratio we guessed wrong.
+      const mask = {
+        WebkitMaskImage: `url(${brand.logo_url})`, maskImage: `url(${brand.logo_url})`,
+        WebkitMaskSize: 'contain', maskSize: 'contain',
+        WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+        WebkitMaskPosition: 'left center', maskPosition: 'left center',
+      } as const
+      return (
+        <span aria-label={brand.name} style={{
+          display: 'inline-block', verticalAlign: '-0.28em', background: tint, ...mask,
+        }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={brand.logo_url} alt="" style={{ height: size, display: 'block', visibility: 'hidden' }} />
+        </span>
+      )
+    }
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={brand.logo_url} alt={brand.name} style={{ height: size, verticalAlign: '-0.28em', objectFit: 'contain', maxWidth: size * 6 }} />
   }
-  return <span style={{ fontWeight: 700, color: brand.color }}>{brand.name}</span>
+  return <span style={{ fontWeight: 700, color: tint ?? brand.color }}>{brand.name}</span>
 }
 
 /** "#RRGGBB" → rgba() at the given alpha; passes anything else through. */

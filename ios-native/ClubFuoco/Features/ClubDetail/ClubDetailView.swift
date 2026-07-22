@@ -552,7 +552,10 @@ struct ClubDetailView: View {
                             .foregroundStyle((offer.isVip ? ink : Theme.ink).opacity(0.75))
                             .lineLimit(1)
                             .fixedSize()
-                        SupplierMark(brand: brand, height: 11, animated: false)
+                        // Tinted to match the "with" beside it: this card is
+                        // light, and a light-ink wordmark would vanish on it.
+                        SupplierMark(brand: brand, height: 11, animated: false,
+                                     tint: (offer.isVip ? ink : Theme.ink).opacity(0.75))
                             .layoutPriority(1)
                     }
                 }

@@ -13,6 +13,11 @@ struct SupplierMark: View {
     let brand: PartnerBrand
     var height: CGFloat = 18
     var animated: Bool = true
+    /// Repaint the mark in this color. Supplier logos are single-ink wordmarks
+    /// with their ink baked into the PNG, so a light mark is invisible on a
+    /// light surface. Pass the surrounding text color on light cards; leave it
+    /// nil on dark ones, where the supplier's own ink is what they intended.
+    var tint: Color? = nil
 
     /// The bundled Rumbalist wordmark's aspect ratio (1600×325).
     private static let rumbaAspect: CGFloat = 1600.0 / 325.0
@@ -26,7 +31,14 @@ struct SupplierMark: View {
             rumbaGloss
         } else if let url = brand.logoURL {
             AsyncImage(url: url) { image in
-                image.resizable().scaledToFit()
+                if let tint {
+                    // Template rendering keeps the glyph shapes and discards the
+                    // baked-in ink, so the mark takes the surface's text color.
+                    image.renderingMode(.template).resizable().scaledToFit()
+                        .foregroundStyle(tint)
+                } else {
+                    image.resizable().scaledToFit()
+                }
             } placeholder: {
                 nameText
             }
@@ -69,7 +81,7 @@ struct SupplierMark: View {
         Text(brand.name.uppercased())
             .font(.cfSans(height * 0.85, weight: .bold))
             .kerning(height * 0.12)
-            .foregroundStyle(accent)
+            .foregroundStyle(tint ?? accent)
             .lineLimit(1)
     }
 }

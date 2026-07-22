@@ -1104,7 +1104,9 @@ export default function PlaceDetailPage() {
                         {o.brand && (
                           <>
                             <span style={{ fontWeight: 400, fontSize: 12, opacity: 0.75 }}>with</span>
-                            <SupplierMark brand={o.brand} size={13} />
+                            {/* Tinted to the title color: this card is light, and a
+                                light-ink supplier wordmark would vanish on it. */}
+                            <SupplierMark brand={o.brand} size={13} tint={isVip ? 'rgb(42,27,8)' : C.ink} />
                           </>
                         )}
                       </p>

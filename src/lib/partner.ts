@@ -97,6 +97,49 @@ export async function getActiveBrand(sb: SB): Promise<(PartnerBrand & { id: stri
 /// and is deliberately false for auto-provisioned promoter brands whose offers
 /// must still show. Reading it via select('*') keeps this working before the
 /// migration is applied: a missing column reads as "not hidden".
+/**
+ * Per-venue rule for which suppliers may show offers there
+ * (club_offer_visibility). A venue with no rule shows everyone, so adding a
+ * supplier never silently blanks a venue and a missing table (pre-migration)
+ * behaves exactly as before.
+ */
+export interface ClubVisibility { mode: 'all' | 'none' | 'selected'; brand_ids: string[] }
+
+function allowsBrand(rule: ClubVisibility | undefined, brandId: string): boolean {
+  if (!rule || rule.mode === 'all') return true
+  if (rule.mode === 'none') return false
+  return rule.brand_ids.includes(brandId)
+}
+
+function toVisibility(r: Record<string, unknown>): ClubVisibility {
+  const mode = r.mode === 'none' || r.mode === 'selected' ? r.mode : 'all'
+  return { mode, brand_ids: ((r.brand_ids as string[] | null) ?? []).map(String) }
+}
+
+/** Every venue rule, keyed by club id. Empty map when the table isn't applied. */
+async function visibilityByClub(sb: SB): Promise<Map<string, ClubVisibility>> {
+  const map = new Map<string, ClubVisibility>()
+  try {
+    const { data, error } = await sb.from('club_offer_visibility').select('*')
+    if (error) return map
+    for (const r of data ?? []) {
+      const row = r as Record<string, unknown>
+      map.set(String(row.club_id), toVisibility(row))
+    }
+  } catch { /* table missing → no rules → everything shows */ }
+  return map
+}
+
+/** One venue's rule. Undefined when unset or unavailable — both mean "all". */
+async function visibilityForClub(sb: SB, clubId: string): Promise<ClubVisibility | undefined> {
+  try {
+    const { data, error } = await sb
+      .from('club_offer_visibility').select('*').eq('club_id', clubId).maybeSingle()
+    if (error || !data) return undefined
+    return toVisibility(data as Record<string, unknown>)
+  } catch { return undefined }
+}
+
 async function brandsById(sb: SB): Promise<{
   brands: Map<string, PartnerBrand & { id: string }>
   hidden: Set<string>
@@ -124,6 +167,7 @@ async function brandsById(sb: SB): Promise<{
 // approved offer passed review and still never appeared.
 export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, PartnerOffer[]>> {
   const { brands, hidden } = await brandsById(sb)
+  const rules = await visibilityByClub(sb)
   const { data } = await sb
     .from('partner_offers')
     .select('*')
@@ -137,6 +181,8 @@ export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, Par
     // don't surface. A club whose ONLY offers come from a hidden supplier
     // drops out of the map entirely, so the feed re-tiers it as no-deal.
     if (hidden.has(row.brand_id)) continue
+    // Operator's per-venue supplier choice (see club_offer_visibility).
+    if (!allowsBrand(rules.get(row.club_id), row.brand_id)) continue
     ;(map[row.club_id] ??= []).push(toOffer(row, brands.get(row.brand_id)))
   }
   return map
@@ -146,6 +192,7 @@ export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, Par
 export async function getPartnerOffers(sb: SB, clubId: string | null | undefined): Promise<PartnerOffer[]> {
   if (!clubId) return []
   const { brands, hidden } = await brandsById(sb)
+  const rule = await visibilityForClub(sb, clubId)
   const { data } = await sb
     .from('partner_offers')
     .select('*')
@@ -154,6 +201,7 @@ export async function getPartnerOffers(sb: SB, clubId: string | null | undefined
   return (data ?? [])
     .filter(isActiveOffer)
     .filter(r => !hidden.has((r as unknown as { brand_id: string }).brand_id))
+    .filter(r => allowsBrand(rule, (r as unknown as { brand_id: string }).brand_id))
     .map(r => toOffer(r as Record<string, unknown>,
                       brands.get((r as unknown as { brand_id: string }).brand_id)))
 }
@@ -383,11 +431,13 @@ export async function supplyingBrandId(
   if (error || !data?.length) return null
 
   const { hidden } = await brandsById(sb)
+  const rule = await visibilityForClub(sb, clubId)
   const weekday = weekdayOf(date)
   const ids = new Set(
     (data as Record<string, unknown>[])
       .filter(isActiveOffer)
       .filter(r => !hidden.has(String(r.brand_id ?? '')))
+      .filter(r => allowsBrand(rule, String(r.brand_id ?? '')))
       .filter(r => {
         if (weekday === null) return true
         const days = parseValidDays(String(r.valid_days ?? ''))
@@ -418,8 +468,15 @@ export async function offerRunsOn(
   // switch would be cosmetic: the offer would vanish from the feed but a
   // stale client (or a native app that hasn't refreshed) could still book it.
   const { hidden } = await brandsById(sb)
+  const rule = await visibilityForClub(sb, clubId)
   const rows = data as { skipped_dates?: string[] | null; brand_id?: string; valid_days?: string | null }[]
-  const visible = hidden.size ? rows.filter(r => !hidden.has(r.brand_id ?? '')) : rows
+  // Both operator gates apply here, not just in the feed: a supplier the
+  // operator muted (brand-wide) or deselected (at this venue) must be
+  // unbookable, or a client that hasn't refreshed could still put someone on
+  // a list we've stopped showing.
+  const visible = rows
+    .filter(r => !hidden.has(r.brand_id ?? ''))
+    .filter(r => allowsBrand(rule, r.brand_id ?? ''))
   if (!visible.length) return false
 
   // valid_days is enforced HERE, not only in the clients. It is descriptive

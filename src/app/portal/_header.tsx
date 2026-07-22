@@ -9,6 +9,7 @@ const TABS = [
   { href: '/portal',           label: 'Partners', match: (p: string) => p === '/portal' || p.startsWith('/portal/brands') },
   { href: '/portal/clubs',     label: 'Clubs',    match: (p: string) => p.startsWith('/portal/clubs') },
   { href: '/portal/reviews',   label: 'Changes',  match: (p: string) => p.startsWith('/portal/reviews') },
+  { href: '/portal/conflicts', label: 'Conflicts', match: (p: string) => p.startsWith('/portal/conflicts') },
   { href: '/portal/insights',  label: 'Insights', match: (p: string) => p.startsWith('/portal/insights') },
   { href: '/portal/activity',  label: 'Activity', match: (p: string) => p.startsWith('/portal/activity') },
 ]

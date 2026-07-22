@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   const { data: clubs, error, count } = await supabase
     .from('clubs')
-    .select('id, name, google_place_id', { count: 'exact' })
+    .select('id, name, google_place_id, cover_image_url', { count: 'exact' })
     .not('google_place_id', 'is', null)
     .order('name')
     .range(offset, offset + batch - 1)
@@ -66,10 +66,14 @@ export async function GET(req: NextRequest) {
       // nightly, so storing the key here re-leaks it into every synced row.
       allUrls = allUrls.map(toProxyPhotoUrl)
 
-      // Store cover separately; gallery_urls and photos hold only the extras
-      // so merging them at read-time never produces duplicates
-      const coverUrl   = allUrls[0] ?? null
-      const extraUrls  = allUrls.slice(1)   // up to 8 additional
+      // Preserve a hand-picked cover (anything not a Google URL); only Google's
+      // first photo when there's nothing curated. Without this the nightly cron
+      // overwrites curated Supabase covers every run.
+      const hasCuratedCover = !!club.cover_image_url
+        && !club.cover_image_url.includes('maps.googleapis.com')
+        && !club.cover_image_url.startsWith('/api/places/photo')
+      const coverUrl   = hasCuratedCover ? club.cover_image_url : (allUrls[0] ?? null)
+      const extraUrls  = hasCuratedCover ? allUrls : allUrls.slice(1)   // up to 8/9
 
       // Normalise Google reviews into our storage shape
       const reviews = (d.reviews ?? []).slice(0, 10).map((r: any) => ({

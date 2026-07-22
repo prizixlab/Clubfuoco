@@ -4,6 +4,7 @@ import { PKPass } from 'passkit-generator'
 import { nightPassDates } from '@/lib/wallet/expiry'
 import path from 'path'
 import fs from 'fs'
+import sharp from 'sharp'
 import { RUMBALIST_OFFERS } from '@/lib/rumbalist-offers'
 
 // Apple Wallet pass generation
@@ -55,6 +56,28 @@ async function fetchBrandLogo(url: string | null): Promise<Buffer | null> {
     const buf = Buffer.from(await res.arrayBuffer())
     return buf.length > 0 && buf.length < 1_500_000 ? buf : null
   } catch { return null }
+}
+
+/**
+ * Apple's logo slot is at most 160x50 POINTS. Wallet derives points from the
+ * pixel size of the file it picks, so an oversized image is drawn oversized —
+ * a 640x130 hosted mark lands in logo@2x.png as 320x65pt, double the box, and
+ * squeezes logoText off the pass.
+ *
+ * Hosted marks are whatever the supplier uploaded, so fit each slot here
+ * rather than trusting the source dimensions. Contain, never enlarge: a small
+ * logo stays small instead of being blown up into mush.
+ */
+async function fitLogo(buf: Buffer, scale: 1 | 2): Promise<Buffer> {
+  return sharp(buf)
+    // 'inside', not 'contain': no transparent padding, so a square mark still
+    // sits flush left in the slot instead of floating in a 160-wide canvas.
+    .resize({
+      width: 160 * scale, height: 50 * scale,
+      fit: 'inside', withoutEnlargement: true,
+    })
+    .png()
+    .toBuffer()
 }
 
 const CONFIGURED =
@@ -113,6 +136,12 @@ export async function GET(
   const isRumbalist = !brand
     && booking.club_id != null && booking.club_id in RUMBALIST_OFFERS
 
+  // Fetched before the pass JSON because logoText depends on whether a
+  // supplier mark actually lands in the logo slot — a brand whose logo fails
+  // to load falls back to the Club Fuoco mark and still wants the text.
+  const brandLogo = brand ? await fetchBrandLogo(brand.logo_url) : null
+  const showsSupplierMark = isRumbalist || brandLogo !== null
+
   // Supplier-branded when we know the supplier, Club Fuoco otherwise.
   const orgName = brand?.name ?? (isRumbalist ? 'Rumbalist' : 'Club Fuoco')
   const bgColor = brand?.color ? hexToPassRgb(brand.color) ?? 'rgb(18, 20, 20)'
@@ -132,11 +161,13 @@ export async function GET(
     foregroundColor:    'rgb(255, 255, 255)',
     backgroundColor:    bgColor,
     labelColor:         isRumbalist ? 'rgb(255, 226, 240)' : 'rgb(255, 180, 166)',
-    // Rumbalist passes show the wordmark in the logo image — duplicating it
-    // as logoText would be redundant. We OMIT the key entirely for it;
-    // passkit-generator's Joi schema rejects empty strings (silently — then
-    // type never gets set → "MISSING_TYPE" 500 at close()).
-    ...(isRumbalist ? {} : { logoText: 'Club Fuoco' }),
+    // A supplier's logo IS their wordmark, so logoText beside it is both
+    // redundant and harmful: the two compete for one row and Wallet truncates
+    // the text ("C…"). Omit it for any supplier mark, not just Rumba's.
+    // OMIT the key entirely — passkit-generator's Joi schema rejects empty
+    // strings (silently — then type never gets set → "MISSING_TYPE" 500 at
+    // close()).
+    ...(showsSupplierMark ? {} : { logoText: 'Club Fuoco' }),
     eventTicket: {
       primaryFields: [
         { key: 'venue', label: 'VENUE', value: clubName },
@@ -194,12 +225,11 @@ export async function GET(
   const logoRumbalist   = fs.readFileSync(path.join(assetsDir, 'logo-rumbalist.png'))
   const logoRumbalist2x = fs.readFileSync(path.join(assetsDir, 'logo-rumbalist@2x.png'))
 
-  // The supplier's own logo, when they have one. Same image in both slots:
-  // hosted marks are already @2x-sized, and Wallet downsamples cleanly.
-  const brandLogo = brand ? await fetchBrandLogo(brand.logo_url) : null
-
-  const logo1x = brandLogo ?? (isRumbalist ? logoRumbalist   : logoFuoco)
-  const logo2x = brandLogo ?? (isRumbalist ? logoRumbalist2x : logoFuoco2x)
+  // Each slot is fitted to Apple's point box for that scale — the bundled
+  // marks are already correct pairs, but a hosted one is whatever the
+  // supplier happened to upload.
+  const logo1x = brandLogo ? await fitLogo(brandLogo, 1) : (isRumbalist ? logoRumbalist   : logoFuoco)
+  const logo2x = brandLogo ? await fitLogo(brandLogo, 2) : (isRumbalist ? logoRumbalist2x : logoFuoco2x)
 
   try {
     const pass = new PKPass(

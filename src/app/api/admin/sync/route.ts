@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireCronOrRole } from '@/lib/auth'
 import { filterHotelPhotos, isHotel } from '@/lib/photo-filter'
-import { toProxyPhotoUrl } from '@/lib/photo-url'
+import { mirrorPhotoRefs } from '@/lib/mirror-photo'
 
 const KEY  = process.env.GOOGLE_PLACES_API_KEY!
 const BASE = 'https://maps.googleapis.com/maps/api/place'
@@ -53,18 +53,15 @@ export async function GET(req: NextRequest) {
 
       const d = data.result
       const photoRefs: string[] = (d.photos ?? []).slice(0, 9).map((p: any) => p.photo_reference)
-      let allUrls = photoRefs.map(ref =>
-        `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${ref}&key=${KEY}`
-      )
+      // Mirror into our own storage so a venue view never calls Google. The
+      // raw Google URL is never stored — it embeds the API key and is served
+      // straight to clients (that leaked the old key into ~1,188 rows).
+      let allUrls = await mirrorPhotoRefs(club.id, photoRefs)
 
       // For hotels, filter to bar/nightclub photos only using Gemini Vision
       if (isHotel(d.types ?? [])) {
         allUrls = await filterHotelPhotos(allUrls)
       }
-
-      // Proxy paths, never the raw Google URL: this cron writes to clubs
-      // nightly, so storing the key here re-leaks it into every synced row.
-      allUrls = allUrls.map(toProxyPhotoUrl)
 
       // Preserve a hand-picked cover (anything not a Google URL); only Google's
       // first photo when there's nothing curated. Without this the nightly cron

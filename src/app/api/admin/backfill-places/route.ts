@@ -5,6 +5,7 @@ import { filterHotelPhotos, isHotel } from '@/lib/photo-filter'
 import {
   activeAfterBackfill, isFreeEntryVenue, nameMatch, distanceMeters,
 } from '@/lib/venue-classify'
+import { mirrorPhotoRefs } from '@/lib/mirror-photo'
 
 const KEY  = process.env.GOOGLE_PLACES_API_KEY!
 const BASE = 'https://maps.googleapis.com/maps/api/place'
@@ -17,10 +18,9 @@ const BASE = 'https://maps.googleapis.com/maps/api/place'
 // to strong matches too, not just fuzzy ones.
 const MATCH_MAX_METERS = 150
 
-// Store photos as proxy paths, never the raw Google URL: the raw URL embeds the
-// API key and is served straight to clients (that leaked the old key into 244
-// rows). /api/places/photo resolves the ref server-side and 302s to the CDN.
-const photoPath = (ref: string) => `/api/places/photo?ref=${ref}&maxwidth=800`
+// Photos are mirrored into Supabase Storage (see mirrorPhotoRefs) so a venue
+// view never calls Google. The raw Google URL is never stored — it embeds the
+// API key and is served straight to clients (that leaked the old key).
 
 /**
  * GET /api/admin/backfill-places?batch=50&offset=0
@@ -94,7 +94,9 @@ export async function GET(req: NextRequest) {
       )
       const dtData = await dtRes.json()
       const refs: string[] = (dtData.result?.photos ?? []).slice(0, 9).map((p: any) => p.photo_reference)
-      let allPaths = refs.map(photoPath)
+      // Mirror into our own storage so future views never call Google. Any
+      // photo that fails to mirror falls back to the key-free proxy path.
+      let allPaths = await mirrorPhotoRefs(club.id, refs)
 
       // For hotels, filter out room/pool/lobby photos — keep only bar photos
       if (isHotel(dtData.result?.types ?? [])) {

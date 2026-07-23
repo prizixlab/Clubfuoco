@@ -15,8 +15,17 @@ function similarity(tagsA: string[], tagsB: string[]): number {
   return shared / Math.sqrt(tagsA.length * tagsB.length) // Jaccard-like
 }
 
-// GET /api/admin/sync?batch=50&offset=0  — called by Vercel cron (or manually)
-// Syncs clubs that have a google_place_id with fresh data from Google Places.
+// GET /api/admin/sync?batch=50&offset=0[&all=1]  — MANUAL ONLY.
+//
+// No longer on a cron. It refreshed all 1,661 place_id clubs every night with
+// Place Details (fields include `reviews`, the pricier Atmosphere SKU) — about
+// $35 a night, ~$1,000/month, to re-fetch names and hours that essentially
+// never change. Photos are now mirrored into our own storage, so nothing
+// user-facing depends on this running.
+//
+// Defaults to ACTIVE clubs only (~357) so a manual run costs ~$7 rather than
+// ~$35. Pass ?all=1 to include hidden venues.
+//
 // Supports batch/offset pagination so large catalogs don't time out.
 export async function GET(req: NextRequest) {
   // Vercel cron (CRON_SECRET bearer) or a logged-in admin/staff member.
@@ -25,13 +34,18 @@ export async function GET(req: NextRequest) {
 
   const batch  = Math.min(parseInt(req.nextUrl.searchParams.get('batch')  ?? '9999'), 200)
   const offset = parseInt(req.nextUrl.searchParams.get('offset') ?? '0')
+  const includeHidden = req.nextUrl.searchParams.get('all') === '1'
 
   const supabase = await createServiceClient()
 
-  const { data: clubs, error, count } = await supabase
+  let query = supabase
     .from('clubs')
     .select('id, name, google_place_id, cover_image_url', { count: 'exact' })
     .not('google_place_id', 'is', null)
+  // Hidden venues aren't shown to anyone, so refreshing them buys nothing.
+  if (!includeHidden) query = query.eq('is_active', true)
+
+  const { data: clubs, error, count } = await query
     .order('name')
     .range(offset, offset + batch - 1)
 

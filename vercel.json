@@ -2,12 +2,8 @@
   "installCommand": "npm install --legacy-peer-deps",
   "crons": [
     {
-      "path": "/api/admin/sync",
-      "schedule": "0 4 * * *"
-    },
-    {
       "path": "/api/admin/discover",
-      "schedule": "0 10 * * *"
+      "schedule": "0 10 * * 1"
     },
     {
       "path": "/api/admin/sync-events",

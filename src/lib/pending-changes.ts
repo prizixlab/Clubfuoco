@@ -1,5 +1,6 @@
 import type { createServiceClient } from '@/lib/supabase/server'
 import { createOffer, updateOffer, deleteOffer, type OfferInput } from '@/lib/partner'
+import { getBoolSetting, AUTO_APPROVE } from '@/lib/app-settings'
 
 type SB = Awaited<ReturnType<typeof createServiceClient>>
 
@@ -102,6 +103,26 @@ export async function enqueueOrApplyDirect(
   sb: SB,
   c: Parameters<typeof enqueue>[1],
 ): Promise<{ queued: boolean }> {
+  // Auto-approve on → skip the queue and apply the change immediately, then
+  // record it as an already-approved entry for the audit trail.
+  if (await getBoolSetting(sb, AUTO_APPROVE)) {
+    await applyChange(sb, {
+      id: '', status: 'approved', created_at: '', reviewed_at: new Date().toISOString(), note: null,
+      source: c.source, submitter_user_id: c.submitter_user_id ?? null, brand_id: c.brand_id ?? null,
+      action: c.action, entity: c.entity, target_id: c.target_id ?? null, payload: c.payload ?? null,
+      summary: c.summary,
+    })
+    try {
+      await sb.from('pending_changes').insert({
+        source: c.source, submitter_user_id: c.submitter_user_id ?? null, brand_id: c.brand_id ?? null,
+        action: c.action, entity: c.entity, target_id: c.target_id ?? null,
+        payload: c.payload ?? null, summary: c.summary,
+        status: 'approved', reviewed_at: new Date().toISOString(),
+      })
+    } catch { /* table missing → the change is already applied live, that's fine */ }
+    return { queued: false }
+  }
+
   try {
     await enqueue(sb, c)
     return { queued: true }
@@ -118,6 +139,40 @@ export async function enqueueOrApplyDirect(
     }
     throw e
   }
+}
+
+// Approve everything currently waiting — used when auto-approve is switched on
+// so the existing queue clears too, not just future submissions. Returns counts.
+export async function approveAllPending(
+  sb: SB,
+): Promise<{ changes: number; nights: number; series: number }> {
+  const result = { changes: 0, nights: 0, series: 0 }
+
+  // Supplier offer changes: apply each, then mark it approved.
+  try {
+    const pending = await listPending(sb)
+    for (const c of pending) {
+      try { await applyChange(sb, c); await markReviewed(sb, c.id, 'approved'); result.changes++ }
+      catch { /* skip a change we can't apply rather than fail the whole sweep */ }
+    }
+  } catch { /* table missing → nothing to sweep */ }
+
+  // Promoter nights & series — same fields the manual approve writes. Retry
+  // without rejection_reason if that column isn't applied yet (drift).
+  async function approveRows(table: 'promoter_nights' | 'promoter_series', publish: boolean): Promise<number> {
+    const patch: Record<string, unknown> = { review_status: 'approved', rejection_reason: null }
+    if (publish) patch.is_published = true
+    let { data, error } = await sb.from(table).update(patch).eq('review_status', 'pending').select('id')
+    if (error && /rejection_reason|column|schema cache/i.test(error.message)) {
+      delete patch.rejection_reason
+      ;({ data, error } = await sb.from(table).update(patch).eq('review_status', 'pending').select('id'))
+    }
+    return (data ?? []).length
+  }
+  result.nights = await approveRows('promoter_nights', true)
+  result.series = await approveRows('promoter_series', false)
+
+  return result
 }
 
 export async function markReviewed(sb: SB, id: string, status: 'approved' | 'rejected', note?: string): Promise<void> {

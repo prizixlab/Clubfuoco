@@ -6658,6 +6658,22 @@
         }
       }
     },
+    "rumbalist.optionsFor": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Options for %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opciones para %@"
+          }
+        }
+      }
+    },
     "rumbalist.join": {
       "localizations": {
         "en": {

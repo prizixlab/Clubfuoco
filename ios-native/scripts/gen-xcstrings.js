@@ -416,6 +416,8 @@ const NATIVE_KEYS = {
   'rumbalist.tonightWith': { en: 'Tonight with', es: 'Esta noche con' },
   'rumbalist.bookVenue': { en: 'Book this venue', es: 'Reserva este local' },
   'rumbalist.tonightOptions': { en: "Tonight's options", es: 'Opciones de esta noche' },
+  // Shown when a future night is selected; %@ is the night ("Friday", "Tomorrow").
+  'rumbalist.optionsFor': { en: 'Options for %@', es: 'Opciones para %@' },
   'rumbalist.join': { en: 'Join →', es: 'Unirme →' },
   'rumbalist.book': { en: 'Book →', es: 'Reservar →' },
   'rumbalist.with': { en: 'with', es: 'con' },

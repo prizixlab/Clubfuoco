@@ -127,21 +127,65 @@ export interface ClubVisibility { mode: 'all' | 'none' | 'selected'; brand_ids: 
 /// rules keep working untouched and only the kinds you actually split need a
 /// decision.
 export const ANY_KIND = '*'
+export const ANY_DAY  = '*'   // weekday wildcard — a rule that applies every night
 
 export type VisibilityRules = Map<string, ClubVisibility>
 
-const ruleKey = (clubId: string, kind: string) => `${clubId}|${kind}`
+// Keyed club|kind|weekday. weekday is '*' (all nights) or '0'..'6' (Sun..Sat,
+// matching valid-days.weekdayOf).
+const ruleKey = (clubId: string, kind: string, weekday: string) => `${clubId}|${kind}|${weekday}`
 
-/** The rule governing one club+kind: the specific one, else the venue-wide one. */
-function ruleFor(rules: VisibilityRules, clubId: string, kind: string): ClubVisibility | undefined {
-  return rules.get(ruleKey(clubId, kind)) ?? rules.get(ruleKey(clubId, ANY_KIND))
+// Most specific rule wins, in this order:
+//   (kind, day) → (kind, all-days) → (any-kind, day) → (any-kind, all-days)
+// Kind is the primary axis (a deliberate per-product choice); day is secondary,
+// so a day-specific rule on a kind overrides that kind's all-nights rule.
+function ruleFor(
+  rules: VisibilityRules, clubId: string, kind: string, weekday: number | null,
+): ClubVisibility | undefined {
+  const w = weekday === null ? null : String(weekday)
+  if (w !== null) { const r = rules.get(ruleKey(clubId, kind, w)); if (r) return r }
+  const kAny = rules.get(ruleKey(clubId, kind, ANY_DAY)); if (kAny) return kAny
+  if (w !== null) { const r = rules.get(ruleKey(clubId, ANY_KIND, w)); if (r) return r }
+  return rules.get(ruleKey(clubId, ANY_KIND, ANY_DAY))
 }
 
-function allowsBrand(rules: VisibilityRules, clubId: string, kind: string, brandId: string): boolean {
-  const rule = ruleFor(rules, clubId, kind)
+function ruleAllows(rule: ClubVisibility | undefined, brandId: string): boolean {
   if (!rule || rule.mode === 'all') return true
   if (rule.mode === 'none') return false
   return rule.brand_ids.includes(brandId)
+}
+
+function allowsBrand(
+  rules: VisibilityRules, clubId: string, kind: string, brandId: string, weekday: number | null,
+): boolean {
+  return ruleAllows(ruleFor(rules, clubId, kind, weekday), brandId)
+}
+
+// The weekdays (0=Sun..6=Sat) a brand may show for one club+kind.
+function allowedWeekdays(rules: VisibilityRules, clubId: string, kind: string, brandId: string): Set<number> {
+  const out = new Set<number>()
+  for (let w = 0; w < 7; w++) if (allowsBrand(rules, clubId, kind, brandId, w)) out.add(w)
+  return out
+}
+
+const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+function serializeDays(days: Set<number>): string {
+  return [0, 1, 2, 3, 4, 5, 6].filter(d => days.has(d)).map(d => DAY_ABBR[d]).join(', ')
+}
+
+// Narrow an offer's valid_days to the nights a day-aware conflict rule permits.
+// Returns the valid_days string to use — unchanged when the brand is allowed
+// every night (so formatting like "Thu – Sun" survives), narrowed when some
+// nights are blocked, or null when the brand is blocked on every night the
+// offer runs (the caller drops the offer, exactly as an all-days block did).
+function narrowValidDays(
+  rules: VisibilityRules, clubId: string, kind: string, brandId: string, validDays: string,
+): string | null {
+  const allowed = allowedWeekdays(rules, clubId, kind, brandId)
+  if (allowed.size === 7) return validDays
+  if (allowed.size === 0) return null
+  const eff = [...parseValidDays(validDays)].filter(d => allowed.has(d))
+  return eff.length ? serializeDays(new Set(eff)) : null
 }
 
 function toVisibility(r: Record<string, unknown>): ClubVisibility {
@@ -149,38 +193,34 @@ function toVisibility(r: Record<string, unknown>): ClubVisibility {
   return { mode, brand_ids: ((r.brand_ids as string[] | null) ?? []).map(String) }
 }
 
-/// Every rule, keyed club|kind. Empty map when the table isn't applied.
-///
-/// A row with no `kind` is read as ANY_KIND, so this is correct before the
-/// per-kind migration too — every existing row simply stays venue-wide.
-async function visibilityByClub(sb: SB): Promise<VisibilityRules> {
+function loadRules(rows: Record<string, unknown>[]): VisibilityRules {
   const map: VisibilityRules = new Map()
-  try {
-    const { data, error } = await sb.from('club_offer_visibility').select('*')
-    if (error) return map
-    for (const r of data ?? []) {
-      const row = r as Record<string, unknown>
-      const kind = typeof row.kind === 'string' && row.kind ? row.kind : ANY_KIND
-      map.set(ruleKey(String(row.club_id), kind), toVisibility(row))
-    }
-  } catch { /* table missing → no rules → everything shows */ }
+  for (const row of rows) {
+    // Missing kind/weekday columns (pre-migration) read as the wildcards, so
+    // every existing rule simply stays venue-wide / all-nights.
+    const kind = typeof row.kind === 'string' && row.kind ? row.kind : ANY_KIND
+    const weekday = typeof row.weekday === 'string' && row.weekday ? row.weekday : ANY_DAY
+    map.set(ruleKey(String(row.club_id), kind, weekday), toVisibility(row))
+  }
   return map
 }
 
-/** One venue's rules, across kinds. Empty map means "all". */
-async function visibilityForClub(sb: SB, clubId: string): Promise<VisibilityRules> {
-  const map: VisibilityRules = new Map()
+/// Every rule, keyed club|kind|weekday. Empty map when the table isn't applied.
+async function visibilityByClub(sb: SB): Promise<VisibilityRules> {
   try {
-    const { data, error } = await sb
-      .from('club_offer_visibility').select('*').eq('club_id', clubId)
-    if (error) return map
-    for (const r of data ?? []) {
-      const row = r as Record<string, unknown>
-      const kind = typeof row.kind === 'string' && row.kind ? row.kind : ANY_KIND
-      map.set(ruleKey(String(row.club_id), kind), toVisibility(row))
-    }
-  } catch { /* fall through to "all" */ }
-  return map
+    const { data, error } = await sb.from('club_offer_visibility').select('*')
+    if (error) return new Map()
+    return loadRules((data ?? []) as Record<string, unknown>[])
+  } catch { return new Map() }
+}
+
+/** One venue's rules. Empty map means "all". */
+async function visibilityForClub(sb: SB, clubId: string): Promise<VisibilityRules> {
+  try {
+    const { data, error } = await sb.from('club_offer_visibility').select('*').eq('club_id', clubId)
+    if (error) return new Map()
+    return loadRules((data ?? []) as Record<string, unknown>[])
+  } catch { return new Map() }
 }
 
 async function brandsById(sb: SB): Promise<{
@@ -224,9 +264,15 @@ export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, Par
     // don't surface. A club whose ONLY offers come from a hidden supplier
     // drops out of the map entirely, so the feed re-tiers it as no-deal.
     if (hidden.has(row.brand_id)) continue
-    // Operator's per-venue, per-kind supplier choice (club_offer_visibility).
-    if (!allowsBrand(rules, row.club_id, String(row.kind ?? ''), row.brand_id)) continue
-    ;(map[row.club_id] ??= []).push(toOffer(row, brands.get(row.brand_id)))
+    // Operator's per-venue, per-kind, per-DAY supplier choice: narrow the
+    // offer's nights to those the rule permits (null = blocked every night).
+    // The clients already filter by valid_days, so per-day conflicts take
+    // effect with no client change.
+    const nv = narrowValidDays(rules, row.club_id, String(row.kind ?? ''), row.brand_id, String(row.valid_days ?? ''))
+    if (nv === null) continue
+    const offer = toOffer(row, brands.get(row.brand_id))
+    offer.valid_days = nv
+    ;(map[row.club_id] ??= []).push(offer)
   }
   return map
 }
@@ -244,11 +290,14 @@ export async function getPartnerOffers(sb: SB, clubId: string | null | undefined
   return (data ?? [])
     .filter(isActiveOffer)
     .filter(r => !hidden.has((r as unknown as { brand_id: string }).brand_id))
-    .filter(r => allowsBrand(rule, clubId,
-                             String((r as unknown as { kind?: string }).kind ?? ''),
-                             (r as unknown as { brand_id: string }).brand_id))
-    .map(r => toOffer(r as Record<string, unknown>,
-                      brands.get((r as unknown as { brand_id: string }).brand_id)))
+    .flatMap(r => {
+      const row = r as Record<string, unknown> & { brand_id: string; kind?: string; valid_days?: string }
+      const nv = narrowValidDays(rule, clubId, String(row.kind ?? ''), row.brand_id, String(row.valid_days ?? ''))
+      if (nv === null) return []
+      const offer = toOffer(row, brands.get(row.brand_id))
+      offer.valid_days = nv
+      return [offer]
+    })
 }
 
 // ── Portal write helpers ─────────────────────────────────────────────────────
@@ -493,7 +542,7 @@ export async function supplyingBrandId(
     (data as Record<string, unknown>[])
       .filter(isActiveOffer)
       .filter(r => !hidden.has(String(r.brand_id ?? '')))
-      .filter(r => allowsBrand(rule, clubId, kind, String(r.brand_id ?? '')))
+      .filter(r => allowsBrand(rule, clubId, kind, String(r.brand_id ?? ''), weekday))
       .filter(r => {
         if (weekday === null) return true
         const days = parseValidDays(String(r.valid_days ?? ''))
@@ -526,13 +575,14 @@ export async function offerRunsOn(
   const { hidden } = await brandsById(sb)
   const rule = await visibilityForClub(sb, clubId)
   const rows = data as { skipped_dates?: string[] | null; brand_id?: string; valid_days?: string | null }[]
+  const weekday = weekdayOf(date)   // used by both the visibility gate and valid_days below
   // Both operator gates apply here, not just in the feed: a supplier the
-  // operator muted (brand-wide) or deselected (at this venue) must be
-  // unbookable, or a client that hasn't refreshed could still put someone on
-  // a list we've stopped showing.
+  // operator muted (brand-wide) or deselected (at this venue, on this DAY)
+  // must be unbookable, or a client that hasn't refreshed could still put
+  // someone on a list we've stopped showing.
   const visible = rows
     .filter(r => !hidden.has(r.brand_id ?? ''))
-    .filter(r => allowsBrand(rule, clubId, kind, r.brand_id ?? ''))
+    .filter(r => allowsBrand(rule, clubId, kind, r.brand_id ?? '', weekday))
   if (!visible.length) return false
 
   // valid_days is enforced HERE, not only in the clients. It is descriptive
@@ -543,7 +593,6 @@ export async function offerRunsOn(
   // rather than a refusal — bad data must not block a legitimate booking,
   // which is the same leniency the error path above applies. All 15 live
   // offers parse, so in practice this is the strict path.
-  const weekday = weekdayOf(date)
   const permitted = weekday === null ? visible : visible.filter(r => {
     const days = parseValidDays(r.valid_days ?? '')
     return days.size === 0 || days.has(weekday)

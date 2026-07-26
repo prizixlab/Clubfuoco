@@ -168,6 +168,7 @@ struct SupplierOfferSheet: View {
                     }
                     .padding(20)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .task { billing = try? await PromoterRepo().billingStatus() }
             .onChange(of: checkingCard) { _, checking in
@@ -180,6 +181,14 @@ struct SupplierOfferSheet: View {
                 ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Save") { Task { await save() } }.disabled(!valid || busy)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
+                    .foregroundStyle(Theme.ember)
                 }
             }
         }

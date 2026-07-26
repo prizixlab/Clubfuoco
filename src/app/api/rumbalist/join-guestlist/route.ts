@@ -39,6 +39,36 @@ export async function POST(req: Request) {
   // Null when it can't be certain (see supplyingBrandId) — never a guess.
   const brandId = await supplyingBrandId(supabase, clubId, 'free_guestlist', bookingDate)
 
+  // Capacity: refuse once the night's issued tickets reach the offer's cap.
+  // Scoped to the supplying brand's offer for this club+kind. Best-effort
+  // (a rare concurrent join can nudge past the cap); a missing capacity column
+  // or no cap set means unlimited, so this never blocks a normal guestlist.
+  if (brandId) {
+    const { data: offerRow } = await supabase
+      .from('partner_offers')
+      .select('capacity')
+      .eq('club_id', clubId).eq('kind', 'free_guestlist').eq('brand_id', brandId)
+      .maybeSingle()
+    const cap = (offerRow as { capacity?: number | null } | null)?.capacity ?? null
+    if (cap != null && cap > 0) {
+      // Count tickets already issued for this brand's list that night. Falls
+      // back to all guestlist joins at the venue if brand attribution isn't
+      // on bookings yet (pre-migration).
+      const base = () => supabase
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('club_id', clubId).eq('booking_date', bookingDate)
+        .eq('booking_type', 'general').eq('status', 'confirmed')
+      let { count, error: cErr } = await base().eq('brand_id', brandId)
+      if (cErr && /brand_id/.test(cErr.message ?? '')) {
+        ({ count } = await base())
+      }
+      if ((count ?? 0) >= cap) {
+        return err('This guestlist is full for that night.', 409)
+      }
+    }
+  }
+
   let booking: any = null
   let bookingErr: any = null
   let withBrand = true

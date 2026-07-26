@@ -62,10 +62,7 @@ final class TonightModel: ObservableObject {
 struct TonightView: View {
     @EnvironmentObject var auth: AuthStore
     @StateObject private var model = TonightModel()
-    @State private var detailAllocation: PromoterAllocation?
     @State private var navigateTo: PromoterAllocation?
-    @State private var editingAllocation: PromoterAllocation?
-    @State private var pendingDelete: PromoterAllocation?
     // The promoter's PUBLIC offers — same tab as their private nights.
     @StateObject private var offers = SupplierHomeModel()
     @State private var detailOffer: SupplierOffer?
@@ -146,7 +143,7 @@ struct TonightView: View {
                             venueHeader(g.name)
 
                             ForEach(g.nights) { a in
-                                Button { Haptics.tap(); detailAllocation = a } label: {
+                                Button { Haptics.tap(); navigateTo = a } label: {
                                     nightTonightRow(a)
                                 }
                                 .buttonStyle(.plain)
@@ -171,7 +168,7 @@ struct TonightView: View {
                         Kicker("Upcoming this week").padding(.top, 8)
                         VStack(spacing: 0) {
                             ForEach(model.upcoming) { a in
-                                Button { Haptics.tap(); detailAllocation = a } label: {
+                                Button { Haptics.tap(); navigateTo = a } label: {
                                     upcomingRow(a)
                                 }
                                 .buttonStyle(.plain)
@@ -183,6 +180,7 @@ struct TonightView: View {
 
                 Spacer(minLength: 80)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.top, 16)
         }
@@ -229,39 +227,9 @@ struct TonightView: View {
                 onChanged: { Task { await offers.load() } })
                 .presentationBackground(Theme.night)
         }
-        .sheet(item: $detailAllocation) { a in
-            NightDetailSheet(
-                allocation: a,
-                onOpenList: { afterSheetDismiss { navigateTo = a } },
-                onEdit: { afterSheetDismiss { editingAllocation = a } },
-                onDelete: { afterSheetDismiss { pendingDelete = a } },
-                onChanged: { Task { await model.load() } })
-                .presentationBackground(Theme.night)
-        }
         .sheet(item: $editingOffer) { offer in
             SupplierOfferSheet(model: offers, existing: offer, clubId: offer.clubId) {
                 await offers.load()
-            }
-        }
-        .sheet(item: $editingAllocation) { a in
-            if case .signedIn(let p) = auth.state {
-                CreateGuestlistSheet(promoterId: p.id, editing: .night(a)) { _ in
-                    editingAllocation = nil
-                    Task { await model.load() }
-                }
-                .presentationBackground(Theme.night)
-            }
-        }
-        .alert("Delete this guestlist?",
-               isPresented: Binding(get: { pendingDelete != nil },
-                                    set: { if !$0 { pendingDelete = nil } })) {
-            Button("Cancel", role: .cancel) { pendingDelete = nil }
-            Button("Delete", role: .destructive) {
-                if let target = pendingDelete { Task { await delete(target) } }
-            }
-        } message: {
-            if let p = pendingDelete {
-                Text("\(p.night?.displayTitle ?? "This night") on \(p.night?.nightDate ?? "") will be removed along with all guests on the list. This can't be undone.")
             }
         }
     }
@@ -363,17 +331,6 @@ struct TonightView: View {
         .background(RoundedRectangle(cornerRadius: 14).fill(Theme.nightLift))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
         .contentShape(Rectangle())
-    }
-
-    private func delete(_ a: PromoterAllocation) async {
-        defer { pendingDelete = nil }
-        do {
-            try await PromoterRepo().deleteAllocation(allocationId: a.id)
-            Haptics.success()
-            await model.load()
-        } catch {
-            Haptics.error()
-        }
     }
 
     private var headerInitials: String {

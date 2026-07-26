@@ -74,7 +74,9 @@ enum ShelfBuilder {
             let tier: Int
             let subRank: Int
             if !live.isEmpty {
-                tier = 0
+                // A paid front-screen (featured) offer running tonight outranks
+                // even regular deals — the hero tier the promoter pays for.
+                tier = live.contains(where: \.featured) ? -1 : 0
                 subRank = live.contains(where: \.isVip) ? 0 : 1
             } else if !offers.isEmpty {
                 tier = 1; subRank = 0
@@ -110,7 +112,7 @@ enum ShelfBuilder {
         // build like the rotating pool: feed order is most-rated-first, which
         // made Pacha the big hero card on every single load. Every partner
         // gets its turn as the lead.
-        let partners = places.filter { rank($0).tier == 0 }.shuffled()
+        let partners = places.filter { rank($0).tier <= 0 }.shuffled()
         if !partners.isEmpty {
             shelves.append(Shelf(
                 id: "hero",

@@ -40,6 +40,12 @@ export interface PartnerOffer {
   // Specific dates this offer is NOT running, even though valid_days covers
   // them. Clients must treat it as unavailable on these dates.
   skipped_dates?: string[]
+  // Paid front-screen promotion: clients pin a featured offer into the hero
+  // tier. Optional/drift-defensive — a missing column reads as not featured.
+  featured?: boolean
+  // Max tickets the offer issues per night; null/absent = no limit. Enforced
+  // server-side at join time; clients may show "spots left".
+  capacity?: number | null
 }
 
 // Archived offers (20260711_partner_offer_archive.sql) keep their data but
@@ -61,6 +67,8 @@ function toOffer(r: Record<string, unknown>, brand?: PartnerBrand & { id: string
     // Drift-defensive: the column ships in a manual migration, so treat a
     // missing value as "no nights skipped" rather than breaking the feed.
     skipped_dates: (r.skipped_dates as string[] | null) ?? [],
+    featured:      r.featured === true,
+    capacity:      r.capacity == null ? null : Number(r.capacity),
     ...(brand ? { brand } : {}),
   }
 }

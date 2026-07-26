@@ -115,7 +115,6 @@ struct GuestlistTabRoot: View {
     @State private var pendingDeleteSeries: PromoterSeries?
     @State private var editingAllocation: PromoterAllocation?
     @State private var editingSeries: PromoterSeries?
-    @State private var detailAllocation: PromoterAllocation?
     @State private var detailSeries: PromoterSeries?
     @State private var deleting = false
     @State private var opening = false
@@ -192,7 +191,7 @@ struct GuestlistTabRoot: View {
                         .padding(.top, 4)
                     List {
                         ForEach(model.allocations) { a in
-                            Button { Haptics.tap(); detailAllocation = a } label: {
+                            Button { Haptics.tap(); navigateTo = a } label: {
                                 GuestlistRow(allocation: a)
                             }
                             .buttonStyle(.plain)
@@ -347,15 +346,6 @@ struct GuestlistTabRoot: View {
                 }
                 .presentationBackground(Theme.night)
             }
-        }
-        .sheet(item: $detailAllocation) { a in
-            NightDetailSheet(
-                allocation: a,
-                onOpenList: { afterSheetDismiss { navigateTo = a } },
-                onEdit: { afterSheetDismiss { editingAllocation = a } },
-                onDelete: { afterSheetDismiss { pendingDelete = a } },
-                onChanged: { Task { await model.load() } })
-                .presentationBackground(Theme.night)
         }
         .sheet(item: $detailSeries) { s in
             SeriesDetailSheet(

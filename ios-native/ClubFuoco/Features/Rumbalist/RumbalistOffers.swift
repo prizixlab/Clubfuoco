@@ -24,6 +24,9 @@ struct RumbalistOffer: Identifiable, Hashable {
     /// Nights the supplier turned off, even though validDays covers them
     /// ("normally Monday, but not Monday the 20th").
     var skippedDates: [String] = []
+    /// Paid front-screen promotion — pins this offer's venue into the hero tier
+    /// (see ShelfBuilder). nil/false for ordinary offers and bundled fallback.
+    var featured: Bool = false
 
     var isVip: Bool { kind == .vipTable }
     /// Is this offer actually running on `date` ("yyyy-MM-dd")?
@@ -209,13 +212,16 @@ enum RumbalistOffers {
         let brand: BrandDTO?
         // Optional for the same reason — an older API sends no exceptions.
         let skippedDates: [String]?
+        // Paid front-screen promotion. Optional so an API deploy predating the
+        // feature still decodes (reads as not featured).
+        let featured: Bool?
 
         var model: RumbalistOffer {
             RumbalistOffer(
                 kind: kind == "vip_table" ? .vipTable : .freeGuestlist,
                 title: title, subtitle: subtitle, priceEur: priceEur, partySize: partySize,
                 timeWindow: timeWindow, validDays: validDays, dressCode: dressCode, music: music,
-                brand: brand?.model, skippedDates: skippedDates ?? [])
+                brand: brand?.model, skippedDates: skippedDates ?? [], featured: featured ?? false)
         }
     }
 

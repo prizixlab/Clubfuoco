@@ -144,7 +144,7 @@ struct SignUpView: View {
         VStack(alignment: .leading, spacing: 20) {
             field("Instagram (required)", text: $instagram, placeholder: "@yourhandle",
                   focus: .instagram, lower: true)
-            Text("We verify promoters by Instagram — 5,000+ followers required.")
+            Text("We verify every promoter by Instagram before unlocking access.")
                 .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
 
             VStack(alignment: .leading, spacing: 6) {

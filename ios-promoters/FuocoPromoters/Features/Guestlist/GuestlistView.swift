@@ -104,10 +104,13 @@ final class GuestlistModel: ObservableObject {
 
 struct GuestlistView: View {
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var auth: AuthStore
     @StateObject private var model: GuestlistModel
     @State private var showAdd = false
+    @State private var editing = false
     @State private var confirmDelete = false
     @State private var deleting = false
+    @State private var showShare = false
     @State private var pendingRemove: PromoterGuest?
     /// For series occurrences: the permanent series token to show in the share
     /// card instead of this week's per-night allocation token.
@@ -122,6 +125,16 @@ struct GuestlistView: View {
         self.seriesId = seriesId
     }
 
+    /// Permanent series token wins over this week's per-night token; nil = no
+    /// link generated yet, so there's nothing to share.
+    private var shareToken: String? { shareTokenOverride ?? model.allocation.inviteToken }
+
+    /// "Hosted by …" line on the share card — the promoter's name.
+    private var shareHost: String? {
+        if case .signedIn(let p) = auth.state { return p.displayName }
+        return nil
+    }
+
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             ScrollView {
@@ -134,6 +147,20 @@ struct GuestlistView: View {
                     }
 
                     InviteShareCard(allocation: model.allocation, tokenOverride: shareTokenOverride)
+
+                    if shareToken != nil {
+                        Button { Haptics.tap(); showShare = true } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "camera.fill").font(.system(size: 15))
+                                Text("Share to Instagram")
+                                    .font(.cfSans(15, weight: .semibold))
+                            }
+                            .foregroundStyle(Theme.emberCream)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Capsule().fill(Theme.gold))
+                        }
+                    }
 
                     StaffLinksCard(model: model,
                                    allocationId: seriesId == nil ? model.allocation.id : nil,
@@ -175,12 +202,31 @@ struct GuestlistView: View {
                     }
                     Divider().background(Theme.hairline).padding(.top, 20)
 
+                    // Edit night — only for a one-off night; a series occurrence
+                    // is edited from its permanent series, not per week.
+                    if seriesId == nil {
+                        Button {
+                            Haptics.tap(); editing = true
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "pencil")
+                                Text("Edit night")
+                                    .font(.cfSans(15, weight: .semibold))
+                            }
+                            .foregroundStyle(Theme.ember)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .overlay(RoundedRectangle(cornerRadius: Theme.radiusPill).stroke(Theme.ember, lineWidth: 1))
+                        }
+                        .padding(.top, 12)
+                    }
+
                     Button(role: .destructive) {
                         Haptics.tap(); confirmDelete = true
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "trash")
-                            Text("Cancel this guestlist")
+                            Text("Delete event")
                                 .font(.cfSans(15, weight: .semibold))
                         }
                         .foregroundStyle(Theme.wine)
@@ -234,6 +280,21 @@ struct GuestlistView: View {
             .presentationDetents([.fraction(0.55)])
             .presentationBackground(Theme.nightLift)
         }
+        .sheet(isPresented: $editing) {
+            if case .signedIn(let p) = auth.state {
+                CreateGuestlistSheet(promoterId: p.id, editing: .night(model.allocation)) { _ in
+                    editing = false
+                    Task { await model.load() }
+                }
+                .presentationBackground(Theme.night)
+            }
+        }
+        .sheet(isPresented: $showShare) {
+            if let token = shareToken {
+                InstagramShareSheet(allocation: model.allocation, token: token, host: shareHost)
+                    .presentationBackground(Theme.night)
+            }
+        }
         .alert("Remove \(pendingRemove?.fullName ?? "guest")?",
                isPresented: Binding(get: { pendingRemove != nil },
                                     set: { if !$0 { pendingRemove = nil } })) {
@@ -245,7 +306,7 @@ struct GuestlistView: View {
         } message: {
             Text("They'll be taken off this guestlist. This can't be undone.")
         }
-        .alert("Cancel this guestlist?", isPresented: $confirmDelete) {
+        .alert("Delete this event?", isPresented: $confirmDelete) {
             Button("Keep it", role: .cancel) {}
             Button("Delete", role: .destructive) { Task { await deleteSelf() } }
         } message: {

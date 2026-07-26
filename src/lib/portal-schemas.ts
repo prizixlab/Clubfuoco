@@ -17,6 +17,8 @@ export const OfferSchema = z.object({
   music:       z.string().trim().min(1).max(200),
   sort_order:  z.number().int().min(0).max(1000).optional(),
   is_active:   z.boolean().optional(),   // false = archived (kept, not shown)
+  featured:    z.boolean().optional(),   // true = paid front-screen promotion
+  capacity:    z.number().int().positive().max(100000).nullable().optional(), // null = no ticket limit
 }).superRefine((o, ctx) => {
   if (o.kind === 'vip_table' && o.price_eur == null) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price_eur'], message: 'VIP tables need a price' })
@@ -41,4 +43,6 @@ export const OfferPatchSchema = z.object({
   music:       z.string().trim().min(1).max(200).optional(),
   sort_order:  z.number().int().min(0).max(1000).optional(),
   is_active:   z.boolean().optional(),   // false = archived (kept, not shown)
+  featured:    z.boolean().optional(),   // true = paid front-screen promotion
+  capacity:    z.number().int().positive().max(100000).nullable().optional(), // null = no ticket limit
 }).strict()

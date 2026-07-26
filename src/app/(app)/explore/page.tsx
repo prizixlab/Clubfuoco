@@ -311,7 +311,9 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
       const dates  = eventDates.get(p.place_id)
       let tier: number, subRank: number
       if (live.length > 0) {
-        tier = 0
+        // A paid front-screen (featured) offer running tonight outranks even
+        // regular deals — it's the hero tier the promoter is paying for.
+        tier = live.some(o => o.featured) ? -1 : 0
         subRank = live.some(o => o.kind === 'vip_table') ? 0 : 1
       } else if (offers.length > 0) {
         tier = 1; subRank = 0
@@ -339,7 +341,7 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   // Sourced from the live offer set: exactly the tier-0 venues for the planned
   // night. Deal venues appear here AND boosted in the main ordering — the
   // double surface is intended. Empty tier-0 set → no shelf at all.
-  const forYou = rank(curatedPool.filter(p => dealRank(p).tier === 0)).slice(0, 12)
+  const forYou = rank(curatedPool.filter(p => dealRank(p).tier <= 0)).slice(0, 12)
   if (forYou.length > 0) {
     shelves.push({ id: 'rumbalist_partners', title: 'Curated Tonight', subtitle: 'Free guestlists & VIP tables', places: forYou, featured: true })
   }

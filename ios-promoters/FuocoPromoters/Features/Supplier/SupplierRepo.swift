@@ -32,8 +32,13 @@ struct SupplierOffer: Decodable, Identifiable, Hashable {
     /// Specific dates this offer is NOT running, even though validDays covers
     /// them. Optional so a client on an older API still decodes.
     let skippedDates: [String]?
+    /// Paid front-screen promotion. Optional so an older API still decodes.
+    let featured: Bool?
+    /// Max tickets/tables the offer issues per night. nil = no limit.
+    let capacity: Int?
 
     var isVip: Bool { kind == "vip_table" }
+    var isFeatured: Bool { featured ?? false }
     func isSkipped(_ date: String) -> Bool { (skippedDates ?? []).contains(date) }
 }
 
@@ -119,6 +124,8 @@ struct SupplierOfferDraft {
     var dressCode: String
     var music: String
     var sortOrder: Int?
+    var featured: Bool = false
+    var capacity: Int?          // nil = no ticket limit
 }
 
 enum SupplierError: LocalizedError {
@@ -273,7 +280,17 @@ final class SupplierRepo {
             "dress_code":  d.dressCode,
             "music":       d.music,
         ]
-        if includeClub { b["club_id"] = d.clubId.uuidString.lowercased() }
+        if includeClub {
+            b["club_id"] = d.clubId.uuidString.lowercased()
+            // Create: only send featured/capacity when set, so a brand-new offer
+            // still saves if those columns haven't been migrated yet.
+            if d.featured { b["featured"] = true }
+            if let c = d.capacity { b["capacity"] = c }
+        } else {
+            // Edit: always send them, so turning a promotion/cap back OFF sticks.
+            b["featured"] = d.featured
+            b["capacity"] = d.capacity.map { $0 as Any } ?? NSNull()
+        }
         if let s = d.sortOrder { b["sort_order"] = s }
         return b
     }

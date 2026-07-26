@@ -199,7 +199,7 @@ struct PromoterApplicationView: View {
                 .background(RoundedRectangle(cornerRadius: 12).fill(Theme.night))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
 
-                Text("We'll confirm it's you and that you have **5,000+ followers**, then unlock your account.")
+                Text("We'll confirm it's you and that your account **meets our standards**, then unlock your access.")
                     .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
             }
         }

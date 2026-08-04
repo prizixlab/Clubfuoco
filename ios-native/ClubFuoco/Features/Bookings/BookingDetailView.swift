@@ -222,15 +222,15 @@ struct BookingDetailView: View {
 
     private func qrBlock(_ token: String) -> some View {
         VStack(spacing: 12) {
+            Text(token)
+                .font(.cfMono(12))
+                .kerning(1)
+                .foregroundStyle(Theme.stone)
             QRCodeView(token: token)
                 .frame(width: 220, height: 220)
                 .padding(18)
                 .background(Color.white, in: .rect(cornerRadius: 18))
                 .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 10, y: 4)
-            Text(token)
-                .font(.cfMono(12))
-                .kerning(1)
-                .foregroundStyle(Theme.stone)
             Text(locale.t("bookings.atDoor"))
                 .font(.cfSerif(15, italic: true))
                 .foregroundStyle(Theme.fadedSand)

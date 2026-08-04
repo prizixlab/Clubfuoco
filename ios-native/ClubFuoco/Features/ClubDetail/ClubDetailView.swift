@@ -543,10 +543,11 @@ struct ClubDetailView: View {
                             .foregroundStyle((offer.isVip ? ink : Theme.ink).opacity(0.75))
                             .lineLimit(1)
                             .fixedSize()
-                        // Tinted to match the "with" beside it: this card is
-                        // light, and a light-ink wordmark would vanish on it.
+                        // Painted in the supplier's own accent colour (their
+                        // brand.color, e.g. Rumbalist pink) so the mark reads as
+                        // theirs — falls back to ember if the colour is unset.
                         SupplierMark(brand: brand, height: 11, animated: false,
-                                     tint: (offer.isVip ? ink : Theme.ink).opacity(0.75))
+                                     tint: Color(hexString: brand.color) ?? Theme.ember)
                             .layoutPriority(1)
                     }
                 }

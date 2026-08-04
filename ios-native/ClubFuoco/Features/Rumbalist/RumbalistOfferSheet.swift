@@ -50,7 +50,9 @@ struct RumbalistOfferSheet: View {
                 Rectangle().fill(accent).frame(height: 2)
                 Group {
                     if let brand {
-                        SupplierMark(brand: brand, height: 22)
+                        // Painted in the supplier's own accent colour so the
+                        // mark reads as theirs, not generic white on the sheet.
+                        SupplierMark(brand: brand, height: 22, tint: accent)
                     } else {
                         Text("CLUB FUOCO")
                             .font(.cfSans(15, weight: .semibold))
@@ -128,7 +130,7 @@ struct RumbalistOfferSheet: View {
                             if let brand {
                                 Text("· \(locale.t("rumbalist.via"))")
                                     .foregroundStyle(Self.textColor.opacity(0.5))
-                                SupplierMark(brand: brand, height: 11, animated: false)
+                                SupplierMark(brand: brand, height: 11, animated: false, tint: accent)
                             }
                         }
                     }

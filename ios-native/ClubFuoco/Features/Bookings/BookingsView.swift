@@ -592,9 +592,23 @@ struct BookingsView: View {
                         .font(.cfSerif(22, italic: true))
                         .foregroundStyle(.white)
                         .lineLimit(1)
-                    Text(formatDate(booking.bookingDate))
-                        .font(.cfSans(12))
-                        .foregroundStyle(.white.opacity(0.7))
+                    HStack(spacing: 6) {
+                        Text(formatDate(booking.bookingDate))
+                            .font(.cfSans(12))
+                            .foregroundStyle(.white.opacity(0.7))
+                        // Credit the promoter whose guestlist this entry came
+                        // from — a contractual requirement for suppliers like
+                        // Rumbalist. On the dark hero the mark keeps its own
+                        // white ink so it stays legible over the photo.
+                        if let brand = booking.brand {
+                            Text("·").font(.cfSans(12)).foregroundStyle(.white.opacity(0.4))
+                            Text(locale.t("rumbalist.via"))
+                                .font(.cfSans(11))
+                                .foregroundStyle(.white.opacity(0.6))
+                            SupplierMark(brand: brand, height: 11, animated: false,
+                                         tint: .white.opacity(0.9))
+                        }
+                    }
                 }
                 .padding(12)
             }

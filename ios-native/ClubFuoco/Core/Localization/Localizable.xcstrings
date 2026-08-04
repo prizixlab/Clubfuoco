@@ -8577,6 +8577,22 @@
           }
         }
       }
+    },
+    "bookings.factGuestlist": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guestlist"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lista"
+          }
+        }
+      }
     }
   }
 }

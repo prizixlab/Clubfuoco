@@ -28,8 +28,35 @@ struct Booking: Decodable, Identifiable, Sendable {
     /// attendance window ends at cutoff + 3h instead of club closing. Currently
     /// always nil for paid bookings — reserved for guest-list-backed entries.
     var cutoffTime: String? = nil
+    /// The promoter/supplier whose guestlist this booking came from
+    /// (bookings.brand_id → partner_brands). nil for direct Club Fuoco bookings.
+    /// Promoters (Rumbalist etc.) contractually require this credit on the
+    /// ticket, so it's surfaced on the card and the reservation sheet.
+    var partnerBrands: EmbeddedOne<BookingBrand>? = nil
 
     var club: ClubSummary? { clubs?.value }
+    var brand: PartnerBrand? { partnerBrands?.value?.model }
+}
+
+/// Minimal partner_brands row embedded on a booking — just enough to render the
+/// supplier's mark. Maps to the shared PartnerBrand the SupplierMark expects.
+struct BookingBrand: Decodable, Sendable {
+    let key: String?
+    let name: String
+    let logoUrl: String?
+    let color: String?
+    let attributionLabel: String?
+
+    var model: PartnerBrand {
+        PartnerBrand(
+            key: key ?? "",
+            name: name,
+            logoURL: logoUrl.flatMap(URL.init(string:)),
+            color: color ?? "",
+            attributionRequired: true,
+            attributionLabel: attributionLabel
+        )
+    }
 }
 
 struct ClubSummary: Decodable, Sendable {

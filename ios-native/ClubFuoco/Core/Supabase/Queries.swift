@@ -119,7 +119,8 @@ final class Queries: @unchecked Sendable {
                 id, booking_type, party_size, booking_date, arrival_window, \
                 status, total_amount, qr_code_token, created_at, \
                 attendance_status, attendance_confidence, checked_in_at, \
-                clubs (id, name, cover_image_url, address, neighborhood, lat, lng, opening_hours)
+                clubs (id, name, cover_image_url, address, neighborhood, lat, lng, opening_hours), \
+                partner_brands (key, name, logo_url, color, attribution_label)
                 """)
             .eq("user_id", value: uid)
             .order("booking_date", ascending: false)

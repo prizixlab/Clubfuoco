@@ -30,13 +30,13 @@ struct BookingDetailView: View {
                 VStack(spacing: 20) {
                     hero
                     facts
-                    if !isCancelled, let token = booking.qrCodeToken {
-                        qrBlock(token)
-                        actions
-                    }
                     if !isCancelled {
                         AttendanceCheckInCard(booking: booking,
                                               onSignalPosted: onAttendanceChanged)
+                    }
+                    if !isCancelled, let token = booking.qrCodeToken {
+                        qrBlock(token)
+                        actions
                     }
                     if let group {
                         groupLink(group)
@@ -173,6 +173,13 @@ struct BookingDetailView: View {
                 divider
                 factRow(locale.t("rumbalist.address"), small: true) {
                     Text(address).foregroundStyle(Theme.stone)
+                }
+            }
+            if let brand = booking.brand {
+                divider
+                factRow(locale.t("bookings.factGuestlist")) {
+                    SupplierMark(brand: brand, height: 13, animated: false,
+                                 tint: Color(hexString: brand.color) ?? Theme.ember)
                 }
             }
             divider

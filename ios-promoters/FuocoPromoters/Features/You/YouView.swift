@@ -16,10 +16,10 @@ final class ProfileModel: ObservableObject {
     /// promoter's public identity on the consumer app — so the You tab shows
     /// and edits the brand, not just the private `promoter_profiles` row (which
     /// is empty for brand-first accounts like Rumba). nil = no public brand yet.
-    @Published var publicBrand: SupplierBrand?
+    @Published var publicBrand: OfferBrand?
 
     let repo = PromoterRepo()
-    let brandRepo = SupplierRepo()
+    let brandRepo = OfferRepo()
 
     var hasPublicBrand: Bool { publicBrand != nil }
     /// Read-only accent from the brand contract, for a swatch on the You tab.

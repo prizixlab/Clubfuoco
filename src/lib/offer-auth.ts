@@ -38,7 +38,7 @@ async function resolveCaller(): Promise<
 // under their own brand, which is provisioned lazily the first time they
 // create one (`provision: true`). Reads use `brandOrNull` instead — a promoter
 // with no public offers yet simply has no brand, which is not an error.
-export async function resolveSupplierBrand(): Promise<
+export async function resolveOfferBrand(): Promise<
   | { brand: PartnerBrand & { id: string }; userId: string; sb: SB; response?: undefined }
   | { response: Response; brand?: undefined; userId?: undefined; sb?: undefined }
 > {

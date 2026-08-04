@@ -14,7 +14,7 @@ final class StatisticsModel: ObservableObject {
     @Published var loading = true
 
     let repo = PromoterRepo()
-    let offerRepo = SupplierRepo()
+    let offerRepo = OfferRepo()
 
     func load() async {
         loading = true

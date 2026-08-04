@@ -64,9 +64,9 @@ struct TonightView: View {
     @StateObject private var model = TonightModel()
     @State private var navigateTo: PromoterAllocation?
     // The promoter's PUBLIC offers — same tab as their private nights.
-    @StateObject private var offers = SupplierHomeModel()
-    @State private var detailOffer: SupplierOffer?
-    @State private var editingOffer: SupplierOffer?
+    @StateObject private var offers = OffersHomeModel()
+    @State private var detailOffer: Offer?
+    @State private var editingOffer: Offer?
     @State private var seriesOccurrence: SeriesOccurrence?
     @State private var opening = false
 
@@ -79,7 +79,7 @@ struct TonightView: View {
     private var todayIndex: Int { Calendar.current.component(.weekday, from: Date()) - 1 }
 
     /// Active public offers whose valid_days cover tonight.
-    private var offersTonight: [SupplierOffer] {
+    private var offersTonight: [Offer] {
         offers.offers.filter { $0.isActive && ValidDays.parse($0.validDays).contains(todayIndex) }
     }
 
@@ -91,7 +91,7 @@ struct TonightView: View {
         let name: String
         var nights: [PromoterAllocation] = []
         var series: [PromoterSeries] = []
-        var offers: [SupplierOffer] = []
+        var offers: [Offer] = []
     }
 
     /// A custom pin has no club id, so key it by name — two different pins with
@@ -218,7 +218,7 @@ struct TonightView: View {
             }
         }
         .sheet(item: $detailOffer) { offer in
-            SupplierOfferDetailSheet(
+            OfferDetailSheet(
                 offer: offer,
                 clubName: offers.clubName(offer.clubId),
                 onEdit: { afterSheetDismiss { editingOffer = offer } },
@@ -228,7 +228,7 @@ struct TonightView: View {
                 .presentationBackground(Theme.night)
         }
         .sheet(item: $editingOffer) { offer in
-            SupplierOfferSheet(model: offers, existing: offer, clubId: offer.clubId) {
+            OfferSheet(model: offers, existing: offer, clubId: offer.clubId) {
                 await offers.load()
             }
         }

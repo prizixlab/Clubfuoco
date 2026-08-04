@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { resolveSupplierBrand } from '@/lib/supplier-auth'
+import { resolveOfferBrand } from '@/lib/offer-auth'
 import { OfferSchema, OfferPatchSchema } from '@/lib/portal-schemas'
 import { enqueueOrApplyDirect } from '@/lib/pending-changes'
 import { ok, err } from '@/lib/utils'
@@ -7,7 +7,7 @@ import { ok, err } from '@/lib/utils'
 // Verify the offer exists AND belongs to the caller's brand — the ownership
 // boundary for every offer write. Returns the existing row or an error
 // response (404 unknown / 403 someone else's offer).
-async function ownedOffer(offerId: string, brandId: string, sb: Awaited<ReturnType<typeof resolveSupplierBrand>>['sb']) {
+async function ownedOffer(offerId: string, brandId: string, sb: Awaited<ReturnType<typeof resolveOfferBrand>>['sb']) {
   const { data } = await sb!
     .from('partner_offers')
     .select('brand_id, club_id, kind, title, subtitle, price_eur, party_size, time_window, valid_days, dress_code, music, sort_order')
@@ -23,7 +23,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ offerId: string }> },
 ) {
-  const { brand, userId, sb, response } = await resolveSupplierBrand()
+  const { brand, userId, sb, response } = await resolveOfferBrand()
   if (response) return response
   const { offerId } = await params
 
@@ -67,20 +67,25 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ offerId: string }> },
 ) {
-  const { brand, userId, sb, response } = await resolveSupplierBrand()
+  const { brand, userId, sb, response } = await resolveOfferBrand()
   if (response) return response
   const { offerId } = await params
 
   const owned = await ownedOffer(offerId, brand.id, sb)
   if (owned.error) return owned.error
 
-  // Queue the removal for review — the offer stays live until approved.
+  // Removing your OWN offer is purely subtractive — it can only make the offer
+  // LESS visible, never surface unvetted public content (the one thing the
+  // review queue guards). Like per-night skip and deactivation, an owner must
+  // be able to pull their offer down immediately, not wait three business days.
+  // So apply directly; ownership is already verified above. An approved audit
+  // row is still recorded for the trail.
   try {
     const { queued } = await enqueueOrApplyDirect(sb, {
       source: 'supplier', submitter_user_id: userId, brand_id: brand.id,
       action: 'offer.delete', entity: 'offer', target_id: offerId,
       summary: `${brand.name}: remove “${(owned.existing as { title: string }).title}”`,
-    })
+    }, { forceDirect: true })
     return ok({ pending: queued, deleted: !queued }, queued ? 202 : 200)
   } catch (e) {
     return err(e instanceof Error ? e.message : 'Could not submit removal', 500)

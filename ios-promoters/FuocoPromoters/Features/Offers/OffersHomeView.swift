@@ -6,23 +6,23 @@ import SwiftUI
 // there is no separate "supplier" screen any more.
 
 @MainActor
-final class SupplierHomeModel: ObservableObject {
-    @Published var brand: SupplierBrand?
-    @Published var offers: [SupplierOffer] = []
-    @Published var clubs: [SupplierClub] = []
-    @Published var pending: [SupplierPending] = []
+final class OffersHomeModel: ObservableObject {
+    @Published var brand: OfferBrand?
+    @Published var offers: [Offer] = []
+    @Published var clubs: [OfferClub] = []
+    @Published var pending: [OfferPending] = []
     @Published var loading = true
     @Published var error: String?
     @Published var reviewNotice = false   // set after a change is queued for review
 
-    private let repo = SupplierRepo()
+    private let repo = OfferRepo()
 
     func clubName(_ id: UUID) -> String {
         clubs.first { $0.id == id }?.name ?? "Venue"
     }
 
     /// Offers grouped by club, each group sorted, groups ordered by club name.
-    var byClub: [(club: UUID, offers: [SupplierOffer])] {
+    var byClub: [(club: UUID, offers: [Offer])] {
         Dictionary(grouping: offers, by: \.clubId)
             .map { (club: $0.key, offers: $0.value.sorted { $0.sortOrder < $1.sortOrder }) }
             .sorted { clubName($0.club) < clubName($1.club) }
@@ -44,22 +44,22 @@ final class SupplierHomeModel: ObservableObject {
         loading = false
     }
 
-    func setActive(_ offer: SupplierOffer, _ active: Bool) async {
+    func setActive(_ offer: Offer, _ active: Bool) async {
         do { if try await repo.setActive(id: offer.id, active: active) { reviewNotice = true }; await load() }
         catch { self.error = (error as? LocalizedError)?.errorDescription ?? "Update failed." }
     }
 
-    func delete(_ offer: SupplierOffer) async {
+    func delete(_ offer: Offer) async {
         do { if try await repo.delete(id: offer.id) { reviewNotice = true }; await load() }
         catch { self.error = (error as? LocalizedError)?.errorDescription ?? "Delete failed." }
     }
 }
 
 /// Compact public-offer row for the unified Guestlist tab, sitting under the
-/// promoter's private nights. Tap opens SupplierOfferDetailSheet (bookings +
+/// promoter's private nights. Tap opens OfferDetailSheet (bookings +
 /// actions); the review badge mirrors the private-night rows.
 struct PublicOfferRow: View {
-    let offer: SupplierOffer
+    let offer: Offer
 
     var body: some View {
         HStack(spacing: 10) {
@@ -104,13 +104,13 @@ struct PublicOfferRow: View {
     }
 }
 
-struct SupplierClubPicker: View {
-    let clubs: [SupplierClub]
+struct OfferClubPicker: View {
+    let clubs: [OfferClub]
     let onPick: (UUID) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
 
-    private var hits: [SupplierClub] {
+    private var hits: [OfferClub] {
         query.isEmpty ? clubs : clubs.filter { $0.name.localizedCaseInsensitiveContains(query) }
     }
 

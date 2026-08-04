@@ -1,13 +1,13 @@
 import Foundation
 
-// ── Supplier self-service ────────────────────────────────────────────────────
+// ── Offer self-service ────────────────────────────────────────────────────
 // A "list" (Rumba, Aashi, …) whose account owns a partner_brand signs in here
 // and manages that brand's guestlist offers. Talks to the Bearer-authed
 // /api/offers/** routes (the web enforces that every write is scoped to the
 // brand this account owns). Mirrors PromoterRepo's URLRequest + { data, error }
 // envelope pattern.
 
-struct SupplierBrand: Decodable, Identifiable, Hashable {
+struct OfferBrand: Decodable, Identifiable, Hashable {
     let id: UUID
     let key: String
     let name: String
@@ -15,7 +15,7 @@ struct SupplierBrand: Decodable, Identifiable, Hashable {
     let color: String
 }
 
-struct SupplierOffer: Decodable, Identifiable, Hashable {
+struct Offer: Decodable, Identifiable, Hashable {
     let id: UUID
     let clubId: UUID
     let kind: String            // "free_guestlist" | "vip_table"
@@ -42,13 +42,13 @@ struct SupplierOffer: Decodable, Identifiable, Hashable {
     func isSkipped(_ date: String) -> Bool { (skippedDates ?? []).contains(date) }
 }
 
-struct SupplierClub: Decodable, Identifiable, Hashable {
+struct OfferClub: Decodable, Identifiable, Hashable {
     let id: UUID
     let name: String
 }
 
 /// A change the supplier has submitted that's awaiting Club Fuoco review.
-struct SupplierPending: Decodable, Identifiable, Hashable {
+struct OfferPending: Decodable, Identifiable, Hashable {
     let id: UUID
     let action: String
     let summary: String
@@ -58,7 +58,7 @@ struct SupplierPending: Decodable, Identifiable, Hashable {
 /// night (rumbalist_purchases + linked booking). checked_in_at stays a raw
 /// string — presence is all the UI needs, and it dodges fractional-second
 /// ISO date parsing.
-struct SupplierGuest: Decodable, Identifiable, Hashable {
+struct OfferGuest: Decodable, Identifiable, Hashable {
     struct Booking: Decodable, Hashable {
         let checkedInAt: String?
         let status: String?
@@ -112,7 +112,7 @@ struct OfferStats: Decodable {
 }
 
 /// Draft used for create + edit. Nil price ⇒ free guestlist.
-struct SupplierOfferDraft {
+struct OfferDraft {
     var clubId: UUID
     var kind: String
     var title: String
@@ -128,13 +128,13 @@ struct SupplierOfferDraft {
     var capacity: Int?          // nil = no ticket limit
 }
 
-enum SupplierError: LocalizedError {
+enum OfferError: LocalizedError {
     case message(String)
     var errorDescription: String? { if case .message(let m) = self { return m }; return nil }
 }
 
 @MainActor
-final class SupplierRepo {
+final class OfferRepo {
     private let sb = SupabaseService.shared
     private static let webBase = "https://clubfuoco.com"
 
@@ -160,9 +160,9 @@ final class SupplierRepo {
             // Surface the server's { error } message when present.
             if let env = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let msg = env["error"] as? String {
-                throw SupplierError.message(msg)
+                throw OfferError.message(msg)
             }
-            throw SupplierError.message("Request failed (\(code))")
+            throw OfferError.message("Request failed (\(code))")
         }
         return data
     }
@@ -171,7 +171,7 @@ final class SupplierRepo {
 
     private func decode<T: Decodable>(_ data: Data, as: T.Type) throws -> T {
         guard let value = try Self.decoder.decode(Envelope<T>.self, from: data).data else {
-            throw SupplierError.message("Empty response")
+            throw OfferError.message("Empty response")
         }
         return value
     }
@@ -180,18 +180,18 @@ final class SupplierRepo {
 
     /// The brand this account manages, or nil if the account isn't a supplier
     /// (the route replies 403 — treated as "not a supplier", not an error).
-    func me() async throws -> SupplierBrand? {
-        struct MeEnv: Decodable { let brand: SupplierBrand? }
+    func me() async throws -> OfferBrand? {
+        struct MeEnv: Decodable { let brand: OfferBrand? }
         do {
             let data = try await request("/api/offers/me", method: "GET")
             return try decode(data, as: MeEnv.self).brand
-        } catch SupplierError.message(let m) where m.contains("No brand") || m.contains("Unauthorized") {
+        } catch OfferError.message(let m) where m.contains("No brand") || m.contains("Unauthorized") {
             return nil
         }
     }
 
-    func offers() async throws -> [SupplierOffer] {
-        try decode(try await request("/api/offers", method: "GET"), as: [SupplierOffer].self)
+    func offers() async throws -> [Offer] {
+        try decode(try await request("/api/offers", method: "GET"), as: [Offer].self)
     }
 
     /// Update the caller's public brand identity (name / logo). No-op fields
@@ -204,13 +204,13 @@ final class SupplierRepo {
         _ = try await request("/api/offers/me", method: "PATCH", body: body)
     }
 
-    func clubs() async throws -> [SupplierClub] {
-        try decode(try await request("/api/offers/clubs", method: "GET"), as: [SupplierClub].self)
+    func clubs() async throws -> [OfferClub] {
+        try decode(try await request("/api/offers/clubs", method: "GET"), as: [OfferClub].self)
     }
 
     /// Changes this supplier has submitted that are awaiting review.
-    func pending() async throws -> [SupplierPending] {
-        try decode(try await request("/api/offers/pending", method: "GET"), as: [SupplierPending].self)
+    func pending() async throws -> [OfferPending] {
+        try decode(try await request("/api/offers/pending", method: "GET"), as: [OfferPending].self)
     }
 
     /// Turn one night of an offer off (or back on). Scheduling, not content —
@@ -228,10 +228,10 @@ final class SupplierRepo {
     }
 
     /// Who booked through this supplier's offers at a venue on a given night.
-    func guests(clubId: UUID, date: String) async throws -> [SupplierGuest] {
+    func guests(clubId: UUID, date: String) async throws -> [OfferGuest] {
         try decode(try await request(
             "/api/offers/guests?club_id=\(clubId.uuidString.lowercased())&date=\(date)",
-            method: "GET"), as: [SupplierGuest].self)
+            method: "GET"), as: [OfferGuest].self)
     }
 
     // MARK: - Writes
@@ -239,12 +239,12 @@ final class SupplierRepo {
     // live (false — the pre-approval fallback before the queue is enabled).
 
     @discardableResult
-    func create(_ d: SupplierOfferDraft) async throws -> Bool {
+    func create(_ d: OfferDraft) async throws -> Bool {
         decodePending(try await request("/api/offers", method: "POST", body: Self.body(from: d, includeClub: true)))
     }
 
     @discardableResult
-    func update(id: UUID, _ d: SupplierOfferDraft) async throws -> Bool {
+    func update(id: UUID, _ d: OfferDraft) async throws -> Bool {
         decodePending(try await request("/api/offers/\(id.uuidString.lowercased())", method: "PATCH",
                               body: Self.body(from: d, includeClub: false)))
     }
@@ -268,7 +268,7 @@ final class SupplierRepo {
 
     /// Build the JSON body. price_eur / party_size are sent as explicit null
     /// (not omitted) because the server schema requires them present.
-    private static func body(from d: SupplierOfferDraft, includeClub: Bool) -> [String: Any] {
+    private static func body(from d: OfferDraft, includeClub: Bool) -> [String: Any] {
         var b: [String: Any] = [
             "kind":        d.kind,
             "title":       d.title,

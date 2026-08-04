@@ -1,4 +1,4 @@
-import { brandOrNull } from '@/lib/supplier-auth'
+import { brandOrNull } from '@/lib/offer-auth'
 import { ok } from '@/lib/utils'
 
 // GET /api/offers/stats — booking rollup for the caller's public offers, for
@@ -34,7 +34,7 @@ export async function GET() {
 
   const { data: purchases, error: pErr } = await sb
     .from('rumbalist_purchases')
-    .select('venue_id, product_kind, event_date, price_eur, booking:bookings ( checked_in_at, party_size )')
+    .select('venue_id, product_kind, event_date, price_eur, booking:bookings ( checked_in_at, party_size, brand_id )')
     .in('venue_id', clubIds)
   if (pErr) {
     // Drift-defensive: missing table/column → zeroes, not a broken tab.
@@ -55,13 +55,18 @@ export async function GET() {
   for (const p of purchases ?? []) {
     const row = p as {
       venue_id: string; product_kind: string; event_date: string; price_eur?: number | string | null
-      booking?: { checked_in_at?: string | null; party_size?: number | null }
-              | { checked_in_at?: string | null; party_size?: number | null }[]
+      booking?: { checked_in_at?: string | null; party_size?: number | null; brand_id?: string | null }
+              | { checked_in_at?: string | null; party_size?: number | null; brand_id?: string | null }[]
     }
     const offer = offersByKey.get(`${row.venue_id}|${row.product_kind}`)
     if (!offer) continue
 
     const booking = Array.isArray(row.booking) ? row.booking[0] : row.booking
+    // venue+kind is ambiguous once two brands supply the same kind at one
+    // venue. When the booking carries an explicit brand_id, trust it and drop
+    // purchases attributed to a DIFFERENT brand. Null (legacy/unattributed)
+    // rows still match by venue+kind — the sole-supplier case (seeded Rumba).
+    if (booking?.brand_id != null && booking.brand_id !== brand.id) continue
     const people = booking?.party_size ?? 1
     const arrived = booking?.checked_in_at ? people : 0
     const revenue = Number(row.price_eur ?? 0) || 0

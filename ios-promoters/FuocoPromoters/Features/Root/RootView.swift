@@ -106,9 +106,9 @@ struct GuestlistTabRoot: View {
     @State private var showCreate = false          // private event form
     @State private var showOfferClubPicker = false // public offer: pick venue
     @State private var creatingOfferClub: UUID?    // public offer: form
-    @StateObject private var offers = SupplierHomeModel()
-    @State private var detailOffer: SupplierOffer?
-    @State private var editingOffer: SupplierOffer?
+    @StateObject private var offers = OffersHomeModel()
+    @State private var detailOffer: Offer?
+    @State private var editingOffer: Offer?
     @State private var navigateTo: PromoterAllocation?
     @State private var seriesOccurrence: SeriesOccurrence?
     @State private var pendingDelete: PromoterAllocation?
@@ -280,7 +280,7 @@ struct GuestlistTabRoot: View {
             }
         }
         .sheet(isPresented: $showOfferClubPicker) {
-            SupplierClubPicker(clubs: offers.clubs) { picked in
+            OfferClubPicker(clubs: offers.clubs) { picked in
                 showOfferClubPicker = false
                 afterSheetDismiss { creatingOfferClub = picked }
             }
@@ -288,18 +288,18 @@ struct GuestlistTabRoot: View {
         .sheet(isPresented: Binding(get: { creatingOfferClub != nil },
                                     set: { if !$0 { creatingOfferClub = nil } })) {
             if let cid = creatingOfferClub {
-                SupplierOfferSheet(model: offers, existing: nil, clubId: cid) {
+                OfferSheet(model: offers, existing: nil, clubId: cid) {
                     await offers.load()
                 }
             }
         }
         .sheet(item: $editingOffer) { offer in
-            SupplierOfferSheet(model: offers, existing: offer, clubId: offer.clubId) {
+            OfferSheet(model: offers, existing: offer, clubId: offer.clubId) {
                 await offers.load()
             }
         }
         .sheet(item: $detailOffer) { offer in
-            SupplierOfferDetailSheet(
+            OfferDetailSheet(
                 offer: offer,
                 clubName: offers.clubName(offer.clubId),
                 onEdit: { afterSheetDismiss { editingOffer = offer } },

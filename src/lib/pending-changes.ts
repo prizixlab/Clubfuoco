@@ -102,10 +102,13 @@ export async function applyChange(sb: SB, c: PendingChange): Promise<void> {
 export async function enqueueOrApplyDirect(
   sb: SB,
   c: Parameters<typeof enqueue>[1],
+  opts: { forceDirect?: boolean } = {},
 ): Promise<{ queued: boolean }> {
-  // Auto-approve on → skip the queue and apply the change immediately, then
-  // record it as an already-approved entry for the audit trail.
-  if (await getBoolSetting(sb, AUTO_APPROVE)) {
+  // Auto-approve on, OR the caller demands an immediate apply (e.g. a promoter
+  // removing their OWN offer — purely subtractive, nothing to review) → skip
+  // the queue, apply now, and record an already-approved entry for the audit
+  // trail.
+  if (opts.forceDirect || await getBoolSetting(sb, AUTO_APPROVE)) {
     await applyChange(sb, {
       id: '', status: 'approved', created_at: '', reviewed_at: new Date().toISOString(), note: null,
       source: c.source, submitter_user_id: c.submitter_user_id ?? null, brand_id: c.brand_id ?? null,

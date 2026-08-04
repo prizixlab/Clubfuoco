@@ -1,4 +1,4 @@
-import { brandOrNull } from '@/lib/supplier-auth'
+import { brandOrNull } from '@/lib/offer-auth'
 import { listOwnPending } from '@/lib/pending-changes'
 import { ok, err } from '@/lib/utils'
 

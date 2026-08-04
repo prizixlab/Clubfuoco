@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { brandOrNull, resolveOrProvisionBrand } from '@/lib/supplier-auth'
+import { brandOrNull, resolveOrProvisionBrand } from '@/lib/offer-auth'
 import { OfferSchema } from '@/lib/portal-schemas'
 import { listBrandOffers } from '@/lib/partner'
 import { enqueueOrApplyDirect } from '@/lib/pending-changes'

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Status chip for the promoter's own nights and series — Pending review /
 /// Rejected / Live, keyed on review_status. Mirrors the supplier pending-card
-/// language in SupplierHomeView. Render only when a ReviewState is known
+/// language in OffersHomeView. Render only when a ReviewState is known
 /// (the column is drift-defensive and may be absent).
 struct ReviewBadge: View {
     let state: ReviewState

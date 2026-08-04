@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { resolveSupplierBrand } from '@/lib/supplier-auth'
+import { resolveOfferBrand } from '@/lib/offer-auth'
 import { ok, err } from '@/lib/utils'
 
 // PATCH /api/offers/:offerId/nights — turn ONE night of an offer off
@@ -16,7 +16,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ offerId: string }> },
 ) {
-  const { brand, sb, response } = await resolveSupplierBrand()
+  const { brand, sb, response } = await resolveOfferBrand()
   if (response) return response
   const { offerId } = await params
 

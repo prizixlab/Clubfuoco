@@ -5,8 +5,8 @@ import SwiftUI
 // manage the offer (edit / deactivate / delete) without leaving the sheet.
 // Guest data comes from /api/offers/guests (rumbalist_purchases + linked
 // booking check-ins), filtered to this offer's product kind.
-struct SupplierOfferDetailSheet: View {
-    let offer: SupplierOffer
+struct OfferDetailSheet: View {
+    let offer: Offer
     let clubName: String
     var onEdit: (() -> Void)?
     var onToggle: (() -> Void)?
@@ -24,11 +24,11 @@ struct SupplierOfferDetailSheet: View {
     @State private var skipped: Set<String> = []
     @State private var nightBusy = false
     @State private var nightError: String?
-    @State private var guests: [SupplierGuest] = []
+    @State private var guests: [OfferGuest] = []
     @State private var loading = true
     @State private var loadError: String?
 
-    private let repo = SupplierRepo()
+    private let repo = OfferRepo()
 
     var body: some View {
         ScrollView {

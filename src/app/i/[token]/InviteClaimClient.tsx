@@ -83,6 +83,9 @@ export default function InviteClaimClient({
   const [iOS, setIOS] = useState(false)
   useEffect(() => { setInWebview(isInAppBrowser()); setIOS(isIOS()) }, [])
   const [plusOnes, setPlusOnes] = useState(0)
+  // Auto check-in consent. Opt-in by default, but always sent as an explicit
+  // boolean so an unchecked box records a genuine decline (false), not null.
+  const [locationConsent, setLocationConsent] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [claimed, setClaimed] = useState<{ guestId: string; name: string } | null>(null)
@@ -99,7 +102,7 @@ export default function InviteClaimClient({
       const res = await fetch(`/api/promoter-invites/${token}/claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ full_name: name.trim(), plus_ones: plusOnes }),
+        body: JSON.stringify({ full_name: name.trim(), plus_ones: plusOnes, location_consent: locationConsent }),
       })
       const json = await res.json()
       if (!res.ok || json.error) throw new Error(json.error ?? 'Couldn\'t join the list')
@@ -221,6 +224,24 @@ export default function InviteClaimClient({
                 <button onClick={() => setPlusOnes(Math.min(night.max_plus_ones ?? 20, plusOnes + 1))}
                   style={pillBtnEmber}>+</button>
               </div>
+            </label>
+
+            <label style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 18,
+              cursor: 'pointer',
+            }}>
+              <input
+                type="checkbox"
+                checked={locationConsent}
+                onChange={(e) => setLocationConsent(e.target.checked)}
+                style={{ marginTop: 2, width: 18, height: 18, accentColor: '#C2562D', flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 13, lineHeight: 1.4, color: 'rgba(244,236,221,0.80)' }}>
+                Share my location for automatic check-in at the door
+                <span style={{ display: 'block', fontSize: 11, color: 'rgba(244,236,221,0.50)' }}>
+                  Optional. You can still check in manually.
+                </span>
+              </span>
             </label>
 
             {error && <div style={{ color: '#E8866B', fontSize: 13, marginBottom: 12 }}>{error}</div>}

@@ -1,4 +1,4 @@
-import { brandOrNull } from '@/lib/supplier-auth'
+import { brandOrNull } from '@/lib/offer-auth'
 import { ok, err } from '@/lib/utils'
 
 // GET /api/offers/clubs — id + name for the venue picker when adding a

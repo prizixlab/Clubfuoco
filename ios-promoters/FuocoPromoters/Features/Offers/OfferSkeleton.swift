@@ -3,7 +3,7 @@ import SwiftUI
 // Loading placeholder for the supplier tabs. The real title/subtitle show
 // immediately; the venue cards below are redacted skeletons so we never flash
 // an empty state ("Nothing tonight") before the data has arrived.
-struct SupplierSkeleton: View {
+struct OfferSkeleton: View {
     var title: String
     var subtitle: String
 

@@ -1,4 +1,4 @@
-import { resolveSupplierBrand } from '@/lib/supplier-auth'
+import { resolveOfferBrand } from '@/lib/offer-auth'
 import { ok, err } from '@/lib/utils'
 
 // GET /api/offers/guests?club_id=<uuid>&date=<yyyy-MM-dd>
@@ -13,7 +13,7 @@ import { ok, err } from '@/lib/utils'
 // per offer type.
 
 export async function GET(req: Request) {
-  const auth = await resolveSupplierBrand()
+  const auth = await resolveOfferBrand()
   if (auth.response) return auth.response
   const { brand, sb } = auth
 
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
     .from('rumbalist_purchases')
     .select(`
       id, full_name, product_kind, product_name, price_eur, event_date,
-      booking:bookings ( checked_in_at, status, party_size )
+      booking:bookings ( checked_in_at, status, party_size, brand_id )
     `)
     .eq('venue_id', clubId)
     .eq('event_date', date)
@@ -49,5 +49,13 @@ export async function GET(req: Request) {
     if (/does not exist|relation|schema cache/i.test(error.message)) return ok([])
     return err(error.message, 500)
   }
-  return ok(data ?? [])
+  // venue+date is ambiguous once two brands share a venue. Drop rows whose
+  // booking is attributed to a DIFFERENT brand; null (legacy/sole-supplier)
+  // rows still show, matching prior behavior for the seeded Rumba brand.
+  const rows = (data ?? []).filter(r => {
+    const b = (r as { booking?: { brand_id?: string | null } | { brand_id?: string | null }[] }).booking
+    const bk = Array.isArray(b) ? b[0] : b
+    return bk?.brand_id == null || bk.brand_id === brand.id
+  })
+  return ok(rows)
 }

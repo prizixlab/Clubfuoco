@@ -4,9 +4,9 @@ import SwiftUI
 // requires a price (mirrors the web OfferSchema so the server never rejects a
 // well-formed sheet). club is fixed (offers don't move venues — delete + re-add).
 
-struct SupplierOfferSheet: View {
-    @ObservedObject var model: SupplierHomeModel
-    let existing: SupplierOffer?
+struct OfferSheet: View {
+    @ObservedObject var model: OffersHomeModel
+    let existing: Offer?
     let clubId: UUID
     let onDone: () async -> Void
 
@@ -35,7 +35,7 @@ struct SupplierOfferSheet: View {
     @State private var error: String?
     @State private var submitted = false   // shows the pending-review screen
 
-    init(model: SupplierHomeModel, existing: SupplierOffer?, clubId: UUID, onDone: @escaping () async -> Void) {
+    init(model: OffersHomeModel, existing: Offer?, clubId: UUID, onDone: @escaping () async -> Void) {
         self.model = model
         self.existing = existing
         self.clubId = clubId
@@ -504,7 +504,7 @@ struct SupplierOfferSheet: View {
 
     private func save() async {
         busy = true; error = nil
-        let draft = SupplierOfferDraft(
+        let draft = OfferDraft(
             clubId: clubId,
             kind: isVip ? "vip_table" : "free_guestlist",
             title: title.trimmed,
@@ -520,7 +520,7 @@ struct SupplierOfferSheet: View {
             capacity: capped ? capacity : nil
         )
         do {
-            let repo = SupplierRepo()
+            let repo = OfferRepo()
             let pending: Bool
             if let existing { pending = try await repo.update(id: existing.id, draft) }
             else { pending = try await repo.create(draft) }

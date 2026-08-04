@@ -110,6 +110,8 @@ struct ClubDetailView: View {
     // ── Hero ──────────────────────────────────────────────────────────────────
 
     private var hero: some View {
+        // The hero photo is not tappable — the photos strip below is the way to
+        // open the full-screen viewer.
         ZStack(alignment: .bottomLeading) {
             Color(hex: 0xEFE9DD)
                 .overlay {
@@ -138,12 +140,7 @@ struct ClubDetailView: View {
             .allowsHitTesting(false)
 
             VStack(alignment: .leading, spacing: 6) {
-                if openStatus == true {
-                    Text(locale.t("detail.liveNow").uppercased())
-                        .font(.cfMono(9))
-                        .kerning(1.8)
-                        .foregroundStyle(.white.opacity(0.9))
-                } else if let genre = genres.first {
+                if let genre = genres.first {
                     Text(genre.replacingOccurrences(of: "_", with: " ").uppercased())
                         .font(.cfMono(9))
                         .kerning(1.8)
@@ -161,12 +158,6 @@ struct ClubDetailView: View {
             .padding(.init(top: 0, leading: 20, bottom: 44, trailing: 20))
         }
         .frame(height: heroHeight)
-        .contentShape(.rect)
-        .onTapGesture {
-            guard !photos.isEmpty else { return }
-            Haptics.tap()
-            photoViewer = PhotoIndex(value: 0)
-        }
     }
 
     private var backButton: some View {

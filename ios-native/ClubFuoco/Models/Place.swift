@@ -2,7 +2,7 @@ import Foundation
 
 /// Feed venue model — native mirror of the `Place` shape getNearbyClubs()
 /// produces in src/lib/supabase/queries.ts (a mapped `clubs` row).
-struct Place: Identifiable, Sendable, Hashable {
+struct Place: Identifiable, Sendable, Hashable, Codable {
     let placeId: String
     let name: String
     let slug: String?

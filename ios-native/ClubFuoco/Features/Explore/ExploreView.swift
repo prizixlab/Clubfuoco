@@ -96,13 +96,22 @@ struct ExploreView: View {
         }
         .task {
             model.configure(queries: auth.queries, api: api)
+            // Paint the last-known feed from disk instantly, before touching the
+            // network (stale-while-revalidate).
+            model.hydrateFromCache(planDate: plan.date) { locale.t($0) }
             // .task re-fires every time the feed reappears (back from a club,
             // tab switch) — and a reload rebuilds the shelves, whose pool is
             // shuffled per build. Only load when we have nothing yet, so the
             // feed the user was browsing stays exactly as they left it.
             // Pull-to-refresh is the explicit way to get a fresh rotation.
             if model.places.isEmpty {
+                // Cold: nothing cached — block on the load (skeleton showing).
                 await model.load(planDate: plan.date) { locale.t($0) }
+            } else if !model.didRefresh {
+                // Warm: cache is on screen — refresh once in the background and
+                // swap silently, without blocking or reshuffling on reappear.
+                model.didRefresh = true
+                Task { await model.load(planDate: plan.date) { locale.t($0) } }
             }
             maybePromptNearby()
             #if DEBUG

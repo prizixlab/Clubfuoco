@@ -2,7 +2,7 @@ import Foundation
 
 /// One horizontal row of the explore feed. Hashable so the "N venues →"
 /// header button can push the full list via `NavigationLink(value:)`.
-struct Shelf: Identifiable, Hashable {
+struct Shelf: Identifiable, Hashable, Codable, Sendable {
     let id: String
     let title: String
     let subtitle: String

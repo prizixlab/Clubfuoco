@@ -45,11 +45,15 @@ final class Queries: @unchecked Sendable {
         let latDelta = radius / 111_000
         let lngDelta = radius / 85_000
 
+        // Feed cards only render the cover photo, so the query skips the heavy
+        // `gallery_urls` array (the detail screen re-fetches it via clubById).
+        // cover_image_url + photos supplies the cover and the photoless filter
+        // for every active venue — verified none rely on gallery_urls alone.
         let rows: [NearbyClubRow] = try await supabase.client
             .from("clubs")
             .select("""
                 id, name, slug, address, neighborhood, \
-                lat, lng, cover_image_url, gallery_urls, photos, \
+                lat, lng, cover_image_url, photos, \
                 rating, ratings_total, music_genres, google_place_id, \
                 general_entry_price, vip_table_min_spend, opening_hours, \
                 is_featured, is_partner, \
@@ -64,7 +68,7 @@ final class Queries: @unchecked Sendable {
             .order("is_partner", ascending: false)
             .order("ratings_total", ascending: false, nullsFirst: false)
             .order("rating", ascending: false, nullsFirst: false)
-            .limit(2000)
+            .limit(500)
             .execute()
             .value
 

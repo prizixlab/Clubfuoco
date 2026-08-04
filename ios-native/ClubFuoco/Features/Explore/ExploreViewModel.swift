@@ -17,6 +17,13 @@ final class ExploreViewModel {
     }
 
     private(set) var state: LoadState = .loading
+
+    /// LoadState carries an associated value on `.failed`, so it isn't
+    /// auto-Equatable — this is the "is there already a feed on screen?" check.
+    private var isLoaded: Bool {
+        if case .loaded = state { return true }
+        return false
+    }
     private(set) var places: [Place] = []
     private(set) var customShelves: [CustomShelfRecord] = []
     private(set) var saved: Set<String> = []
@@ -49,25 +56,52 @@ final class ExploreViewModel {
     private var queries: Queries?
     private var api: APIClient?
 
+    private var didHydrate = false
+    /// Set once the first background refresh of this launch has been kicked off,
+    /// so reappearing (back from a club, tab switch) doesn't re-fetch and
+    /// reshuffle the feed the user was just browsing.
+    var didRefresh = false
+
     func configure(queries: Queries, api: APIClient) {
         self.queries = queries
         self.api = api
     }
 
-    /// Loads the feed and builds shelves BEFORE flipping state to .loaded —
-    /// otherwise the feed renders with empty shelves for the seconds the
-    /// custom-shelves/rumbas requests are still in flight, flashing the
-    /// "No clubs found nearby" empty state.
+    /// Paint the last-known feed from disk before the network is even touched
+    /// (stale-while-revalidate). No-op after the first call, when there's no
+    /// snapshot, or once something is already on screen — the caller then does a
+    /// silent refresh. Reuses the *built* shelves so the render matches the
+    /// cached one exactly (the shelf pool is shuffled per build); only when the
+    /// planned night changed do we rebuild for the new date.
+    func hydrateFromCache(planDate: String, t: (String) -> String) {
+        guard !didHydrate else { return }
+        didHydrate = true
+        guard places.isEmpty, let snap = FeedCache.load() else { return }
+
+        places = snap.places
+        saved = Set(snap.saved)
+        if snap.planDate == planDate {
+            shelves = snap.shelves
+        } else {
+            rebuildShelves(planDate: planDate, t: t)
+        }
+        state = .loaded
+    }
+
+    /// Loads the feed. The core venue list is the only request the feed can't
+    /// render without, so it's awaited first and painted immediately; the
+    /// API-backed extras (custom shelves, live offers, personalisation) then
+    /// enrich a second build a beat later. When a cached feed is already on
+    /// screen this runs as a silent refresh — no skeleton, one atomic swap.
     func load(planDate: String, t: (String) -> String) async {
         guard let queries, let api else { return }
         if places.isEmpty { state = .loading }
 
         async let favorites = (try? queries.placeFavoriteIds()) ?? []
-        async let shelves: [CustomShelfRecord]? = try? await api.get("/api/explore/shelves")
+        async let customShelvesReq: [CustomShelfRecord]? = try? await api.get("/api/explore/shelves")
         async let activeRumbas: [Rumba]? = try? await api.get("/api/rumbas")
         // Live offers + personalisation inputs ride the same group so nothing
-        // serialises; all are awaited below, BEFORE rebuildShelves(), so the
-        // first build already ranks deal-first with no empty-shelf flash.
+        // serialises; they're folded into the enriched build below.
         async let liveOffers = RumbalistOffers.fetchLive(api: api)
         async let upcoming = (try? queries.upcomingEvents()) ?? []
         async let prefs = try? queries.userPreferences()
@@ -76,7 +110,6 @@ final class ExploreViewModel {
         async let survey: SurveyPreferences? = try? await api.get("/api/surveys/preferences")
         async let taste = try? queries.tasteProfile()
 
-        var loadError: String?
         do {
             var loaded = try await queries.nearbyClubs(
                 lat: Self.barcelona.lat, lng: Self.barcelona.lng, radius: 8000
@@ -93,11 +126,22 @@ final class ExploreViewModel {
             ImageCache.shared.prefetchThumbnails(
                 loaded.prefix(18).compactMap(\.coverPhoto))
         } catch {
-            loadError = error.localizedDescription
+            // Keep any cached/prior feed on screen; only surface the error when
+            // there's genuinely nothing to show.
+            if !isLoaded { state = .failed(error.localizedDescription) }
+            return
+        }
+
+        // First paint (cold start only — a warm/cached feed is already .loaded).
+        // Base shelves rank without the deal signal for a beat; the enriched
+        // build below folds offers in and swaps once.
+        if !isLoaded {
+            rebuildShelves(planDate: planDate, t: t)
+            state = .loaded
         }
 
         saved = await favorites
-        customShelves = await shelves ?? []
+        customShelves = await customShelvesReq ?? []
         rumbas = await activeRumbas ?? []
         // nil = the offers request FAILED → no deal signal (tier 2 for
         // everything); the feed must still render, never block on offers.
@@ -107,12 +151,14 @@ final class ExploreViewModel {
         surveyPrefs = await survey ?? nil
         tasteProfile = await taste ?? nil
 
-        if let loadError {
-            state = .failed(loadError)
-        } else {
-            rebuildShelves(planDate: planDate, t: t)
-            state = .loaded
-        }
+        rebuildShelves(planDate: planDate, t: t)
+        state = .loaded
+
+        // Persist for the next cold launch (stale-while-revalidate).
+        FeedCache.save(FeedSnapshot(
+            places: places, shelves: shelves, saved: Array(saved),
+            planDate: planDate, savedAt: Date()
+        ))
     }
 
     /// Feed scoped to venues open on the planned night, the active chip, and

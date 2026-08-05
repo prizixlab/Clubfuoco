@@ -135,3 +135,71 @@ export function nightWindowFor(
   if (!isNight) return fallback
   return { openMin: open, closeMin: close, closesNextDay: close < open }
 }
+
+// The app operates in Barcelona; venue opening_hours are stored as local clock
+// strings with no timezone. Resolve them against this zone rather than UTC —
+// stamping "23:00" onto a UTC midnight resolved to 01:00 Madrid in summer,
+// which started the check-in window 1–2h late and 409'd early-night arrivals.
+const VENUE_TZ = 'Europe/Madrid'
+
+/** Offset (ms) to ADD to a UTC instant to read its Europe/Madrid wall clock. */
+function venueOffsetMs(instant: Date): number {
+  const p: Record<string, string> = {}
+  for (const part of new Intl.DateTimeFormat('en-US', {
+    timeZone: VENUE_TZ, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(instant)) p[part.type] = part.value
+  const asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second)
+  return asUTC - instant.getTime()
+}
+
+/**
+ * A venue wall-clock time — `date` (YYYY-MM-DD) plus `mins` from midnight, with
+ * `addDay` pushing into the next calendar day (cross-midnight closes/cutoffs) —
+ * resolved to the real UTC instant in Europe/Madrid. DST-aware (CET/CEST).
+ */
+export function venueWallClockToInstant(date: string, mins: number, addDay: boolean): Date {
+  const utcGuess = new Date(`${date}T00:00:00Z`).getTime()
+    + mins * 60_000 + (addDay ? 86_400_000 : 0)
+  // Correct the "treat the wall clock as UTC" guess by the venue's offset at
+  // that instant. One pass is exact except inside the 1h DST fold, which never
+  // coincides with a nightlife open/close.
+  return new Date(utcGuess - venueOffsetMs(new Date(utcGuess)))
+}
+
+const POST_ENTRY_WINDOW_HOURS_AFTER = 14 * 24  // post-entry / review answers: up to 2 weeks later
+
+/**
+ * The window in which an attendance signal of `kind` is accepted for a booking
+ * on `date`: venue open → close (or cutoff + 3h for time-boxed invitations like
+ * rumba list), extended to two weeks for post-entry / morning-after answers.
+ * Anchored to the venue timezone via venueWallClockToInstant.
+ */
+export function bookingWindow(
+  date: string,
+  openingHours: string[] | null,
+  cutoffTime: string | null,
+  kind: string,
+): { earliest: Date; latest: Date } {
+  const { openMin, closeMin, closesNextDay } = nightWindowFor(openingHours, date)
+  const earliest = venueWallClockToInstant(date, openMin, false)
+
+  let endOfPresence: Date
+  if (cutoffTime) {
+    const [ch, cm] = cutoffTime.split(':').map(Number)
+    const cutMin = ch * 60 + (cm || 0)
+    // Cutoffs land after midnight (e.g. 01:30) almost always — push to next day
+    // when they sit before opening.
+    const cutNextDay = cutMin < openMin
+    endOfPresence = new Date(venueWallClockToInstant(date, cutMin, cutNextDay).getTime() + 3 * 3_600_000)
+  } else {
+    endOfPresence = venueWallClockToInstant(date, closeMin, closesNextDay)
+  }
+
+  // Post-entry answers and the morning-after prompt land after the night.
+  if (kind === 'post_entry_got_in' || kind === 'post_entry_issue' || kind === 'morning_after_opened') {
+    return { earliest, latest: new Date(endOfPresence.getTime() + POST_ENTRY_WINDOW_HOURS_AFTER * 3_600_000) }
+  }
+  return { earliest, latest: endOfPresence }
+}

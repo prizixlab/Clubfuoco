@@ -1,7 +1,7 @@
 import { createAuthedClient, createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { ok, err } from '@/lib/utils'
-import { nightWindowFor } from '@/lib/hours'
+import { bookingWindow } from '@/lib/hours'
 import { z } from 'zod'
 
 // ── POST /api/bookings/:id/signals ────────────────────────────────────────────
@@ -16,8 +16,8 @@ import { z } from 'zod'
 const CHECKIN_RADIUS_M = 250        // strictest gate: explicit "I'm here"
 const PASSIVE_RADIUS_M = 400        // looser gate for passive signals
 // Presence window = club opening → closing for that night (or cutoff + 3h for
-// time-boxed invitations like rumba list). Computed per-booking below.
-const POST_ENTRY_WINDOW_HOURS_AFTER = 14 * 24  // post-entry / review answers: up to 2 weeks later
+// time-boxed invitations like rumba list). Computed per-booking by
+// bookingWindow() in @/lib/hours, anchored to the venue timezone.
 
 const userKinds = ['user_checkin','geo_presence','pass_viewed','post_entry_got_in','post_entry_issue','morning_after_opened'] as const
 type UserKind = typeof userKinds[number]
@@ -37,47 +37,6 @@ function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): num
   const a = Math.sin(dLat/2)**2
     + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2
   return 2 * R * Math.asin(Math.sqrt(a))
-}
-
-function minsToISO(date: string, mins: number, addDay: boolean): Date {
-  // booking_date is a calendar date in the venue's TZ; without a per-club tz
-  // we approximate with UTC. Real-world misalignment is absorbed by the post
-  // window and the radius gate.
-  const base = new Date(`${date}T00:00:00Z`).getTime()
-  return new Date(base + (mins * 60_000) + (addDay ? 86_400_000 : 0))
-}
-
-function bookingWindow(
-  date: string,
-  openingHours: string[] | null,
-  cutoffTime: string | null,
-  kind: UserKind,
-): { earliest: Date; latest: Date } {
-  const { openMin, closeMin, closesNextDay } = nightWindowFor(openingHours, date)
-  const earliest = minsToISO(date, openMin, false)
-  // Default end = club closing. Invitation-limited bookings (rumba list etc.)
-  // collapse to cutoff + 3h, since the door closes at the cutoff and there's
-  // no point keeping a presence signal open all night.
-  let endOfPresence: Date
-  if (cutoffTime) {
-    const [ch, cm] = cutoffTime.split(':').map(Number)
-    const cutMin = ch * 60 + (cm || 0)
-    // Cutoffs land after midnight (e.g. 01:30) almost always — push to next day
-    // when they sit before opening.
-    const cutNextDay = cutMin < openMin
-    endOfPresence = new Date(minsToISO(date, cutMin, cutNextDay).getTime() + 3 * 3_600_000)
-  } else {
-    endOfPresence = minsToISO(date, closeMin, closesNextDay)
-  }
-  // Post-entry answers AND the morning-after prompt land after the night —
-  // keep the window open for up to two weeks.
-  if (kind === 'post_entry_got_in' || kind === 'post_entry_issue' || kind === 'morning_after_opened') {
-    return {
-      earliest,
-      latest: new Date(endOfPresence.getTime() + (POST_ENTRY_WINDOW_HOURS_AFTER - 0) * 3_600_000),
-    }
-  }
-  return { earliest, latest: endOfPresence }
 }
 
 export async function POST(

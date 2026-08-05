@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
+import { provisionBrandForUser } from '@/lib/offer-auth'
+import { getBrandByOwner } from '@/lib/partner'
 import { logAudit } from '@/lib/portal-audit'
 import { ok, err } from '@/lib/utils'
 
@@ -115,11 +117,26 @@ export async function POST(
     .eq('id', a.user_id)
   if (userErr) return err(userErr.message, 500)
 
+  // Approval provisions the promoter's brand (their list) right away — a
+  // promoter and their brand are one entity, so there's no "approved but no
+  // brand yet" state. Idempotent, so re-approving after a revoke is a no-op.
+  // Revoke pulls app access only: the brand + its offers stay independent.
+  let brandCreated = false
+  if (grant) {
+    try {
+      const before = await getBrandByOwner(sb, a.user_id)
+      await provisionBrandForUser(sb, a.user_id)
+      brandCreated = !before
+    } catch (e) {
+      return err(e instanceof Error ? e.message : 'Could not provision brand', 500)
+    }
+  }
+
   const verb = decision === 'approve' ? 'Approved' : decision === 'revoke' ? 'Revoked access for' : 'Rejected'
   await logAudit(sb, {
     action: `promoter.${decision}`,
-    summary: `${verb} promoter @${a.instagram ?? a.user_id}`,
+    summary: `${verb} promoter @${a.instagram ?? a.user_id}${brandCreated ? ' (brand provisioned)' : ''}`,
     target_type: 'promoter', target_id: a.user_id,
   })
-  return ok({ decision, is_promoter: grant })
+  return ok({ decision, is_promoter: grant, brand_created: brandCreated })
 }

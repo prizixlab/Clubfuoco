@@ -76,9 +76,24 @@ export async function resolveOrProvisionBrand(): Promise<
   const caller = await resolveCaller()
   if (caller.response) return { response: caller.response }
   const { userId, sb } = caller
+  return { brand: await provisionBrandForUser(sb, userId), userId, sb }
+}
 
+/// Ensure a given promoter account owns a brand, creating one from their
+/// promoter profile (falling back to their account name) if it doesn't exist
+/// yet. Idempotent: returns the existing brand when there is one, so it's safe
+/// to call on every approval and to re-run for a backfill — and it never
+/// violates the one-brand-per-owner unique index. userId-based (not session),
+/// so both the FuocoPromoters app (first offer) and the portal (on approval)
+/// share the exact same provisioning + key scheme. The new brand is
+/// is_active=false: activation stays an operator decision, and a second active
+/// brand would break getActiveBrand()'s .maybeSingle().
+export async function provisionBrandForUser(
+  sb: SB,
+  userId: string,
+): Promise<PartnerBrand & { id: string }> {
   const existing = await getBrandByOwner(sb, userId)
-  if (existing) return { brand: existing, userId, sb }
+  if (existing) return existing
 
   // Name/logo from the promoter's own brand profile, falling back to their
   // account name so the brand is never nameless.
@@ -121,23 +136,19 @@ export async function resolveOrProvisionBrand(): Promise<
     })
     .select('*')
     .single()
-  if (error) return { response: err(error.message, 500) }
+  if (error) throw new Error(error.message)
 
   const row = data as {
     id: string; key: string; name: string; logo_url: string | null; color: string
     attribution_required?: boolean | null; attribution_label?: string | null
   }
   return {
-    brand: {
-      id:                   row.id,
-      key:                  row.key,
-      name:                 row.name,
-      logo_url:             row.logo_url ?? null,
-      color:                row.color,
-      attribution_required: row.attribution_required === true,
-      attribution_label:    row.attribution_label ?? null,
-    },
-    userId,
-    sb,
+    id:                   row.id,
+    key:                  row.key,
+    name:                 row.name,
+    logo_url:             row.logo_url ?? null,
+    color:                row.color,
+    attribution_required: row.attribution_required === true,
+    attribution_label:    row.attribution_label ?? null,
   }
 }

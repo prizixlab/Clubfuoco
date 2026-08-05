@@ -9,15 +9,35 @@ final class TonightModel: ObservableObject {
 
     let repo = PromoterRepo()
 
+    init() {
+        // Paint the last-known nights instantly on launch (stale-while-revalidate);
+        // the .task refresh then updates them.
+        if let snap = PromoterTonightCache.load() {
+            allocations = snap.allocations
+            series = snap.series
+            loading = false
+        }
+    }
+
     func load() async {
-        loading = true; error = nil
+        // Only show the spinner on a genuine cold start with nothing cached —
+        // refreshes (the 15s poll, pull-to-refresh) keep the feed on screen
+        // instead of blanking it every time.
+        if allocations.isEmpty && series.isEmpty { loading = true }
         do {
             async let a = repo.myAllocations()
             async let s = repo.mySeries()
             allocations = try await a
             series = (try? await s) ?? []
+            error = nil
+            PromoterTonightCache.save(.init(
+                allocations: allocations, series: series, savedAt: Date()))
         } catch {
-            self.error = "Couldn't load your nights."
+            // Keep any cached/prior feed on screen; only surface the error when
+            // there's nothing to show.
+            if allocations.isEmpty && series.isEmpty {
+                self.error = "Couldn't load your nights."
+            }
         }
         loading = false
     }
@@ -188,8 +208,11 @@ struct TonightView: View {
         }
         .background(Theme.night.ignoresSafeArea())
         .task {
-            await offers.load()
-            await model.load()
+            // Offers and nights are independent — load them concurrently
+            // instead of waiting for offers before the nights even start.
+            async let o: Void = offers.load()
+            async let m: Void = model.load()
+            _ = await (o, m)
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 15_000_000_000)
                 if Task.isCancelled { break }

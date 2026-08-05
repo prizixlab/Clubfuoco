@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe'
+import { buildCardVerificationSession } from '@/lib/promoter-billing'
 import { ok, err } from '@/lib/utils'
 
 /**
@@ -44,30 +45,9 @@ export async function POST(req: Request) {
   }
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://clubfuoco.com'
-  const session = await stripe.checkout.sessions.create({
-    mode: 'payment',
-    customer: customerId,
-    payment_method_types: ['card'],
-    line_items: [{
-      price_data: {
-        currency: 'eur',
-        product_data: { name: 'Card verification — temporary €2 hold, released immediately' },
-        unit_amount: 200,
-      },
-      quantity: 1,
-    }],
-    payment_intent_data: {
-      // Authorize only — the webhook cancels this the moment the session
-      // completes, so the €2 is a liveness check, never a captured charge. The
-      // saved card is what we actually keep, for off-session billing later.
-      capture_method: 'manual',
-      setup_future_usage: 'off_session',
-      metadata: { promoter_id: user.id, purpose: 'card_verification' },
-    },
-    success_url: `${base}/billing/saved?ok=1`,
-    cancel_url: `${base}/billing/saved?cancelled=1`,
-    metadata: { promoter_id: user.id, purpose: 'card_verification' },
-  })
+  const session = await stripe.checkout.sessions.create(
+    buildCardVerificationSession(customerId, user.id, base),
+  )
 
   return ok({ url: session.url })
 }

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { sendTicketConfirmation, sendAdminTicketAlert } from '@/lib/email'
 import { pushWalletUpdate } from '@/lib/wallet/push'
+import { applyCardVerification } from '@/lib/promoter-billing'
 import type Stripe from 'stripe'
 
 // Uses Postgres sequence to give each new paid member a unique sequential number
@@ -47,30 +48,7 @@ export async function POST(request: NextRequest) {
 
         // ---- Promoter card-on-file (€2 verification hold, then released) ----
         if (session.mode === 'payment' && m?.purpose === 'card_verification' && m?.promoter_id) {
-          const pi = await stripe.paymentIntents.retrieve(session.payment_intent as string)
-          const pmId = pi.payment_method as string | null
-          if (pmId && session.customer) {
-            const pm = await stripe.paymentMethods.retrieve(pmId)
-            // The saved card is what we keep — make it the default for
-            // off-session charges (`setup_future_usage` already attached it).
-            await stripe.customers.update(session.customer as string, {
-              invoice_settings: { default_payment_method: pmId },
-            })
-            await supabase.from('promoter_billing_accounts').upsert({
-              user_id: m.promoter_id,
-              stripe_customer_id: session.customer as string,
-              default_payment_method_id: pmId,
-              card_verified: true,
-              card_brand: pm.card?.brand ?? null,
-              card_last4: pm.card?.last4 ?? null,
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'user_id' })
-          }
-          // Release the €2 hold — it was only ever an authorization to prove the
-          // card is live. Cancelling a still-uncaptured PI voids the hold.
-          if (pi.status === 'requires_capture') {
-            await stripe.paymentIntents.cancel(pi.id)
-          }
+          await applyCardVerification(supabase, stripe, session)
           break
         }
 

@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe'
 import { offerLiveOn } from '@/lib/valid-days'
 import { sendPushToUser } from '@/lib/push'
+import { failureNotification } from '@/lib/promoter-billing'
 import { ok, err } from '@/lib/utils'
 
 /**
@@ -283,12 +284,6 @@ async function recordFailure(
 
   // Tell the promoter their card needs attention — otherwise they'd only find
   // out by opening the billing screen. Fire-and-forget; never blocks billing.
-  if (wasActive) {
-    await sendPushToUser(sb, promoterId, {
-      title: 'Payment needs attention',
-      body: reason === 'no_card_on_file'
-        ? 'Add a card to pay for front-page promotion. Your nights and guest lists are unaffected.'
-        : 'A front-page promotion charge didn’t go through. Update your card to resume promotion — your nights and guest lists are unaffected.',
-    }, 'promoters')
-  }
+  const note = failureNotification(reason, wasActive ? 'active' : 'past_due')
+  if (note) await sendPushToUser(sb, promoterId, note, 'promoters')
 }

@@ -1,0 +1,48 @@
+name: CI
+
+# Gate every push and PR on main with the exact check that a broken build once
+# slipped past: a full type-check AND a real `next build`. A red X here means it
+# would NOT deploy — catch it before Vercel silently keeps serving a stale prod.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Match Vercel's install command exactly, so CI-green ⇒ deploy-green.
+      - run: npm install --legacy-peer-deps
+
+      # tsc alone would have caught the RumbalistOffer.featured error.
+      - run: npx tsc --noEmit
+
+      - run: npm run test
+
+      # The real production build. Env below are BUILD-TIME PLACEHOLDERS only —
+      # the app lazy-constructs its Stripe/Supabase clients, so build never calls
+      # them; real values live in Vercel's project env. They exist so the build
+      # can't fail for a missing-env reason and only fails on genuine breakage.
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
+          NEXT_PUBLIC_SITE_URL: https://clubfuoco.com
+          NEXT_PUBLIC_APP_URL: https://clubfuoco.com
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-key
+          STRIPE_SECRET_KEY: sk_test_placeholder
+          STRIPE_WEBHOOK_SECRET: whsec_placeholder

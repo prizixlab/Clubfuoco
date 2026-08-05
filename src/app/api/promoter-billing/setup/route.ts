@@ -3,10 +3,16 @@ import { stripe } from '@/lib/stripe'
 import { ok, err } from '@/lib/utils'
 
 /**
- * Starts the card-on-file flow for a promoter. Creates (or reuses) a Stripe
- * Customer and a Checkout Session in `setup` mode — a hosted, PCI-compliant
- * card form that validates the card (€0 auth) and saves it for off-session
- * charges later. Returns the hosted URL for the promoter to open.
+ * Starts the card-on-file flow for a promoter — used when they enable a paid
+ * feature (e.g. front-page promotion). Creates (or reuses) a Stripe Customer and
+ * a hosted, PCI-compliant Checkout Session that places a €2 verification hold on
+ * the card and saves it for off-session charges later.
+ *
+ * The €2 is authorized with `capture_method: 'manual'` and never captured — the
+ * webhook cancels it as soon as the session completes, releasing the hold. A
+ * real (rather than €0) authorization is a stronger liveness check: it catches
+ * prepaid, dead, or over-limit cards a €0 auth passes. No money is taken; the
+ * charge is disclosed in the Promoter Terms.
  */
 export async function POST(req: Request) {
   const sb = await createServiceClient()
@@ -39,12 +45,28 @@ export async function POST(req: Request) {
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://clubfuoco.com'
   const session = await stripe.checkout.sessions.create({
-    mode: 'setup',
+    mode: 'payment',
     customer: customerId,
     payment_method_types: ['card'],
+    line_items: [{
+      price_data: {
+        currency: 'eur',
+        product_data: { name: 'Card verification — temporary €2 hold, released immediately' },
+        unit_amount: 200,
+      },
+      quantity: 1,
+    }],
+    payment_intent_data: {
+      // Authorize only — the webhook cancels this the moment the session
+      // completes, so the €2 is a liveness check, never a captured charge. The
+      // saved card is what we actually keep, for off-session billing later.
+      capture_method: 'manual',
+      setup_future_usage: 'off_session',
+      metadata: { promoter_id: user.id, purpose: 'card_verification' },
+    },
     success_url: `${base}/billing/saved?ok=1`,
     cancel_url: `${base}/billing/saved?cancelled=1`,
-    metadata: { promoter_id: user.id },
+    metadata: { promoter_id: user.id, purpose: 'card_verification' },
   })
 
   return ok({ url: session.url })

@@ -45,7 +45,38 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session
         const m = session.metadata
 
-        // ---- Promoter card-on-file (setup mode) ----
+        // ---- Promoter card-on-file (€2 verification hold, then released) ----
+        if (session.mode === 'payment' && m?.purpose === 'card_verification' && m?.promoter_id) {
+          const pi = await stripe.paymentIntents.retrieve(session.payment_intent as string)
+          const pmId = pi.payment_method as string | null
+          if (pmId && session.customer) {
+            const pm = await stripe.paymentMethods.retrieve(pmId)
+            // The saved card is what we keep — make it the default for
+            // off-session charges (`setup_future_usage` already attached it).
+            await stripe.customers.update(session.customer as string, {
+              invoice_settings: { default_payment_method: pmId },
+            })
+            await supabase.from('promoter_billing_accounts').upsert({
+              user_id: m.promoter_id,
+              stripe_customer_id: session.customer as string,
+              default_payment_method_id: pmId,
+              card_verified: true,
+              card_brand: pm.card?.brand ?? null,
+              card_last4: pm.card?.last4 ?? null,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' })
+          }
+          // Release the €2 hold — it was only ever an authorization to prove the
+          // card is live. Cancelling a still-uncaptured PI voids the hold.
+          if (pi.status === 'requires_capture') {
+            await stripe.paymentIntents.cancel(pi.id)
+          }
+          break
+        }
+
+        // ---- Promoter card-on-file (legacy €0 setup mode) ----
+        // Kept so any in-flight setup-mode session still lands its card; new
+        // sessions use the €2 verification path above.
         if (session.mode === 'setup' && m?.promoter_id) {
           const si = await stripe.setupIntents.retrieve(session.setup_intent as string)
           const pmId = si.payment_method as string | null

@@ -176,7 +176,11 @@ struct OfferSheet: View {
             .task { billing = try? await PromoterRepo().billingStatus() }
             .onChange(of: checkingCard) { _, checking in
                 // Re-check card status when returning from the Stripe setup flow.
-                if !checking { Task { billing = try? await PromoterRepo().billingStatus() } }
+                // Only assign on a real response — a failed fetch must not clobber
+                // a known-good status with nil.
+                if !checking {
+                    Task { if let s = try? await PromoterRepo().billingStatus() { billing = s } }
+                }
             }
             .onChange(of: scenePhase) { _, phase in
                 // Coming back from the hosted Stripe card page: if they'd started
@@ -184,9 +188,14 @@ struct OfferSheet: View {
                 // backed out — surface a clear "try another" hint.
                 guard phase == .active, cardAttempted else { return }
                 Task {
-                    billing = try? await PromoterRepo().billingStatus()
-                    if billing?.cardVerified == true {
-                        cardAttempted = false; cardDeclined = false
+                    // Only trust an actual response: a transient network error must
+                    // NOT read as "declined" (that would flash a false failure on a
+                    // card that saved fine). On error, leave the state untouched.
+                    guard let status = try? await PromoterRepo().billingStatus() else { return }
+                    billing = status
+                    if status.cardVerified {
+                        cardAttempted = false
+                        cardDeclined = false
                     } else {
                         cardDeclined = true
                     }

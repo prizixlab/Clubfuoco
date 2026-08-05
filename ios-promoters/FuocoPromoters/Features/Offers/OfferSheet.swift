@@ -294,12 +294,9 @@ struct OfferSheet: View {
                         }
                         // Reassure before they see €2.00 on the card form: it's a
                         // liveness check, not a charge (matches the Promoter Terms).
-                        HStack(alignment: .top, spacing: 6) {
-                            Image(systemName: "lock.shield").font(.system(size: 11)).foregroundStyle(Theme.parchmentDim)
-                            Text("We’re not charging you — we place a temporary €2 hold just to check the card is good, and it’s released right away.")
-                                .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
+                        Text("We’re not charging you — we place a temporary €2 hold just to check the card is good, and it’s released right away.")
+                            .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }

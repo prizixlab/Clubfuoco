@@ -1,30 +1,67 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
+import { listBrands, type BrandRow } from '@/lib/partner'
 import { ok, err } from '@/lib/utils'
 
-// GET /api/portal/promoters — the promoter-account approval queue plus the
-// current roster. Applications come from the FuocoPromoters signup flow
-// (instagram + IG verification code); approving one is what actually grants
-// app access (users.is_promoter). Supplier logins (accounts that own a
-// partner_brand) are excluded from the roster — they're managed on the
-// Suppliers tab, not here.
+// GET /api/portal/promoters — the unified promoter roster. A promoter and a
+// "supplier" are the same thing: a partner_brand owned by a promoter account
+// (owner_user_id). This returns one row per promoter, folding together:
+//   • their access application (promoter_applications: IG verification, status)
+//   • their brand (partner_brands: logo/colour/offers/live), if provisioned
+// plus prospective brands seeded before their owner has access (owner_user_id
+// null, e.g. a list we're onboarding). Keyed by user_id where one exists;
+// owner-less brands stand as their own rows.
+export interface PromoterRow {
+  // Stable row id — the application id when there is one, else the brand id.
+  id: string
+  // Identity
+  user_id: string | null
+  email: string | null
+  full_name: string | null
+  instagram: string | null
+  ig_code: string | null
+  ig_verified: boolean
+  is_promoter: boolean
+  // Application (null for a brand with no application behind it)
+  application_id: string | null
+  status: 'pending' | 'approved' | 'rejected' | null
+  clubs: string | null
+  experience: string | null
+  created_at: string | null
+  reviewed_at: string | null
+  // Brand (null for an approved promoter who hasn't been provisioned a brand)
+  brand: BrandRow | null
+}
+
+interface AppRow {
+  id: string; user_id: string; instagram: string | null; clubs: string | null
+  experience: string | null; status: 'pending' | 'approved' | 'rejected'
+  ig_code: string | null; ig_verified: boolean; created_at: string; reviewed_at: string | null
+}
+
 export async function GET() {
   const denied = await requirePortal()
   if (denied) return denied
   const sb = await createServiceClient()
 
-  const [{ data: apps, error: appErr }, { data: owners }] = await Promise.all([
+  const [{ data: apps, error: appErr }, brands] = await Promise.all([
     sb.from('promoter_applications')
       .select('id, user_id, instagram, clubs, experience, status, ig_code, ig_verified, created_at, reviewed_at')
       .order('created_at', { ascending: false })
       .limit(200),
-    sb.from('partner_brands').select('owner_user_id').not('owner_user_id', 'is', null),
+    listBrands(sb),
   ])
   if (appErr) return err(appErr.message, 500)
-  const supplierIds = new Set((owners ?? []).map(o => (o as { owner_user_id: string }).owner_user_id))
 
-  // Join in the account (email/name/is_promoter) for each applicant.
-  const userIds = [...new Set((apps ?? []).map(a => (a as { user_id: string }).user_id))]
+  const appList = (apps ?? []) as AppRow[]
+  const brandByOwner = new Map<string, BrandRow>()
+  for (const b of brands) if (b.owner_user_id) brandByOwner.set(b.owner_user_id, b)
+
+  // Join in the account (email/name/is_promoter) for every user we touch.
+  const userIds = [...new Set([
+    ...appList.map(a => a.user_id),
+    ...brands.map(b => b.owner_user_id).filter((v): v is string => !!v),
+  ])]
   const userById: Record<string, { email: string | null; full_name: string | null; is_promoter: boolean }> = {}
   if (userIds.length) {
     const { data: users } = await sb.from('users').select('id, email, full_name, is_promoter').in('id', userIds)
@@ -34,23 +71,61 @@ export async function GET() {
     }
   }
 
-  const rows = (apps ?? [])
-    .filter(a => !supplierIds.has((a as { user_id: string }).user_id))
-    .map(a => {
-      const r = a as Record<string, unknown>
-      const u = userById[r.user_id as string]
-      return {
-        id: r.id, user_id: r.user_id,
-        email: u?.email ?? null, full_name: u?.full_name ?? null,
-        instagram: r.instagram, clubs: r.clubs, experience: r.experience,
-        status: r.status, ig_code: r.ig_code, ig_verified: r.ig_verified,
-        is_promoter: u?.is_promoter ?? false,
-        created_at: r.created_at, reviewed_at: r.reviewed_at,
-      }
+  const rows: PromoterRow[] = []
+  const claimedBrandIds = new Set<string>()
+
+  // 1) One row per application, with the owner's brand folded in.
+  for (const a of appList) {
+    const u = userById[a.user_id]
+    const brand = brandByOwner.get(a.user_id) ?? null
+    if (brand) claimedBrandIds.add(brand.id)
+    rows.push({
+      id: a.id,
+      user_id: a.user_id,
+      email: u?.email ?? null,
+      full_name: u?.full_name ?? null,
+      instagram: a.instagram,
+      ig_code: a.ig_code,
+      ig_verified: a.ig_verified,
+      is_promoter: u?.is_promoter ?? false,
+      application_id: a.id,
+      status: a.status,
+      clubs: a.clubs,
+      experience: a.experience,
+      created_at: a.created_at,
+      reviewed_at: a.reviewed_at,
+      brand,
     })
+  }
+
+  // 2) Brands with no application behind them — a portal-created list (owner set
+  //    but never applied) or a prospective one (no owner yet, e.g. Aashi).
+  for (const b of brands) {
+    if (claimedBrandIds.has(b.id)) continue
+    const u = b.owner_user_id ? userById[b.owner_user_id] : undefined
+    rows.push({
+      id: b.id,
+      user_id: b.owner_user_id,
+      email: u?.email ?? null,
+      full_name: u?.full_name ?? null,
+      instagram: null,
+      ig_code: null,
+      ig_verified: false,
+      is_promoter: u?.is_promoter ?? false,
+      application_id: null,
+      status: null,
+      clubs: null,
+      experience: null,
+      created_at: b.created_at,
+      reviewed_at: null,
+      brand: b,
+    })
+  }
 
   return ok({
     pending: rows.filter(r => r.status === 'pending'),
-    decided: rows.filter(r => r.status !== 'pending').slice(0, 50),
+    roster: rows
+      .filter(r => r.status !== 'pending')
+      .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? '')),
   })
 }

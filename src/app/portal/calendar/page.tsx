@@ -28,7 +28,7 @@ interface Payload { from: string; days: number; today: string; calendar: Day[] }
 
 const WHY: Record<string, string> = {
   suspended:       'Suspended for this night',
-  supplier_hidden: 'Supplier hidden everywhere',
+  supplier_hidden: 'Promoter hidden everywhere',
   conflict_rule:   'Excluded by this venue’s conflict rule',
 }
 
@@ -57,7 +57,7 @@ export default function CalendarPage() {
         What&rsquo;s <em style={{ fontStyle: 'italic', color: C.goldHi }}>on</em>
       </h1>
       <p style={{ margin: '8px 0 20px', fontSize: 14, color: C.dim, fontFamily: font, maxWidth: 640, lineHeight: 1.55 }}>
-        Every offer resolved night by night — after valid days, the supplier&rsquo;s hide switch and
+        Every offer resolved night by night — after valid days, the promoter&rsquo;s hide switch and
         the venue&rsquo;s conflict rule. Suspend a single night without touching the weekly schedule.
       </p>
 

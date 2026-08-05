@@ -42,10 +42,10 @@ export default function NewBrandPage() {
     <>
       <div style={{ marginBottom: 24 }}>
         <Link href="/portal" style={{ ...caps, color: C.dim, textDecoration: 'none', letterSpacing: '0.12em' }}>
-          ← Suppliers
+          ← Promoters
         </Link>
         <h1 style={{ margin: '14px 0 0', fontFamily: serif, fontSize: 30, fontWeight: 400, color: C.text }}>
-          Onboard new supplier
+          Onboard new promoter
         </h1>
         <p style={{ margin: '8px 0 0', fontSize: 14, color: C.dim, fontFamily: font }}>
           Identity first — logo, attribution and offers come next in the editor.
@@ -55,7 +55,7 @@ export default function NewBrandPage() {
       <Card style={{ maxWidth: 520 }}>
         <SectionLabel>Brand identity</SectionLabel>
         <form onSubmit={create}>
-          <Field label="Brand name" hint="Display name shown in the supplier credit, e.g. “Aashi”.">
+          <Field label="Brand name" hint="Display name shown in the promoter credit, e.g. “Aashi”.">
             <TextInput value={name} autoFocus maxLength={60} placeholder="Aashi"
               onChange={e => {
                 setName(e.target.value)
@@ -66,7 +66,7 @@ export default function NewBrandPage() {
             <TextInput value={key} maxLength={32} placeholder="aashi" style={{ fontFamily: mono, fontSize: 13 }}
               onChange={e => { setKeyTouched(true); setKey(slugify(e.target.value)) }} />
           </Field>
-          <Field label="Primary accent (hex)" hint="Confined to the supplier’s small credit/logo — the app accent stays ember.">
+          <Field label="Primary accent (hex)" hint="Confined to the promoter’s small credit/logo — the app accent stays ember.">
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <input type="color" value={color} onChange={e => setColor(e.target.value.toUpperCase())}
                 style={{ width: 46, height: 40, border: `1px solid ${C.line}`, borderRadius: 4, background: 'rgba(0,0,0,0.35)', padding: 3, cursor: 'pointer' }} />

@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { api, C, caps, font, serif } from './_ui'
 
 const TABS = [
-  { href: '/portal',           label: 'Partners', match: (p: string) => p === '/portal' || p.startsWith('/portal/brands') },
+  { href: '/portal',           label: 'Promoters', match: (p: string) => p === '/portal' || p.startsWith('/portal/brands') },
   { href: '/portal/clubs',     label: 'Clubs',    match: (p: string) => p.startsWith('/portal/clubs') },
   { href: '/portal/reviews',   label: 'Changes',  match: (p: string) => p.startsWith('/portal/reviews') },
   { href: '/portal/calendar',  label: 'Calendar', match: (p: string) => p.startsWith('/portal/calendar') },
@@ -74,7 +74,7 @@ export default function PortalHeader() {
             }}>
               {t.label}
               {(() => {
-                const n = t.label === 'Changes' ? pendingChanges : t.label === 'Partners' ? pendingPromoters : 0
+                const n = t.label === 'Changes' ? pendingChanges : t.label === 'Promoters' ? pendingPromoters : 0
                 return n > 0 && (
                   <span style={{
                     ...caps, fontSize: 9.5, letterSpacing: 0, color: '#141416', background: C.gold,

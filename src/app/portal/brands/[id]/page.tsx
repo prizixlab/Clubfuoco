@@ -37,7 +37,7 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
         <div>
           <Link href="/portal" style={{ ...caps, color: C.dim, textDecoration: 'none', letterSpacing: '0.12em' }}>
-            ← Suppliers
+            ← Promoters
           </Link>
           <h1 style={{ margin: '14px 0 0', fontFamily: serif, fontSize: 30, fontWeight: 400, color: C.text }}>
             Edit brand: <em style={{ fontStyle: 'italic', color: C.goldHi }}>{brand.name}</em>
@@ -193,7 +193,7 @@ function IdentityCard({ brand, onSaved, onDraft }: {
         </Field>
       </div>
 
-      <Field label="Primary accent (hex)" hint="Only used inside the supplier’s credit/logo — never the app accent.">
+      <Field label="Primary accent (hex)" hint="Only used inside the promoter’s credit/logo — never the app accent.">
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <input type="color" value={/^#[0-9A-F]{6}$/i.test(color) ? color : '#C09950'}
             onChange={e => setColor(e.target.value.toUpperCase())}
@@ -225,7 +225,7 @@ function IdentityCard({ brand, onSaved, onDraft }: {
       <div style={{ borderTop: `1px solid ${C.line}`, margin: '6px 0 20px' }} />
       <SectionLabel>Attribution</SectionLabel>
       <p style={{ margin: '-8px 0 16px', fontSize: 12.5, color: C.faint, lineHeight: 1.55, fontFamily: font }}>
-        Some supplier contracts require their brand stay visible. When on, the
+        Some promoter contracts require their brand stay visible. When on, the
         booking sheet shows a small subordinate credit — Club Fuoco stays dominant.
       </p>
 
@@ -251,9 +251,9 @@ function IdentityCard({ brand, onSaved, onDraft }: {
       )}
 
       <div style={{ borderTop: `1px solid ${C.line}`, margin: '4px 0 16px' }} />
-      <SectionLabel>Supplier access</SectionLabel>
+      <SectionLabel>Promoter access</SectionLabel>
       <p style={{ margin: '-8px 0 14px', fontSize: 12.5, color: C.faint, lineHeight: 1.55, fontFamily: font }}>
-        The email this supplier uses to sign in to the FuocoPromoters app and
+        The email this promoter uses to sign in to the FuocoPromoters app and
         manage their own offers. Save it, then send the password link below —
         they’ll get an email to create a password and sign in with it.
       </p>
@@ -370,7 +370,7 @@ function PreviewCard({ brand }: { brand: BrandRow }) {
           <div style={{ textAlign: 'center', marginTop: 14, minHeight: 16 }}>
             {credit
               ? <SupplierCredit name={brand.name} label={brand.attribution_label} logoUrl={brand.logo_url} />
-              : <span style={{ fontSize: 11, color: C.faint, fontFamily: font, fontStyle: 'italic' }}>no supplier credit (attribution off)</span>}
+              : <span style={{ fontSize: 11, color: C.faint, fontFamily: font, fontStyle: 'italic' }}>no promoter credit (attribution off)</span>}
           </div>
 
           {/* Sheet detail rows */}

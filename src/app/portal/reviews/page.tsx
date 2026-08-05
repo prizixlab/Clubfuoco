@@ -127,7 +127,7 @@ export default function ReviewsPage() {
             <div style={{ flex: 1, minWidth: 220 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                 <Badge color={r.action === 'offer.delete' ? C.danger : C.gold}>{ACTION_LABEL[r.action] ?? r.action}</Badge>
-                <Badge color={C.faint}>{r.type === 'change' ? 'supplier' : 'promoter'}</Badge>
+                <Badge color={C.faint}>{r.type === 'change' ? 'offer' : 'night'}</Badge>
               </div>
               <p style={{ margin: 0, fontSize: 14.5, fontFamily: font, color: C.text }}>{r.summary}</p>
               <p style={{ margin: '4px 0 0', fontFamily: mono, fontSize: 11, color: C.faint }}>

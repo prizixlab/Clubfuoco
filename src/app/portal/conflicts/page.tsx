@@ -54,10 +54,10 @@ export default function ConflictsPage() {
         Who <em style={{ fontStyle: 'italic', color: C.goldHi }}>shows</em> where
       </h1>
       <p style={{ margin: '8px 0 24px', fontSize: 14, color: C.dim, fontFamily: font, maxWidth: 640, lineHeight: 1.55 }}>
-        Every venue and product with a supplier behind it. Set a default for each, then
+        Every venue and product with a promoter behind it. Set a default for each, then
         override any night that should differ — Rumba on the door Mon–Fri, Aashi on Saturday.
         <strong style={{ color: C.goldHi, fontWeight: 500 }}> Clash</strong> marks the ones where
-        suppliers actually compete.
+        promoters actually compete.
       </p>
 
       <ErrorLine error={error} />
@@ -89,7 +89,7 @@ function SupplierPicker({ suppliers, value, onChange }: {
   return (
     <>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        <Choice active={value.mode === 'all'}  onClick={() => onChange({ mode: 'all', brand_ids: [] })}>All suppliers</Choice>
+        <Choice active={value.mode === 'all'}  onClick={() => onChange({ mode: 'all', brand_ids: [] })}>All promoters</Choice>
         <Choice active={value.mode === 'none'} onClick={() => onChange({ mode: 'none', brand_ids: [] })}>No offers</Choice>
       </div>
       <p style={{ ...caps, color: C.faint, margin: '14px 0 8px', letterSpacing: '0.12em' }}>or pick who shows</p>

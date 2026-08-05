@@ -329,6 +329,10 @@ export interface BrandRow extends PartnerBrand {
   // true once a promoter account has been provisioned + linked (owner_user_id
   // set) for this brand. The uid itself stays server-side.
   login_provisioned: boolean
+  // The promoter account (auth uid) that owns this brand, or null for a
+  // prospective brand seeded before its promoter has access. Operator-only —
+  // used to join a brand to its promoter in the unified portal roster.
+  owner_user_id: string | null
 }
 
 // offer_count counts ACTIVE offers only — it drives the "activating an empty
@@ -354,6 +358,7 @@ export async function listBrands(sb: SB): Promise<BrandRow[]> {
     offers_hidden: (r as { offers_hidden?: boolean }).offers_hidden === true,
     login_email: ((r as { login_email?: string | null }).login_email) ?? null,
     login_provisioned: !!(r as { owner_user_id?: string | null }).owner_user_id,
+    owner_user_id: ((r as { owner_user_id?: string | null }).owner_user_id) ?? null,
   }))
 }
 
@@ -369,6 +374,7 @@ export async function getBrand(sb: SB, id: string): Promise<BrandRow | null> {
     offers_hidden: (data as { offers_hidden?: boolean }).offers_hidden === true,
     login_email: ((data as { login_email?: string | null }).login_email) ?? null,
     login_provisioned: !!(data as { owner_user_id?: string | null }).owner_user_id,
+    owner_user_id: ((data as { owner_user_id?: string | null }).owner_user_id) ?? null,
   }
 }
 
@@ -394,7 +400,7 @@ export async function createBrand(
     .select('*')
     .single()
   if (error) throw new Error(error.message)
-  return { ...toBrand(data), is_active: false, created_at: (data as { created_at: string }).created_at, offer_count: 0, offers_hidden: false, login_email: null, login_provisioned: false }
+  return { ...toBrand(data), is_active: false, created_at: (data as { created_at: string }).created_at, offer_count: 0, offers_hidden: false, login_email: null, login_provisioned: false, owner_user_id: null }
 }
 
 // `key` is deliberately not updatable — it's the stable slug / storage path.

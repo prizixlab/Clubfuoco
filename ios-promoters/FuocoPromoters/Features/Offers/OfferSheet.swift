@@ -12,11 +12,14 @@ struct OfferSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var isVip: Bool
     @State private var featured: Bool
     @State private var billing: PromoterRepo.BillingStatus?
     @State private var checkingCard = false
+    @State private var cardAttempted = false   // opened the Stripe card flow at least once
+    @State private var cardDeclined = false     // came back from it still without a saved card
     @State private var title: String
     @State private var subtitle: String
     @State private var price: String
@@ -175,6 +178,20 @@ struct OfferSheet: View {
                 // Re-check card status when returning from the Stripe setup flow.
                 if !checking { Task { billing = try? await PromoterRepo().billingStatus() } }
             }
+            .onChange(of: scenePhase) { _, phase in
+                // Coming back from the hosted Stripe card page: if they'd started
+                // it and still have no saved card, the card was declined or they
+                // backed out — surface a clear "try another" hint.
+                guard phase == .active, cardAttempted else { return }
+                Task {
+                    billing = try? await PromoterRepo().billingStatus()
+                    if billing?.cardVerified == true {
+                        cardAttempted = false; cardDeclined = false
+                    } else {
+                        cardDeclined = true
+                    }
+                }
+            }
             .navigationTitle(existing == nil ? "New offer" : "Edit offer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -277,26 +294,38 @@ struct OfferSheet: View {
                         Button {
                             Task {
                                 checkingCard = true
-                                if let url = try? await PromoterRepo().billingSetupURL() { openURL(url) }
+                                cardDeclined = false
+                                if let url = try? await PromoterRepo().billingSetupURL() {
+                                    cardAttempted = true
+                                    openURL(url)
+                                }
                                 checkingCard = false
                             }
                         } label: {
                             HStack(spacing: 8) {
                                 if checkingCard { ProgressView().tint(Theme.parchment).scaleEffect(0.8) }
                                 else { Image(systemName: "creditcard") }
-                                Text("Add a payment method to enable")
+                                Text(cardDeclined ? "Try another card" : "Add a payment method to enable")
                                     .font(.cfSans(13, weight: .medium))
                             }
                             .foregroundStyle(Theme.parchment)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
-                            .overlay(RoundedRectangle(cornerRadius: Theme.radiusPill).stroke(Theme.parchmentFaint))
+                            .overlay(RoundedRectangle(cornerRadius: Theme.radiusPill)
+                                .stroke(cardDeclined ? Theme.wine : Theme.parchmentFaint))
                         }
-                        // Reassure before they see €2.00 on the card form: it's a
-                        // liveness check, not a charge (matches the Promoter Terms).
-                        Text("We’re not charging you — we place a temporary €2 hold just to check the card is good, and it’s released right away.")
-                            .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
-                            .fixedSize(horizontal: false, vertical: true)
+                        if cardDeclined {
+                            // Came back with no card saved — declined or backed out.
+                            Text("That card wasn’t added — it may have been declined. Try another card. Nothing was charged.")
+                                .font(.cfSans(11)).foregroundStyle(Theme.wine)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } else {
+                            // Reassure before they see €2.00 on the card form: it's a
+                            // liveness check, not a charge (matches the Promoter Terms).
+                            Text("We’re not charging you — we place a temporary €2 hold just to check the card is good, and it’s released right away.")
+                                .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                 }
             }

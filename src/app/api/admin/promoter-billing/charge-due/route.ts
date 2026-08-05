@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe'
 import { offerLiveOn } from '@/lib/valid-days'
+import { sendPushToUser } from '@/lib/push'
 import { ok, err } from '@/lib/utils'
 
 /**
@@ -258,6 +259,15 @@ async function recordFailure(
   night: { id: string; night_date: string }, promoterId: string,
   headcount: number, amount: number, dueAt: string, reason: string, prevBalance: number
 ) {
+  // Was the account already gated? We only notify on the transition INTO
+  // past_due, so a run that fails several nights doesn't fire a push per night.
+  const { data: prev } = await sb
+    .from('promoter_billing_accounts')
+    .select('status')
+    .eq('user_id', promoterId)
+    .maybeSingle()
+  const wasActive = ((prev as { status?: string } | null)?.status ?? 'active') === 'active'
+
   await sb.from('promoter_billing_charges').upsert({
     night_id: night.id, promoter_id: promoterId, event_date: night.night_date,
     accepted_count: headcount, amount_cents: amount, rate_cents: RATE_CENTS, due_at: dueAt,
@@ -270,4 +280,15 @@ async function recordFailure(
     status: 'past_due',
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' })
+
+  // Tell the promoter their card needs attention — otherwise they'd only find
+  // out by opening the billing screen. Fire-and-forget; never blocks billing.
+  if (wasActive) {
+    await sendPushToUser(sb, promoterId, {
+      title: 'Payment needs attention',
+      body: reason === 'no_card_on_file'
+        ? 'Add a card to pay for front-page promotion. Your nights and guest lists are unaffected.'
+        : 'A front-page promotion charge didn’t go through. Update your card to resume promotion — your nights and guest lists are unaffected.',
+    }, 'promoters')
+  }
 }

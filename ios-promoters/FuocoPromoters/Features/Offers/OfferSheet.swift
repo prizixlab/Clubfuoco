@@ -273,23 +273,33 @@ struct OfferSheet: View {
                             .font(.cfSans(12)).foregroundStyle(Theme.parchment)
                     }
                 } else {
-                    Button {
-                        Task {
-                            checkingCard = true
-                            if let url = try? await PromoterRepo().billingSetupURL() { openURL(url) }
-                            checkingCard = false
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button {
+                            Task {
+                                checkingCard = true
+                                if let url = try? await PromoterRepo().billingSetupURL() { openURL(url) }
+                                checkingCard = false
+                            }
+                        } label: {
+                            HStack(spacing: 8) {
+                                if checkingCard { ProgressView().tint(Theme.parchment).scaleEffect(0.8) }
+                                else { Image(systemName: "creditcard") }
+                                Text("Add a payment method to enable")
+                                    .font(.cfSans(13, weight: .medium))
+                            }
+                            .foregroundStyle(Theme.parchment)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .overlay(RoundedRectangle(cornerRadius: Theme.radiusPill).stroke(Theme.parchmentFaint))
                         }
-                    } label: {
-                        HStack(spacing: 8) {
-                            if checkingCard { ProgressView().tint(Theme.parchment).scaleEffect(0.8) }
-                            else { Image(systemName: "creditcard") }
-                            Text("Add a payment method to enable")
-                                .font(.cfSans(13, weight: .medium))
+                        // Reassure before they see €2.00 on the card form: it's a
+                        // liveness check, not a charge (matches the Promoter Terms).
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "lock.shield").font(.system(size: 11)).foregroundStyle(Theme.parchmentDim)
+                            Text("We’re not charging you — we place a temporary €2 hold just to check the card is good, and it’s released right away.")
+                                .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .foregroundStyle(Theme.parchment)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .overlay(RoundedRectangle(cornerRadius: Theme.radiusPill).stroke(Theme.parchmentFaint))
                     }
                 }
             }

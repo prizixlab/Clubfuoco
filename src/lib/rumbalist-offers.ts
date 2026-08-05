@@ -39,6 +39,10 @@ export interface RumbalistOffer {
   // Nights the supplier turned off, even though valid_days covers them
   // ("normally Monday, but not Monday the 20th").
   skipped_dates?: string[]
+  // Paid front-screen promotion — the offer the promoter is paying to pin to
+  // the top of the feed. Live-data only (from partner_offers.featured); absent
+  // on the bundled fallback catalogue below.
+  featured?: boolean
 }
 
 /** Is this offer actually running on `date` ("yyyy-MM-dd")? */

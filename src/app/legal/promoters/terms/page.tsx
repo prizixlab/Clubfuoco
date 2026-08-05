@@ -80,8 +80,8 @@ const SECTIONS: LegalSection[] = [
     heading: 'Earnings, payouts, and fees',
     body: [
       'Two separate flows of money can exist on a promoter account, and they are accounted for separately.',
-      '• Payouts to you. For private nights with payout tracking, you earn an agreed amount per attending guest, at the rate recorded on the allocation for that night. Where your account sells paid offers, revenue from those sales is also reported to you in Earnings. Figures shown in the app are our records and are provisional until the night is reconciled — attendance, no-shows, and door refusals can change them.',
-      '• Fees you pay us. Front-page promotion is a paid placement, billed through our payment provider, Stripe. Nothing else is charged for a standard promoter account. If your balance falls past due, promotion is paused until it is settled; your existing nights and guest lists continue to work.',
+      '• Payouts to you. For private nights with payout tracking, you earn an agreed amount per attending guest, at the rate recorded on the allocation for that night. Where your account sells paid offers (such as VIP tables), the revenue those sales generate is reported to you in Earnings. Revenue figures shown in the app are the gross amounts guests paid and are our provisional records — they are shown before our commission (below) and before reconciliation, and attendance, no-shows, and door refusals can change them. Where payment for entry or a table is taken by the venue rather than through Club Fuoco, only the share agreed with you is payable through us.',
+      '• Fees you pay us. Two kinds. First, front-page promotion is a paid placement, billed through our payment provider, Stripe. Second, on paid offers you sell through Club Fuoco (such as VIP tables), we retain a service fee or commission on each sale — the applicable rate is the one shown in the app or agreed with you, and it is taken from the sale rather than invoiced separately, so the amount settled to you is net of it. Nothing else is charged for a standard promoter account. If your balance falls past due, promotion is paused until it is settled; your existing nights and guest lists continue to work.',
       'You are responsible for your own taxes, social contributions, invoicing, and any licences or permits your promotional activity requires. Nothing in these Terms creates an employment relationship, partnership, or agency between you and Club Fuoco. You are an independent contractor.',
       'If you believe a payout figure is wrong, contact partners@clubfuoco.com within 60 days of the night in question. We will review our records with the venue. We may withhold a payout we reasonably believe is connected to fraudulent attendance, fabricated guests, or manipulated check-ins, while we investigate.',
       'We may also set off against payouts owed to you any amount you owe us under "False offers" above, once the process in that clause has been followed.',
@@ -160,7 +160,7 @@ export default function PromoterTermsPage() {
     <LegalDoc
       kicker="Club Fuoco Promoters · Legal"
       title="Promoter Terms of Service"
-      updated="22 July 2026"
+      updated="4 August 2026"
       intro="These Terms govern promoter and partner accounts on Club Fuoco — how nights and offers are published, how payouts and fees work, and the obligations that come with handling guest data. They are separate from the Terms that govern the guest-facing Club Fuoco app."
       sections={SECTIONS}
     />

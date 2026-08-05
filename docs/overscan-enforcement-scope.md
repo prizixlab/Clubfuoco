@@ -15,8 +15,9 @@ carve-out). This doc scopes the engineering to make that clause real.
 ## TL;DR
 
 The clause is currently **unenforceable by construction** — the app has no way to
-observe an overscan. Making it real is **mostly greenfield** and gated on one
-product decision (who scans, and per head?). Recommended path: build **Phase A
+observe an overscan. Making it real is **mostly greenfield**. **Decided:** the
+door surface is a **distinct QR scanner app** (a third iOS app, staff-facing),
+not the promoter app and not per-head QR. Recommended path: build **Phase A
 (detection, no charging)** first — it's useful on its own and de-risks the rest —
 and only build **Phase B (charging)** if Phase A shows real overscan volume.
 
@@ -48,18 +49,45 @@ surface that actually scans.
 
 ---
 
-## Gating decision (product, not engineering)
+## Scanner surface — DECIDED: a distinct door app
 
-The clause only has a signal if the door **scans once per person**. That needs a
-scanner surface that does not exist yet. Pick one before Phase A:
+The clause only has a signal if the door **scans once per person**. **Decision
+(4 Aug 2026): build a distinct QR scanner app** — a third iOS app alongside the
+consumer app (`ios-native`, com.clubfuoco.app) and the promoter app
+(`ios-promoters`, com.clubfuoco.promoters). Rejected alternatives: reusing the
+promoter app (conflates promoter self-service with door control), a portal
+webcam scanner (clunky at a door), and per-head QR (moves the problem to
+issuance/UX). Everything below assumes **"door staff scan once per head against
+an allowance."**
+
+### The door app (working name "Fuoco Door", `com.clubfuoco.door`)
+- **Own Xcode project + bundle id + release cadence**, mirroring how
+  `ios-promoters` is set up (xcodegen `project.yml`, its own scheme). New
+  directory e.g. `ios-door/`.
+- **Scanning:** VisionKit `DataScannerViewController` (live camera QR, iOS 16+)
+  or an AVFoundation `AVCaptureMetadataOutput` fallback. Decode the
+  `qr_code_token`, POST to the redesigned verify endpoint, show the bouncer a
+  big **covered / ⚠️ over** result with running `used/allowed`.
+- **Scoped to a venue/night:** the app must know which door it is, so scans carry
+  a `device_id`/door and a venue context (drives the de-dupe window and the
+  overscan report).
+- **Offline tolerance (later):** doors have flaky signal; a queue-and-sync of
+  scans is a Phase A+ nice-to-have, not v1.
+
+### New open decision — how door staff authenticate
+The scanner is a **new auth surface**. Note the existing verify endpoint already
+gates on `requireRole(['club_staff','club_owner','admin'])`, so there is a role
+model to build on. Options:
 
 | Option | What it means | Trade-off |
 | --- | --- | --- |
-| **Promoter app as scanner** (recommended) | Add a camera-scan screen to FuocoPromoters; staff scan each head | Fastest — device, camera, auth already there; but only promoter-run doors |
-| **Portal web scanner** | A `/portal` page that scans via webcam | Works for operator-run doors; clunky on a phone at a door |
-| **Per-head QR** | Each guest in a party gets their own pass | Cleanest counting, no "count scans" logic; more issuance/UX work |
+| **Supabase `club_staff` accounts** (leans on what exists) | Portal provisions per-venue door logins; app signs in with Supabase auth; verify endpoint's existing role check already fits | Reuses infra; but per-venue account admin + memory notes "web app has no admin accounts" — this adds a staff account class |
+| **Venue device login / PIN** | A venue-scoped credential the operator sets; device stays logged in | Simple at the door; weaker per-person accountability |
+| **Per-night operator code** | Portal issues a short-lived code the door enters that night | Nothing persistent to manage; re-issue every night |
 
-Everything below assumes **"staff scan once per head against an allowance."**
+Recommendation: **Supabase `club_staff` accounts, provisioned per venue from the
+portal** — it slots into the existing role gate and gives a real `scanned_by`
+for the audit log. Confirm with Yakov before building.
 
 ---
 
@@ -77,8 +105,9 @@ data to decide whether Phase B is even worth it.
   scans" wording depends on, and the dispute-evidence trail.
 
 ### Scanner surface
-Per the gating decision — build the chosen one. Minimum: scan → call verify →
-show the door a clear **covered / ⚠️ over** state.
+Build the distinct **Fuoco Door** app (see "Scanner surface" above): new
+`ios-door/` Xcode project, VisionKit live-camera QR, staff auth (pending the
+auth decision), scan → verify → show a clear **covered / ⚠️ over** state.
 
 ### Endpoint redesign — `POST /api/bookings/verify/[token]`
 - Insert an `admission_scans` row per scan; `admissions_used = count(counted)`.
@@ -120,7 +149,10 @@ Phase B from the numbers.
   Off-session charging EU consumers on a punitive-adjacent basis is exactly what
   gets scrutinised; gate it on Phase A data and a lawyer's review (the terms file
   already carries a "have a lawyer review before launch" note).
-- **Everything is blocked on the gating decision.** No scanner surface → no
-  signal → nothing to enforce.
+- **Scanner surface is decided** (distinct door app); the remaining blocker is
+  the **staff auth decision** — no auth → no `scanned_by` → weak audit trail.
+- A **third app** is real ongoing cost: another Apple app record, provisioning
+  profile, entitlements, review cycle, and release flow (see the promoter app's
+  release notes for the pattern).
 - **Prod schema drift:** both phases' migrations are manual SQL-editor applies;
   introspect the live catalog before trusting local DDL.

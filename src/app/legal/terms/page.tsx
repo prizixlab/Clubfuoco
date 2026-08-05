@@ -45,6 +45,8 @@ const SECTIONS: LegalSection[] = [
       'Reserved right to charge a no-show fee. Bookings made through Club Fuoco hold capacity at the venue. To protect that capacity, we reserve the right to charge a no-show fee of up to €50 per ticket when a confirmed booking is not honoured — that is, when no member of the party arrives at the venue on the booking date, no arrival is detected via the in-app check-in or geofence, and the booking was not cancelled before the cancellation window closes. This clause applies only to paid bookings; free guest-list signups (such as rumba list) are not subject to any no-show fee.',
       'We do not currently charge this fee. This clause exists so we may introduce no-show fees in future without amending these Terms. Before we begin charging, we will: notify you in-app at least 30 days in advance; publish the activation date and the exact fee amount (within the €50 cap above) in an updated version of these Terms; and apply the fee only to bookings made after the activation date.',
       'If we do begin charging, the fee will be processed to the payment method used for the original booking. You will receive a receipt by email and may dispute the charge by contacting support within 14 days. We will not charge the fee where you provide reasonable evidence that the venue refused entry on grounds outside your control (capacity, dress-code change after booking, venue closure), or where attendance was prevented by an event outside your control.',
+      'Reserved right to charge for extra admissions. Paid features — including paid entry, fast-track ("fast pass"), VIP tables, paid event tickets, and any other paid access we offer — admit a set number of people: your party size, or the number of passes you bought. Your entry QR code covers only that number. Where the code is used to admit more people than you paid for — for example by sharing, copying, or screenshotting it — we reserve the right to charge for each additional admission beyond the paid number, up to €50 per additional admission, to the payment method used for the original purchase. This is a charge for extra entries actually taken, not a penalty. It applies only to paid features; free guest-list signups (such as rumba list) are excluded.',
+      'We do not currently charge this. As with the no-show fee above, before we begin we will notify you in-app at least 30 days in advance and publish the activation date and exact amount (within the €50-per-admission cap). Any charge is based on confirmed admissions, not raw scans: repeated scans of the same pass at the same door are counted once, so venue or door-staff scanning errors are never charged to you. You will receive a receipt and may dispute a charge by contacting support within 14 days, and we will not charge where you show the extra admissions were outside your control.',
     ],
   },
   {
@@ -70,7 +72,7 @@ const SECTIONS: LegalSection[] = [
   {
     heading: 'Acceptable use',
     body: [
-      'You agree not to misuse the App. In particular you must not: use it for any unlawful purpose; attempt to gain unauthorised access to it; interfere with its operation; resell or transfer guest passes or bookings except as expressly permitted; or submit false, abusive, or infringing content.',
+      'You agree not to misuse the App. In particular you must not: use it for any unlawful purpose; attempt to gain unauthorised access to it; interfere with its operation; resell, transfer, share, copy, or reproduce guest passes, entry QR codes, or bookings to admit more people than you have paid for, except as expressly permitted; or submit false, abusive, or infringing content.',
       'We may remove content and suspend access where we reasonably believe these Terms have been breached.',
     ],
   },
@@ -117,7 +119,7 @@ export default function TermsPage() {
     <LegalDoc
       kicker="Club Fuoco · Legal"
       title="Terms of Use"
-      updated="23 June 2026"
+      updated="4 August 2026"
       intro="Please read these Terms carefully. They set out the rules for using the Club Fuoco app, including signup, bookings, ticket purchases, and arrival check-in."
       sections={SECTIONS}
     />

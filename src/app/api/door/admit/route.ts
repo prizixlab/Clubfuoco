@@ -76,10 +76,20 @@ export async function POST(req: NextRequest) {
       }
     }
   } else if (ctx.kind === 'booking') {
+    // Flip the booking to 'used' once its allowance is fully consumed — for a
+    // single-seat ticket that's the first swipe. Doing it per-head instead would
+    // mark a party of 4 used after one person walked in, which is exactly what
+    // the count-based model exists to avoid.
+    const fullyAdmitted = used > 0 && used >= (ctx.allowed ?? 1)
     if (used > 0) {
+      const patch: Record<string, unknown> = { checked_in_at: isoNoMs() }
+      if (fullyAdmitted && ctx.status !== 'cancelled') patch.status = 'used'
+      await supabase.from('bookings').update(patch).eq('id', ctx.id)
+    } else if (ctx.status === 'used') {
+      // Fully voided — hand the booking back so it can be scanned again.
       await supabase.from('bookings')
-        .update({ checked_in_at: isoNoMs() })
-        .eq('id', ctx.id).is('checked_in_at', null)
+        .update({ status: 'confirmed', checked_in_at: null })
+        .eq('id', ctx.id)
     }
   }
 
@@ -89,13 +99,22 @@ export async function POST(req: NextRequest) {
 /** Resolve club_id + night_date (and row id) straight from a token_ref. */
 async function tokenContext(
   supabase: Awaited<ReturnType<typeof createServiceClient>>, tokenRef: string,
-): Promise<{ kind: 'booking' | 'guest'; id: string; clubId: string; night: string } | null> {
+): Promise<{
+  kind: 'booking' | 'guest'; id: string; clubId: string; night: string
+  allowed?: number; status?: string
+} | null> {
   if (tokenRef.startsWith('bk_')) {
     const id = tokenRef.slice(3)
     const { data } = await supabase
-      .from('bookings').select('id, club_id, booking_date').eq('id', id).maybeSingle()
+      .from('bookings')
+      .select('id, club_id, booking_date, party_size, admissions_allowed, status')
+      .eq('id', id).maybeSingle()
     if (!data) return null
-    return { kind: 'booking', id: data.id, clubId: data.club_id, night: data.booking_date }
+    return {
+      kind: 'booking', id: data.id, clubId: data.club_id, night: data.booking_date,
+      allowed: data.admissions_allowed ?? data.party_size ?? 1,
+      status: data.status,
+    }
   }
   if (tokenRef.startsWith('pg_')) {
     const id = tokenRef.slice(3)

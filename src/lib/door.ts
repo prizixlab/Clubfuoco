@@ -265,8 +265,12 @@ export function parsePayload(payload: string): { kind: 'booking' | 'guest'; toke
   // Booking QR encodes `<APP_URL>/verify/<qr_code_token>`.
   const verify = p.match(/\/verify\/([^/?#]+)/i)
   if (verify) return { kind: 'booking', token: decodeURIComponent(verify[1]) }
-  // Bare UUID / token fallback: try it as a booking token, then a guest id.
-  if (/^[0-9a-f-]{16,}$/i.test(p)) return { kind: 'booking', token: p }
+  // Bare token fallback. Production qr_code_token values are SHORT reference
+  // codes like "CF-5DBXJ2Y7" — not UUIDs — so this must stay permissive rather
+  // than assume a hex/UUID shape. Anything that looks like a code (no spaces,
+  // no scheme) is tried as a booking token, then as a guest id. The lookups are
+  // exact parameterised matches, so a loose pattern here is safe.
+  if (/^[A-Za-z0-9][A-Za-z0-9._:-]{4,63}$/.test(p)) return { kind: 'booking', token: p }
   return null
 }
 
@@ -323,7 +327,12 @@ export async function resolveDescriptor(
   return resolveGuest(supabase, parsed.token)
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 async function resolveGuest(supabase: SupabaseClient, guestId: string): Promise<AccessDescriptorDTO | null> {
+  // promoter_guests.id is a uuid PK; querying it with a short code (CF-…) is a
+  // PostgREST type error, not a miss. Skip the lookup unless it can match.
+  if (!UUID_RE.test(guestId)) return null
   const { data: g } = await supabase
     .from('promoter_guests')
     .select('id, full_name, plus_ones, allocation_id, promoter_allocations(night_id, promoter_nights(club_id, night_date, clubs(name)))')

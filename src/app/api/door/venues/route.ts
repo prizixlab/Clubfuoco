@@ -8,9 +8,22 @@ import { ok, err } from '@/lib/utils'
 // guest data.
 export async function GET(req: NextRequest) {
   const date = req.nextUrl.searchParams.get('date')
-  if (!date) return err('date required (yyyy-mm-dd)', 400)
-
   const supabase = await createServiceClient()
+
+  // No date → the "which venue do you work?" picker: every active club, not
+  // just the ones with something on tonight.
+  if (!date) {
+    const { data, error } = await supabase
+      .from('clubs').select('id, name, neighborhood')
+      .eq('is_active', true).order('name')
+    if (error) return err(error.message)
+    return ok({
+      date: null,
+      venues: (data ?? []).map(c => ({
+        id: c.id, name: c.name, neighborhood: c.neighborhood, booking_count: 0,
+      })),
+    })
+  }
 
   const [bk, pn] = await Promise.all([
     supabase.from('bookings').select('club_id').eq('booking_date', date).neq('status', 'cancelled'),

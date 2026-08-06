@@ -68,6 +68,8 @@ struct AccessDescriptor: Codable, Identifiable, Hashable {
     var allowance: Allowance
     var status: AccessStatus
     var venue: String
+    /// Human-readable club, so a rejected ticket can say WHICH venue it's for.
+    var venueName: String?
     var night: String            // ISO date "2026-08-05"
     var tokenRef: String         // what a later void refers to
 }

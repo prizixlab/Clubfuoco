@@ -87,7 +87,8 @@ final class NightPackStore: ObservableObject {
                     kind: p.kind, entitlement: p.entitlement,
                     allowance: Allowance(used: e.used, allowed: e.allowed),
                     status: e.used >= e.allowed && e.used > 0 ? .over : .ok,
-                    venue: m.venue, night: m.night, tokenRef: e.tokenRef)
+                    venue: m.venue, venueName: m.venueName, night: m.night,
+                    tokenRef: e.tokenRef)
             }
         }
         return nil

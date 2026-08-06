@@ -50,7 +50,7 @@ final class PromoterRepo: ObservableObject {
         """
         id, night_id, promoter_id, spots, payout_per_guest, payout_status,
         group_visible, invite_token,
-        guests:promoter_guests ( id, plus_ones, checked_in_at ),
+        guests:promoter_guests ( id, plus_ones, checked_in_at\(level >= 4 ? ", checked_in_source" : "") ),
         night:promoter_nights (
             \(nightSelect(level)),
             club:clubs ( id, name )

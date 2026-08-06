@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
       allowance: { used: 0, allowed: 0 },
       status: 'invalid',
       venue: '',
+      venue_name: '',
       night: '',
       token_ref: `invalid-${payload.slice(0, 40)}`,
     })

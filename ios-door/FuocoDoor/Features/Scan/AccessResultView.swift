@@ -168,6 +168,11 @@ struct AccessResultView: View {
 
     private var denyNote: some View {
         VStack(spacing: 12) {
+            if descriptor.status == .wrongVenue, let v = descriptor.venueName, !v.isEmpty {
+                Text("This ticket is for \(v).")
+                    .font(.cfSans(14)).foregroundStyle(Theme.parchment)
+                    .multilineTextAlignment(.center)
+            }
             Text("Do not admit.").font(.cfSerif(22)).foregroundStyle(Theme.deny)
             Button("Dismiss") { onDone() }
                 .font(.cfSans(15, weight: .semibold)).foregroundStyle(Theme.parchmentDim)

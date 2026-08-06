@@ -122,9 +122,15 @@ struct PromoterGuest: Codable, Identifiable, Equatable, Hashable {
     /// Whether the guest agreed to share location for auto check-in.
     /// nil = unknown (older claims, or the column isn't applied yet).
     let locationConsent: Bool?
+    /// How the check-in happened: "door_scan" (Fuoco Door scanner), "geofence",
+    /// or nil (manual / column not applied yet).
+    let checkedInSource: String?
 
     var totalCount: Int { 1 + plusOnes }
     var isCheckedIn: Bool { checkedInAt != nil }
+    /// Scanned at the door, as opposed to a location/manual check-in.
+    var isScannedIn: Bool { isCheckedIn && checkedInSource == "door_scan" }
+    var checkInLabel: String { isScannedIn ? "SCANNED IN" : "ARRIVED" }
 }
 
 struct PromoterReferral: Codable, Identifiable, Equatable, Hashable, Sendable {

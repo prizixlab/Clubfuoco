@@ -95,7 +95,8 @@ final class GuestlistModel: ObservableObject {
                     plusOnes: g.plusOnes, note: g.note,
                     checkedInAt: willCheckIn ? Date() : nil,
                     createdAt: g.createdAt, referralId: g.referralId,
-                    locationConsent: g.locationConsent)
+                    locationConsent: g.locationConsent,
+                    checkedInSource: willCheckIn ? g.checkedInSource : nil)
             }
             Haptics.tap()
         } catch {}
@@ -369,7 +370,7 @@ struct GuestlistView: View {
                 }
             }
             Spacer()
-            Text(g.isCheckedIn ? "ARRIVED" : "PENDING")
+            Text(g.isCheckedIn ? g.checkInLabel : "PENDING")
                 .font(.cfMono(10, weight: .medium))
                 .kerning(1.5)
                 .foregroundStyle(g.isCheckedIn ? Theme.ember : Theme.parchmentDim)

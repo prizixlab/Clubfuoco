@@ -250,8 +250,9 @@ export interface AccessDescriptorDTO {
   kind: CredentialKind
   entitlement: Entitlement
   allowance: { used: number; allowed: number }
-  status: 'ok' | 'already_used' | 'over' | 'cancelled' | 'invalid' | 'wrong_night'
+  status: 'ok' | 'already_used' | 'over' | 'cancelled' | 'invalid' | 'wrong_night' | 'wrong_venue'
   venue: string
+  venue_name: string
   night: string
   token_ref: string
 }
@@ -337,6 +338,7 @@ export async function resolveDescriptor(
       allowance: { used, allowed },
       status,
       venue: b.club_id,
+      venue_name: club?.name ?? 'Venue',
       night: b.booking_date,
       token_ref: tokenRef,
     }
@@ -374,6 +376,7 @@ async function resolveGuest(supabase: SupabaseClient, guestId: string): Promise<
     allowance: { used, allowed },
     status: used >= allowed && used > 0 ? 'over' : 'ok',
     venue: night?.club_id ?? '',
+    venue_name: night?.clubs?.name ?? 'Venue',
     night: night?.night_date ?? '',
     token_ref: tokenRef,
   }

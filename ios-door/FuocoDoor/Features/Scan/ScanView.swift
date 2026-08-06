@@ -26,7 +26,7 @@ struct ScanView: View {
         self.repo = repo
         _store = ObservedObject(wrappedValue: store)
         _pack = ObservedObject(wrappedValue: pack)
-        _controller = StateObject(wrappedValue: ScanController(store: store, repo: repo, pack: pack, venueId: session.venue))
+        _controller = StateObject(wrappedValue: ScanController(store: store, repo: repo, pack: pack))
         _sync = StateObject(wrappedValue: SyncManager(repo: repo, store: store, session: session))
     }
 

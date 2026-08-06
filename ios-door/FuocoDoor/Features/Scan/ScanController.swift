@@ -14,14 +14,18 @@ final class ScanController: ObservableObject {
     private let store: DoorStore
     private let repo: DoorRepo
     private let pack: NightPackStore
-    /// The club this door admits for; anything else is WRONG VENUE.
-    private let venueId: String
     private var recentlyScanned: [String: Date] = [:]
     private let dedupeWindow: TimeInterval = 3.0
 
-    init(store: DoorStore, repo: DoorRepo, pack: NightPackStore, venueId: String) {
-        self.store = store; self.repo = repo; self.pack = pack; self.venueId = venueId
+    init(store: DoorStore, repo: DoorRepo, pack: NightPackStore) {
+        self.store = store; self.repo = repo; self.pack = pack
     }
+
+    /// Read the door's venue fresh on every scan rather than capturing it at
+    /// init. @StateObject keeps its first instance for the view's lifetime, so a
+    /// captured id silently went stale the moment staff switched venue — and a
+    /// stale id means foreign tickets read as valid.
+    private var venueId: String { DeviceSession.load()?.venue ?? "" }
 
     /// Returns true if this payload should be shown (not a duplicate within the
     /// dedupe window). The scanner keeps firing while a code is in frame.
@@ -68,10 +72,17 @@ final class ScanController: ObservableObject {
     /// valid it is. Checked client-side because this door knows its own venue —
     /// the credential itself is perfectly genuine, just not for this door.
     private func scoped(_ d: AccessDescriptor) -> AccessDescriptor {
-        guard d.status != .invalid, !d.venue.isEmpty, d.venue != venueId else { return d }
-        var copy = d
-        copy.status = .wrongVenue
-        return copy
+        guard d.status != .invalid else { return d }
+        let door = venueId
+        // Fail closed: an unset door venue, or a credential whose venue we
+        // couldn't resolve, must NOT be admitted. Previously an empty venue
+        // skipped the check entirely and showed ADMIT.
+        guard !door.isEmpty, !d.venue.isEmpty, d.venue == door else {
+            var copy = d
+            copy.status = .wrongVenue
+            return copy
+        }
+        return d
     }
 
     /// The pack's `used` is the server's count at download time; fold in any

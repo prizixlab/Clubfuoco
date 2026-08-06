@@ -292,11 +292,28 @@ export async function resolveDescriptor(
   if (!parsed) return null
 
   if (parsed.kind === 'booking') {
-    const { data: b } = await supabase
-      .from('bookings')
-      .select('id, booking_type, party_size, admissions_allowed, status, arrival_window, booking_date, club_id, users!bookings_user_id_fkey(full_name, avatar_url), clubs(name)')
-      .eq('qr_code_token', parsed.token)
-      .maybeSingle()
+    // Accept either secret: the new strong scan_token (what fresh QRs encode)
+    // or the legacy CF- reference code (what already-issued QRs encode).
+    // or() is used rather than two round-trips; scan_token may not exist yet.
+    const cols = 'id, booking_type, party_size, admissions_allowed, status, arrival_window, booking_date, club_id, users!bookings_user_id_fkey(full_name, avatar_url), clubs(name)'
+    interface BookingRow {
+      id: string; booking_type: string | null; party_size: number | null
+      admissions_allowed: number | null; status: string | null
+      arrival_window: string | null; booking_date: string; club_id: string
+      users: { full_name?: string; avatar_url?: string } | null
+      clubs: { name?: string } | null
+    }
+    const esc = parsed.token.replace(/[(),]/g, '')
+    let b: BookingRow | null = null
+    const both = await supabase.from('bookings').select(cols)
+      .or(`qr_code_token.eq.${esc},scan_token.eq.${esc}`).maybeSingle()
+    if (both.error) {
+      const legacyOnly = await supabase.from('bookings').select(cols)
+        .eq('qr_code_token', parsed.token).maybeSingle()
+      b = legacyOnly.data as BookingRow | null
+    } else {
+      b = both.data as BookingRow | null
+    }
     if (!b) {
       // Maybe the URL token was actually a guest id — fall through to guest.
       return resolveGuest(supabase, parsed.token)

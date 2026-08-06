@@ -10,6 +10,7 @@ struct ScanView: View {
     private let repo: DoorRepo
 
     @ObservedObject private var pack: NightPackStore
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showRecent = false
     @State private var showPack = false
     @State private var showManualEntry = false
@@ -55,6 +56,11 @@ struct ScanView: View {
                              controller: controller) {
                 controller.current = nil
             }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // Coming back to the foreground is the other moment signal is
+            // commonly restored (phone unlocked indoors, app resumed).
+            if phase == .active { Task { await sync.flushQueue() } }
         }
         .sheet(isPresented: $showPack) {
             NightPackView(pack: pack, repo: repo)

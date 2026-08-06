@@ -8,6 +8,7 @@ struct SyncStatusBar: View {
     var onSync: () -> Void
 
     private var color: Color {
+        if !sync.isOnline { return Theme.over }
         switch sync.level {
         case .fresh:  return Theme.admit
         case .warn:   return Theme.over
@@ -15,7 +16,15 @@ struct SyncStatusBar: View {
         }
     }
     private var text: String {
+        if sync.isFlushing { return "Sending queued admissions…" }
         if sync.isSyncing { return "Syncing…" }
+        // Offline is normal at a door, not an error — say what happens next so
+        // staff don't think admissions are being lost.
+        if !sync.isOnline {
+            return pendingCount > 0
+                ? "Offline · \(pendingCount) will send automatically"
+                : "Offline · scanning from cache"
+        }
         guard let h = sync.hoursSinceSync else { return "Not yet synced — tap to sync" }
         switch sync.level {
         case .fresh:  return String(format: "Synced %.0fm ago", (sync.sinceLastSync ?? 0) / 60)
@@ -30,7 +39,12 @@ struct SyncStatusBar: View {
                 Circle().fill(color).frame(width: 8, height: 8)
                 Text(text).font(.cfMono(12)).foregroundStyle(Theme.parchment)
                 Spacer()
-                if pendingCount > 0 {
+                if !sync.isOnline {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Theme.over)
+                }
+                if pendingCount > 0 && sync.isOnline {
                     Text("\(pendingCount) queued")
                         .font(.cfMono(11)).foregroundStyle(Theme.flame)
                 }

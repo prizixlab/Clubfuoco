@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import Network
 
 /// Owns the offline/sync contract (§4): local-first operation, opportunistic
 /// sync, soft warnings, and the hard 12-hour lock. A "full sync" = push the
@@ -12,6 +13,11 @@ final class SyncManager: ObservableObject {
     @Published private(set) var isSyncing = false
     @Published private(set) var lastError: String?
     @Published private(set) var now = Date()
+    /// Live reachability. Drives the automatic flush — admissions recorded with
+    /// no signal must reach the ledger the moment one comes back, without a
+    /// bouncer remembering to press anything.
+    @Published private(set) var isOnline = true
+    @Published private(set) var isFlushing = false
 
     // The 12-hour ceiling and the soft-warning threshold (§4).
     static let ceiling: TimeInterval = 12 * 3600
@@ -21,6 +27,8 @@ final class SyncManager: ObservableObject {
     private let store: DoorStore
     private let session: DeviceSession
     private var ticker: AnyCancellable?
+    private let monitor = NWPathMonitor()
+    private var wasOffline = false
 
     private static let lastSyncKey = "cf.door.lastFullSyncAt"
 
@@ -31,10 +39,66 @@ final class SyncManager: ObservableObject {
         if let t = UserDefaults.standard.object(forKey: Self.lastSyncKey) as? Date {
             lastFullSyncAt = t
         }
-        // Drive the countdown / lock banner once a minute.
+        // Drive the countdown / lock banner once a minute. The same tick is a
+        // safety net for the flush: if a path change is ever missed, a queue
+        // still drains within 30s of connectivity returning.
         ticker = Timer.publish(every: 30, on: .main, in: .common)
             .autoconnect()
-            .sink { [weak self] t in self?.now = t }
+            .sink { [weak self] t in
+                guard let self else { return }
+                self.now = t
+                Task { await self.flushQueue() }
+            }
+        startMonitoring()
+    }
+
+    deinit { monitor.cancel() }
+
+    private func startMonitoring() {
+        monitor.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor in
+                guard let self else { return }
+                let up = path.status == .satisfied
+                self.isOnline = up
+                // Rising edge only — flush when signal RETURNS, not on every
+                // interface wobble while already online.
+                if up && self.wasOffline {
+                    self.wasOffline = false
+                    await self.flushQueue()
+                } else if !up {
+                    self.wasOffline = true
+                }
+            }
+        }
+        monitor.start(queue: DispatchQueue(label: "cf.door.reachability"))
+    }
+
+    /// Push every queued admission/void through the open admit route, oldest
+    /// first so the ledger sees them in the order the door did. Idempotent on
+    /// scanId, so re-sending a record the server already has is harmless — which
+    /// is what makes an unconditional retry safe.
+    func flushQueue() async {
+        guard !isFlushing else { return }
+        let pending = store.unsynced.sorted { $0.deviceTime < $1.deviceTime }
+        guard !pending.isEmpty else { return }
+        isFlushing = true
+        defer { isFlushing = false }
+
+        var delivered: Set<UUID> = []
+        for scan in pending {
+            do {
+                try await repo.record(scan)
+                delivered.insert(scan.scanId)
+            } catch {
+                // Still offline (or the server is down) — keep the rest queued
+                // and stop; the next path change or tick retries.
+                break
+            }
+        }
+        if !delivered.isEmpty {
+            store.markSynced(delivered)
+            lastError = nil
+        }
     }
 
     var sinceLastSync: TimeInterval? {

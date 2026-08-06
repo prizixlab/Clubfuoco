@@ -34,7 +34,7 @@ struct BookingDetailView: View {
                         AttendanceCheckInCard(booking: booking,
                                               onSignalPosted: onAttendanceChanged)
                     }
-                    if !isCancelled, let token = booking.qrCodeToken {
+                    if !isCancelled, let token = (booking.scanToken ?? booking.qrCodeToken) {
                         qrBlock(token)
                         actions
                     }

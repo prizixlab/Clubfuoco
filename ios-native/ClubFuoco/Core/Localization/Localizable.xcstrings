@@ -3634,6 +3634,54 @@
         }
       }
     },
+    "bookings.noUpcoming": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No upcoming bookings"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No tienes reservas próximas"
+          }
+        }
+      }
+    },
+    "bookings.noUpcomingSub": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you book a night, it’ll show up here."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuando reserves una noche, aparecerá aquí."
+          }
+        }
+      }
+    },
+    "bookings.noUpcomingPast": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing coming up — check your past bookings below."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nada próximo — consulta tus reservas pasadas abajo."
+          }
+        }
+      }
+    },
     "bookings.past": {
       "localizations": {
         "en": {
@@ -3822,6 +3870,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lista de invitados"
+          }
+        }
+      }
+    },
+    "bookings.guestlistTag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GUESTLIST"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LISTA"
           }
         }
       }
@@ -8574,22 +8638,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Empieza por estos"
-          }
-        }
-      }
-    },
-    "bookings.factGuestlist": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Guestlist"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lista"
           }
         }
       }

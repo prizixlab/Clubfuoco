@@ -626,7 +626,7 @@ struct BookingsView: View {
                     factCell(locale.t("bookings.factTicket"), locale.t(booking.bookingType == "vip" ? "bookings.vip" : "bookings.general"))
                 }
 
-                if !isCancelled, let token = booking.qrCodeToken {
+                if !isCancelled, let token = (booking.scanToken ?? booking.qrCodeToken) {
                     HStack(spacing: 12) {
                         Button {
                             Haptics.tap()
@@ -878,7 +878,7 @@ struct BookingsView: View {
                 .font(.cfSerif(28))
                 .foregroundStyle(Theme.ink)
 
-            if let token = booking.qrCodeToken {
+            if let token = (booking.scanToken ?? booking.qrCodeToken) {
                 QRCodeView(token: token)
                     .frame(width: 260, height: 260)
                     .padding(20)
@@ -1057,8 +1057,14 @@ final class BookingsViewModel {
         } catch {
             state = .failed(error.localizedDescription)
         }
-        groups = (await groupList ?? []).filter { $0.status != "cancelled" }
-        invites = (await inviteResp)?.invites ?? []
+        // Stale-while-revalidate, mirroring how `data` is preserved on a failed
+        // refresh above. `try?` yields nil on a transient failure (network blip,
+        // timeout, 5xx) — only overwrite when the fetch actually SUCCEEDED, so a
+        // flaky request never blanks a claimed party or group invite from the
+        // list. A genuine empty result decodes to a non-nil response with an
+        // empty array, so real deletions still clear correctly.
+        if let g = await groupList { groups = g.filter { $0.status != "cancelled" } }
+        if let resp = await inviteResp { invites = resp.invites }
         // Re-sync background geofences against the fresh booking list — picks
         // up newly-booked nights and drops cancelled or past ones. No-op when
         // the user hasn't granted Always.

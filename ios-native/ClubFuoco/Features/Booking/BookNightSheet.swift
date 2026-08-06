@@ -162,7 +162,7 @@ struct BookNightSheet: View {
                 .font(.cfSerif(20))
                 .foregroundStyle(Theme.ink)
                 .multilineTextAlignment(.center)
-            if let token = booking.qrCodeToken {
+            if let token = (booking.scanToken ?? booking.qrCodeToken) {
                 QRCodeView(token: token)
                     .frame(width: 180, height: 180)
                     .padding(16)

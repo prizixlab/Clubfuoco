@@ -17,6 +17,9 @@ struct Booking: Decodable, Identifiable, Sendable {
     let status: String
     let totalAmount: Double?
     let qrCodeToken: String?
+    /// Strong 128-bit door secret. The QR encodes this when present; older
+    /// bookings fall back to qrCodeToken (the public CF- reference code).
+    let scanToken: String?
     let createdAt: String?
     let clubs: EmbeddedOne<ClubSummary>?
     /// Rolled-up attendance status from booking_attendance_signals. Optional —

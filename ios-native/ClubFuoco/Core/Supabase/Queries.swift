@@ -105,6 +105,29 @@ final class Queries: @unchecked Sendable {
     /// REST route reads with the cookie session, which a native Bearer request
     /// doesn't have, so RLS returns nothing. The direct query runs as the real
     /// signed-in user, so RLS (`auth.uid() = user_id`) passes.
+    /// Bookings select with a drift fallback: newest columns first, retry lean.
+    private static func bookingsQuery(_ supabase: SupabaseService, uid: String) async throws -> [Booking] {
+        let base = """
+            id, booking_type, party_size, booking_date, arrival_window, \
+            status, total_amount, qr_code_token, created_at, \
+            attendance_status, attendance_confidence, checked_in_at, \
+            clubs (id, name, cover_image_url, address, neighborhood, lat, lng, opening_hours), \
+            partner_brands (key, name, logo_url, color, attribution_label)
+            """
+        let rich = base.replacingOccurrences(of: "qr_code_token,", with: "qr_code_token, scan_token,")
+        for cols in [rich, base] {
+            do {
+                return try await supabase.client.from("bookings").select(cols)
+                    .eq("user_id", value: uid)
+                    .order("booking_date", ascending: false)
+                    .execute().value
+            } catch {
+                if cols == base { throw error }   // lean failed → a real error
+            }
+        }
+        return []
+    }
+
     func myBookings() async throws -> BookingsResponse {
         // currentSession() (not a bare try?) — a dead refresh token must sign
         // the user out, not render a silently-empty Tickets page.
@@ -113,18 +136,10 @@ final class Queries: @unchecked Sendable {
         }
         let uid = session.user.id.uuidString
 
-        async let bookings: [Booking] = supabase.client
-            .from("bookings")
-            .select("""
-                id, booking_type, party_size, booking_date, arrival_window, \
-                status, total_amount, qr_code_token, created_at, \
-                attendance_status, attendance_confidence, checked_in_at, \
-                clubs (id, name, cover_image_url, address, neighborhood, lat, lng, opening_hours), \
-                partner_brands (key, name, logo_url, color, attribution_label)
-                """)
-            .eq("user_id", value: uid)
-            .order("booking_date", ascending: false)
-            .execute().value
+        // scan_token lands with a manual migration; production drifts from
+        // supabase/migrations, so ask for it and retry without it on a missing
+        // column rather than letting the whole Tickets page fail.
+        async let bookings: [Booking] = Self.bookingsQuery(supabase, uid: uid)
 
         async let signups: [GuestSignup] = supabase.client
             .from("guest_list_signups")

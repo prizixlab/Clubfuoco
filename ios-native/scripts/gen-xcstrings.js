@@ -183,6 +183,15 @@ const NATIVE_KEYS = {
   // Bookings (hardcoded EN on web)
   'bookings.tonight': { en: 'Tonight', es: 'Esta noche' },
   'bookings.upcoming': { en: 'Upcoming', es: 'Próximas' },
+  'bookings.noUpcoming': { en: 'No upcoming bookings', es: 'No tienes reservas próximas' },
+  'bookings.noUpcomingSub': {
+    en: 'When you book a night, it’ll show up here.',
+    es: 'Cuando reserves una noche, aparecerá aquí.',
+  },
+  'bookings.noUpcomingPast': {
+    en: 'Nothing coming up — check your past bookings below.',
+    es: 'Nada próximo — consulta tus reservas pasadas abajo.',
+  },
   'bookings.past': { en: 'Past', es: 'Pasadas' },
   'bookings.showPast': { en: 'Show past', es: 'Ver pasadas' },
   'bookings.hidePast': { en: 'Hide past', es: 'Ocultar pasadas' },
@@ -195,6 +204,9 @@ const NATIVE_KEYS = {
   'bookings.showQR': { en: 'Show QR', es: 'Mostrar QR' },
   'bookings.atDoor': { en: 'Show this at the door', es: 'Muestra esto en la puerta' },
   'bookings.guestList': { en: 'Guest list', es: 'Lista de invitados' },
+  // Gold pill on a claimed promoter-guestlist pass. Stored uppercase — the
+  // pill renders the value verbatim (no .textCase in the view).
+  'bookings.guestlistTag': { en: 'GUESTLIST', es: 'LISTA' },
   'bookings.partyOf': { en: 'Party of %d', es: 'Grupo de %d' },
   'bookings.general': { en: 'General entry', es: 'Entrada general' },
   'bookings.vip': { en: 'VIP table', es: 'Mesa VIP' },

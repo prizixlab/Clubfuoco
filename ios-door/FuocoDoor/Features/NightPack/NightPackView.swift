@@ -6,6 +6,8 @@ import SwiftUI
 struct NightPackView: View {
     @ObservedObject var pack: NightPackStore
     let repo: DoorRepo
+    /// The venue this door works. Downloads are scoped to it.
+    let session: DeviceSession
     @Environment(\.dismiss) private var dismiss
 
     @State private var date = Date()
@@ -47,7 +49,7 @@ struct NightPackView: View {
                 .datePickerStyle(.compact)
                 .tint(Theme.flame)
                 .onChange(of: date) { Task { await load() } }
-            Text("Entries are sealed with each guest's own QR — this cache can't be read without scanning.")
+            Text("\(session.venueName) · entries are sealed with each guest's own QR, so this cache can't be read without scanning.")
                 .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
                 .multilineTextAlignment(.center)
         }
@@ -120,7 +122,11 @@ struct NightPackView: View {
     private func load() async {
         loading = true; error = nil
         defer { loading = false }
-        do { venues = try await repo.venues(date: dateString) }
+        do {
+            // Only this door's venue — staff can't cache another club's guests.
+            venues = try await repo.venues(date: dateString).filter { $0.id == session.venue }
+            if venues.isEmpty { error = "Nothing on at \(session.venueName) that night." }
+        }
         catch { self.error = "Couldn't load venues. Check your connection." }
     }
 

@@ -37,7 +37,7 @@ struct MockDoorRepo: DoorRepo {
 
     func record(_ scan: QueuedScan) async throws { /* demo backend — nothing to persist */ }
 
-    func venues(date: String) async throws -> [DoorVenue] {
+    func venues(date: String?) async throws -> [DoorVenue] {
         [DoorVenue(id: "villa-agrippina", name: "Villa Agrippina", neighborhood: "Trastevere", bookingCount: 5)]
     }
 

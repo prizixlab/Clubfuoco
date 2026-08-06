@@ -38,6 +38,8 @@ enum AccessStatus: String, Codable {
     case cancelled
     case invalid
     case wrongNight = "wrong_night"
+    /// The ticket is valid, but for a different club than this door works.
+    case wrongVenue = "wrong_venue"
 
     /// Free guestlist is excluded from overscan billing, but the door still
     /// counts heads. `over` on a guestlist is informational, not a charge.

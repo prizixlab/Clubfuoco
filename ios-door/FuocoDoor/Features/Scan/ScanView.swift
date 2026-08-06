@@ -13,15 +13,20 @@ struct ScanView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showRecent = false
     @State private var showPack = false
+    @State private var showVenue = false
     @State private var showManualEntry = false
     @State private var manualCode = ""
 
-    init(session: DeviceSession, repo: DoorRepo, store: DoorStore, pack: NightPackStore) {
+    var onVenueChange: (() -> Void)? = nil
+
+    init(session: DeviceSession, repo: DoorRepo, store: DoorStore, pack: NightPackStore,
+         onVenueChange: (() -> Void)? = nil) {
+        self.onVenueChange = onVenueChange
         self.session = session
         self.repo = repo
         _store = ObservedObject(wrappedValue: store)
         _pack = ObservedObject(wrappedValue: pack)
-        _controller = StateObject(wrappedValue: ScanController(store: store, repo: repo, pack: pack))
+        _controller = StateObject(wrappedValue: ScanController(store: store, repo: repo, pack: pack, venueId: session.venue))
         _sync = StateObject(wrappedValue: SyncManager(repo: repo, store: store, session: session))
     }
 
@@ -62,8 +67,16 @@ struct ScanView: View {
             // commonly restored (phone unlocked indoors, app resumed).
             if phase == .active { Task { await sync.flushQueue() } }
         }
+        .sheet(isPresented: $showVenue) {
+            VenuePickerView(repo: repo, current: session) { _ in
+                // The pack belongs to the old venue — drop it so a stale cache
+                // can never admit at the new door.
+                pack.clear()
+                onVenueChange?()
+            }
+        }
         .sheet(isPresented: $showPack) {
-            NightPackView(pack: pack, repo: repo)
+            NightPackView(pack: pack, repo: repo, session: session)
         }
         .sheet(isPresented: $showRecent) {
             RecentScansView(store: store, controller: controller)
@@ -74,9 +87,18 @@ struct ScanView: View {
     // MARK: Header
     private var header: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Kicker("Fuoco Door")
-                Text(pack.manifest?.venueName ?? session.venueName).font(.cfSerif(24)).foregroundStyle(Theme.parchment)
+            // Tap the venue to switch doors — staff working more than one club
+            // shouldn't have to reinstall.
+            Button { showVenue = true } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Kicker("Fuoco Door")
+                    HStack(spacing: 6) {
+                        Text(session.venueName).font(.cfSerif(24)).foregroundStyle(Theme.parchment)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Theme.parchmentDim)
+                    }
+                }
             }
             Spacer()
             // Offline pack: filled padlock once a night is cached, so staff can

@@ -72,9 +72,10 @@ struct DoorAPIRepo: DoorRepo {
             holderName: scan.holderName, reason: scan.reason))
     }
 
-    func venues(date: String) async throws -> [DoorVenue] {
+    func venues(date: String?) async throws -> [DoorVenue] {
         struct Resp: Decodable { let venues: [DoorVenue] }
-        let data = try await request("api/door/venues?date=\(date)", method: "GET")
+        let path = date.map { "api/door/venues?date=\($0)" } ?? "api/door/venues"
+        let data = try await request(path, method: "GET")
         return (try decode(data) as Resp).venues
     }
 

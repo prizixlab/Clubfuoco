@@ -25,8 +25,9 @@ protocol DoorRepo {
     /// Record one admission/void immediately (open-access path). Idempotent on
     /// scanId, so a retry can't double-count.
     func record(_ scan: QueuedScan) async throws
-    /// Venues with something on that night, for the download picker.
-    func venues(date: String) async throws -> [DoorVenue]
+    /// Venues. nil date → every active club (the "which venue do you work?"
+    /// picker); a date → only venues with something on that night.
+    func venues(date: String?) async throws -> [DoorVenue]
     /// The encrypted night pack — every entry sealed with that guest's own QR.
     func nightPack(venue: String, date: String) async throws -> EncryptedManifest
     /// Pull the signed night manifest for a venue/date.

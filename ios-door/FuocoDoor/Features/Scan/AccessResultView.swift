@@ -18,6 +18,7 @@ struct AccessResultView: View {
         case .cancelled:   return ("CANCELLED", Theme.deny, "xmark.octagon.fill")
         case .invalid:     return ("INVALID", Theme.deny, "xmark.octagon.fill")
         case .wrongNight:  return ("WRONG NIGHT", Theme.deny, "calendar.badge.exclamationmark")
+        case .wrongVenue:  return ("WRONG VENUE", Theme.deny, "building.2.crop.circle.badge.questionmark")
         }
     }
 

@@ -12,10 +12,16 @@ struct RootView: View {
     var body: some View {
         Group {
             if let session {
-                ScanView(session: session, repo: repo, store: store, pack: pack)
+                ScanView(session: session, repo: repo, store: store, pack: pack) {
+                    // Re-read the persisted session so the whole screen rebinds.
+                    withAnimation { self.session = DeviceSession.load() }
+                }
             } else if AppMode.openAccess {
-                // No partner clubs yet → no enrollment gate. Straight to scanning.
-                Color.clear.onAppear { session = DeviceSession.openDefault() }
+                // No enrollment credential, but the door still commits to one
+                // venue — otherwise it could admit anyone's ticket anywhere.
+                VenuePickerView(repo: repo) { picked in
+                    withAnimation { session = picked }
+                }
             } else {
                 EnrollView { newSession in
                     withAnimation { session = newSession }

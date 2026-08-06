@@ -14,11 +14,13 @@ final class ScanController: ObservableObject {
     private let store: DoorStore
     private let repo: DoorRepo
     private let pack: NightPackStore
+    /// The club this door admits for; anything else is WRONG VENUE.
+    private let venueId: String
     private var recentlyScanned: [String: Date] = [:]
     private let dedupeWindow: TimeInterval = 3.0
 
-    init(store: DoorStore, repo: DoorRepo, pack: NightPackStore) {
-        self.store = store; self.repo = repo; self.pack = pack
+    init(store: DoorStore, repo: DoorRepo, pack: NightPackStore, venueId: String) {
+        self.store = store; self.repo = repo; self.pack = pack; self.venueId = venueId
     }
 
     /// Returns true if this payload should be shown (not a duplicate within the
@@ -42,22 +44,34 @@ final class ScanController: ObservableObject {
         // ticket) and works with no signal. The scanned QR is the only thing
         // that can open the entry, so this reveals nothing the door didn't scan.
         if let desc = pack.open(payload: payload) {
-            current = withLocalDelta(desc)
-            if desc.status.admits { Haptics.tap() } else { Haptics.error() }
+            present(scoped(withLocalDelta(desc)))
             return
         }
         do {
-            let desc = try await repo.resolve(payload)
-            current = desc
-            if desc.status.admits { Haptics.tap() } else { Haptics.error() }
+            present(scoped(try await repo.resolve(payload)))
         } catch {
             // Offline and not in the pack → older cached manifest, else invalid.
             if let desc = store.resolveLocal(payload: payload) {
-                current = desc; Haptics.tap()
+                present(scoped(desc))
             } else {
                 current = invalidDescriptor(payload: payload); Haptics.error()
             }
         }
+    }
+
+    private func present(_ desc: AccessDescriptor) {
+        current = desc
+        if desc.status.admits { Haptics.tap() } else { Haptics.error() }
+    }
+
+    /// A ticket resolved for another club must never be admitted here, however
+    /// valid it is. Checked client-side because this door knows its own venue —
+    /// the credential itself is perfectly genuine, just not for this door.
+    private func scoped(_ d: AccessDescriptor) -> AccessDescriptor {
+        guard d.status != .invalid, !d.venue.isEmpty, d.venue != venueId else { return d }
+        var copy = d
+        copy.status = .wrongVenue
+        return copy
     }
 
     /// The pack's `used` is the server's count at download time; fold in any

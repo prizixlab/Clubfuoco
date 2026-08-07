@@ -468,6 +468,21 @@ struct ClubDetailView: View {
         Task { let _: Ack? = try? await api.post("/api/ticket-clicks", body: click) }
     }
 
+    /// Transport telemetry — fire and forget, never blocks opening the deep link.
+    /// Records which club the guest tried to travel to and via which option.
+    private func logTransportClick(_ platform: String) {
+        // Encodable keys are converted to snake_case by APIClient's encoder.
+        struct Click: Encodable, Sendable {
+            let platform: String
+            let clubPlaceId: String
+            let clubName: String
+        }
+        struct Ack: Decodable, Sendable { let logged: Bool? }
+
+        let click = Click(platform: platform, clubPlaceId: place.placeId, clubName: place.name)
+        Task { let _: Ack? = try? await api.post("/api/transport-clicks", body: click) }
+    }
+
     // ── Rumbalist offers ──────────────────────────────────────────────────────
 
     private var rumbalistSection: some View {
@@ -704,12 +719,18 @@ struct ClubDetailView: View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
                 if let maps = directionsURL {
-                    Link(destination: maps) {
+                    Button {
+                        logTransportClick("maps")
+                        openURL(maps)
+                    } label: {
                         actionPill(locale.t("detail.openMaps"), icon: "map", dark: false)
                     }
                 }
                 if let uber = uberURL {
-                    Link(destination: uber) {
+                    Button {
+                        logTransportClick("uber")
+                        openURL(uber)
+                    } label: {
                         actionPill("Uber", icon: "car.fill", dark: true)
                     }
                 }

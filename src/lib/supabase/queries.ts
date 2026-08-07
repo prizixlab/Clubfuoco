@@ -33,6 +33,8 @@ async function currentUser() {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+import { sizedPhotoUrl, THUMB, HERO } from '@/lib/photo-url'
+
 function proxyPhoto(url: string | null | undefined): string | null {
   if (!url) return null
   if (url.includes('maps.googleapis.com/maps/api/place/photo')) {
@@ -101,6 +103,9 @@ export async function getNearbyClubs(lat: number, lng: number, radius: number) {
     ]
       .filter(isUsablePhoto)
       .map(proxyPhoto)
+      // Feed cards never render larger than a phone's width — shipping the full
+      // mirrored JPEG here is what makes the explore feed heavy.
+      .map(u => sizedPhotoUrl(u, THUMB))
       .filter((url): url is string => {
         if (!url || photoSeen.has(url)) return false
         photoSeen.add(url)
@@ -284,6 +289,7 @@ export async function getClubById(id: string) {
   ]
     .filter(isUsablePhoto)
     .map(proxyPhoto)
+    .map(u => sizedPhotoUrl(u, HERO))
     .filter((url): url is string => {
       if (!url || seen.has(url)) return false
       seen.add(url)

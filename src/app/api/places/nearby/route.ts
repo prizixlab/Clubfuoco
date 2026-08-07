@@ -11,6 +11,8 @@ const BCN_LNG = 2.173
 // Google Places photo URLs must be fetched server-side.
 // Convert any stored Google URL to our own proxy route so the browser
 // never calls maps.googleapis.com directly (which Google blocks client-side).
+import { sizedPhotoUrl, THUMB } from '@/lib/photo-url'
+
 function proxyPhoto(url: string | null | undefined): string | null {
   if (!url) return null
   if (url.includes('maps.googleapis.com/maps/api/place/photo')) {
@@ -79,6 +81,8 @@ export async function GET(request: NextRequest) {
     ]
       .filter(Boolean)
       .map(proxyPhoto)
+      // Feed thumbnails — see sizedPhotoUrl for why this is server-side.
+      .map(u => sizedPhotoUrl(u, THUMB))
       .filter((url): url is string => {
         if (!url || photoSeen.has(url)) return false
         photoSeen.add(url)

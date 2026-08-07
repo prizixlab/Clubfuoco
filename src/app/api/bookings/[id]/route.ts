@@ -1,4 +1,4 @@
-import { createAuthedClient } from '@/lib/supabase/server'
+import { createAuthedClient, createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
 import { requireAuth } from '@/lib/auth'
 import { stripe } from '@/lib/stripe'
@@ -90,13 +90,24 @@ export async function DELETE(
     }
   }
 
-  // Always mark as cancelled in DB regardless of Stripe outcome
-  const { error: updateError } = await supabase
+  // Always mark as cancelled in DB regardless of Stripe outcome.
+  //
+  // Ownership was already verified above via the authed client. Guests have no
+  // UPDATE policy on bookings (the only one is "Staff can update booking status",
+  // and staff/admin accounts were removed by design), so the authed client's
+  // update is silently filtered by RLS — 0 rows changed, no error — and the
+  // cancel appears to succeed while nothing happens. Perform the status change
+  // with the service client (bypasses RLS) and confirm a row actually changed.
+  const admin = await createServiceClient()
+  const { data: updated, error: updateError } = await admin
     .from('bookings')
     .update({ status: 'cancelled' })
     .eq('id', id)
+    .eq('user_id', user!.id)
+    .select('id')
 
   if (updateError) return err(updateError.message)
+  if (!updated || updated.length === 0) return err('Cancellation failed — booking not updated', 500)
 
   return ok({
     cancelled:     true,

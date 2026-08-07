@@ -127,3 +127,79 @@ export async function sendPushToUser(
     // Non-critical — never block the main flow
   }
 }
+
+export interface BroadcastResult {
+  devices: number      // tokens attempted
+  delivered: number    // APNs accepted (2xx)
+  pruned: number       // dead tokens removed (410)
+  failed: number       // everything else
+  users: number        // distinct recipients
+}
+
+/** How many devices a broadcast would reach — for the portal's confirm step. */
+export async function broadcastAudience(sb: SB, app: PushApp): Promise<{ devices: number; users: number }> {
+  const { data, error } = await sb.from('device_tokens').select('user_id').eq('app', app)
+  if (error || !data) return { devices: 0, users: 0 }
+  return { devices: data.length, users: new Set(data.map(r => r.user_id)).size }
+}
+
+/**
+ * Send ONE message to every registered device of an app.
+ *
+ * Unlike sendPushToUser this reports what happened: a broadcast is a deliberate,
+ * one-shot action a human triggered, so silently swallowing failures would hide
+ * a botched send from the person who pressed the button.
+ *
+ * Sent in bounded batches rather than all at once — a few thousand simultaneous
+ * HTTP/2 connections would exhaust sockets and get throttled by APNs. Dead
+ * tokens (410) are pruned as we go, which keeps the audience honest over time.
+ */
+export async function broadcastPush(
+  sb: SB,
+  msg: PushMessage,
+  app: PushApp,
+  opts: { batchSize?: number } = {},
+): Promise<BroadcastResult> {
+  const result: BroadcastResult = { devices: 0, delivered: 0, pruned: 0, failed: 0, users: 0 }
+  if (!configured()) return result
+
+  const { data: rows, error } = await sb
+    .from('device_tokens')
+    .select('token, environment, user_id')
+    .eq('app', app)
+  if (error || !rows?.length) return result
+
+  const list = rows as { token: string; environment: string | null; user_id: string }[]
+  result.devices = list.length
+  result.users = new Set(list.map(r => r.user_id)).size
+
+  const jwt = providerJWT()
+  const topic = topicFor(app)
+  const body = JSON.stringify({
+    aps: { alert: { title: msg.title, body: msg.body ?? '' }, sound: 'default' },
+    ...(msg.payload ?? {}),
+  })
+
+  const batchSize = opts.batchSize ?? 50
+  const dead: string[] = []
+
+  for (let i = 0; i < list.length; i += batchSize) {
+    const batch = list.slice(i, i + batchSize)
+    const statuses = await Promise.all(
+      batch.map(r => postToAPNs(apnsHost(r.environment ?? 'production'), r.token, jwt, body, topic)),
+    )
+    statuses.forEach((status, j) => {
+      if (status >= 200 && status < 300) result.delivered++
+      else if (status === 410) { result.pruned++; dead.push(batch[j].token) }
+      else result.failed++
+    })
+  }
+
+  if (dead.length) {
+    // Chunked: a single .in() with thousands of tokens overflows the URL.
+    for (let i = 0; i < dead.length; i += 100) {
+      await sb.from('device_tokens').delete().in('token', dead.slice(i, i + 100))
+    }
+  }
+  return result
+}

@@ -13,6 +13,7 @@ const TABS = [
   { href: '/portal/conflicts', label: 'Conflicts', match: (p: string) => p.startsWith('/portal/conflicts') },
   { href: '/portal/insights',  label: 'Insights', match: (p: string) => p.startsWith('/portal/insights') },
   { href: '/portal/activity',  label: 'Activity', match: (p: string) => p.startsWith('/portal/activity') },
+  { href: '/portal/notifications', label: 'Notify', match: (p: string) => p.startsWith('/portal/notifications') },
 ]
 
 export default function PortalHeader() {

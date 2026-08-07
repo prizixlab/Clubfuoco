@@ -199,16 +199,21 @@ export async function GET(
           value: 'Non-transferable. Present at door. Service fee non-refundable.' },
       ],
     },
+    // Encode the strong scan_token, NOT qr_code_token. The CF- reference is an
+    // 8-char code from a 36-char alphabet (~2^41) that also appears in the app,
+    // in support tooling and on the confirmation screen — fine as a reference,
+    // not as the thing that opens a door. Falls back only if scan_token is
+    // somehow unset, which the backfill should have made impossible.
     barcodes: [
       {
-        message:         booking.qr_code_token ?? booking.id,
+        message:         booking.scan_token ?? booking.qr_code_token ?? booking.id,
         format:          'PKBarcodeFormatQR',
         messageEncoding: 'iso-8859-1',
       },
     ],
     // Legacy barcode field for older iOS
     barcode: {
-      message:         booking.qr_code_token ?? booking.id,
+      message:         booking.scan_token ?? booking.qr_code_token ?? booking.id,
       format:          'PKBarcodeFormatQR',
       messageEncoding: 'iso-8859-1',
     },

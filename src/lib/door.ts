@@ -152,7 +152,7 @@ async function collectEntries(
     .from('bookings')
     // Disambiguate the FK: bookings has TWO users relationships (user_id and
     // checked_in_by), so a bare users(...) embed 300s. We want the guest.
-    .select('id, qr_code_token, booking_type, party_size, admissions_allowed, status, arrival_window, users!bookings_user_id_fkey(full_name, avatar_url)')
+    .select('id, scan_token, booking_type, party_size, admissions_allowed, status, arrival_window, users!bookings_user_id_fkey(full_name, avatar_url)')
     .eq('club_id', clubId)
     .eq('booking_date', date)
     .neq('status', 'cancelled')
@@ -163,7 +163,7 @@ async function collectEntries(
     const allowed = b.admissions_allowed ?? b.party_size ?? 1
     out.push({
       token_ref: `bk_${b.id}`,
-      payload_keys: [b.qr_code_token, b.id].filter(Boolean) as string[],
+      payload_keys: [b.scan_token].filter(Boolean) as string[],
       holder_name: user?.full_name ?? 'Guest',
       holder_avatar_url: user?.avatar_url ?? null,
       kind: vip ? 'vip_table' : 'paid_entry',
@@ -293,9 +293,10 @@ export async function resolveDescriptor(
   if (!parsed) return null
 
   if (parsed.kind === 'booking') {
-    // Accept either secret: the new strong scan_token (what fresh QRs encode)
-    // or the legacy CF- reference code (what already-issued QRs encode).
-    // or() is used rather than two round-trips; scan_token may not exist yet.
+    // scan_token ONLY. qr_code_token (CF-XXXXXXXX) is a ~2^41 reference code
+    // that also appears on the confirmation screen, in the app's help sheet and
+    // in support tooling — it is a label, not a secret, and no longer opens a
+    // door. Wallet passes and the app QR both encode scan_token.
     const cols = 'id, booking_type, party_size, admissions_allowed, status, arrival_window, booking_date, club_id, users!bookings_user_id_fkey(full_name, avatar_url), clubs(name)'
     interface BookingRow {
       id: string; booking_type: string | null; party_size: number | null
@@ -304,17 +305,9 @@ export async function resolveDescriptor(
       users: { full_name?: string; avatar_url?: string } | null
       clubs: { name?: string } | null
     }
-    const esc = parsed.token.replace(/[(),]/g, '')
-    let b: BookingRow | null = null
-    const both = await supabase.from('bookings').select(cols)
-      .or(`qr_code_token.eq.${esc},scan_token.eq.${esc}`).maybeSingle()
-    if (both.error) {
-      const legacyOnly = await supabase.from('bookings').select(cols)
-        .eq('qr_code_token', parsed.token).maybeSingle()
-      b = legacyOnly.data as BookingRow | null
-    } else {
-      b = both.data as BookingRow | null
-    }
+    const { data } = await supabase.from('bookings').select(cols)
+      .eq('scan_token', parsed.token).maybeSingle()
+    const b = data as BookingRow | null
     if (!b) {
       // Maybe the URL token was actually a guest id — fall through to guest.
       return resolveGuest(supabase, parsed.token)

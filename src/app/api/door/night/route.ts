@@ -53,7 +53,9 @@ export async function GET(req: NextRequest) {
     const tokenRef = `bk_${b.id}`
     entries.push(...sealEntry({
       strongToken: (b.scan_token as string) ?? null,
-      legacyToken: (b.qr_code_token as string) ?? null,
+      // No legacy record: CF- reference codes no longer admit anyone, so the
+      // offline pack must not carry a PBKDF2-wrapped copy keyed to one either.
+      legacyToken: null,
       payload: {
         holder_name: user?.full_name ?? 'Guest',
         holder_avatar_url: user?.avatar_url ?? null,

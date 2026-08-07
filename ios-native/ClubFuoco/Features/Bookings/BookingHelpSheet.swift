@@ -54,7 +54,7 @@ struct BookingHelpSheet: View {
                 }
                 .padding(20)
             }
-            .background(Theme.sand.ignoresSafeArea())
+            .background(Theme.cream.ignoresSafeArea())
             .navigationTitle(locale.t("help.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -80,11 +80,12 @@ struct BookingHelpSheet: View {
                 ForEach(HelpTopic.allCases) { t in
                     Button { withAnimation { topic = t } } label: { row(t) }
                     if t != HelpTopic.allCases.last {
-                        Divider().padding(.leading, 52)
+                        Divider().overlay(Theme.hairline).padding(.leading, 52)
                     }
                 }
             }
             .background(Color.white, in: .rect(cornerRadius: 14))
+            .shadow(color: Theme.ink.opacity(0.05), radius: 8, y: 2)
 
             if topic != nil { composer }
         }
@@ -100,13 +101,13 @@ struct BookingHelpSheet: View {
                 Text(locale.t(t.titleKey))
                     .font(.cfSans(14, weight: .medium)).foregroundStyle(Theme.ink)
                 Text(locale.t(t.bodyKey))
-                    .font(.cfSans(11)).foregroundStyle(Theme.fadedSand)
+                    .font(.cfSans(11)).foregroundStyle(Theme.stone)
                     .multilineTextAlignment(.leading)
             }
             Spacer(minLength: 8)
             Image(systemName: topic == t ? "checkmark.circle.fill" : "chevron.right")
                 .font(.system(size: topic == t ? 16 : 11, weight: .semibold))
-                .foregroundStyle(topic == t ? Theme.ember : Theme.fadedSand)
+                .foregroundStyle(topic == t ? Theme.ember : Theme.sand)
         }
         .padding(14)
         .contentShape(Rectangle())
@@ -115,13 +116,13 @@ struct BookingHelpSheet: View {
     private var reference: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(locale.t("help.urgent").uppercased())
-                .font(.cfMono(9)).kerning(0.8).foregroundStyle(Theme.fadedSand)
+                .font(.cfMono(9)).kerning(0.8).foregroundStyle(Theme.ember)
             Text(locale.t("help.urgentBody"))
                 .font(.cfSans(12)).foregroundStyle(Theme.stone)
             if let ref = booking.qrCodeToken {
                 HStack {
                     Text(locale.t("help.reference").uppercased())
-                        .font(.cfMono(9)).kerning(0.8).foregroundStyle(Theme.fadedSand)
+                        .font(.cfMono(9)).kerning(0.8).foregroundStyle(Theme.ember.opacity(0.75))
                     Spacer()
                     Text(ref).font(.cfMono(13)).foregroundStyle(Theme.ink)
                 }
@@ -130,7 +131,8 @@ struct BookingHelpSheet: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.ember.opacity(0.07), in: .rect(cornerRadius: 14))
+        .background(Theme.ember.opacity(0.09), in: .rect(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.ember.opacity(0.20)))
     }
 
     private var composer: some View {
@@ -143,6 +145,7 @@ struct BookingHelpSheet: View {
                 .scrollContentBackground(.hidden)
                 .padding(8)
                 .background(Color.white, in: .rect(cornerRadius: 12))
+                .shadow(color: Theme.ink.opacity(0.05), radius: 8, y: 2)
 
             if failed {
                 Text(locale.t("help.failed"))
@@ -172,7 +175,7 @@ struct BookingHelpSheet: View {
                 .multilineTextAlignment(.center)
             Button(locale.t("common.close")) { dismiss() }
                 .font(.cfSans(15, weight: .semibold))
-                .foregroundStyle(Theme.wine)
+                .foregroundStyle(Theme.stone)
                 .padding(.top, 6)
         }
         .frame(maxWidth: .infinity)

@@ -4151,13 +4151,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "At the door right now?"
+            "value": "Your booking"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "¿Estás en la puerta ahora?"
+            "value": "Tu reserva"
           }
         }
       }
@@ -4167,13 +4167,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Show this screen to the door staff — it carries your booking reference."
+            "value": "Quote this reference if you contact us about this booking."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enseña esta pantalla al personal de la puerta: lleva tu referencia de reserva."
+            "value": "Menciona esta referencia si nos escribes sobre esta reserva."
           }
         }
       }

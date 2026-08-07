@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
+import { ROSTER_ORDER, getJsonSetting } from '@/lib/app-settings'
 import { listBrands, type BrandRow } from '@/lib/partner'
 import { ok, err } from '@/lib/utils'
 
@@ -122,10 +123,22 @@ export async function GET() {
     })
   }
 
+  // Operator-chosen order wins; anything not in it (a promoter onboarded since
+  // the order was saved) falls to the end, newest first, rather than vanishing
+  // or silently jumping to the top.
+  const order = await getJsonSetting<string[]>(sb, ROSTER_ORDER, [])
+  const rank = new Map(order.map((id, i) => [id, i]))
+  const roster = rows
+    .filter(r => r.status !== 'pending')
+    .sort((a, b) => {
+      const ra = rank.get(a.id) ?? Infinity
+      const rb = rank.get(b.id) ?? Infinity
+      if (ra !== rb) return ra - rb
+      return (b.created_at ?? '').localeCompare(a.created_at ?? '')
+    })
+
   return ok({
     pending: rows.filter(r => r.status === 'pending'),
-    roster: rows
-      .filter(r => r.status !== 'pending')
-      .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? '')),
+    roster,
   })
 }

@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { BrandRow } from '@/lib/partner'
 import type { PromoterRow } from '@/app/api/portal/promoters/route'
-import { ErrorLine, StatTile, api, C, caps, font, serif } from './_ui'
+import { Btn, ErrorLine, StatTile, api, C, caps, font, serif } from './_ui'
 import { PromoterCard, PendingPromoterCard, usePromoterActions } from './_promoter-card'
 
 // Promoters — one roster. A promoter and their "list" are the same thing: a
@@ -17,6 +17,15 @@ export default function PromotersPage() {
   const [pending, setPending] = useState<PromoterRow[] | null>(null)
   const [roster, setRoster] = useState<PromoterRow[]>([])
   const [error, setError] = useState<string | null>(null)
+  // Reorder mode: cards become draggable and actions are suppressed, so a drag
+  // can't land on Revoke.
+  const [editingOrder, setEditingOrder] = useState(false)
+  // Ref, not just state: dragover can fire before React re-renders after
+  // dragstart, and a state-only read would see a stale null and drop the move.
+  // The state copy exists purely to drive the drag styling.
+  const dragIdRef = useRef<string | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [savingOrder, setSavingOrder] = useState(false)
 
   const load = useCallback(() => {
     api<{ pending: PromoterRow[]; roster: PromoterRow[] }>('/api/portal/promoters')
@@ -30,6 +39,36 @@ export default function PromotersPage() {
   const brands = roster.map(r => r.brand).filter((b): b is BrandRow => !!b)
   const live = brands.find(b => b.is_active) ?? null
   const liveOffers = brands.reduce((n, b) => n + (b.offer_count ?? 0), 0)
+
+  /// Move the dragged card to the slot it's hovering, live — the list itself is
+  /// the preview, so there's no separate "arrange" surface to reconcile.
+  function reorder(overId: string) {
+    const from0 = dragIdRef.current
+    if (!from0 || from0 === overId) return
+    setRoster(prev => {
+      const from = prev.findIndex(r => r.id === from0)
+      const to = prev.findIndex(r => r.id === overId)
+      if (from < 0 || to < 0) return prev
+      const next = [...prev]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+  }
+
+  async function saveOrder() {
+    setSavingOrder(true); setError(null)
+    try {
+      await api('/api/portal/roster-order', {
+        method: 'PUT',
+        body: JSON.stringify({ order: roster.map(r => r.id) }),
+      })
+      setEditingOrder(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save the order.')
+    }
+    setSavingOrder(false)
+  }
 
   return (
     <>
@@ -72,14 +111,56 @@ export default function PromotersPage() {
       {/* Roster — every promoter's brand + access, plus the onboard card. */}
       {pending && (
         <>
-          <p style={{ ...caps, color: C.gold, margin: '0 0 12px', letterSpacing: '0.14em' }}>Roster</p>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 12, margin: '0 0 12px',
+          }}>
+            <p style={{ ...caps, color: C.gold, margin: 0, letterSpacing: '0.14em' }}>Roster</p>
+            {editingOrder ? (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Btn small onClick={() => { setEditingOrder(false); load() }} disabled={savingOrder}>
+                  Cancel
+                </Btn>
+                <Btn small kind="primary" onClick={saveOrder} disabled={savingOrder}>
+                  {savingOrder ? 'Saving…' : 'Save order'}
+                </Btn>
+              </div>
+            ) : (
+              <Btn small onClick={() => setEditingOrder(true)}>Edit order</Btn>
+            )}
+          </div>
+          {editingOrder && (
+            <p style={{ color: C.dim, fontSize: 12.5, margin: '0 0 12px', fontFamily: font }}>
+              Drag the cards into the order you want, then save. This order is shared
+              by everyone using the portal.
+            </p>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
             {roster.map(row => (
-              <PromoterCard key={row.id} row={row} live={live} actions={actions} onReload={load} />
+              <div
+                key={row.id}
+                draggable={editingOrder}
+                onDragStart={() => { dragIdRef.current = row.id; setDragId(row.id) }}
+                onDragEnd={() => { dragIdRef.current = null; setDragId(null) }}
+                onDragOver={e => { if (editingOrder) { e.preventDefault(); reorder(row.id) } }}
+                style={editingOrder ? {
+                  cursor: 'grab',
+                  opacity: dragId === row.id ? 0.45 : 1,
+                  outline: `1px dashed ${dragId === row.id ? C.gold : 'rgba(255,255,255,0.16)'}`,
+                  outlineOffset: 3, borderRadius: 10,
+                  // Suppress clicks so a drag can't trigger Revoke / Make featured.
+                  pointerEvents: 'auto',
+                } : undefined}
+              >
+                <div style={editingOrder ? { pointerEvents: 'none' } : undefined}>
+                  <PromoterCard row={row} live={live} actions={actions} onReload={load} />
+                </div>
+              </div>
             ))}
 
-            {/* Onboard a new promoter — seeds their brand/list. */}
-            <button onClick={() => router.push('/portal/brands/new')} className="cfp-hover-lift" style={{
+            {/* Onboard a new promoter — seeds their brand/list. Hidden while
+                reordering: it isn't a roster entry and can't hold a position. */}
+            {!editingOrder && <button onClick={() => router.push('/portal/brands/new')} className="cfp-hover-lift" style={{
               background: 'transparent', border: `1px dashed rgba(255,255,255,0.18)`, borderRadius: 8,
               minHeight: 210, cursor: 'pointer', display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center', gap: 14, padding: 20,
@@ -90,7 +171,7 @@ export default function PromotersPage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font,
               }} aria-hidden>+</span>
               <span style={{ ...caps, color: C.dim, letterSpacing: '0.14em' }}>Onboard new promoter</span>
-            </button>
+            </button>}
           </div>
         </>
       )}

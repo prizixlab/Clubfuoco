@@ -27,6 +27,7 @@ struct RumbalistOfferSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model = RumbalistOfferModel()
     @State private var calendarMessage: String?
+    @State private var plusOnes = 0
 
     private static let ink = Color(hex: 0x141416)
     private static let textColor = Color(hex: 0xF5F5F7)
@@ -194,6 +195,8 @@ struct RumbalistOfferSheet: View {
                 .disabled(model.busy)
                 .padding(.top, 22)
 
+                if !offer.isVip { guestStepper }
+
                 Text(offer.isVip ? locale.t("rumbalist.vipFooter") : locale.t("rumbalist.freeFooter"))
                     .font(.cfSans(11))
                     .foregroundStyle(Self.textColor.opacity(0.45))
@@ -238,6 +241,56 @@ struct RumbalistOfferSheet: View {
             .padding(.horizontal, 22)
             .padding(.bottom, 24)
         }
+    }
+
+    /// Guests coming with the booker who don't have Club Fuoco installed. They
+    /// ride on this booking's party_size — the door admits per head against it,
+    /// so they need no account and no separate QR.
+    private var guestStepper: some View {
+        VStack(spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(locale.t("rumbalist.guestsNoApp"))
+                        .font(.cfSans(15, weight: .medium))
+                        .foregroundStyle(Self.textColor)
+                    Text(locale.t("rumbalist.guestsNoAppNote"))
+                        .font(.cfSans(11))
+                        .foregroundStyle(Self.textColor.opacity(0.45))
+                }
+                Spacer()
+                HStack(spacing: 14) {
+                    Button {
+                        if plusOnes > 0 { plusOnes -= 1; Haptics.tap() }
+                    } label: {
+                        Image(systemName: "minus")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Self.textColor)
+                            .frame(width: 34, height: 34)
+                            .overlay(Circle().stroke(.white.opacity(0.18)))
+                    }
+                    .disabled(plusOnes == 0)
+                    .opacity(plusOnes == 0 ? 0.4 : 1)
+
+                    Text("+\(plusOnes)")
+                        .font(.cfMono(17, weight: .medium))
+                        .foregroundStyle(Self.textColor)
+                        .frame(minWidth: 34)
+
+                    Button {
+                        if plusOnes < 9 { plusOnes += 1; Haptics.tap() }
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Self.textColor)
+                            .frame(width: 34, height: 34)
+                            .overlay(Circle().stroke(.white.opacity(0.18)))
+                    }
+                    .disabled(plusOnes == 9)
+                    .opacity(plusOnes == 9 ? 0.4 : 1)
+                }
+            }
+        }
+        .padding(.top, 16)
     }
 
     private var localizedTitle: String {
@@ -465,7 +518,8 @@ struct RumbalistOfferSheet: View {
         if offer.isVip {
             model.payVip(offer: offer, clubId: clubId, venueName: venueName, bookingDate: plan.date, api: api)
         } else {
-            model.joinFree(clubId: clubId, venueName: venueName, bookingDate: plan.date, api: api)
+            model.joinFree(clubId: clubId, venueName: venueName, bookingDate: plan.date,
+                                   plusOnes: plusOnes, api: api)
         }
     }
 }
@@ -484,7 +538,8 @@ final class RumbalistOfferModel {
     private(set) var confirmation: RumbalistBookingResult?
     var errorMessage: String?
 
-    func joinFree(clubId: String, venueName: String, bookingDate: String, api: APIClient) {
+    func joinFree(clubId: String, venueName: String, bookingDate: String,
+                  plusOnes: Int = 0, api: APIClient) {
         busy = true
         errorMessage = nil
         Task {
@@ -494,10 +549,12 @@ final class RumbalistOfferModel {
                     let venueName: String
                     let productName: String
                     let bookingDate: String
+                    let plusOnes: Int
                 }
                 let result: RumbalistBookingResult = try await api.post(
                     "/api/rumbalist/join-guestlist",
-                    body: Body(clubId: clubId, venueName: venueName, productName: "Free Guestlist", bookingDate: bookingDate)
+                    body: Body(clubId: clubId, venueName: venueName, productName: "Free Guestlist",
+                               bookingDate: bookingDate, plusOnes: plusOnes)
                 )
                 Haptics.success()
                 confirmation = result

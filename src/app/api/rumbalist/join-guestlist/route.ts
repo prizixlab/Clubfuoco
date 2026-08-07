@@ -21,6 +21,12 @@ export async function POST(req: Request) {
   // Native sends the night picked in the When planner; when absent (web),
   // keep the legacy default of tomorrow.
   const bookingDate = resolveBookingDate(body.booking_date)
+  // Guests who don't have the app ride on the booker's booking rather than
+  // needing their own account — the door admits against party_size, so this is
+  // all the allowance model needs. Capped at 9 extra to keep a free guestlist
+  // from being used to reserve a whole room.
+  const plusOnes = Math.max(0, Math.min(9, Math.floor(Number(body.plus_ones) || 0)))
+  const partySize = 1 + plusOnes
   if (!bookingDate) return err('booking_date must be today or within the next 14 days')
 
   const supabase = await createServiceClient()
@@ -54,16 +60,19 @@ export async function POST(req: Request) {
       // Count tickets already issued for this brand's list that night. Falls
       // back to all guestlist joins at the venue if brand attribution isn't
       // on bookings yet (pre-migration).
+      // Count HEADS, not rows: a booking can now carry guests who don't have
+      // the app, so counting bookings would let a capped list overshoot.
       const base = () => supabase
         .from('bookings')
-        .select('id', { count: 'exact', head: true })
+        .select('party_size')
         .eq('club_id', clubId).eq('booking_date', bookingDate)
         .eq('booking_type', 'general').eq('status', 'confirmed')
-      let { count, error: cErr } = await base().eq('brand_id', brandId)
+      let { data: rows, error: cErr } = await base().eq('brand_id', brandId)
       if (cErr && /brand_id/.test(cErr.message ?? '')) {
-        ({ count } = await base())
+        ({ data: rows } = await base())
       }
-      if ((count ?? 0) >= cap) {
+      const count = (rows ?? []).reduce((n, r) => n + (r.party_size ?? 1), 0)
+      if (count + partySize > cap) {
         return err('This guestlist is full for that night.', 409)
       }
     }
@@ -80,7 +89,7 @@ export async function POST(req: Request) {
         user_id:        user!.id,
         club_id:        clubId,
         booking_type:   'general',  // 'free_guestlist' violates the bookings CHECK constraint
-        party_size:     1,
+        party_size:     partySize,
         booking_date:   bookingDate,
         status:         'confirmed',
         unit_price:     0,

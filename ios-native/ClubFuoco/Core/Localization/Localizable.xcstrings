@@ -8641,6 +8641,38 @@
           }
         }
       }
+    },
+    "rumbalist.guestsNoApp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bringing anyone without the app?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Traes a alguien sin la app?"
+          }
+        }
+      }
+    },
+    "rumbalist.guestsNoAppNote": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "They enter on your booking — no account needed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entran con tu reserva, sin necesidad de cuenta."
+          }
+        }
+      }
     }
   }
 }

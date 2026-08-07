@@ -14,6 +14,7 @@ const TABS = [
   { href: '/portal/insights',  label: 'Insights', match: (p: string) => p.startsWith('/portal/insights') },
   { href: '/portal/activity',  label: 'Activity', match: (p: string) => p.startsWith('/portal/activity') },
   { href: '/portal/notifications', label: 'Notify', match: (p: string) => p.startsWith('/portal/notifications') },
+  { href: '/portal/support',   label: 'Support',  match: (p: string) => p.startsWith('/portal/support') },
 ]
 
 export default function PortalHeader() {
@@ -23,10 +24,13 @@ export default function PortalHeader() {
   // applications (Promoters), each badged on its own tab.
   const [pendingChanges, setPendingChanges] = useState(0)
   const [pendingPromoters, setPendingPromoters] = useState(0)
+  const [openSupport, setOpenSupport] = useState(0)
   useEffect(() => {
     if (onLogin) return
     api<{ id: string }[]>('/api/portal/reviews').then(r => setPendingChanges(r.length)).catch(() => {})
     api<{ pending: { id: string }[] }>('/api/portal/promoters').then(r => setPendingPromoters(r.pending.length)).catch(() => {})
+    // Guests are waiting on these, so the count is badged like the others.
+    api<{ counts: { open: number } }>('/api/portal/support').then(r => setOpenSupport(r.counts.open)).catch(() => {})
   }, [onLogin, pathname])
 
   async function logout() {
@@ -75,7 +79,9 @@ export default function PortalHeader() {
             }}>
               {t.label}
               {(() => {
-                const n = t.label === 'Changes' ? pendingChanges : t.label === 'Promoters' ? pendingPromoters : 0
+                const n = t.label === 'Changes' ? pendingChanges
+                  : t.label === 'Promoters' ? pendingPromoters
+                  : t.label === 'Support' ? openSupport : 0
                 return n > 0 && (
                   <span style={{
                     ...caps, fontSize: 9.5, letterSpacing: 0, color: '#141416', background: C.gold,

@@ -21,6 +21,7 @@ struct BookingDetailView: View {
     @Environment(LocaleStore.self) private var locale
     @Environment(\.dismiss) private var dismiss
     @State private var calendarMessage: String?
+    @State private var showHelp = false
 
     private var isCancelled: Bool { booking.status == "cancelled" }
 
@@ -64,6 +65,16 @@ struct BookingDetailView: View {
             .background(Theme.cream)
             .navigationTitle(locale.t("bookings.detailTitle"))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showHelp = true } label: {
+                        Label(locale.t("help.button"), systemImage: "questionmark.circle")
+                            .font(.cfSans(14, weight: .medium))
+                    }
+                    .tint(Theme.wine)
+                }
+            }
+            .sheet(isPresented: $showHelp) { BookingHelpSheet(booking: booking) }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {

@@ -150,6 +150,8 @@ struct SettingsView: View {
                     Text(locale.t("settings.lang.device")).tag(LocaleStore.Setting.device)
                     Text(locale.t("settings.lang.en")).tag(LocaleStore.Setting.en)
                     Text(locale.t("settings.lang.es")).tag(LocaleStore.Setting.es)
+                    Text(locale.t("settings.lang.ca")).tag(LocaleStore.Setting.ca)
+                    Text(locale.t("settings.lang.fr")).tag(LocaleStore.Setting.fr)
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()

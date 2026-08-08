@@ -9,7 +9,7 @@ import Observation
 @Observable
 final class LocaleStore {
     enum Setting: String, CaseIterable {
-        case en, es, device
+        case en, es, ca, fr, device
     }
 
     static let storageKey = "cf-locale"
@@ -32,15 +32,17 @@ final class LocaleStore {
         self.locale = Self.resolve(initial)
     }
 
-    /// Mirrors detectDeviceLocale(): first preferred language that is Spanish
-    /// wins, otherwise English.
+    /// Mirrors detectDeviceLocale(): first preferred language that is Catalan,
+    /// Spanish or French wins (in device order), otherwise English.
     private static func resolve(_ setting: Setting) -> String {
         switch setting {
-        case .en, .es:
+        case .en, .es, .ca, .fr:
             return setting.rawValue
         case .device:
-            for lang in Locale.preferredLanguages where lang.hasPrefix("es") {
-                return "es"
+            for lang in Locale.preferredLanguages {
+                if lang.hasPrefix("ca") { return "ca" }
+                if lang.hasPrefix("es") { return "es" }
+                if lang.hasPrefix("fr") { return "fr" }
             }
             return "en"
         }

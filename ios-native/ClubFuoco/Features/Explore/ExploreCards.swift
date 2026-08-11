@@ -36,11 +36,12 @@ private struct CardPhoto: View {
 private struct SaveBookmark: View {
     let isSaved: Bool
     let size: CGFloat
+    var target: CGFloat = 44
     let action: () -> Void
 
-    /// Grow the tap target to ~44pt (Apple's minimum) without changing the
+    /// Grow the tap target (default ~44pt, Apple's minimum) without changing the
     /// visible glyph — the small circle was hard to hit on the cards.
-    private var pad: CGFloat { max(0, (44 - size) / 2) }
+    private var pad: CGFloat { max(0, (target - size) / 2) }
 
     var body: some View {
         Button(action: action) {
@@ -308,7 +309,7 @@ struct PosterCard: View {
         // Sibling overlay, not nested in the link's label — otherwise the
         // NavigationLink swallows the tap and navigates instead of saving.
         .overlay(alignment: .topTrailing) {
-            SaveBookmark(isSaved: isSaved, size: 26, action: onSave).padding(6)
+            SaveBookmark(isSaved: isSaved, size: 26, target: 60, action: onSave).padding(6)
         }
     }
 }

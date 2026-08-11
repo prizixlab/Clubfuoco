@@ -8,20 +8,12 @@ values
   ('4213','Rodriguez Jr.',22791,array['Electronica']::text[],'https://www.instagram.com/rodriguezjrmusic','https://www.soundcloud.com/rodriguezjrmusic','http://www.rodriguezjr.net',array['Watergate','The Gates Diagonal','Hive Club','Ritter Butzke','Harry Klein']::text[],array['Berlin','Miami','Barcelona','Amsterdam','Paris']::text[],2,'https://ra.co/dj/rodriguezjr','https://static.ra.co/images/profiles/square/rodriguezjr.jpg?dateUpdated=1747812805383','https://static.ra.co/images/profiles/lg/rodriguezjr.jpg?dateUpdated=1747812805383',null),
   ('4501','Catz ''N Dogz',22697,array['Tech House','Techno']::text[],'https://www.instagram.com/catz_n_dogz','https://www.soundcloud.com/catzndogz','http://www.catzndogz.pl',array['Watergate','Farbfernseher','Hï Ibiza','Tama','Space Ibiza']::text[],array['Berlin','Ibiza','London','Barcelona','Warsaw']::text[],2,'https://ra.co/dj/catzndogz','https://static.ra.co/images/profiles/catzndogz.jpg?dateUpdated=1481639086200',null,null)
 on conflict (ra_artist_id) do nothing;
--- Seed DJ-set slots onto real clubs (picks partner clubs, else any active club),
--- so the Featured DJ box is visible immediately. Safe to re-run.
-with picks as (
-  select id, row_number() over (order by is_partner desc, is_featured desc, name) as rn
-  from public.clubs
-  where is_active is not false
-)
-insert into public.club_dj_sets (club_id, ra_artist_id, residency_label, night, sort)
-select p.id, v.ra_artist_id, v.residency_label, v.night, v.sort
-from (values
-  (1, '2887',  'Resident', 'Saturdays', 0),   -- KiNK
-  (1, '66527', 'Guest',    'Fridays',   1),   -- Yaeji (same club, 2nd slot)
-  (2, '55225', 'Resident', 'Saturdays', 0),   -- Mathame (second club)
-  (3, '4213',  'Resident', 'Thursdays', 0)    -- Rodriguez Jr. (third club)
-) as v(rn, ra_artist_id, residency_label, night, sort)
-join picks p on p.rn = v.rn
-on conflict (club_id, ra_artist_id) do nothing;
+
+-- NOTE: this DJ seed is now superseded by scripts/agentbox/push_djs.py, which
+-- loads the full ~1,700-DJ catalogue nightly. It's kept only as a minimal
+-- bootstrap for a fresh DB.
+--
+-- The earlier club_dj_sets seed (KiNK/Yaeji @ Ku, Mathame @ Opium, Rodriguez Jr.
+-- @ Razzmatazz) was REMOVED: those were fabricated demo slots placing DJs on the
+-- wrong clubs with invented nights. DJ boxes are now populated only by
+-- scripts/agentbox/link_djs.py from real events — do not re-seed them by hand.

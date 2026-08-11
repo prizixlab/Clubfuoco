@@ -145,7 +145,7 @@ struct HeroCard: View {
                     // awkward two-line wrap.
                     Text(place.name)
                         .font(.cfSerif(30, italic: true))
-                        .foregroundStyle(Theme.wine)
+                        .foregroundStyle(Theme.accent)
                         .lineLimit(2)
                         .minimumScaleFactor(0.8)
 
@@ -372,7 +372,7 @@ struct ShelfRowView: View {
                     NavigationLink(value: shelf) {
                         Text(String(format: locale.t("explore.venuesArrow"), shelf.places.count))
                             .font(.cfSans(12))
-                            .foregroundStyle(Theme.wine)
+                            .foregroundStyle(Theme.accent)
                             .lineLimit(1)
                             .fixedSize()
                             // Generous tap target without shifting the layout.

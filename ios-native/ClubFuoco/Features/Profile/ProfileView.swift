@@ -286,7 +286,7 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value.map(String.init) ?? "—")
                 .font(.cfSerif(30))
-                .foregroundStyle(Theme.wine)
+                .foregroundStyle(Theme.accent)
             Text(italian)
                 .font(.cfSerif(13, italic: true))
                 .foregroundStyle(Theme.ink)
@@ -394,19 +394,14 @@ struct ProfileView: View {
     }
 
     private func menuRow(n: String, icon: String, label: String, sub: String) -> some View {
-        // Seven of these stack down the screen, so the icon tint sets the tone
-        // of the whole list. Wine carries it on the cream page, but against
-        // near-black a column of red reads as noise — off-white sits back and
-        // lets the serif labels lead.
-        let iconTint = Color.adaptive(light: 0x8C2A2A, dark: 0xE8E0D2)
-        return HStack(spacing: 12) {
+        HStack(spacing: 12) {
             Kicker(n, color: Theme.fadedSand, size: 9)
                 .frame(width: 18, alignment: .leading)
             Image(systemName: icon)
                 .font(.system(size: 14))
-                .foregroundStyle(iconTint)
+                .foregroundStyle(Theme.accent)
                 .frame(width: 32, height: 32)
-                .background(iconTint.opacity(0.08), in: .circle)
+                .background(Theme.accent.opacity(0.08), in: .circle)
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
                     .font(.cfSerif(19))

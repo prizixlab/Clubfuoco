@@ -26,6 +26,15 @@ enum Theme {
     // instead of .60 and drops V .78 -> .70, so it reads as wine again.
     static let wine = Color.adaptive(light: 0x8C2A2A, dark: 0xB33F38)      // badges / destructive accents
 
+    /// Wine's *decorative* half — venue names, "6 venues ->" links, section
+    /// icons, stat numbers. On the cream page it is the same red; against
+    /// near-black a page full of red reads as noise, so it goes off-white and
+    /// lets the type carry the hierarchy.
+    ///
+    /// Keep `wine` itself for red that MEANS something: errors, destructive
+    /// actions, badges. Those should stay red in both modes.
+    static let accent = Color.adaptive(light: 0x8C2A2A, dark: 0xE8E0D2)
+
     static let hairline = Color.adaptive(light: 0x221E1A, lightAlpha: 0.10,
                                          dark: 0xF4ECDD, darkAlpha: 0.12)
 

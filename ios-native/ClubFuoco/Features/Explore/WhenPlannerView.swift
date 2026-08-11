@@ -20,7 +20,7 @@ struct WhenPlannerView: View {
                 HStack(spacing: 9) {
                     Image(systemName: "calendar")
                         .font(.system(size: 14))
-                        .foregroundStyle(Theme.wine)
+                        .foregroundStyle(Theme.accent)
                     Text(locale.t("plan.goingOut").uppercased())
                         .font(.cfSans(9.5))
                         .kerning(1)

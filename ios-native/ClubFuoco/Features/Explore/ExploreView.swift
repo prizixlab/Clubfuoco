@@ -343,7 +343,7 @@ struct ExploreView: View {
                     Spacer()
                     Text(String(format: locale.t("explore.eventsArrow"), model.rumbas.count))
                         .font(.cfSans(12))
-                        .foregroundStyle(Theme.wine)
+                        .foregroundStyle(Theme.accent)
                 }
             }
             .padding(.horizontal, 20)

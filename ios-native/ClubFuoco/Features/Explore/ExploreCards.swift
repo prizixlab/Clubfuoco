@@ -39,10 +39,6 @@ private struct SaveBookmark: View {
     var target: CGFloat = 44
     let action: () -> Void
 
-    /// Grow the tap target (default ~44pt, Apple's minimum) without changing the
-    /// visible glyph — the small circle was hard to hit on the cards.
-    private var pad: CGFloat { max(0, (target - size) / 2) }
-
     var body: some View {
         Button(action: action) {
             Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
@@ -50,11 +46,20 @@ private struct SaveBookmark: View {
                 .foregroundStyle(.white)
                 .frame(width: size, height: size)
                 .background(.black.opacity(0.45), in: .circle)
-                .padding(pad)
-                .contentShape(Rectangle())   // whole padded area is tappable
+                // Grow the tap target to ~44pt (Apple's minimum) by giving the
+                // button a larger frame with the glyph centered in it. The whole
+                // frame is the hit area, so the visible circle and the tappable
+                // region stay aligned and the footprint is honest.
+                //
+                // The old version faked this with .padding(pad).contentShape()
+                // .padding(-pad): the negative padding detached the hit region
+                // from the glyph and let it spill past the card's edge into the
+                // neighbouring card, which sits on top and stole the tap — you
+                // had to tap left of the glyph to actually save.
+                .frame(width: target, height: target)
+                .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .padding(-pad)                       // …but it doesn't affect layout
     }
 }
 
@@ -82,9 +87,10 @@ struct HeroCard: View {
     let onSave: () -> Void
     @Environment(LocaleStore.self) private var locale
     @Environment(PlanStore.self) private var plan
+    @Environment(\.pushPlace) private var pushPlace
 
     var body: some View {
-        NavigationLink(value: place) {
+        Group {
             VStack(alignment: .leading, spacing: 0) {
                 ZStack(alignment: .topLeading) {
                     CardPhoto(url: place.coverPhoto, height: 220)
@@ -113,7 +119,7 @@ struct HeroCard: View {
                                 HStack(spacing: 3) {
                                     Image(systemName: "star.fill")
                                         .font(.system(size: 10))
-                                        .foregroundStyle(Color(hex: 0xF0C040))
+                                        .foregroundStyle(Theme.starGold)
                                     Text(String(format: "%.1f", rating))
                                         .font(.cfSans(12, weight: .semibold))
                                         .foregroundStyle(.white)
@@ -178,9 +184,12 @@ struct HeroCard: View {
             .clipShape(.rect(cornerRadius: 16))
             .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 12, y: 8)
         }
-        .buttonStyle(.plain)
+        // Navigate from a frame-scoped tap, not a wrapping NavigationLink — see
+        // PushPlaceKey. The save overlay sits above and wins its own region.
+        .contentShape(.rect)
+        .onTapGesture { pushPlace(place) }
         .overlay(alignment: .topTrailing) {
-            SaveBookmark(isSaved: isSaved, size: 32, action: onSave).padding(12)
+            SaveBookmark(isSaved: isSaved, size: 32, action: onSave).padding(6)
         }
     }
 
@@ -197,9 +206,10 @@ struct LandCard: View {
     let place: Place
     let isSaved: Bool
     let onSave: () -> Void
+    @Environment(\.pushPlace) private var pushPlace
 
     var body: some View {
-        NavigationLink(value: place) {
+        Group {
             ZStack(alignment: .bottomLeading) {
                 CardPhoto(url: place.coverPhoto, height: 130, targetWidth: FeedImage.thumbWidth)
                     .overlay(
@@ -241,9 +251,11 @@ struct LandCard: View {
             .clipShape(.rect(cornerRadius: 12))
             .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 8, y: 4)
         }
-        .buttonStyle(.plain)
+        // Frame-scoped tap instead of a wrapping NavigationLink — see PushPlaceKey.
+        .contentShape(.rect)
+        .onTapGesture { pushPlace(place) }
         .overlay(alignment: .topTrailing) {
-            SaveBookmark(isSaved: isSaved, size: 28, action: onSave).padding(7)
+            SaveBookmark(isSaved: isSaved, size: 28, action: onSave).padding(2)
         }
     }
 }
@@ -255,9 +267,10 @@ struct PosterCard: View {
     let isSaved: Bool
     let onSave: () -> Void
     @Environment(LocaleStore.self) private var locale
+    @Environment(\.pushPlace) private var pushPlace
 
     var body: some View {
-        NavigationLink(value: place) {
+        Group {
             VStack(alignment: .leading, spacing: 0) {
                 ZStack(alignment: .topLeading) {
                     CardPhoto(url: place.coverPhoto, height: 168, targetWidth: FeedImage.thumbWidth)
@@ -305,11 +318,13 @@ struct PosterCard: View {
             .clipShape(.rect(cornerRadius: 12))
             .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 7, y: 4)
         }
-        .buttonStyle(.plain)
-        // Sibling overlay, not nested in the link's label — otherwise the
-        // NavigationLink swallows the tap and navigates instead of saving.
+        // Frame-scoped tap instead of a wrapping NavigationLink — see PushPlaceKey.
+        // This is what stops a tap near the card edge (e.g. the bookmark) from
+        // being claimed by the neighbouring card's link.
+        .contentShape(.rect)
+        .onTapGesture { pushPlace(place) }
         .overlay(alignment: .topTrailing) {
-            SaveBookmark(isSaved: isSaved, size: 26, target: 60, action: onSave).padding(6)
+            SaveBookmark(isSaved: isSaved, size: 26, action: onSave).padding(3)
         }
     }
 }

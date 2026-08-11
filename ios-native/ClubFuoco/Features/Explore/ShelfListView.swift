@@ -9,6 +9,7 @@ struct ShelfListView: View {
     let onSave: (Place) -> Void
     @Environment(LocaleStore.self) private var locale
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.pushPlace) private var pushPlace
 
     var body: some View {
         ScrollView {
@@ -29,10 +30,16 @@ struct ShelfListView: View {
 
                 VStack(spacing: 16) {
                     ForEach(shelf.places) { place in
-                        NavigationLink(value: place) {
-                            row(place)
-                        }
-                        .buttonStyle(.plain)
+                        // Frame-scoped tap for navigation (see PushPlaceKey), with
+                        // the save button as a sibling overlay that owns its own
+                        // region — so tapping the bookmark saves, and a miss can
+                        // only ever open this row, never a neighbour.
+                        row(place)
+                            .contentShape(.rect)
+                            .onTapGesture { pushPlace(place) }
+                            .overlay(alignment: .topTrailing) {
+                                saveButton(place)
+                            }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -111,7 +118,7 @@ struct ShelfListView: View {
                     HStack(spacing: 3) {
                         Image(systemName: "star.fill")
                             .font(.system(size: 10))
-                            .foregroundStyle(Color(hex: 0xF5C142))
+                            .foregroundStyle(Theme.starGold)
                         Text(String(format: "%.1f", rating))
                             .font(.cfSans(12, weight: .semibold))
                             .foregroundStyle(.white)
@@ -145,20 +152,21 @@ struct ShelfListView: View {
             }
             .padding(12)
         }
-        .overlay(alignment: .topTrailing) {
-            Button {
-                onSave(place)
-            } label: {
-                let isSaved = model.saved.contains(place.placeId)
-                Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white)
-                    .frame(width: 34, height: 34)
-                    .background(.black.opacity(0.45), in: .circle)
-            }
-            .buttonStyle(.plain)
-            .padding(10)
-        }
         .shadow(color: Color(hex: 0x221E1A).opacity(0.10), radius: 10, y: 6)
+    }
+
+    private func saveButton(_ place: Place) -> some View {
+        Button {
+            onSave(place)
+        } label: {
+            let isSaved = model.saved.contains(place.placeId)
+            Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
+                .font(.system(size: 14))
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 34)
+                .background(.black.opacity(0.45), in: .circle)
+        }
+        .buttonStyle(.plain)
+        .padding(10)
     }
 }

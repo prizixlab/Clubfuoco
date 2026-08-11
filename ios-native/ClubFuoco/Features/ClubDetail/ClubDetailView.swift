@@ -34,6 +34,30 @@ struct ClubDetailView: View {
         RumbalistOffers.offers(for: place.placeId).filter { $0.liveOn(plan.date) }
     }
 
+    /// Offers live on a specific date (the `offers` property covers plan.date).
+    private func offers(on date: String) -> [RumbalistOffer] {
+        RumbalistOffers.offers(for: place.placeId).filter { $0.liveOn(date) }
+    }
+
+    /// Next date (today…14d ahead, YYYY-MM-DD) matching an English weekday name
+    /// like "Wednesdays" — the weekday club_dj_sets stores. nil if unrecognised
+    /// or out of the booking window.
+    private func nextDate(forNight night: String?) -> String? {
+        guard let night else { return nil }
+        let idx: [String: Int] = ["sundays": 1, "mondays": 2, "tuesdays": 3,
+                                  "wednesdays": 4, "thursdays": 5, "fridays": 6,
+                                  "saturdays": 7]
+        guard let wd = idx[night.lowercased()] else { return nil }
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = .current
+        let today = cal.startOfDay(for: Date())
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.timeZone = .current
+        for add in 0...PlanStore.maxDaysAhead {
+            guard let d = cal.date(byAdding: .day, value: add, to: today) else { continue }
+            if cal.component(.weekday, from: d) == wd { return f.string(from: d) }
+        }
+        return nil
+    }
+
     private let heroHeight: CGFloat = 360
 
     var body: some View {
@@ -78,14 +102,20 @@ struct ClubDetailView: View {
             PhotoViewer(photos: photos, startIndex: idx.value)
         }
         .sheet(item: $activeDJ) { dj in
+            // The guestlist for a DJ box is for the DJ's OWN night, not tonight:
+            // target the next occurrence of their weekday and open the offer live
+            // on that date (booking then uses plan.date = that night).
+            let djDate = nextDate(forNight: dj.night)
+            let djOffers = offers(on: djDate ?? plan.date)
             FeaturedDJSheet(
                 dj: dj,
                 autoplay: djAutoplay,
-                bookable: !offers.isEmpty,
-                onBook: offers.isEmpty ? nil : {
+                bookable: !djOffers.isEmpty,
+                onBook: djOffers.isEmpty ? nil : {
+                    if let djDate { plan.date = djDate }
                     // Let the DJ sheet finish dismissing before opening the offer.
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                        activeOffer = offers.first
+                        activeOffer = djOffers.first
                     }
                 }
             )

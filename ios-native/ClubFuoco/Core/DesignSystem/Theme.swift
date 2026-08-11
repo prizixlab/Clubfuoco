@@ -20,7 +20,10 @@ enum Theme {
     // metallic as they darken.
     //   gold  #C09950 (H39 S.58 V.75) -> #AD8420 (H42 S.82 V.68), 5.6:1
     static let gold = Color.adaptive(light: 0xC09950, dark: 0xAD8420)      // accent (active pill, highlights)
-    static let wine = Color.adaptive(light: 0x8C2A2A, dark: 0xC85450)      // badges / destructive accents
+    // Same correction as the golds: the first dark value lifted brightness
+    // without saturation and came out coral. #B33F38 holds the red hue at S .69
+    // instead of .60 and drops V .78 -> .70, so it reads as wine again.
+    static let wine = Color.adaptive(light: 0x8C2A2A, dark: 0xB33F38)      // badges / destructive accents
 
     static let hairline = Color.adaptive(light: 0x221E1A, lightAlpha: 0.10,
                                          dark: 0xF4ECDD, darkAlpha: 0.12)

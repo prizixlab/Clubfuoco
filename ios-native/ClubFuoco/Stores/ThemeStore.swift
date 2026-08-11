@@ -28,8 +28,9 @@ final class ThemeStore {
 
     init() {
         let stored = UserDefaults.standard.string(forKey: Self.storageKey)
-        // Default to Light: the palette is light-first and the dark sweep is
-        // opt-in until every screen has been verified.
-        self.setting = Setting(rawValue: stored ?? "") ?? .light
+        // Follow the device. Anyone who already picked Light or Dark in
+        // Settings keeps their choice — only installs with no stored value
+        // (fresh, or never opened the picker) inherit the system setting.
+        self.setting = Setting(rawValue: stored ?? "") ?? .system
     }
 }

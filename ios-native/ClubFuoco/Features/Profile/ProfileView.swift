@@ -153,14 +153,19 @@ struct ProfileView: View {
         // and ember for bronze and gold, so the glow reads gold rather than
         // orange. Dark base means light type — the inverse of the cream card
         // this replaced.
-        let goldEdge = Color(hex: 0xD9AE3A)
+        // Hue matters more than brightness here: at 44° and V .85 the previous
+        // gold covered enough of the card to read as brass. Pulled down to 39°
+        // (amber-leaning) and V .78, with an antique-gold step before the peak
+        // so the corner ramps like metal instead of arriving as flat yellow.
+        let goldEdge = Color(hex: 0xC6912A)
         let muted = Theme.parchment.opacity(0.55)
         return ZStack {
             LinearGradient(
                 stops: [
                     .init(color: Color(hex: 0x161210), location: 0.00),
                     .init(color: Color(hex: 0x2A1E10), location: 0.38),
-                    .init(color: Color(hex: 0x6E4E18), location: 0.74),
+                    .init(color: Color(hex: 0x6B4A14), location: 0.72),
+                    .init(color: Color(hex: 0x9C7420), location: 0.88),
                     .init(color: goldEdge,             location: 1.00),
                 ],
                 startPoint: .topLeading, endPoint: .bottomTrailing

@@ -199,6 +199,9 @@ final class Queries: @unchecked Sendable {
             .from("events")
             .select("ra_event_id, title, date, start_time, venue_name, promoters, artists, interested, attending, ra_url")
             .eq("club_id", value: clubId)
+            // Events that are really just a lone DJ playing are hidden here and
+            // surfaced as a Featured DJ box instead (see link_djs.py).
+            .eq("is_dj_set", value: false)
             .gte("date", value: today.string(from: Date()))
             .order("date", ascending: true)
             .limit(20)

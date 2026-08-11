@@ -25,11 +25,18 @@ struct BookingDetailView: View {
 
     private var isCancelled: Bool { booking.status == "cancelled" }
 
+    /// The supplier who created this guestlist (Rumba, Aashi, …). Their identity
+    /// carries the whole reservation — accent colour + lockup — so it reads as
+    /// the promoter's own pass, matching the branded offer sheet they booked in.
+    private var brand: PartnerBrand? { booking.brand }
+    private var accent: Color { brand.flatMap { Color(hexString: $0.color) } ?? Theme.ember }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
                     hero
+                    if let brand { brandLockup(brand) }
                     facts
                     if !isCancelled {
                         AttendanceCheckInCard(booking: booking,
@@ -147,11 +154,27 @@ struct BookingDetailView: View {
         .clipShape(.rect(cornerRadius: 16))
     }
 
+    /// Supplier lockup carrying the whole page's identity — big mark in the
+    /// brand's accent on a soft tint of it. Rumba renders its signature pink
+    /// gloss wordmark; other suppliers (Aashi) render their logo in-accent.
+    private func brandLockup(_ brand: PartnerBrand) -> some View {
+        VStack(spacing: 10) {
+            Text(locale.t("bookings.factGuestlist").uppercased())
+                .font(.cfMono(9)).kerning(1.6)
+                .foregroundStyle(accent.opacity(0.85))
+            SupplierMark(brand: brand, height: 26, tint: accent)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 18)
+        .background(accent.opacity(0.08), in: .rect(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(accent.opacity(0.28)))
+    }
+
     private var statusBadge: some View {
         let (key, color): (String, Color) = switch booking.status {
         case "cancelled": ("bookings.statusCancelled", Color(hex: 0x888888))
         case "pending":   ("bookings.statusPending", Theme.gold)
-        default:          ("bookings.statusConfirmed", .white)
+        default:          ("bookings.statusConfirmed", accent)
         }
         return Text(locale.t(key).uppercased())
             .font(.cfSans(9, weight: .semibold))
@@ -184,13 +207,6 @@ struct BookingDetailView: View {
                 divider
                 factRow(locale.t("rumbalist.address"), small: true) {
                     Text(address).foregroundStyle(Theme.stone)
-                }
-            }
-            if let brand = booking.brand {
-                divider
-                factRow(locale.t("bookings.factGuestlist")) {
-                    SupplierMark(brand: brand, height: 13, animated: false,
-                                 tint: Color(hexString: brand.color) ?? Theme.ember)
                 }
             }
             divider
@@ -243,7 +259,7 @@ struct BookingDetailView: View {
             Text(token)
                 .font(.cfMono(12))
                 .kerning(1)
-                .foregroundStyle(Theme.stone)
+                .foregroundStyle(accent.opacity(0.9))
             QRCodeView(token: token)
                 .frame(width: 220, height: 220)
                 .padding(18)

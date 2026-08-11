@@ -12,12 +12,12 @@ struct ClubFuocoApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                // The entire design is a hardcoded light (cream/ink) palette with
-                // no dark variant. Without this, Dark Mode renders TextField text
-                // as Color.primary (white) on the cream background — invisible.
-                .preferredColorScheme(.light)
+                // Appearance is user-controlled in Settings (Light / Dark /
+                // System); nil means follow the system. Defaults to Light.
+                .preferredColorScheme(env.themeStore.colorScheme)
                 .environment(env.authStore)
                 .environment(env.localeStore)
+                .environment(env.themeStore)
                 .environment(env.planStore)
                 .environment(DJPlayer.shared)
                 .environment(\.api, env.api)

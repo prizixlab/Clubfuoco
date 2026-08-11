@@ -12,9 +12,18 @@ enum Theme {
     static let gold = Color(hex: 0xC09950)       // accent (active pill, highlights)
     static let wine = Color(hex: 0x8C2A2A)       // badges / destructive accents
 
-    static let hairline = Color(hex: 0x221E1A).opacity(0.10)
+    static let hairline = Color.adaptive(light: 0x221E1A, lightAlpha: 0.10,
+                                         dark: 0xF4ECDD, darkAlpha: 0.12)
 
-    // Night/cinema palette (splash + dark hero surfaces, see Splash.tsx)
+    // ── Surfaces ──────────────────────────────────────────────────────────────
+    // Cards and sheets that sit *on top of* the app background. In light these
+    // are the plain white the app has always used; in dark they are a step
+    // lighter than the background so elevation still reads.
+    static let surface = Color.adaptive(light: 0xFFFFFF, dark: 0x1A1613)
+    static let surfaceRaised = Color.adaptive(light: 0xFFFFFF, dark: 0x232019)
+
+    // Night/cinema palette (splash + dark hero surfaces, see Splash.tsx).
+    // Deliberately *not* adaptive — these surfaces are dark in both modes.
     static let night = Color(hex: 0x0A0807)         // rgb(10,8,7)
     static let parchment = Color(hex: 0xF4ECDD)     // rgb(244,236,221)
     static let ember = Color(hex: 0xC2562D)         // rgb(194,86,45) primary CTA
@@ -84,6 +93,30 @@ extension Color {
             red: Double((hex >> 16) & 0xFF) / 255,
             green: Double((hex >> 8) & 0xFF) / 255,
             blue: Double(hex & 0xFF) / 255
+        )
+    }
+
+    /// A color that resolves per trait collection, so the ~850 `Theme.*` call
+    /// sites need no change when Dark Mode flips. Built on a dynamic `UIColor`
+    /// because SwiftUI has no first-class light/dark literal outside an asset
+    /// catalog.
+    static func adaptive(light: UInt32, lightAlpha: Double = 1,
+                         dark: UInt32, darkAlpha: Double = 1) -> Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(hex: dark, alpha: darkAlpha)
+                : UIColor(hex: light, alpha: lightAlpha)
+        })
+    }
+}
+
+private extension UIColor {
+    convenience init(hex: UInt32, alpha: Double) {
+        self.init(
+            red: CGFloat((hex >> 16) & 0xFF) / 255,
+            green: CGFloat((hex >> 8) & 0xFF) / 255,
+            blue: CGFloat(hex & 0xFF) / 255,
+            alpha: CGFloat(alpha)
         )
     }
 }

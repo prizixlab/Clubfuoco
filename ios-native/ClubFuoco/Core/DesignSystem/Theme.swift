@@ -4,13 +4,17 @@ import SwiftUI
 /// (BottomNav.tsx / OAuthButtons.tsx / globals.css).
 enum Theme {
     // ── Colors ────────────────────────────────────────────────────────────────
-    static let ink = Color(hex: 0x221E1A)        // primary text / dark surfaces
-    static let stone = Color(hex: 0x6E6356)      // secondary text
-    static let sand = Color(hex: 0xB0A898)       // inactive / tertiary
-    static let fadedSand = Color(hex: 0x9F9486)  // captions, overlines
-    static let cream = Color(hex: 0xF8F5EE)      // app background
-    static let gold = Color(hex: 0xC09950)       // accent (active pill, highlights)
-    static let wine = Color(hex: 0x8C2A2A)       // badges / destructive accents
+    // `ink` and `cream` are a contrast *pair*: ink is the primary text color and
+    // also the fill of the primary buttons/pills, whose labels are always
+    // `cream`. Because both invert together, those filled controls flip to a
+    // light-on-dark button in Dark Mode with no call-site change.
+    static let ink = Color.adaptive(light: 0x221E1A, dark: 0xEDE6D8)       // primary text / contrast fills
+    static let stone = Color.adaptive(light: 0x6E6356, dark: 0xB4AA9A)     // secondary text
+    static let sand = Color.adaptive(light: 0xB0A898, dark: 0x7A7264)      // inactive / tertiary
+    static let fadedSand = Color.adaptive(light: 0x9F9486, dark: 0x8A8172) // captions, overlines
+    static let cream = Color.adaptive(light: 0xF8F5EE, dark: 0x0E0C0A)     // app background / labels on ink
+    static let gold = Color(hex: 0xC09950)                                 // accent — reads on both, never adapts
+    static let wine = Color.adaptive(light: 0x8C2A2A, dark: 0xC85450)      // badges / destructive accents
 
     static let hairline = Color.adaptive(light: 0x221E1A, lightAlpha: 0.10,
                                          dark: 0xF4ECDD, darkAlpha: 0.12)

@@ -16,7 +16,9 @@ struct QRCodeView: View {
             Image(systemName: "qrcode")
                 .resizable()
                 .scaledToFit()
-                .foregroundStyle(Theme.ink)
+                // Sits on the always-white QR card, so it must not follow the
+                // appearance — an adaptive ink would vanish in Dark.
+                .foregroundStyle(Theme.onQRSurface)
         }
     }
 

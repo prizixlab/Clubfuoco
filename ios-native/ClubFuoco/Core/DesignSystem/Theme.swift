@@ -26,6 +26,19 @@ enum Theme {
     static let surface = Color.adaptive(light: 0xFFFFFF, dark: 0x1A1613)
     static let surfaceRaised = Color.adaptive(light: 0xFFFFFF, dark: 0x232019)
 
+    /// Behind async images while they load — a warm block that matches the
+    /// surrounding page rather than flashing light on a dark screen.
+    static let imagePlaceholder = Color.adaptive(light: 0xEFE9DD, dark: 0x231F1A)
+
+    /// "Open now", confirmed bookings, credited fiamme. Lightened in Dark so it
+    /// still separates from the background.
+    static let success = Color.adaptive(light: 0x2D7A46, dark: 0x4CA96B)
+
+    /// QR cards stay white with dark modules in BOTH modes — door scanners
+    /// need the quiet zone, so these must never follow the appearance.
+    static let qrSurface = Color.white
+    static let onQRSurface = Color(hex: 0x221E1A)
+
     // Night/cinema palette (splash + dark hero surfaces, see Splash.tsx).
     // Deliberately *not* adaptive — these surfaces are dark in both modes.
     static let night = Color(hex: 0x0A0807)         // rgb(10,8,7)

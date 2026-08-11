@@ -50,8 +50,8 @@ struct OAuthButtonsView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
-                .background(Color.white, in: .rect(cornerRadius: Theme.radiusField))
-                .overlay(RoundedRectangle(cornerRadius: Theme.radiusField).stroke(Color(hex: 0x221E1A).opacity(0.12)))
+                .background(Theme.surface, in: .rect(cornerRadius: Theme.radiusField))
+                .overlay(RoundedRectangle(cornerRadius: Theme.radiusField).stroke(Theme.ink.opacity(0.12)))
             }
             .disabled(googleLoading)
 

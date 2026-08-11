@@ -298,7 +298,7 @@ private struct FlowChips: View {
                         .foregroundStyle(selected ? Theme.cream : Theme.ink)
                         .padding(.horizontal, 16)
                         .frame(height: 42)
-                        .background(selected ? Theme.wine : Color.white, in: .capsule)
+                        .background(selected ? Theme.wine : Theme.surface, in: .capsule)
                         .overlay(Capsule().stroke(selected ? Color.clear : Theme.hairline))
                 }
                 .buttonStyle(.plain)
@@ -329,7 +329,7 @@ private struct CustomItemEntry: View {
                 .foregroundStyle(Theme.ink)
                 .padding(.horizontal, 16)
                 .frame(height: 42)
-                .background(Color.white, in: .capsule)
+                .background(Theme.surface, in: .capsule)
                 .overlay(Capsule().stroke(Theme.hairline))
 
             Button(action: submit) {
@@ -338,7 +338,7 @@ private struct CustomItemEntry: View {
                     .foregroundStyle(canSubmit ? Theme.cream : Theme.sand)
                     .padding(.horizontal, 18)
                     .frame(height: 42)
-                    .background(canSubmit ? Theme.wine : Color.white, in: .capsule)
+                    .background(canSubmit ? Theme.wine : Theme.surface, in: .capsule)
                     .overlay(Capsule().stroke(canSubmit ? Color.clear : Theme.hairline))
             }
             .buttonStyle(.plain)
@@ -380,7 +380,7 @@ private struct SquadCard: View {
             }
             .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
             .padding(16)
-            .background(selected ? Theme.wine : Color.white, in: .rect(cornerRadius: 16))
+            .background(selected ? Theme.wine : Theme.surface, in: .rect(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(selected ? Color.clear : Theme.hairline))
         }
         .buttonStyle(.plain)
@@ -434,7 +434,7 @@ private struct BudgetSlider: View {
                 .padding(.horizontal, fillWidth ? 6 : 16)
                 .frame(maxWidth: fillWidth ? .infinity : nil)
                 .frame(height: 38)
-                .background(selected ? Theme.wine : Color.white, in: .capsule)
+                .background(selected ? Theme.wine : Theme.surface, in: .capsule)
                 .overlay(Capsule().stroke(selected ? Color.clear : Theme.hairline))
         }
         .buttonStyle(.plain)
@@ -550,7 +550,7 @@ private struct DrinkCategoryCard: View {
                 .padding(.horizontal, 16)
                 .frame(minHeight: 52)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(hasSelection ? Theme.wine.opacity(0.06) : Color.white)
+                .background(hasSelection ? Theme.wine.opacity(0.06) : Theme.surface)
             }
             .buttonStyle(.plain)
 
@@ -584,7 +584,7 @@ private struct DrinkCategoryCard: View {
                             .foregroundStyle(Theme.ink)
                             .padding(.horizontal, 14)
                             .frame(height: 38)
-                            .background(Color.white, in: .capsule)
+                            .background(Theme.surface, in: .capsule)
                             .overlay(Capsule().stroke(Theme.hairline))
 
                         Button(action: addCustom) {
@@ -593,7 +593,7 @@ private struct DrinkCategoryCard: View {
                                 .foregroundStyle(canAddCustom ? Theme.cream : Theme.sand)
                                 .padding(.horizontal, 14)
                                 .frame(height: 38)
-                                .background(canAddCustom ? Theme.wine : Color.white, in: .capsule)
+                                .background(canAddCustom ? Theme.wine : Theme.surface, in: .capsule)
                                 .overlay(Capsule().stroke(canAddCustom ? Color.clear : Theme.hairline))
                         }
                         .buttonStyle(.plain)
@@ -615,10 +615,10 @@ private struct DrinkCategoryCard: View {
                     }
                 }
                 .padding(14)
-                .background(Color.white.opacity(0.6))
+                .background(Theme.surface.opacity(0.6))
             }
         }
-        .background(Color.white, in: .rect(cornerRadius: 16))
+        .background(Theme.surface, in: .rect(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16)
             .stroke(hasSelection ? Theme.wine : Theme.hairline,
                     lineWidth: hasSelection ? 1.5 : 1))
@@ -644,7 +644,7 @@ private struct DrinkCategoryCard: View {
             }
             .padding(.horizontal, 12)
             .frame(height: 34)
-            .background(selected ? Theme.wine : Color.white, in: .capsule)
+            .background(selected ? Theme.wine : Theme.surface, in: .capsule)
             .overlay(Capsule().stroke(selected ? Color.clear : Theme.hairline))
         }
         .buttonStyle(.plain)

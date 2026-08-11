@@ -69,7 +69,7 @@ struct ClubDetailView: View {
                     .offset(y: -32)   // slide the white sheet up over the hero
             }
         }
-        .background(Color.white)
+        .background(Theme.surface)
         .ignoresSafeArea(edges: .top)
         .scrollIndicators(.hidden)
         .toolbar(.hidden, for: .navigationBar)
@@ -163,10 +163,10 @@ struct ClubDetailView: View {
         // The hero photo is not tappable — the photos strip below is the way to
         // open the full-screen viewer.
         ZStack(alignment: .bottomLeading) {
-            Color(hex: 0xEFE9DD)
+            Theme.imagePlaceholder
                 .overlay {
                     if let url = photos.first.flatMap(URL.init(string:)) {
-                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Theme.imagePlaceholder }
                     } else {
                         Image(systemName: "music.note.house")
                             .font(.system(size: 44))
@@ -277,7 +277,7 @@ struct ClubDetailView: View {
         }
         .padding(.bottom, 40)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white, in: .rect(topLeadingRadius: 24, topTrailingRadius: 24))
+        .background(Theme.surface, in: .rect(topLeadingRadius: 24, topTrailingRadius: 24))
     }
 
     // ── Fact strip ────────────────────────────────────────────────────────────
@@ -307,7 +307,7 @@ struct ClubDetailView: View {
     }
     private var statusColor: Color {
         switch openStatus {
-        case true: return Color(hex: 0x2D7A46)
+        case true: return Theme.success
         case false: return Theme.wine
         default: return Theme.fadedSand
         }
@@ -360,7 +360,7 @@ struct ClubDetailView: View {
                 .lineLimit(4)
                 .padding(.leading, 14)
                 .overlay(alignment: .leading) {
-                    Rectangle().fill(Color(hex: 0x221E1A).opacity(0.16)).frame(width: 2)
+                    Rectangle().fill(Theme.ink.opacity(0.16)).frame(width: 2)
                 }
         }
     }
@@ -642,7 +642,7 @@ struct ClubDetailView: View {
                 .foregroundStyle(offer.isVip ? ink : Theme.ink)
                 .frame(width: 44, height: 44)
                 .background(
-                    offer.isVip ? ink.opacity(0.18) : Color(hex: 0x221E1A).opacity(0.06),
+                    offer.isVip ? ink.opacity(0.18) : Theme.ink.opacity(0.06),
                     in: .rect(cornerRadius: 12)
                 )
 
@@ -725,12 +725,12 @@ struct ClubDetailView: View {
                             Haptics.tap()
                             photoViewer = PhotoIndex(value: i + 1)
                         } label: {
-                            Color(hex: 0xEFE9DD)
+                            Theme.imagePlaceholder
                                 .overlay {
                                     if let parsed = URL(string: url) {
                                         // Thumbnail strip — right-sized; the full
                                         // photo loads native in the tap-through viewer.
-                                        CachedAsyncImage(url: parsed, targetWidth: 140) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                                        CachedAsyncImage(url: parsed, targetWidth: 140) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Theme.imagePlaceholder }
                                     }
                                 }
                                 .frame(width: 140, height: 100)

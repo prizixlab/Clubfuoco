@@ -221,7 +221,7 @@ struct BookingDetailView: View {
             }
         }
         .padding(.init(top: 6, leading: 16, bottom: 6, trailing: 16))
-        .background(Color.white, in: .rect(cornerRadius: 14))
+        .background(Theme.surface, in: .rect(cornerRadius: 14))
         .shadow(color: Color(hex: 0x221E1A).opacity(0.05), radius: 8, y: 2)
     }
 
@@ -263,7 +263,7 @@ struct BookingDetailView: View {
             QRCodeView(token: token)
                 .frame(width: 220, height: 220)
                 .padding(18)
-                .background(Color.white, in: .rect(cornerRadius: 18))
+                .background(Theme.qrSurface, in: .rect(cornerRadius: 18))
                 .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 10, y: 4)
             Text(locale.t("bookings.atDoor"))
                 .font(.cfSerif(15, italic: true))
@@ -290,7 +290,7 @@ struct BookingDetailView: View {
                 .foregroundStyle(Theme.ink)
                 .frame(maxWidth: .infinity)
                 .frame(height: 46)
-                .background(Color.white, in: .rect(cornerRadius: 12))
+                .background(Theme.surface, in: .rect(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
             }
         }
@@ -313,7 +313,7 @@ struct BookingDetailView: View {
             }
             .foregroundStyle(Theme.ink)
             .padding(16)
-            .background(Color.white, in: .rect(cornerRadius: 12))
+            .background(Theme.surface, in: .rect(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
         }
     }

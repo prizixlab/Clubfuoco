@@ -12,13 +12,13 @@ private struct CardPhoto: View {
     var targetWidth: CGFloat? = nil
 
     var body: some View {
-        Color(hex: 0xEFE9DD)
+        Theme.imagePlaceholder
             .overlay {
                 if let url, let parsed = URL(string: url) {
                     CachedAsyncImage(url: parsed, targetWidth: targetWidth) { image in
                         image.resizable().aspectRatio(contentMode: .fill)
                     } placeholder: {
-                        Color(hex: 0xEFE9DD)
+                        Theme.imagePlaceholder
                     }
                 } else {
                     Image(systemName: "music.note.house")
@@ -174,7 +174,7 @@ struct HeroCard: View {
                 }
                 .padding(.init(top: 16, leading: 20, bottom: 18, trailing: 20))
             }
-            .background(Color.white)
+            .background(Theme.surface)
             .clipShape(.rect(cornerRadius: 16))
             .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 12, y: 8)
         }
@@ -273,7 +273,7 @@ struct PosterCard: View {
 
                     HStack(alignment: .top) {
                         if place.isOpen == true {
-                            TagPill(text: locale.t("explore.open"), background: Color(hex: 0x2D7A46), color: .white)
+                            TagPill(text: locale.t("explore.open"), background: Theme.success, color: .white)
                         } else if let distance = place.distance {
                             TagPill(text: ExploreViewModel.formatDistance(distance), background: .black.opacity(0.4), color: .white.opacity(0.75))
                         }
@@ -301,7 +301,7 @@ struct PosterCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(width: 150)
-            .background(Color.white)
+            .background(Theme.surface)
             .clipShape(.rect(cornerRadius: 12))
             .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 7, y: 4)
         }

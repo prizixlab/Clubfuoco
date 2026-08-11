@@ -299,7 +299,7 @@ struct SignupView: View {
                         .background(Color(hex: 0x2A1F12).opacity(0.07), in: .capsule)
                 }
                 .padding(14)
-                .background(Color.white, in: .rect(cornerRadius: 12))
+                .background(Theme.surface, in: .rect(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: 0x2A1F12).opacity(0.18)))
                 .opacity(0.55)
                 .accessibilityHint(sub)
@@ -388,7 +388,7 @@ struct SignupView: View {
                     .kerning(8)
                     .multilineTextAlignment(.center)
                     .padding(.vertical, 18)
-                    .background(Color.white, in: .rect(cornerRadius: 12))
+                    .background(Theme.surface, in: .rect(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
                     .onChange(of: otpCode) { _, new in
                         otpCode = String(new.filter(\.isNumber).prefix(8))
@@ -475,7 +475,7 @@ struct SignupView: View {
                 .font(.system(size: 26))
                 .foregroundStyle(Theme.fadedSand)
                 .frame(width: 64, height: 64)
-                .background(Color.white, in: .rect(cornerRadius: 24))
+                .background(Theme.surface, in: .rect(cornerRadius: 24))
                 .overlay(RoundedRectangle(cornerRadius: 24).stroke(Theme.hairline))
                 .padding(.bottom, 8)
 
@@ -502,7 +502,7 @@ struct SignupView: View {
                 wheel(locale.t("signup.month"), selection: $bMonth, values: Array(1...12)) { monthNames[$0 - 1] }
                 wheel(locale.t("signup.year"), selection: $bYear, values: Array((Self.currentYear - 100)...(Self.currentYear - 17)).reversed()) { String($0) }
             }
-            .background(Color.white, in: .rect(cornerRadius: 12))
+            .background(Theme.surface, in: .rect(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
 
             // Selected date, Italian serif line — brand quirk kept from web
@@ -643,7 +643,7 @@ struct SignupView: View {
                     headlineColor: Theme.ink,
                     cta: "Go to explore",
                     ctaColor: Theme.wine,
-                    background: AnyShapeStyle(Color.white),
+                    background: AnyShapeStyle(Theme.surface),
                     borderColor: Theme.hairline
                 ) { Haptics.tap(); auth.finishOnboarding() }
             }

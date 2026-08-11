@@ -37,7 +37,7 @@ struct ProfileView: View {
                             .font(.system(size: 15))
                             .foregroundStyle(Theme.stone)
                             .frame(width: 36, height: 36)
-                            .background(Color.white, in: .circle)
+                            .background(Theme.surface, in: .circle)
                     }
                     NavigationLink {
                         SettingsView()
@@ -46,7 +46,7 @@ struct ProfileView: View {
                             .font(.system(size: 15))
                             .foregroundStyle(Theme.stone)
                             .frame(width: 36, height: 36)
-                            .background(Color.white, in: .circle)
+                            .background(Theme.surface, in: .circle)
                     }
                 }
                 .padding(.init(top: 8, leading: 20, bottom: 12, trailing: 20))
@@ -176,7 +176,7 @@ struct ProfileView: View {
                 PhotosPicker(selection: $avatarItem, matching: .images) {
                     ZStack(alignment: .bottomTrailing) {
                         Circle()
-                            .fill(Color.white.opacity(0.55))
+                            .fill(Theme.surface.opacity(0.55))
                             .frame(width: 84, height: 84)
                             .overlay {
                                 if let avatar = auth.profile?.avatarUrl, let url = URL(string: avatar) {
@@ -207,7 +207,7 @@ struct ProfileView: View {
                             .foregroundStyle(Theme.cream)
                             .frame(width: 24, height: 24)
                             .background(Theme.ink, in: .circle)
-                            .overlay(Circle().stroke(Color(hex: 0xF8EFDC), lineWidth: 2))
+                            .overlay(Circle().stroke(cream, lineWidth: 2))
                             .offset(x: 2, y: 2)
                     }
                 }
@@ -237,6 +237,10 @@ struct ProfileView: View {
         }
         .clipShape(.rect(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: 0x2A1F12).opacity(0.18)))
+        // The membership card is a fixed cream/gold artifact in both modes, so
+        // pin the subtree to Light — otherwise the adaptive tokens inside it
+        // (the name, the camera badge) invert and disappear into the card.
+        .environment(\.colorScheme, .light)
     }
 
     // ── Stats strip ───────────────────────────────────────────────────────────
@@ -301,7 +305,7 @@ struct ProfileView: View {
                         sub: model.friendsSub ?? "—")
             }
 
-            Rectangle().fill(Color(hex: 0x221E1A).opacity(0.16)).frame(height: 1)
+            Rectangle().fill(Theme.ink.opacity(0.16)).frame(height: 1)
                 .padding(.vertical, 12)
             Kicker(locale.t("profile.prefsSection"), color: Theme.fadedSand, size: 9)
                 .padding(.bottom, 8)

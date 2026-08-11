@@ -66,7 +66,7 @@ struct BookNightSheet: View {
                 .pickerStyle(.wheel)
                 .frame(height: 110)
                 .clipped()
-                .background(Color.white, in: .rect(cornerRadius: 12))
+                .background(Theme.surface, in: .rect(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
             }
 
@@ -80,14 +80,14 @@ struct BookNightSheet: View {
                     .fixedSize()
             }
             .padding(14)
-            .background(Color.white, in: .rect(cornerRadius: 12))
+            .background(Theme.surface, in: .rect(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
 
             // Summary
             VStack(spacing: 8) {
                 summaryRow(locale.t("book.subtotal"), "€\(String(format: "%.2f", model.subtotal))")
                 if model.discount > 0 {
-                    summaryRow(locale.t("book.discount"), "−€\(String(format: "%.2f", model.discount))", color: Color(hex: 0x2D7A46))
+                    summaryRow(locale.t("book.discount"), "−€\(String(format: "%.2f", model.discount))", color: Theme.success)
                 }
                 Divider().overlay(Theme.hairline)
                 HStack {
@@ -101,7 +101,7 @@ struct BookNightSheet: View {
                 }
             }
             .padding(16)
-            .background(Color.white, in: .rect(cornerRadius: 12))
+            .background(Theme.surface, in: .rect(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
 
             if let error = model.errorMessage {
@@ -131,7 +131,7 @@ struct BookNightSheet: View {
                      ? locale.t("book.planWithFriends")
                      : String(format: locale.t("book.groupCreated"), model.groupCode!))
                     .font(.cfSans(13, weight: .medium))
-                    .foregroundStyle(model.groupCode == nil ? Theme.ink : Color(hex: 0x2D7A46))
+                    .foregroundStyle(model.groupCode == nil ? Theme.ink : Theme.success)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
@@ -156,7 +156,7 @@ struct BookNightSheet: View {
         VStack(spacing: 16) {
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 44))
-                .foregroundStyle(Color(hex: 0x2D7A46))
+                .foregroundStyle(Theme.success)
                 .padding(.top, 24)
             Text(locale.t("book.confirmed"))
                 .font(.cfSerif(20))
@@ -166,7 +166,7 @@ struct BookNightSheet: View {
                 QRCodeView(token: token)
                     .frame(width: 180, height: 180)
                     .padding(16)
-                    .background(Color.white, in: .rect(cornerRadius: 16))
+                    .background(Theme.qrSurface, in: .rect(cornerRadius: 16))
             }
             WalletPassButton(passPath: "/api/bookings/\(booking.id.uuidString.lowercased())/wallet")
             Button(locale.t("common.done")) { dismiss() }

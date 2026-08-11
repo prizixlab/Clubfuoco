@@ -81,10 +81,10 @@ struct SavedClubsView: View {
 
     private func savedCard(_ place: Place) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Color(hex: 0xEFE9DD)
+            Theme.imagePlaceholder
                 .overlay {
                     if let url = place.coverPhoto.flatMap(URL.init(string:)) {
-                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Theme.imagePlaceholder }
                     } else {
                         Image(systemName: "music.note.house")
                             .font(.system(size: 30))
@@ -117,7 +117,7 @@ struct SavedClubsView: View {
             }
             .padding(.init(top: 16, leading: 18, bottom: 18, trailing: 18))
         }
-        .background(Color.white)
+        .background(Theme.surface)
         .clipShape(.rect(cornerRadius: 16))
         .shadow(color: Color(hex: 0x221E1A).opacity(0.08), radius: 12, y: 6)
     }

@@ -70,7 +70,7 @@ struct WhenPlannerView: View {
             }
         }
         .background(
-            open ? Color.white : Color(hex: 0x221E1A).opacity(0.05),
+            open ? Theme.surface : Theme.ink.opacity(0.05),
             in: .rect(cornerRadius: Theme.radiusField)
         )
         .overlay(

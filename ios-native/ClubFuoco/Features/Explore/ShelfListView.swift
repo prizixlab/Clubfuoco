@@ -60,7 +60,7 @@ struct ShelfListView: View {
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(Theme.ink)
                 .frame(width: 38, height: 38)
-                .background(Color.white, in: .circle)
+                .background(Theme.surface, in: .circle)
                 .overlay(Circle().stroke(Theme.hairline))
                 .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 6, y: 3)
         }
@@ -74,10 +74,10 @@ struct ShelfListView: View {
         // the photo. Replaces the original thumbnail rows, which truncated
         // names and read like a settings list.
         ZStack(alignment: .bottomLeading) {
-            Color(hex: 0xEFE9DD)
+            Theme.imagePlaceholder
                 .overlay {
                     if let url = place.coverPhoto.flatMap(URL.init(string:)) {
-                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Theme.imagePlaceholder }
                     }
                 }
                 .frame(height: 190)
@@ -140,7 +140,7 @@ struct ShelfListView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color(hex: 0x2D7A46), in: .capsule)
+                        .background(Theme.success, in: .capsule)
                 }
             }
             .padding(12)

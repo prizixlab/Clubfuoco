@@ -50,7 +50,7 @@ struct AttendanceCheckInCard: View {
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white, in: .rect(cornerRadius: 14))
+            .background(Theme.surface, in: .rect(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.wine.opacity(state == .alreadyConfirmed ? 0.5 : 0.2)))
             .shadow(color: Color(hex: 0x221E1A).opacity(0.05), radius: 8, y: 2)
             .confirmationDialog("What happened at the door?",
@@ -139,7 +139,7 @@ struct AttendanceCheckInCard: View {
             .foregroundStyle(Theme.ink)
             .frame(maxWidth: .infinity)
             .frame(height: 44)
-            .background(Color.white, in: .rect(cornerRadius: 11))
+            .background(Theme.surface, in: .rect(cornerRadius: 11))
             .overlay(RoundedRectangle(cornerRadius: 11).stroke(Theme.hairline))
         }
         .buttonStyle(.plain)

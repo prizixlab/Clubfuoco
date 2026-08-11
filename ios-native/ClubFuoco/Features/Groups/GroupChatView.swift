@@ -118,7 +118,7 @@ struct GroupChatView: View {
                 .focused($composerFocused)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
-                .background(Color.white, in: .capsule)
+                .background(Theme.surface, in: .capsule)
 
             Button {
                 send()

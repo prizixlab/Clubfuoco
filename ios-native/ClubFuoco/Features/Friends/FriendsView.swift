@@ -34,13 +34,13 @@ struct FriendsView: View {
                                     .font(.system(size: 12))
                                     .foregroundStyle(Theme.fadedSand)
                                     .frame(width: 28, height: 28)
-                                    .background(Color(hex: 0x221E1A).opacity(0.05), in: .circle)
+                                    .background(Theme.ink.opacity(0.05), in: .circle)
                             }
                         }
                     }
                     .padding(.horizontal, 16)
                     .frame(minHeight: 56)
-                    .background(Color.white, in: .rect(cornerRadius: Theme.radiusCard))
+                    .background(Theme.surface, in: .rect(cornerRadius: Theme.radiusCard))
                     .shadow(color: Color(hex: 0x221E1A).opacity(0.08), radius: 14, y: 8)
                 }
 
@@ -235,7 +235,7 @@ struct FriendsView: View {
         .foregroundStyle(Theme.fadedSand)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Color(hex: 0x221E1A).opacity(0.05), in: .capsule)
+        .background(Theme.ink.opacity(0.05), in: .capsule)
     }
 }
 

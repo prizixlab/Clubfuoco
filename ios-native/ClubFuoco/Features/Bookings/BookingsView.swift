@@ -324,7 +324,7 @@ struct BookingsView: View {
             }
         }
         .padding(4)
-        .background(Color.white.opacity(0.6), in: .capsule)
+        .background(Theme.surface.opacity(0.6), in: .capsule)
         .overlay(Capsule().stroke(Theme.hairline))
         .padding(.horizontal, 20)
         .padding(.top, 8)
@@ -480,7 +480,7 @@ struct BookingsView: View {
                 .background(Theme.wine, in: .capsule)
         }
         .padding(14)
-        .background(Color.white, in: .rect(cornerRadius: 14))
+        .background(Theme.surface, in: .rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.wine.opacity(0.25)))
         .shadow(color: Color(hex: 0x221E1A).opacity(0.05), radius: 6, y: 3)
     }
@@ -511,7 +511,7 @@ struct BookingsView: View {
                     .foregroundStyle(Theme.sand)
             }
             .padding(14)
-            .background(Color.white, in: .rect(cornerRadius: 14))
+            .background(Theme.surface, in: .rect(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.wine.opacity(0.25)))
         }
         .buttonStyle(.plain)
@@ -694,7 +694,7 @@ struct BookingsView: View {
             }
             .padding(16)
         }
-        .background(Color.white)
+        .background(Theme.surface)
         .overlay(alignment: .leading) {
             if isLive { Rectangle().fill(Theme.wine).frame(width: 3) }
         }
@@ -773,7 +773,7 @@ struct BookingsView: View {
             statusChip(signup.checkedIn == true ? "checked_in" : (signup.status ?? "confirmed"))
         }
         .padding(14)
-        .background(Color.white)
+        .background(Theme.surface)
         .clipShape(.rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
     }
@@ -803,7 +803,7 @@ struct BookingsView: View {
             }
         }
         .padding(14)
-        .background(Color.white)
+        .background(Theme.surface)
         .clipShape(.rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
     }
@@ -845,17 +845,17 @@ struct BookingsView: View {
                 .foregroundStyle(Theme.stone)
         }
         .padding(14)
-        .background(Color.white)
+        .background(Theme.surface)
         .clipShape(.rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.gold.opacity(0.35)))
     }
 
     private func statusChip(_ status: String) -> some View {
         let (key, color): (String, Color) = switch status {
-        case "confirmed": ("bookings.statusConfirmed", Color(hex: 0x2D7A46))
+        case "confirmed": ("bookings.statusConfirmed", Theme.success)
         case "pending": ("bookings.statusPending", Theme.gold)
         case "cancelled": ("bookings.statusCancelled", Theme.fadedSand)
-        case "checked_in": ("bookings.statusCheckedIn", Color(hex: 0x2D7A46))
+        case "checked_in": ("bookings.statusCheckedIn", Theme.success)
         default: ("bookings.statusPending", Theme.fadedSand)
         }
         return Text(locale.t(key).uppercased())
@@ -882,7 +882,7 @@ struct BookingsView: View {
                 QRCodeView(token: token)
                     .frame(width: 260, height: 260)
                     .padding(20)
-                    .background(Color.white, in: .rect(cornerRadius: 20))
+                    .background(Theme.qrSurface, in: .rect(cornerRadius: 20))
             }
 
             Text(locale.t("bookings.atDoor"))
@@ -978,7 +978,7 @@ struct TicketPerforation: View {
             }
         }
         .frame(height: 20)
-        .background(Color.white)
+        .background(Theme.surface)
     }
 
     private var notch: some View {

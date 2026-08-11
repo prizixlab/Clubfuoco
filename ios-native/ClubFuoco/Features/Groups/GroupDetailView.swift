@@ -86,10 +86,10 @@ struct GroupDetailView: View {
             VStack(alignment: .leading, spacing: 20) {
                 // Hero
                 ZStack(alignment: .bottomLeading) {
-                    Color(hex: 0xEFE9DD)
+                    Theme.imagePlaceholder
                         .overlay {
                             if let url = group.clubImage.flatMap(URL.init(string:)) {
-                                CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                                CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Theme.imagePlaceholder }
                             }
                         }
                         .frame(height: 200)
@@ -184,7 +184,7 @@ struct GroupDetailView: View {
                     .foregroundStyle(Theme.fadedSand)
             }
             .padding(14)
-            .background(Color.white.opacity(0.55), in: .rect(cornerRadius: 14))
+            .background(Theme.surface.opacity(0.55), in: .rect(cornerRadius: 14))
         }
         .buttonStyle(.plain)
     }
@@ -219,7 +219,7 @@ struct GroupDetailView: View {
             // Header strip — your confirmed spot
             HStack(spacing: 8) {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color(hex: 0x2D7A46))
+                    .foregroundStyle(Theme.success)
                 Text(locale.t("groups.yourPass"))
                     .font(.cfSans(14, weight: .semibold))
                     .foregroundStyle(Theme.ink)
@@ -279,7 +279,7 @@ struct GroupDetailView: View {
             }
             .padding(16)
         }
-        .background(Color.white)
+        .background(Theme.surface)
         .clipShape(.rect(cornerRadius: 16))
         .shadow(color: Color(hex: 0x221E1A).opacity(0.08), radius: 8, y: 2)
     }
@@ -311,7 +311,7 @@ struct GroupDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 46)
-            .background(Color.white, in: .rect(cornerRadius: 12))
+            .background(Theme.surface, in: .rect(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
             .foregroundStyle(Theme.ink)
         }
@@ -354,7 +354,7 @@ struct GroupDetailView: View {
             QRCodeView(token: token)
                 .frame(width: 260, height: 260)
                 .padding(20)
-                .background(Color.white, in: .rect(cornerRadius: 20))
+                .background(Theme.qrSurface, in: .rect(cornerRadius: 20))
 
             Text(locale.t("bookings.atDoor"))
                 .font(.cfSerif(16, italic: true))
@@ -476,7 +476,7 @@ struct GroupDetailView: View {
         switch rsvp {
         case "going":
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(Color(hex: 0x2D7A46))
+                .foregroundStyle(Theme.success)
         case "maybe":
             tag(locale.t("groups.maybe"))
         case "declined":
@@ -578,7 +578,7 @@ struct GroupDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 46)
-            .background(Color.white, in: .rect(cornerRadius: 12))
+            .background(Theme.surface, in: .rect(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
             .foregroundStyle(Theme.ink)
         }
@@ -623,12 +623,12 @@ struct GroupDetailView: View {
             .foregroundStyle(Theme.fadedSand)
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
-            .background(Color(hex: 0x221E1A).opacity(0.05), in: .capsule)
+            .background(Theme.ink.opacity(0.05), in: .capsule)
     }
 
     private func statusChip(_ status: String) -> some View {
         let (key, color): (String, Color) = switch status {
-        case "open": ("groups.statusOpen", Color(hex: 0x2D7A46))
+        case "open": ("groups.statusOpen", Theme.success)
         case "closed": ("groups.statusClosed", Theme.gold)
         default: ("groups.statusCancelled", Theme.wine)
         }

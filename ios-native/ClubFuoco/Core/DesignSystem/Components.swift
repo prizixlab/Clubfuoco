@@ -23,7 +23,7 @@ struct AuthField<Content: View>: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(error ? Theme.wine : Color(hex: 0x221E1A).opacity(0.08))
+                    .stroke(error ? Theme.wine : Theme.ink.opacity(0.08))
             )
         }
     }
@@ -76,7 +76,7 @@ struct SegmentedProgress: View {
         HStack(spacing: 6) {
             ForEach(0..<total, id: \.self) { i in
                 Capsule()
-                    .fill(i < step ? Theme.wine : Color(hex: 0x221E1A).opacity(0.16))
+                    .fill(i < step ? Theme.wine : Theme.ink.opacity(0.16))
                     .frame(height: 2)
             }
         }

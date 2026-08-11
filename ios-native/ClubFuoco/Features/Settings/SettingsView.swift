@@ -86,7 +86,7 @@ struct SettingsView: View {
                             .font(.cfSans(14, weight: .semibold))
                         if saving { ProgressView().padding(.leading, 4) }
                     }
-                    .foregroundStyle(savedFlash ? Color(hex: 0x2D7A46) : Theme.wine)
+                    .foregroundStyle(savedFlash ? Theme.success : Theme.wine)
                 }
                 .disabled(saving || !hasChanges)
             }
@@ -257,7 +257,7 @@ struct SettingsView: View {
 
     private var locationStatusColor: Color {
         switch locationStatus {
-        case .authorizedAlways:    Color(hex: 0x2D7A46)
+        case .authorizedAlways:    Theme.success
         case .authorizedWhenInUse: Theme.wine
         default:                   Theme.stone
         }

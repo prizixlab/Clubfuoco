@@ -186,7 +186,7 @@ struct ReviewSurveySheet: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .padding(16)
-                    .background(Color.white, in: .rect(cornerRadius: 14))
+                    .background(Theme.surface, in: .rect(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14)
                         .stroke((drinkRatings[drink] ?? 0) > 0 ? Theme.wine.opacity(0.4) : Theme.hairline))
                 }
@@ -368,7 +368,7 @@ struct ReviewSurveySheet: View {
             .padding(.horizontal, 18)
             .frame(height: 60)
             .frame(maxWidth: .infinity)
-            .background(Color.white, in: .rect(cornerRadius: 14))
+            .background(Theme.surface, in: .rect(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
         }
         .buttonStyle(.plain)
@@ -388,7 +388,7 @@ struct ReviewSurveySheet: View {
             .padding(.horizontal, 18)
             .frame(height: 52)
             .frame(maxWidth: .infinity)
-            .background(selected ? Theme.wine : Color.white, in: .rect(cornerRadius: 12))
+            .background(selected ? Theme.wine : Theme.surface, in: .rect(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12)
                 .stroke(selected ? Color.clear : Theme.hairline))
         }
@@ -460,7 +460,7 @@ private struct FlowChips: View {
                         .foregroundStyle(on ? Theme.cream : Theme.ink)
                         .padding(.horizontal, 14)
                         .frame(height: 38)
-                        .background(on ? Theme.wine : Color.white, in: .capsule)
+                        .background(on ? Theme.wine : Theme.surface, in: .capsule)
                         .overlay(Capsule().stroke(on ? Color.clear : Theme.hairline))
                 }
                 .buttonStyle(.plain)
@@ -552,7 +552,7 @@ private struct ReviewDrinkAccordion: View {
                     .padding(.horizontal, 16)
                     .frame(minHeight: 52)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(hasSelection ? Theme.wine.opacity(0.06) : Color.white)
+                    .background(hasSelection ? Theme.wine.opacity(0.06) : Theme.surface)
                 }
                 .buttonStyle(.plain)
 
@@ -578,15 +578,15 @@ private struct ReviewDrinkAccordion: View {
                             .foregroundStyle(Theme.ink)
                             .padding(.horizontal, 14)
                             .frame(height: 38)
-                            .background(Color.white, in: .capsule)
+                            .background(Theme.surface, in: .capsule)
                             .overlay(Capsule().stroke(Theme.hairline))
                         }
                     }
                     .padding(14)
-                    .background(Color.white.opacity(0.6))
+                    .background(Theme.surface.opacity(0.6))
                 }
             }
-            .background(Color.white, in: .rect(cornerRadius: 16))
+            .background(Theme.surface, in: .rect(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16)
                 .stroke(hasSelection ? Theme.wine : Theme.hairline,
                         lineWidth: hasSelection ? 1.5 : 1))
@@ -611,7 +611,7 @@ private struct ReviewDrinkAccordion: View {
                 }
                 .padding(.horizontal, 12)
                 .frame(height: 34)
-                .background(selected ? Theme.wine : Color.white, in: .capsule)
+                .background(selected ? Theme.wine : Theme.surface, in: .capsule)
                 .overlay(Capsule().stroke(selected ? Color.clear : Theme.hairline))
             }
             .buttonStyle(.plain)

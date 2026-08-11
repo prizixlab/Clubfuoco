@@ -116,7 +116,7 @@ struct FiammeView: View {
                     }
                 }
             }
-            .background(Color.white, in: .rect(cornerRadius: 12))
+            .background(Theme.surface, in: .rect(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
         }
     }
@@ -145,7 +145,7 @@ struct FiammeView: View {
                                 .frame(width: 56, height: 24)
                         }
                         .padding(14)
-                        .background(Color.white, in: .rect(cornerRadius: 12))
+                        .background(Theme.surface, in: .rect(cornerRadius: 12))
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
                     }
                 }
@@ -194,7 +194,7 @@ struct FiammeView: View {
                 earnRow("03", pts: "+30", key: "fiamme.earn3")
             }
             .padding(14)
-            .background(Color.white, in: .rect(cornerRadius: 12))
+            .background(Theme.surface, in: .rect(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
         }
     }
@@ -237,7 +237,7 @@ struct FiammeView: View {
                             Spacer()
                             Text(item.amount > 0 ? "+\(item.amount)" : "\(item.amount)")
                                 .font(.cfSans(13, weight: .semibold))
-                                .foregroundStyle(item.amount > 0 ? Color(hex: 0x2D7A46) : Theme.wine)
+                                .foregroundStyle(item.amount > 0 ? Theme.success : Theme.wine)
                         }
                         .padding(.vertical, 10)
                         Divider().overlay(Theme.hairline)
@@ -259,7 +259,7 @@ struct FiammeView: View {
                 QRCodeView(token: code)
                     .frame(width: 200, height: 200)
                     .padding(16)
-                    .background(Color.white, in: .rect(cornerRadius: 16))
+                    .background(Theme.qrSurface, in: .rect(cornerRadius: 16))
             }
             Text(locale.t("fiamme.showCode"))
                 .font(.cfSerif(15, italic: true))

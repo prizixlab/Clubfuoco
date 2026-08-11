@@ -112,7 +112,7 @@ struct CompleteProfileView: View {
                             wheel(locale.t("signup.month"), selection: $bMonth, values: Array(1...12)) { monthNames[$0 - 1] }
                             wheel(locale.t("signup.year"), selection: $bYear, values: Array((Self.currentYear - 100)...(Self.currentYear - 17)).reversed()) { String($0) }
                         }
-                        .background(Color.white, in: .rect(cornerRadius: 12))
+                        .background(Theme.surface, in: .rect(cornerRadius: 12))
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
 
                         Text("\(bDay) \(Self.monthsIT[bMonth - 1]) \(bYear)")

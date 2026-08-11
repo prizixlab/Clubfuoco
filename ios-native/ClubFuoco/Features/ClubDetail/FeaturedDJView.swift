@@ -153,7 +153,7 @@ struct FeaturedDJSheet: View {
             .padding(20)
             .padding(.bottom, 20)
         }
-        .background(Color.white.ignoresSafeArea())
+        .background(Theme.surface.ignoresSafeArea())
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .overlay(alignment: .topTrailing) { closeButton }

@@ -258,7 +258,7 @@ struct CountryPickerSheet: View {
                         }
                         .contentShape(.rect)
                     }
-                    .listRowBackground(Color.white)
+                    .listRowBackground(Theme.surface)
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)

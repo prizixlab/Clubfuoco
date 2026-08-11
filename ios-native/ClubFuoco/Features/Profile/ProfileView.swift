@@ -147,11 +147,14 @@ struct ProfileView: View {
 
     private var identityCard: some View {
         let parts = nameParts
-        let cream = Color(hex: 0xF8EFDC)
-        let muted = Color(hex: 0x2A1F12).opacity(0.55)
+        // Metallic gold, not cream. The old stops (F8EFDC/EFE0C3/E5D2A8) sat at
+        // S 0.10-0.25, which reads as pale yellow; these hold hue ~43° at
+        // S 0.55-0.74 and darken across the diagonal like leaf.
+        let cardTop = Color(hex: 0xE5C468)
+        let muted = Color(hex: 0x2A1F12).opacity(0.62)
         return ZStack {
             LinearGradient(
-                colors: [cream, Color(hex: 0xEFE0C3), Color(hex: 0xE5D2A8)],
+                colors: [cardTop, Color(hex: 0xCFA845), Color(hex: 0xA9822C)],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
 
@@ -207,7 +210,7 @@ struct ProfileView: View {
                             .foregroundStyle(Theme.cream)
                             .frame(width: 24, height: 24)
                             .background(Theme.ink, in: .circle)
-                            .overlay(Circle().stroke(cream, lineWidth: 2))
+                            .overlay(Circle().stroke(cardTop, lineWidth: 2))
                             .offset(x: 2, y: 2)
                     }
                 }

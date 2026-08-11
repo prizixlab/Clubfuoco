@@ -24,6 +24,10 @@ struct FeaturedDJ: Decodable, Identifiable, Sendable, Hashable {
 
     var id: String { raArtistId }
 
+    /// A DJ not in our RA catalogue — surfaced from a single-DJ night by name
+    /// only (synthetic "guest:" id). Rendered as a "Special guest".
+    var isGuest: Bool { raArtistId.hasPrefix("guest:") }
+
     /// "Barcelona, ES"-style origin from the most-played region, when present.
     var origin: String? {
         guard let first = regions.first, !first.isEmpty else { return nil }

@@ -29,7 +29,7 @@ struct FeaturedDJBox: View {
             HStack(spacing: 14) {
                 photo
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("FEATURED DJ")
+                    Text(dj.isGuest ? "SPECIAL GUEST" : "FEATURED DJ")
                         .font(.cfMono(9, weight: .medium)).kerning(1.4)
                         .foregroundStyle(Theme.gold)
                     Text(dj.name)

@@ -350,10 +350,13 @@ struct ClubDetailView: View {
                 .foregroundStyle(Theme.fadedSand)
             // No attribution line — "— <club name>" read as if the club wrote
             // its own pitch.
+            // A pitch is a punchy hook, not a full description — cap it so an
+            // imported paragraph (e.g. Negro Rojo) doesn't run half the screen.
             Text("“\(description)”")
                 .font(.cfSerif(18, italic: true))
                 .foregroundStyle(Theme.stone)
                 .lineSpacing(3)
+                .lineLimit(4)
                 .padding(.leading, 14)
                 .overlay(alignment: .leading) {
                     Rectangle().fill(Color(hex: 0x221E1A).opacity(0.16)).frame(width: 2)

@@ -38,6 +38,10 @@ private struct SaveBookmark: View {
     let size: CGFloat
     let action: () -> Void
 
+    /// Grow the tap target to ~44pt (Apple's minimum) without changing the
+    /// visible glyph — the small circle was hard to hit on the cards.
+    private var pad: CGFloat { max(0, (44 - size) / 2) }
+
     var body: some View {
         Button(action: action) {
             Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
@@ -45,8 +49,11 @@ private struct SaveBookmark: View {
                 .foregroundStyle(.white)
                 .frame(width: size, height: size)
                 .background(.black.opacity(0.45), in: .circle)
+                .padding(pad)
+                .contentShape(Rectangle())   // whole padded area is tappable
         }
         .buttonStyle(.plain)
+        .padding(-pad)                       // …but it doesn't affect layout
     }
 }
 

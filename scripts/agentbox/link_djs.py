@@ -93,6 +93,39 @@ def weekday_label(date: str) -> str | None:
         return None
 
 
+# Phrases that follow a title separator but aren't a DJ name.
+_TITLE_STOP = {
+    "opening party", "closing party", "opening", "closing", "free entry",
+    "after", "afters", "afterparty", "live", "tba", "residents", "resident",
+    "guests", "open decks", "all night long", "showcase", "festival",
+    "closing set", "day party", "rooftop", "terrace", "special", "night",
+}
+_TITLE_SEPS = [" - ", " – ", " — ", ": ", " presents ", " pres. ", " pres "]
+
+
+def guest_from_title(title: str | None) -> str | None:
+    """Pull a single DJ name from an empty-lineup event title, e.g.
+    "Wednesday's Prescription - Dbueso" → "Dbueso". Conservative: bails on
+    anything that looks like a phrase or multiple artists."""
+    t = (title or "").strip()
+    if not t:
+        return None
+    low = t.lower()
+    cut = max((low.rfind(s) + len(s) if low.rfind(s) >= 0 else -1) for s in _TITLE_SEPS)
+    if cut < 0:
+        return None
+    cand = t[cut:].strip(" -–—:·.\t")
+    lowc = cand.lower()
+    if not cand or lowc in _TITLE_STOP:
+        return None
+    # Multiple performers or a descriptive phrase → not a clean guest name.
+    if any(tok in lowc for tok in [",", " b2b ", " & ", " x ", " vs ", " and "]):
+        return None
+    if len(cand.split()) > 4 or cand.isdigit():
+        return None
+    return cand
+
+
 def main() -> int:
     dry_run = "--dry-run" in sys.argv
     logging.basicConfig(
@@ -114,27 +147,38 @@ def main() -> int:
     lookup = {n: next(iter(ids)) for n, ids in name_ids.items() if len(ids) == 1}
     log.info("%d DJs (%d unique names usable for matching)", len(dj_name), len(lookup))
 
-    # Upcoming, club-resolved events with their lineup.
+    # Upcoming, club-resolved events with their lineup + title (for guests).
     events = fetch_all(
         base, key,
-        f"events?select=ra_event_id,club_id,artists,date"
+        f"events?select=ra_event_id,club_id,artists,title,ra_url,date"
         f"&club_id=not.is.null&date=gte.{today}&order=date.asc")
 
     dj_event_ids: list[str] = []                  # events to hide
     # (club_id, ra_artist_id) → list of dates  → one slot per DJ per club
     slots: dict[tuple[str, str], list[str]] = collections.defaultdict(list)
+    guest_meta: dict[str, dict] = {}              # synthetic id → {name, ra_url}
     for e in events:
         arts = [a for a in (e.get("artists") or []) if a and a.strip()]
-        if len(arts) != 1:                        # 0 = genre-only; 2+ = a real event
-            continue
-        rid = lookup.get(norm(arts[0]))
-        if not rid:                               # single act, but not a DJ we know (concert/dancer)
-            continue
+        if len(arts) == 1:                        # one named performer
+            name = arts[0].strip()
+        elif not arts:                            # empty lineup — try the title
+            name = guest_from_title(e.get("title"))
+            if not name:
+                continue                          # genre-only / can't tell → leave it
+        else:
+            continue                              # 2+ artists → a real event
+
+        rid = lookup.get(norm(name))
+        if not rid:
+            # Not in our RA catalogue → a "special guest": synthetic id so the
+            # club_dj_sets FK holds; the box shows name + night + RA link only.
+            rid = "guest:" + norm(name)
+            guest_meta.setdefault(rid, {"name": name, "ra_url": e.get("ra_url")})
         dj_event_ids.append(e["ra_event_id"])
         slots[(e["club_id"], rid)].append(e["date"])
 
-    log.info("%d upcoming club events → %d are DJ-only (%d distinct DJ×club slots)",
-             len(events), len(dj_event_ids), len(slots))
+    log.info("%d upcoming club events → %d are DJ-only (%d slots; %d special guests)",
+             len(events), len(dj_event_ids), len(slots), len(guest_meta))
 
     # Don't disturb curated slots: skip auto rows that collide with a manual one.
     manual = {
@@ -144,6 +188,7 @@ def main() -> int:
     }
 
     auto_rows = []
+    used_guests: set[str] = set()
     for (club_id, rid), dates in slots.items():
         if (club_id, rid) in manual:
             continue
@@ -151,21 +196,37 @@ def main() -> int:
         # Most common weekday across this DJ's nights here; resident if it recurs.
         wk = collections.Counter(weekday_label(d) for d in dates if weekday_label(d))
         night = wk.most_common(1)[0][0] if wk else None
+        is_guest = rid in guest_meta
+        if is_guest:
+            used_guests.add(rid)
         auto_rows.append({
             "club_id": club_id,
             "ra_artist_id": rid,
-            "residency_label": "Resident" if len(dates) >= 3 else "Guest",
+            "residency_label": "Special guest" if is_guest
+                               else ("Resident" if len(dates) >= 3 else "Guest"),
             "night": night,
             "source": "auto",
             "sort": 0,
         })
 
     if dry_run:
-        sample = [f'{dj_name.get(r["ra_artist_id"], "?")} @ {r["club_id"][:8]}… '
-                  f'({r["residency_label"]}·{r["night"]})' for r in auto_rows[:8]]
-        log.info("--dry-run: would hide %d events, write %d auto slots (%d skipped as manual). Sample: %s",
-                 len(dj_event_ids), len(auto_rows), len(slots) - len(auto_rows), sample)
+        sample = [f'{guest_meta.get(r["ra_artist_id"], {}).get("name") or dj_name.get(r["ra_artist_id"], "?")} '
+                  f'({r["residency_label"]}·{r["night"]})' for r in auto_rows[:10]]
+        log.info("--dry-run: would hide %d events, write %d auto slots "
+                 "(%d special-guest, %d skipped manual). Sample: %s",
+                 len(dj_event_ids), len(auto_rows), len(used_guests),
+                 len(slots) - len(auto_rows), sample)
         return 0
+
+    # Guests aren't in the catalogue, so create minimal djs rows first (the
+    # club_dj_sets FK needs them). Name + RA event link only; upsert is safe to
+    # repeat and push_djs.py never touches these synthetic "guest:" ids.
+    guest_djs = [{"ra_artist_id": rid, "name": guest_meta[rid]["name"],
+                  "ra_url": guest_meta[rid]["ra_url"]} for rid in used_guests]
+    for i in range(0, len(guest_djs), BATCH):
+        request(f"{base}/rest/v1/djs?on_conflict=ra_artist_id", key, method="POST",
+                body=json.dumps(guest_djs[i:i + BATCH], ensure_ascii=False).encode(),
+                prefer="resolution=merge-duplicates,return=minimal")
 
     # 1) Reset the window, then flag the DJ-only events.
     reset = f"{base}/rest/v1/events?date=gte.{today}&is_dj_set=eq.true"

@@ -129,9 +129,14 @@ struct InstagramShareSheet: View {
     private func shareStory() {
         // Preferred path: Instagram's official Stories share. Opens straight into
         // the Story composer with the card as the background, and passes the event
-        // link as `contentURL` so Instagram attaches it as a tappable link (the
-        // generic iOS share sheet never does — it just drops a flat image, leaving
-        // the link dead). The promoter can also add a link sticker on top.
+        // link as `contentURL` so Instagram attaches it as a tappable link on
+        // eligible accounts (the generic iOS share sheet never does — it just
+        // drops a flat image, leaving the link dead).
+        //
+        // For everyone else, Instagram requires a link sticker added by hand. We
+        // put the invite link on the SAME pasteboard item as a `public.url`, so
+        // when the promoter taps the link-sticker tool, Instagram pre-fills the
+        // URL from the clipboard — one tap to attach, no typing.
         let source = Bundle.main.bundleIdentifier ?? ""
         if let storyURL = URL(string: "instagram-stories://share?source_application=\(source)"),
            UIApplication.shared.canOpenURL(storyURL),
@@ -140,10 +145,13 @@ struct InstagramShareSheet: View {
             let sticker: [String: Any] = [
                 "com.instagram.sharedSticker.backgroundImage": png,
                 "com.instagram.sharedSticker.contentURL": content.url.absoluteString,
+                "public.url": content.url,                        // link-sticker paste
+                "public.plain-text": content.url.absoluteString,  // fallback paste
             ]
             UIPasteboard.general.setItems(
                 [sticker],
                 options: [.expirationDate: Date().addingTimeInterval(60 * 5)])
+            copied = true
             UIApplication.shared.open(storyURL)
             dismiss()
             return

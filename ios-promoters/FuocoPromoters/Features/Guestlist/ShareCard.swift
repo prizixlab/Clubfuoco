@@ -254,6 +254,10 @@ struct ShareCardView: View {
                 Text("Hosted by \(h)")
                     .font(.cfMono(host)).tracking(host * 0.03).foregroundStyle(Ink.host)
             }
+            // App mention — the invite link is app-only, so point people to it.
+            Text("Get in on the Club Fuoco app · App Store")
+                .font(.cfMono(host * 0.9, weight: .medium)).tracking(host * 0.04)
+                .foregroundStyle(Ink.gold)
         }
         .frame(maxWidth: .infinity)
     }

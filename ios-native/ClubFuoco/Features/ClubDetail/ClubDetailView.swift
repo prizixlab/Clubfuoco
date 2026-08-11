@@ -323,7 +323,11 @@ struct ClubDetailView: View {
                 if star {
                     Image(systemName: "star.fill")
                         .font(.system(size: 11))
-                        .foregroundStyle(Color(hex: 0xD4A017))
+                        // Rating star sits on the adaptive fact tile, so it
+                        // deepens in Dark like the rest of the golds. (The
+                        // stars on the photo cards stay bright — they're over
+                        // images, which are dark in both modes.)
+                        .foregroundStyle(Color.adaptive(light: 0xD4A017, dark: 0xA8800F))
                 }
                 Text(value)
                     .font(.cfSans(15, weight: .bold))

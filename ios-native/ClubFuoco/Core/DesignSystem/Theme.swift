@@ -13,7 +13,10 @@ enum Theme {
     static let sand = Color.adaptive(light: 0xB0A898, dark: 0x7A7264)      // inactive / tertiary
     static let fadedSand = Color.adaptive(light: 0x9F9486, dark: 0x8A8172) // captions, overlines
     static let cream = Color.adaptive(light: 0xF8F5EE, dark: 0x0E0C0A)     // app background / labels on ink
-    static let gold = Color(hex: 0xC09950)                                 // accent — reads on both, never adapts
+    // Deepened in Dark. The light value is bright enough to glare against a
+    // near-black background (7.3:1); the dark one lands at ~4.8:1, so it still
+    // clears AA for text while sitting back in the page.
+    static let gold = Color.adaptive(light: 0xC09950, dark: 0x9A7A3E)      // accent (active pill, highlights)
     static let wine = Color.adaptive(light: 0x8C2A2A, dark: 0xC85450)      // badges / destructive accents
 
     static let hairline = Color.adaptive(light: 0x221E1A, lightAlpha: 0.10,
@@ -43,7 +46,10 @@ enum Theme {
     // Deliberately *not* adaptive — these surfaces are dark in both modes.
     static let night = Color(hex: 0x0A0807)         // rgb(10,8,7)
     static let parchment = Color(hex: 0xF4ECDD)     // rgb(244,236,221)
-    static let ember = Color(hex: 0xC2562D)         // rgb(194,86,45) primary CTA
+    // Deepened alongside gold (4.3:1 -> ~3.2:1). Ember is an accent and a CTA
+    // fill rather than body copy, and its fills carry cream/parchment labels,
+    // which the deeper burnt tone actually helps.
+    static let ember = Color.adaptive(light: 0xC2562D, dark: 0xA34724) // primary CTA
     static let emberCream = Color(hex: 0xFFF6E5)    // rgb(255,246,229)
     static let flame = Color(hex: 0xE8B65B)         // rgb(232,182,91) glow/badges
     static let darkRed = Color(hex: 0x6B1F1F)       // rgb(107,31,31)

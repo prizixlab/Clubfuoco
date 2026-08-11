@@ -19,6 +19,7 @@ struct ClubFuocoApp: App {
                 .environment(env.authStore)
                 .environment(env.localeStore)
                 .environment(env.planStore)
+                .environment(DJPlayer.shared)
                 .environment(\.api, env.api)
                 .onOpenURL { url in
                     if InviteLinkRouter.shared.handle(url: url) { return }

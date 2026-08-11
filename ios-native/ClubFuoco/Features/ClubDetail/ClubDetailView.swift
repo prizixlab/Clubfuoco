@@ -15,6 +15,9 @@ struct ClubDetailView: View {
     @Environment(\.api) private var api
     @State private var detail: PlaceDetail?
     @State private var events: [ClubEvent] = []
+    @State private var featuredDJs: [FeaturedDJ] = []
+    @State private var activeDJ: FeaturedDJ?
+    @State private var djAutoplay = false
     @State private var hoursOpen = false
     @State private var showBookSheet = false
     @State private var showGuestGate = false
@@ -74,12 +77,27 @@ struct ClubDetailView: View {
         .fullScreenCover(item: $photoViewer) { idx in
             PhotoViewer(photos: photos, startIndex: idx.value)
         }
+        .sheet(item: $activeDJ) { dj in
+            FeaturedDJSheet(
+                dj: dj,
+                autoplay: djAutoplay,
+                bookable: !offers.isEmpty,
+                onBook: offers.isEmpty ? nil : {
+                    // Let the DJ sheet finish dismissing before opening the offer.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                        activeOffer = offers.first
+                    }
+                }
+            )
+        }
         .task {
             // Events are independent of the detail row, so a failure on either
             // side leaves the other rendering.
             async let upcoming = (try? auth.queries.clubEvents(clubId: place.placeId)) ?? []
+            async let djs = (try? auth.queries.featuredDJs(clubId: place.placeId)) ?? []
             detail = try? await auth.queries.clubById(place.placeId)
             events = await upcoming
+            featuredDJs = await djs
             #if DEBUG
             if ProcessInfo.processInfo.environment["CF_TEST_BOOK"] == "1", detail != nil {
                 showBookSheet = true
@@ -212,7 +230,7 @@ struct ClubDetailView: View {
                     .padding(.init(top: 24, leading: 20, bottom: 0, trailing: 20))
             }
 
-            if !events.isEmpty {
+            if !events.isEmpty || !featuredDJs.isEmpty {
                 eventsSection
                     .padding(.init(top: 24, leading: 20, bottom: 0, trailing: 20))
             }
@@ -355,6 +373,14 @@ struct ClubDetailView: View {
             }
 
             VStack(spacing: 10) {
+                // DJ-set slots first — these are the "not really an event, it's a
+                // DJ" case and read as the highlight.
+                ForEach(featuredDJs) { dj in
+                    FeaturedDJBox(dj: dj) { autoplay in
+                        djAutoplay = autoplay
+                        activeDJ = dj
+                    }
+                }
                 ForEach(events) { event in
                     eventBox(event)
                 }

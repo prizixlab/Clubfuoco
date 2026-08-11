@@ -206,6 +206,24 @@ final class Queries: @unchecked Sendable {
             .value
     }
 
+    /// Featured DJs for a club — the "this slot is a DJ set, not an event" case
+    /// (see supabase/migrations/djs.sql). Each active club_dj_sets row is joined
+    /// to its djs catalogue row; ordered by the curated `sort`.
+    func featuredDJs(clubId: String) async throws -> [FeaturedDJ] {
+        try await supabase.client
+            .from("club_dj_sets")
+            .select("""
+                residency_label, night, \
+                dj:djs ( ra_artist_id, name, genres, instagram, soundcloud, website, \
+                         known_venues, regions, bio, ra_url, image_url, cover_image_url, ra_followers )
+                """)
+            .eq("club_id", value: clubId)
+            .eq("is_active", value: true)
+            .order("sort", ascending: true)
+            .execute()
+            .value
+    }
+
     /// Upcoming ticketed events (mirrors getEvents in queries.ts): future rows
     /// only, soonest first. Public data — no session needed, so guests get the
     /// same event-boosted ordering as signed-in users.

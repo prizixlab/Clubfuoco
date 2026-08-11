@@ -95,7 +95,7 @@ struct GroupChatView: View {
                     .padding(.horizontal, 13)
                     .padding(.vertical, 9)
                     .background(
-                        msg.isMine ? Theme.wine : Color.white,
+                        msg.isMine ? Theme.wine : Theme.surface,
                         in: .rect(cornerRadius: 16)
                     )
                 Text(Self.timeLabel(msg.createdAt))

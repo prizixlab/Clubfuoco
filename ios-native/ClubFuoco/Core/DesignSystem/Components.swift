@@ -18,7 +18,7 @@ struct AuthField<Content: View>: View {
             .padding(.horizontal, 16)
             .frame(minHeight: 50)
             .background(
-                error ? Theme.wine.opacity(0.04) : Color.white,
+                error ? Theme.wine.opacity(0.04) : Theme.surface,
                 in: .rect(cornerRadius: 12)
             )
             .overlay(

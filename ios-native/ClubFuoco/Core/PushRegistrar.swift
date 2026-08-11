@@ -85,19 +85,6 @@ final class PushRegistrar {
 final class PushAppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
-        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
-    ) -> Bool {
-        // UIScrollView delays delivering touches to its content by ~150ms to
-        // decide if the gesture is a scroll — which makes a Button inside any
-        // ScrollView (e.g. the When planner, filter chips, feed cards) feel like
-        // it ignores the first tap. Deliver touches immediately; scrolling still
-        // works because canCancelContentTouches stays true.
-        UIScrollView.appearance().delaysContentTouches = false
-        return true
-    }
-
-    func application(
-        _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
         Task { @MainActor in PushRegistrar.shared.handle(deviceToken: deviceToken) }

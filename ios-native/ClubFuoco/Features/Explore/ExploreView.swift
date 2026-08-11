@@ -1,5 +1,24 @@
 import SwiftUI
 import CoreLocation
+import UIKit
+
+/// Disables the ~150ms content-touch delay on the ENCLOSING scroll view only,
+/// so buttons in the feed (When planner pill, chips, save) respond on the first
+/// tap. Scoped deliberately — the global `UIScrollView.appearance()` version
+/// also killed the wheel Picker's own scrollers inside the When planner.
+private struct ScrollTouchFix: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let v = UIView(frame: .zero)
+        v.isUserInteractionEnabled = false
+        DispatchQueue.main.async {
+            var s = v.superview
+            while let cur = s, !(cur is UIScrollView) { s = cur.superview }
+            (s as? UIScrollView)?.delaysContentTouches = false
+        }
+        return v
+    }
+    func updateUIView(_ uiView: UIView, context: Context) {}
+}
 
 /// Native port of the explore feed: header with wordmark + search/saved
 /// toggles, WhenPlanner, filter chips, and the shelf feed. Cards navigate to
@@ -75,6 +94,7 @@ struct ExploreView: View {
                     }
                 }
                 .padding(.top, 16)
+                .background(ScrollTouchFix())
             }
             .refreshable {
                 await model.load(planDate: plan.date) { locale.t($0) }

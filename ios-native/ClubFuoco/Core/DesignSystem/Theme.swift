@@ -51,7 +51,10 @@ enum Theme {
     // which the deeper burnt tone actually helps.
     static let ember = Color.adaptive(light: 0xC2562D, dark: 0xA34724) // primary CTA
     static let emberCream = Color(hex: 0xFFF6E5)    // rgb(255,246,229)
-    static let flame = Color(hex: 0xE8B65B)         // rgb(232,182,91) glow/badges
+    // Brightest of the three at 10.3:1, deepened on the same curve as gold.
+    // It lives on the always-dark surfaces, so those now read slightly warmer
+    // in Dark than in Light — matching the accents around them.
+    static let flame = Color.adaptive(light: 0xE8B65B, dark: 0xC39443) // glow/badges
     static let darkRed = Color(hex: 0x6B1F1F)       // rgb(107,31,31)
 
     // ── Radii ─────────────────────────────────────────────────────────────────

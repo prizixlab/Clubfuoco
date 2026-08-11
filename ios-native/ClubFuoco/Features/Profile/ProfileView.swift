@@ -153,8 +153,20 @@ struct ProfileView: View {
         let cardTop = Color(hex: 0xE5C468)
         let muted = Color(hex: 0x2A1F12).opacity(0.62)
         return ZStack {
+            // Gold leaf falling into black across the diagonal. On a card this
+            // much wider than tall, a topLeading->bottomTrailing gradient maps
+            // roughly to (x/W + y/H)/2 — so the top-right and bottom-left
+            // corners both land near 0.5 and stay gold, and only the
+            // bottom-right quadrant goes black. That keeps the avatar, the
+            // name and the email over gold, where the dark type belongs.
             LinearGradient(
-                colors: [cardTop, Color(hex: 0xCFA845), Color(hex: 0xA9822C)],
+                stops: [
+                    .init(color: cardTop,               location: 0.00),
+                    .init(color: Color(hex: 0xCFA845),  location: 0.30),
+                    .init(color: Color(hex: 0xA9822C),  location: 0.55),
+                    .init(color: Color(hex: 0x3B2B12),  location: 0.78),
+                    .init(color: Theme.night,           location: 1.00),
+                ],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
 
@@ -168,7 +180,9 @@ struct ProfileView: View {
                 HStack {
                     Kicker("EST. \(memberYear)", color: muted, size: 8.5)
                     Spacer()
-                    Kicker("N° \(memberNumber)", color: muted, size: 8.5)
+                    // The only element sitting in the black corner — dark type
+                    // would vanish there, so it inverts to the card's gold.
+                    Kicker("N° \(memberNumber)", color: cardTop.opacity(0.85), size: 8.5)
                 }
             }
             .padding(14)

@@ -3221,6 +3221,34 @@
         }
       }
     },
+    "detail.seeAll": {
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostra’ls tots (%d)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See all %d"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver los %d"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voir les %d"
+          }
+        }
+      }
+    },
     "detail.seeHours": {
       "localizations": {
         "ca": {
@@ -3245,6 +3273,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Voir les horaires"
+          }
+        }
+      }
+    },
+    "detail.showLess": {
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostra’n menys"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show less"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver menos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voir moins"
           }
         }
       }

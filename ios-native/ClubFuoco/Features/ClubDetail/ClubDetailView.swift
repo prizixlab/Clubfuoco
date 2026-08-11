@@ -18,6 +18,7 @@ struct ClubDetailView: View {
     @State private var featuredDJs: [FeaturedDJ] = []
     @State private var activeDJ: FeaturedDJ?
     @State private var djAutoplay = false
+    @State private var showAllWhatsOn = false
     @State private var hoursOpen = false
     @State private var showBookSheet = false
     @State private var showGuestGate = false
@@ -394,8 +395,18 @@ struct ClubDetailView: View {
     //
     // No price is shown — the source's `cost` is free text and unreliable.
 
+    // Busy venues (e.g. Macarena) can have a dozen DJ nights + events. Collapse
+    // to a few and reveal the rest behind a "See all" toggle so the page stays
+    // scannable. DJ boxes come first (the highlight), then event cards.
+    private let whatsOnCollapsed = 4
+
     private var eventsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let total = featuredDJs.count + events.count
+        let limit = showAllWhatsOn ? total : whatsOnCollapsed
+        let djShown = min(featuredDJs.count, limit)
+        let eventsShown = max(0, limit - djShown)
+
+        return VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(locale.t("detail.upcomingEvents").uppercased())
                     .font(.cfMono(9))
@@ -407,17 +418,35 @@ struct ClubDetailView: View {
             }
 
             VStack(spacing: 10) {
-                // DJ-set slots first — these are the "not really an event, it's a
-                // DJ" case and read as the highlight.
-                ForEach(featuredDJs) { dj in
+                ForEach(Array(featuredDJs.prefix(djShown))) { dj in
                     FeaturedDJBox(dj: dj) { autoplay in
                         djAutoplay = autoplay
                         activeDJ = dj
                     }
                 }
-                ForEach(events) { event in
+                ForEach(Array(events.prefix(eventsShown))) { event in
                     eventBox(event)
                 }
+            }
+
+            if total > whatsOnCollapsed {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { showAllWhatsOn.toggle() }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(showAllWhatsOn
+                             ? locale.t("detail.showLess")
+                             : String(format: locale.t("detail.seeAll"), total))
+                        Image(systemName: showAllWhatsOn ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .font(.cfMono(11, weight: .medium)).kerning(0.5)
+                    .foregroundStyle(Theme.gold)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.gold.opacity(0.4)))
+                }
+                .buttonStyle(.plain)
             }
         }
     }

@@ -327,7 +327,7 @@ struct ClubDetailView: View {
                         // deepens in Dark like the rest of the golds. (The
                         // stars on the photo cards stay bright — they're over
                         // images, which are dark in both modes.)
-                        .foregroundStyle(Color.adaptive(light: 0xD4A017, dark: 0xA8800F))
+                        .foregroundStyle(Color.adaptive(light: 0xD4A017, dark: 0xA8883F))
                 }
                 Text(value)
                     .font(.cfSans(15, weight: .bold))

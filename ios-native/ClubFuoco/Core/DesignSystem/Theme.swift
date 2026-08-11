@@ -13,13 +13,14 @@ enum Theme {
     static let sand = Color.adaptive(light: 0xB0A898, dark: 0x7A7264)      // inactive / tertiary
     static let fadedSand = Color.adaptive(light: 0x9F9486, dark: 0x8A8172) // captions, overlines
     static let cream = Color.adaptive(light: 0xF8F5EE, dark: 0x0E0C0A)     // app background / labels on ink
-    // The Dark variants of the three warm accents are deepened in *value* but
-    // pushed UP in saturation. Scaling the RGB down uniformly (the obvious
-    // move) drags them toward tan and brick — the reason the first pass read
-    // as light yellow rather than gold. Held around hue 42° / S 0.82, they stay
-    // metallic as they darken.
-    //   gold  #C09950 (H39 S.58 V.75) -> #AD8420 (H42 S.82 V.68), 5.6:1
-    static let gold = Color.adaptive(light: 0xC09950, dark: 0xAD8420)      // accent (active pill, highlights)
+    // Saturation, not hue, is what makes these read as gold. A near-pure hue
+    // looks like paint at any lightness — yellow up around 44°, orange down at
+    // 35° — and chasing it by moving hue just trades one for the other. The
+    // brand's own light gold sits at S .58, and that muting is the whole trick.
+    // So the Dark variants hold hue ~41° and match that saturation, taking the
+    // deepening in value alone.
+    //   gold  #C09950 (H39 S.58 V.75) -> #AD8A45 (H40 S.60 V.68)
+    static let gold = Color.adaptive(light: 0xC09950, dark: 0xAD8A45)      // accent (active pill, highlights)
     // Same correction as the golds: the first dark value lifted brightness
     // without saturation and came out coral. #B33F38 holds the red hue at S .69
     // instead of .60 and drops V .78 -> .70, so it reads as wine again.
@@ -57,14 +58,14 @@ enum Theme {
     // muddy — an orange that still has bite against the near-black page.
     static let ember = Color.adaptive(light: 0xC2562D, dark: 0xB8431A) // primary CTA
     static let emberCream = Color(hex: 0xFFF6E5)    // rgb(255,246,229)
-    //   flame #E8B65B (H39 S.61 V.91) -> #C79426 (H41 S.81 V.78), 7.0:1
-    static let flame = Color.adaptive(light: 0xE8B65B, dark: 0xC79426) // glow/badges
+    //   flame #E8B65B (H39 S.61 V.91) -> #C7A150 (H41 S.60 V.78)
+    static let flame = Color.adaptive(light: 0xE8B65B, dark: 0xC7A150) // glow/badges
 
     /// The rating star over photo cards. Was two near-identical lemon yellows
-    /// (0xF0C040 / 0xF5C142) that read as highlighter rather than gold; this is
-    /// the same brightness at H43 / S.87. Fixed in both modes — it sits on a
-    /// scrim over a photo, which is dark either way.
-    static let starGold = Color(hex: 0xE0A81E)
+    /// (0xF0C040 / 0xF5C142) that read as highlighter; this keeps their
+    /// brightness but drops to H40 / S.63 so it reads gold. Fixed in both modes
+    /// — it sits on a scrim over a photo, which is dark either way.
+    static let starGold = Color(hex: 0xE0B052)
     static let darkRed = Color(hex: 0x6B1F1F)       // rgb(107,31,31)
 
     // ── Radii ─────────────────────────────────────────────────────────────────

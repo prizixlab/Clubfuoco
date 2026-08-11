@@ -101,7 +101,6 @@ struct HeroCard: View {
                     HStack(alignment: .top) {
                         TagPill(text: (place.musicGenres.first ?? "Featured").replacingOccurrences(of: "_", with: " "))
                         Spacer()
-                        SaveBookmark(isSaved: isSaved, size: 32, action: onSave)
                     }
                     .padding(12)
 
@@ -179,6 +178,9 @@ struct HeroCard: View {
             .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 12, y: 8)
         }
         .buttonStyle(.plain)
+        .overlay(alignment: .topTrailing) {
+            SaveBookmark(isSaved: isSaved, size: 32, action: onSave).padding(12)
+        }
     }
 
     private var meta: String {
@@ -229,7 +231,6 @@ struct LandCard: View {
                             TagPill(text: genre.replacingOccurrences(of: "_", with: " "), background: .black.opacity(0.45), color: .white.opacity(0.8))
                         }
                         Spacer()
-                        SaveBookmark(isSaved: isSaved, size: 28, action: onSave)
                     }
                     Spacer()
                 }
@@ -240,6 +241,9 @@ struct LandCard: View {
             .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 8, y: 4)
         }
         .buttonStyle(.plain)
+        .overlay(alignment: .topTrailing) {
+            SaveBookmark(isSaved: isSaved, size: 28, action: onSave).padding(7)
+        }
     }
 }
 
@@ -273,7 +277,6 @@ struct PosterCard: View {
                             TagPill(text: ExploreViewModel.formatDistance(distance), background: .black.opacity(0.4), color: .white.opacity(0.75))
                         }
                         Spacer()
-                        SaveBookmark(isSaved: isSaved, size: 26, action: onSave)
                     }
                     .padding(6)
                 }
@@ -302,6 +305,11 @@ struct PosterCard: View {
             .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 7, y: 4)
         }
         .buttonStyle(.plain)
+        // Sibling overlay, not nested in the link's label — otherwise the
+        // NavigationLink swallows the tap and navigates instead of saving.
+        .overlay(alignment: .topTrailing) {
+            SaveBookmark(isSaved: isSaved, size: 26, action: onSave).padding(6)
+        }
     }
 }
 

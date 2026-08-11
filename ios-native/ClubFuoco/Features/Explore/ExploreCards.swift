@@ -36,7 +36,6 @@ private struct CardPhoto: View {
 private struct SaveBookmark: View {
     let isSaved: Bool
     let size: CGFloat
-    var target: CGFloat = 44
     let action: () -> Void
 
     var body: some View {
@@ -46,7 +45,7 @@ private struct SaveBookmark: View {
                 .foregroundStyle(.white)
                 .frame(width: size, height: size)
                 .background(.black.opacity(0.45), in: .circle)
-                // Grow the tap target to ~44pt (Apple's minimum) by giving the
+                // Grow the tap target to 44pt (Apple's minimum) by giving the
                 // button a larger frame with the glyph centered in it. The whole
                 // frame is the hit area, so the visible circle and the tappable
                 // region stay aligned and the footprint is honest.
@@ -56,7 +55,7 @@ private struct SaveBookmark: View {
                 // from the glyph and let it spill past the card's edge into the
                 // neighbouring card, which sits on top and stole the tap — you
                 // had to tap left of the glyph to actually save.
-                .frame(width: target, height: target)
+                .frame(width: 44, height: 44)
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)

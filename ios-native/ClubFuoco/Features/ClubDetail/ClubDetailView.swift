@@ -112,6 +112,7 @@ struct ClubDetailView: View {
                 autoplay: djAutoplay,
                 bookable: !djOffers.isEmpty,
                 onBook: djOffers.isEmpty ? nil : {
+                    if let first = djOffers.first { logGuestlistClick(source: "dj", offer: first, dj: dj) }
                     if let djDate { plan.date = djDate }
                     // Let the DJ sheet finish dismissing before opening the offer.
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
@@ -539,6 +540,25 @@ struct ClubDetailView: View {
         Task { let _: Ack? = try? await api.post("/api/transport-clicks", body: click) }
     }
 
+    /// Records which entry point a guestlist open came from: the Featured DJ
+    /// menu ("dj") vs the club's normal offer card ("club").
+    private func logGuestlistClick(source: String, offer: RumbalistOffer, dj: FeaturedDJ? = nil) {
+        struct Click: Encodable, Sendable {
+            let source: String        // "dj" | "club"
+            let clubPlaceId: String
+            let clubName: String
+            let offerKind: String     // "vip" | "free"
+            let djRaId: String?
+            let night: String?
+        }
+        struct Ack: Decodable, Sendable { let logged: Bool? }
+
+        let click = Click(source: source, clubPlaceId: place.placeId, clubName: place.name,
+                          offerKind: offer.isVip ? "vip" : "free",
+                          djRaId: dj?.raArtistId, night: dj?.night)
+        Task { let _: Ack? = try? await api.post("/api/guestlist-clicks", body: click) }
+    }
+
     // ── Rumbalist offers ──────────────────────────────────────────────────────
 
     private var rumbalistSection: some View {
@@ -564,6 +584,7 @@ struct ClubDetailView: View {
                         if auth.user == nil || auth.isAnonymous {
                             showGuestGate = true
                         } else {
+                            logGuestlistClick(source: "club", offer: offer)
                             activeOffer = offer
                         }
                     } label: {

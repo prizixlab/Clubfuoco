@@ -227,6 +227,19 @@ final class Queries: @unchecked Sendable {
             .value
     }
 
+    /// Club ids that currently have a Featured DJ (an active club_dj_sets slot).
+    /// Used to boost programmed venues in the explore ranking.
+    func djClubIds() async throws -> Set<String> {
+        struct Row: Decodable { let clubId: String }
+        let rows: [Row] = try await supabase.client
+            .from("club_dj_sets")
+            .select("club_id")
+            .eq("is_active", value: true)
+            .execute()
+            .value
+        return Set(rows.map(\.clubId))
+    }
+
     /// Upcoming ticketed events (mirrors getEvents in queries.ts): future rows
     /// only, soonest first. Public data — no session needed, so guests get the
     /// same event-boosted ordering as signed-in users.

@@ -7,8 +7,6 @@ struct MainTabView: View {
     @Environment(\.api) private var api
     @Environment(LocaleStore.self) private var locale
     @Environment(AuthStore.self) private var auth
-    @Environment(DJPlayer.self) private var djPlayer
-    @State private var reopenDJ: FeaturedDJ?
 
     enum Tab: String {
         case explore, tickets, you
@@ -49,17 +47,6 @@ struct MainTabView: View {
             .tag(Tab.you)
         }
         .tint(Theme.ink)
-        // Persistent now-playing bar above the tab bar; audio keeps going as the
-        // user moves between tabs and screens.
-        .overlay(alignment: .bottom) {
-            DJMiniBar { dj in reopenDJ = dj }
-                .padding(.horizontal, 10)
-                .padding(.bottom, 52)          // sit just above the tab bar
-                .animation(.spring(response: 0.35, dampingFraction: 0.85), value: djPlayer.isActive)
-        }
-        .sheet(item: $reopenDJ) { dj in
-            FeaturedDJSheet(dj: dj, autoplay: false, bookable: false, onBook: nil)
-        }
         .task { await refreshBadges() }
         .onChange(of: selection) {
             Task { await refreshBadges() }

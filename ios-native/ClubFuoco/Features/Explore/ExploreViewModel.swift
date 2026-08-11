@@ -38,6 +38,10 @@ final class ExploreViewModel {
     /// (ranked below deals). Empty on failure — the feed still renders.
     private(set) var events: [ExternalEvent] = []
 
+    /// Club ids with a Featured DJ — boosted in the ranking so programmed
+    /// venues surface instead of the same popular names repeating.
+    private(set) var djClubIds: Set<String> = []
+
     // Personalisation inputs (nil for guests / on error → unpersonalised feed).
     private(set) var userPrefs: UserPreferences?
     private(set) var surveyPrefs: SurveyPreferences?
@@ -104,6 +108,7 @@ final class ExploreViewModel {
         // serialises; they're folded into the enriched build below.
         async let liveOffers = RumbalistOffers.fetchLive(api: api)
         async let upcoming = (try? queries.upcomingEvents()) ?? []
+        async let djClubs = (try? queries.djClubIds()) ?? []
         async let prefs = try? queries.userPreferences()
         // Survey profile comes from the API route — the derivation lives once,
         // server-side, and is shared with the web feed. Guests 401 → nil.
@@ -147,6 +152,7 @@ final class ExploreViewModel {
         // everything); the feed must still render, never block on offers.
         offersByClub = await liveOffers ?? [:]
         events = await upcoming
+        djClubIds = await djClubs
         userPrefs = await prefs ?? nil
         surveyPrefs = await survey ?? nil
         tasteProfile = await taste ?? nil
@@ -171,6 +177,7 @@ final class ExploreViewModel {
             custom: customShelves,
             offersByClub: offersByClub,
             events: events,
+            djClubIds: djClubIds,
             planDate: planDate,
             prefs: userPrefs,
             survey: surveyPrefs,

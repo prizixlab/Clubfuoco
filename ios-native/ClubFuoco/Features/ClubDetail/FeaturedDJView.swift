@@ -162,6 +162,9 @@ struct FeaturedDJSheet: View {
             opened = true
             djPlayer.open(dj, autoplay: autoplay)
         }
+        // The player is a sample, not a background service — tear it down when
+        // the sheet closes so audio never follows the user to other pages.
+        .onDisappear { djPlayer.close() }
     }
 
     // Hero: photo + name + origin + genres

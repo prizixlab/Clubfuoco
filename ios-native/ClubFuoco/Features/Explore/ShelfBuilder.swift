@@ -53,6 +53,7 @@ enum ShelfBuilder {
         custom: [CustomShelfRecord],
         offersByClub: [String: [RumbalistOffer]] = [:],
         events: [ExternalEvent] = [],
+        djClubIds: Set<String> = [],
         planDate: String = "",
         prefs: UserPreferences? = nil,
         survey: SurveyPreferences? = nil,
@@ -71,6 +72,12 @@ enum ShelfBuilder {
                 .filter { VenueMatch.matches($0.venueName, p.name) }
                 .compactMap(\.calendarDay))
 
+            // A Featured DJ is real programming, so a DJ venue ranks like an
+            // event venue (tier 2) rather than sinking to the plain-venue tier —
+            // that's what surfaces DJ clubs up the feed instead of the same few
+            // popular names repeating. A within-tier score boost leads its tier.
+            let hasDJ = djClubIds.contains(p.placeId)
+
             let tier: Int
             let subRank: Int
             if !live.isEmpty {
@@ -80,8 +87,8 @@ enum ShelfBuilder {
                 subRank = live.contains(where: \.isVip) ? 0 : 1
             } else if !offers.isEmpty {
                 tier = 1; subRank = 0
-            } else if !eventDays.isEmpty {
-                tier = 2; subRank = eventDays.contains(planDate) ? 0 : 1
+            } else if !eventDays.isEmpty || hasDJ {
+                tier = 2; subRank = (eventDays.contains(planDate) || hasDJ) ? 0 : 1
             } else {
                 tier = 3; subRank = 0
             }
@@ -90,6 +97,7 @@ enum ShelfBuilder {
                 tier: tier,
                 subRank: subRank,
                 score: PersonalizationScore.prefScore(p, prefs: prefs, survey: survey, taste: taste)
+                        + (hasDJ ? 100 : 0)
             )
         }
         let fallback = DealRank(tier: 3, subRank: 0, score: 0)
@@ -187,17 +195,22 @@ enum ShelfBuilder {
                 staggered.append(shelf)
                 continue
             }
-            let fresh = shelf.places.filter { !usedAsLead.contains($0.placeId) }
-            let repeats = shelf.places.filter { usedAsLead.contains($0.placeId) }
-            // The stagger would happily pull a no-deal venue ahead of a deal
-            // venue just because the deal venue already led another shelf.
-            // Re-assert tier order afterwards — a stable sort, so the stagger
-            // still decides the order WITHIN a tier, it just can't cross tiers.
-            shelf.places = (fresh + repeats).sorted { a, b in
+            // Deal-first WITHIN the fresh set and WITHIN the repeats set, but keep
+            // every not-yet-used venue AHEAD of ones that already led a shelf — so
+            // each row leads with a venue that hasn't led before. This is what
+            // breaks "the same four clubs lead every row". Because the pool order
+            // is shuffled per build, which shelf claims a popular venue first
+            // varies each load, so pull-to-refresh reshuffles the leads too — not
+            // just the top hero.
+            let tierOrder: (Place, Place) -> Bool = { a, b in
                 let ra = rank(a), rb = rank(b)
                 if ra.tier != rb.tier { return ra.tier < rb.tier }
-                return ra.subRank < rb.subRank
+                if ra.subRank != rb.subRank { return ra.subRank < rb.subRank }
+                return ra.score > rb.score
             }
+            let fresh = shelf.places.filter { !usedAsLead.contains($0.placeId) }.sorted(by: tierOrder)
+            let repeats = shelf.places.filter { usedAsLead.contains($0.placeId) }.sorted(by: tierOrder)
+            shelf.places = fresh + repeats
             shelf.places.prefix(3).forEach { usedAsLead.insert($0.placeId) }
             staggered.append(shelf)
         }

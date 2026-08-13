@@ -227,6 +227,88 @@ final class Queries: @unchecked Sendable {
             .value
     }
 
+    /// A DJ's upcoming dated appearances, across every venue — each `events`
+    /// row whose `artists` array includes their name, today onward, soonest
+    /// first. These are the same rows the DJ pages were built from (the linker
+    /// flags a lone-artist event as a DJ set), so we already hold the dates and
+    /// don't need a Resident Advisor round-trip. `club_id` is set when the
+    /// venue was matched to one of our clubs at ingest — those rows link
+    /// through to the club page.
+    func djSchedule(artistName: String) async throws -> [DJGig] {
+        let today = DateFormatter()
+        today.dateFormat = "yyyy-MM-dd"
+        today.timeZone = TimeZone(identifier: "Europe/Madrid")
+        return try await supabase.client
+            .from("events")
+            .select("date, start_time, venue_name, club_id, ra_url")
+            .contains("artists", value: [artistName])
+            .gte("date", value: today.string(from: Date()))
+            .order("date", ascending: true)
+            .limit(30)
+            .execute()
+            .value
+    }
+
+    /// Resolve a set of lineup artist names to their `djs` catalogue rows, so an
+    /// event box can link the DJs it lists to their pages. Only names present in
+    /// the catalogue come back — an unknown name (a live act, a one-off) simply
+    /// isn't tappable. No residency slot is involved, so the returned FeaturedDJ
+    /// carries nil residency.
+    func djsByNames(_ names: [String]) async throws -> [FeaturedDJ] {
+        guard !names.isEmpty else { return [] }
+        struct Row: Decodable {
+            let raArtistId: String
+            let name: String
+            let genres: [String]?
+            let instagram: String?
+            let soundcloud: String?
+            let website: String?
+            let knownVenues: [String]?
+            let regions: [String]?
+            let bio: String?
+            let raUrl: String?
+            let imageUrl: String?
+            let coverImageUrl: String?
+            let raFollowers: Int?
+        }
+        let rows: [Row] = try await supabase.client
+            .from("djs")
+            .select("""
+                ra_artist_id, name, genres, instagram, soundcloud, website, \
+                known_venues, regions, bio, ra_url, image_url, cover_image_url, ra_followers
+                """)
+            .in("name", values: names)
+            .execute()
+            .value
+        return rows.map {
+            FeaturedDJ(raArtistId: $0.raArtistId, name: $0.name, genres: $0.genres ?? [],
+                       instagram: $0.instagram, soundcloud: $0.soundcloud, website: $0.website,
+                       knownVenues: $0.knownVenues ?? [], regions: $0.regions ?? [], bio: $0.bio,
+                       raUrl: $0.raUrl, imageUrl: $0.imageUrl, coverImageUrl: $0.coverImageUrl,
+                       raFollowers: $0.raFollowers)
+        }
+    }
+
+    /// Flyer images for events, keyed by `ra_event_id`. `events` carries no
+    /// artwork, but the ticketed `ra_events` cache does — its id is "ra_<id>".
+    /// Only a subset of events overlap the ticket feed, so many come back
+    /// imageless (the box then renders text-only).
+    func eventImages(raEventIds: [String]) async throws -> [String: String] {
+        guard !raEventIds.isEmpty else { return [:] }
+        struct Row: Decodable { let id: String; let image: String? }
+        let rows: [Row] = try await supabase.client
+            .from("ra_events")
+            .select("id, image")
+            .in("id", values: raEventIds.map { "ra_\($0)" })
+            .execute()
+            .value
+        var map: [String: String] = [:]
+        for r in rows where r.image != nil {
+            map[String(r.id.dropFirst(3))] = r.image   // strip "ra_"
+        }
+        return map
+    }
+
     /// Club ids that currently have a Featured DJ (an active club_dj_sets slot).
     /// Used to boost programmed venues in the explore ranking.
     func djClubIds() async throws -> Set<String> {

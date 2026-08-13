@@ -13,10 +13,15 @@ struct ClubDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(\.api) private var api
+    @Environment(\.pushPlace) private var pushPlace
     @State private var detail: PlaceDetail?
     @State private var events: [ClubEvent] = []
     @State private var featuredDJs: [FeaturedDJ] = []
     @State private var activeDJ: FeaturedDJ?
+    // Event-box enrichment: flyer image per ra_event_id, and the lineup artists
+    // that are DJs we can link to (name → their catalogue page).
+    @State private var eventImages: [String: String] = [:]
+    @State private var djByName: [String: FeaturedDJ] = [:]
     @State private var djAutoplay = false
     @State private var showAllWhatsOn = false
     @State private var hoursOpen = false
@@ -119,7 +124,22 @@ struct ClubDetailView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
                         activeOffer = djOffers.first
                     }
-                }
+                },
+                onOpenVenue: { clubId in
+                    // Only fires for a gig at a DIFFERENT venue (same-club rows
+                    // aren't tappable). Dismiss the DJ sheet, then push that club
+                    // page. pushPlace is a no-op outside the explore stack, so it
+                    // degrades to a dismiss there rather than misbehaving.
+                    activeDJ = nil
+                    guard clubId != place.placeId else { return }
+                    Task { @MainActor in
+                        guard let target = try? await auth.queries.clubsByIds([clubId]).first
+                        else { return }
+                        try? await Task.sleep(nanoseconds: 400_000_000)
+                        pushPlace(target)
+                    }
+                },
+                currentClubId: place.placeId
             )
         }
         .task {
@@ -128,8 +148,19 @@ struct ClubDetailView: View {
             async let upcoming = (try? auth.queries.clubEvents(clubId: place.placeId)) ?? []
             async let djs = (try? auth.queries.featuredDJs(clubId: place.placeId)) ?? []
             detail = try? await auth.queries.clubById(place.placeId)
-            events = await upcoming
+            let evs = await upcoming
+            events = evs
             featuredDJs = await djs
+
+            // Enrich the event boxes: flyer images (from the ticket cache, which
+            // is the only place event artwork lives) and which lineup artists are
+            // DJs we can link through to.
+            let raIds = evs.map(\.raEventId)
+            let artistNames = Array(Set(evs.flatMap { $0.artists ?? [] }))
+            async let imgs = (try? auth.queries.eventImages(raEventIds: raIds)) ?? [:]
+            async let known = (try? auth.queries.djsByNames(artistNames)) ?? []
+            eventImages = await imgs
+            djByName = (await known).reduce(into: [:]) { $0[$1.name] = $1 }
             #if DEBUG
             if ProcessInfo.processInfo.environment["CF_TEST_BOOK"] == "1", detail != nil {
                 showBookSheet = true
@@ -458,6 +489,18 @@ struct ClubDetailView: View {
     private func eventBox(_ event: ClubEvent) -> some View {
         let parts = event.dateParts
         return VStack(spacing: 0) {
+            // Flyer — only ~some events carry one (it comes from the ticket
+            // cache); text-only otherwise.
+            if let flyer = eventImages[event.raEventId], let url = URL(string: flyer) {
+                CachedAsyncImage(url: url, targetWidth: 700) {
+                    $0.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Theme.cream.overlay(ProgressView().tint(Theme.fadedSand))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 160)
+                .clipped()
+            }
             HStack(alignment: .top, spacing: 14) {
                 // Date block — the thing people scan for
                 VStack(spacing: 1) {
@@ -497,11 +540,7 @@ struct ClubDetailView: View {
                     }
 
                     if !event.lineup.isEmpty {
-                        Text(event.lineup.joined(separator: " · ")
-                             + (event.extraArtists > 0 ? " +\(event.extraArtists)" : ""))
-                            .font(.cfSans(12))
-                            .foregroundStyle(Theme.stone)
-                            .fixedSize(horizontal: false, vertical: true)
+                        lineupView(event)
                     }
 
                     if let promoters = event.promoters, !promoters.isEmpty {
@@ -537,8 +576,49 @@ struct ClubDetailView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.cream, in: .rect(cornerRadius: 14))
+        .background(Theme.cream)
+        .clipShape(.rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
+    }
+
+    // The event's lineup as chips. A name we hold in the DJ catalogue is a
+    // tappable chip that opens their page (the same sheet Featured DJs use,
+    // schedule and all); anything else is a plain chip.
+    @ViewBuilder private func lineupView(_ event: ClubEvent) -> some View {
+        FlowLayout(spacing: 6, lineSpacing: 6) {
+            ForEach(Array(event.lineup.enumerated()), id: \.offset) { _, artist in
+                artistChip(artist)
+            }
+            if event.extraArtists > 0 {
+                Text("+\(event.extraArtists)")
+                    .font(.cfSans(11)).foregroundStyle(Theme.fadedSand)
+                    .padding(.vertical, 5)
+            }
+        }
+    }
+
+    @ViewBuilder private func artistChip(_ artist: String) -> some View {
+        if let dj = djByName[artist] {
+            Button {
+                Haptics.tap()
+                djAutoplay = false
+                activeDJ = dj
+            } label: {
+                HStack(spacing: 4) {
+                    Text(artist).font(.cfSans(12, weight: .medium))
+                    Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold))
+                }
+                .foregroundStyle(Theme.wine)
+                .padding(.horizontal, 9).padding(.vertical, 5)
+                .overlay(Capsule().stroke(Theme.wine.opacity(0.35)))
+            }
+            .buttonStyle(.plain)
+        } else {
+            Text(artist)
+                .font(.cfSans(12)).foregroundStyle(Theme.stone)
+                .padding(.horizontal, 9).padding(.vertical, 5)
+                .overlay(Capsule().stroke(Theme.fadedSand.opacity(0.3)))
+        }
     }
 
     /// Attribution telemetry — fire and forget, never blocks opening the link.

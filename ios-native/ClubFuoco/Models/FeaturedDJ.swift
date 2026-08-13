@@ -41,6 +41,21 @@ struct FeaturedDJ: Decodable, Identifiable, Sendable, Hashable {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
+    /// Build one from a plain `djs` catalogue row — used when opening a DJ page
+    /// from an event's lineup, where there's no club_dj_sets residency slot (so
+    /// `residencyLabel`/`night` are nil and the "WHEN THEY PLAY HERE" line is
+    /// simply hidden).
+    init(raArtistId: String, name: String, genres: [String], instagram: String?,
+         soundcloud: String?, website: String?, knownVenues: [String], regions: [String],
+         bio: String?, raUrl: String?, imageUrl: String?, coverImageUrl: String?,
+         raFollowers: Int?, residencyLabel: String? = nil, night: String? = nil) {
+        self.raArtistId = raArtistId; self.name = name; self.genres = genres
+        self.instagram = instagram; self.soundcloud = soundcloud; self.website = website
+        self.knownVenues = knownVenues; self.regions = regions; self.bio = bio
+        self.raUrl = raUrl; self.imageUrl = imageUrl; self.coverImageUrl = coverImageUrl
+        self.raFollowers = raFollowers; self.residencyLabel = residencyLabel; self.night = night
+    }
+
     // The nested-join row PostgREST returns: slot fields at top level, dj embedded.
     private enum CodingKeys: String, CodingKey {
         case residencyLabel, night, dj
@@ -70,4 +85,43 @@ struct FeaturedDJ: Decodable, Identifiable, Sendable, Hashable {
         coverImageUrl = try dj.decodeIfPresent(String.self, forKey: .coverImageUrl)
         raFollowers   = try dj.decodeIfPresent(Int.self, forKey: .raFollowers)
     }
+}
+
+/// One dated appearance for a DJ — an `events` row whose `artists` array
+/// includes them and whose date is today or later. This is the DJ's real
+/// "where they're scheduled to be", across every venue (not only this club):
+/// the very rows the DJ pages were built from carry the date, so we surface it
+/// ourselves rather than sending the user to Resident Advisor.
+///
+/// Field names are camelCase to match SupabaseService's snake_case decoding
+/// (start_time → startTime, venue_name → venueName, club_id → clubId).
+struct DJGig: Decodable, Identifiable, Sendable, Hashable {
+    let date: String            // "yyyy-MM-dd"
+    let startTime: String?
+    let venueName: String?
+    let clubId: String?         // our clubs.id when the venue was matched at ingest
+    let raUrl: String?
+
+    var id: String { "\(date)|\(venueName ?? "?")" }
+
+    /// "Wed 13 Aug", or the raw string if it somehow doesn't parse.
+    var displayDate: String {
+        guard let d = DJGig.iso.date(from: date) else { return date }
+        return DJGig.pretty.string(from: d)
+    }
+
+    private static let iso: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "Europe/Madrid")
+        return f
+    }()
+    private static let pretty: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE d MMM"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "Europe/Madrid")
+        return f
+    }()
 }

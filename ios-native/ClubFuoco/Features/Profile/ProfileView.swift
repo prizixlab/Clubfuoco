@@ -149,24 +149,23 @@ struct ProfileView: View {
         let parts = nameParts
         // Built to the signup hero card's recipe: a near-black base that warms
         // across the diagonal into a glow off the bottom-right corner. That
-        // card runs black -> brown -> dark red -> ember; this one swaps the red
-        // and ember for bronze and gold, so the glow reads gold rather than
-        // orange. Dark base means light type — the inverse of the cream card
-        // this replaced.
-        // The ramp is held at hue ~42° and S ~.60 — the same muting as
-        // Theme.gold, and for the same reason: a near-pure hue reads as paint,
-        // yellow high or orange low, no matter where the value sits. The
-        // antique step before the peak is what sells it as metal.
-        let goldEdge = Color(hex: 0xB8984D)
+        // card runs black -> brown -> dark red -> ember; this one lands the glow
+        // on bronze rather than a bright yellow gold. Dark base means light
+        // type — the inverse of the cream card this replaced.
+        // The ramp is pulled down to hue ~34° (copper-bronze) and muted like
+        // Theme.gold: a near-pure hue reads as paint, so it leans coppery and
+        // the peak sits a touch deeper than gold. The antique step before the
+        // peak is what sells it as metal.
+        let bronzeEdge = Color(hex: 0xB5823C)
         let muted = Theme.parchment.opacity(0.55)
         return ZStack {
             LinearGradient(
                 stops: [
                     .init(color: Color(hex: 0x161210), location: 0.00),
-                    .init(color: Color(hex: 0x2A1E10), location: 0.38),
-                    .init(color: Color(hex: 0x6B5729), location: 0.72),
-                    .init(color: Color(hex: 0x9C803E), location: 0.88),
-                    .init(color: goldEdge,             location: 1.00),
+                    .init(color: Color(hex: 0x2C1A0B), location: 0.38),
+                    .init(color: Color(hex: 0x6E4B22), location: 0.72),
+                    .init(color: Color(hex: 0x9C6F31), location: 0.88),
+                    .init(color: bronzeEdge,           location: 1.00),
                 ],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
@@ -213,7 +212,7 @@ struct ProfileView: View {
                                         .foregroundStyle(Theme.parchment)
                                 }
                             }
-                            .overlay(Circle().stroke(goldEdge.opacity(0.4), lineWidth: 1))
+                            .overlay(Circle().stroke(bronzeEdge.opacity(0.4), lineWidth: 1))
                             .overlay {
                                 if uploadingAvatar {
                                     Circle().fill(.black.opacity(0.35))
@@ -225,7 +224,7 @@ struct ProfileView: View {
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(Color(hex: 0x161210))
                             .frame(width: 24, height: 24)
-                            .background(goldEdge, in: .circle)
+                            .background(bronzeEdge, in: .circle)
                             .overlay(Circle().stroke(Color(hex: 0x161210), lineWidth: 2))
                             .offset(x: 2, y: 2)
                     }
@@ -243,7 +242,7 @@ struct ProfileView: View {
                         // echoing the glow rather than fighting it.
                         Text(parts.last)
                             .font(.cfSerif(36, italic: true))
-                            .foregroundStyle(goldEdge)
+                            .foregroundStyle(bronzeEdge)
                     }
                 }
                 .padding(.top, 6)
@@ -258,7 +257,7 @@ struct ProfileView: View {
             .padding(.init(top: 36, leading: 20, bottom: 40, trailing: 20))
         }
         .clipShape(.rect(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(goldEdge.opacity(0.22)))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(bronzeEdge.opacity(0.22)))
         // The card is a fixed dark artifact in both modes now, so pin the
         // subtree to Dark. Its own colors are all literals; the pin is what
         // keeps any adaptive token that lands here from inverting into the

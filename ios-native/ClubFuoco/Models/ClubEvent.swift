@@ -17,6 +17,8 @@ struct ClubEvent: Decodable, Sendable, Identifiable, Hashable {
     let interested: Int?
     let attending: Int?
     let raUrl: String?
+    let image: String?            // flyer URL, where the scraper captured one
+    let description: String?      // event copy (plain text), where RA had one
     // `cost` is deliberately not modelled. It is free text on the source
     // ("0", "10€", "", "€") and the brief is explicit that it is unreliable —
     // showing it as a price would misstate what the door actually costs.

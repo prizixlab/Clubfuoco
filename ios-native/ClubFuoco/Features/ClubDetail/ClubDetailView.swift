@@ -489,9 +489,9 @@ struct ClubDetailView: View {
     private func eventBox(_ event: ClubEvent) -> some View {
         let parts = event.dateParts
         return VStack(spacing: 0) {
-            // Flyer — only ~some events carry one (it comes from the ticket
-            // cache); text-only otherwise.
-            if let flyer = eventImages[event.raEventId], let url = URL(string: flyer) {
+            // Flyer — the event's own image (from the scraper) when present,
+            // otherwise the ticket-cache fallback; text-only when neither exists.
+            if let flyer = event.image ?? eventImages[event.raEventId], let url = URL(string: flyer) {
                 CachedAsyncImage(url: url, targetWidth: 700) {
                     $0.resizable().aspectRatio(contentMode: .fill)
                 } placeholder: {
@@ -549,6 +549,17 @@ struct ClubDetailView: View {
                             .font(.cfSans(11))
                             .foregroundStyle(Theme.fadedSand)
                             .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    if let description = event.description?
+                        .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
+                        Text(description)
+                            .font(.cfSans(12))
+                            .foregroundStyle(Theme.stone)
+                            .lineSpacing(3)
+                            .lineLimit(6)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 2)
                     }
                 }
                 Spacer(minLength: 0)

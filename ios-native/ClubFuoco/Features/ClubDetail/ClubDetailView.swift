@@ -789,8 +789,11 @@ struct ClubDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             if offer.isVip {
+                // Bronze, not yellow gold: the ramp is pulled from hue ~41° down
+                // to ~35° (copper) while holding lightness, so the dark text and
+                // icon stay readable on it.
                 LinearGradient(
-                    colors: [Color(hex: 0xF7E9C8), Color(hex: 0xEBD092), Color(hex: 0xD8B06A)],
+                    colors: [Color(hex: 0xF5D8AE), Color(hex: 0xE7BC80), Color(hex: 0xCF9B54)],
                     startPoint: .topLeading, endPoint: .bottomTrailing
                 )
             } else {
@@ -849,7 +852,10 @@ struct ClubDetailView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "clock")
                         .font(.system(size: 16))
-                        .foregroundStyle(Theme.wine)
+                        // Decorative, not an error — use `accent` so it stays wine
+                        // in light mode but reads as off-white in dark (Theme.wine
+                        // dark is a red that's near-invisible on the black card).
+                        .foregroundStyle(Theme.accent)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(locale.t("detail.openingHours").uppercased())
                             .font(.cfMono(9))

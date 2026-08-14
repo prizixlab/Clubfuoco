@@ -9,6 +9,10 @@ struct ProfileView: View {
     @Environment(\.api) private var api
     @Environment(AuthStore.self) private var auth
     @Environment(LocaleStore.self) private var locale
+    // The app's real scheme, read here before the card pins its own subtree to
+    // .dark (see identityCard) — that pin would otherwise force any adaptive
+    // token to its dark value, so the gold/bronze ramp is chosen from this.
+    @Environment(\.colorScheme) private var colorScheme
     @State private var model = ProfileViewModel()
     @State private var avatarItem: PhotosPickerItem?
     @State private var cropImage: IdentifiableImage?
@@ -147,26 +151,50 @@ struct ProfileView: View {
 
     private var identityCard: some View {
         let parts = nameParts
-        // Built to the signup hero card's recipe: a near-black base that warms
-        // across the diagonal into a glow off the bottom-right corner. That
-        // card runs black -> brown -> dark red -> ember; this one lands the glow
-        // on bronze rather than a bright yellow gold. Dark base means light
-        // type — the inverse of the cream card this replaced.
-        // The ramp is pulled down to hue ~34° (copper-bronze) and muted like
-        // Theme.gold: a near-pure hue reads as paint, so it leans coppery and
-        // the peak sits a touch deeper than gold. The antique step before the
-        // peak is what sells it as metal.
-        let bronzeEdge = Color(hex: 0xB5823C)
-        let muted = Theme.parchment.opacity(0.55)
+        // TWO different card treatments, not one gradient recoloured:
+        //
+        //  light — the original shiny metallic gold card (a825642): the whole
+        //          surface is gold leaf (#E5C468 → #A9822C) and the type is
+        //          DARK. Recolouring stops inside the dark card below could
+        //          never look like this, which is what made earlier attempts
+        //          at "make it gold again" fail.
+        //  dark  — the signup-hero recipe: a near-black base warming into a
+        //          copper-bronze glow off the bottom-right, with LIGHT type.
+        //
+        // Because the surface flips from gold to near-black, the text colours,
+        // the avatar/camera treatment and the colorScheme pin all flip with it.
+        // Everything is a literal: the pin at the bottom would otherwise force
+        // adaptive tokens to the pinned mode's value.
+        let isDark = colorScheme == .dark
+        // The light card is the "Oro" champagne gold from the membership design:
+        // near-cream at the top-left warming into rich gold at the bottom-right.
+        // It is deliberately LIGHTER and less saturated than the old #E5C468 →
+        // #A9822C ramp in git history, which reads as mustard/brass next to it.
+        let cardTop = Color(hex: 0xFCF6E8)                      // warm cream
+        let goldDeep = Color(hex: 0xCFA64B)                     // rich gold edge
+        let metalEdge = isDark ? Color(hex: 0xB5823C) : goldDeep
+        let muted = isDark ? Theme.parchment.opacity(0.55)
+                           : Color(hex: 0x2A1F12).opacity(0.62)
+        let nameColor = isDark ? Theme.parchment : Color(hex: 0x221E1A)
+        // The surname carried the brand's dark red on the gold card; on the
+        // dark base it takes the bronze instead, echoing the glow.
+        let surnameColor = isDark ? metalEdge : Theme.darkRed
+        let goldLeaf: [Gradient.Stop] = [
+            .init(color: cardTop,              location: 0.00),
+            .init(color: Color(hex: 0xF1E2B8), location: 0.38),
+            .init(color: Color(hex: 0xE2C57A), location: 0.72),
+            .init(color: goldDeep,             location: 1.00),
+        ]
+        let bronzeGlow: [Gradient.Stop] = [
+            .init(color: Color(hex: 0x161210), location: 0.00),
+            .init(color: Color(hex: 0x2C1A0B), location: 0.38),
+            .init(color: Color(hex: 0x6E4B22), location: 0.72),
+            .init(color: Color(hex: 0x9C6F31), location: 0.88),
+            .init(color: metalEdge,            location: 1.00),
+        ]
         return ZStack {
             LinearGradient(
-                stops: [
-                    .init(color: Color(hex: 0x161210), location: 0.00),
-                    .init(color: Color(hex: 0x2C1A0B), location: 0.38),
-                    .init(color: Color(hex: 0x6E4B22), location: 0.72),
-                    .init(color: Color(hex: 0x9C6F31), location: 0.88),
-                    .init(color: bronzeEdge,           location: 1.00),
-                ],
+                stops: isDark ? bronzeGlow : goldLeaf,
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
 
@@ -180,9 +208,12 @@ struct ProfileView: View {
                 HStack {
                     Kicker("EST. \(memberYear)", color: muted, size: 8.5)
                     Spacer()
-                    // The one element sitting in the gold corner, so it inverts
-                    // to the card's dark base while everything else stays light.
-                    Kicker("N° \(memberNumber)", color: Color(hex: 0x2A1E10).opacity(0.8), size: 8.5)
+                    // On the dark card this one sits IN the bronze corner, so it
+                    // inverts to the near-black base; on the all-gold card the
+                    // whole surface is light, so it matches the other kickers.
+                    Kicker("N° \(memberNumber)",
+                           color: isDark ? Color(hex: 0x2A1E10).opacity(0.8) : muted,
+                           size: 8.5)
                 }
             }
             .padding(14)
@@ -193,7 +224,8 @@ struct ProfileView: View {
                 PhotosPicker(selection: $avatarItem, matching: .images) {
                     ZStack(alignment: .bottomTrailing) {
                         Circle()
-                            .fill(Theme.parchment.opacity(0.12))
+                            .fill(isDark ? Theme.parchment.opacity(0.12)
+                                         : Color.white.opacity(0.55))
                             .frame(width: 84, height: 84)
                             .overlay {
                                 if let avatar = auth.profile?.avatarUrl, let url = URL(string: avatar) {
@@ -202,17 +234,20 @@ struct ProfileView: View {
                                     } placeholder: {
                                         Text(parts.initials)
                                             .font(.cfSerif(42, italic: true))
-                                            .foregroundStyle(Theme.parchment)
+                                            .foregroundStyle(isDark ? Theme.parchment : Theme.darkRed)
                                     }
                                     .frame(width: 84, height: 84)
                                     .clipShape(.circle)
                                 } else {
                                     Text(parts.initials)
                                         .font(.cfSerif(42, italic: true))
-                                        .foregroundStyle(Theme.parchment)
+                                        .foregroundStyle(isDark ? Theme.parchment : Theme.darkRed)
                                 }
                             }
-                            .overlay(Circle().stroke(bronzeEdge.opacity(0.4), lineWidth: 1))
+                            // The ring reads on the dark base; on gold leaf it
+                            // would just muddy the edge.
+                            .overlay(Circle().stroke(isDark ? metalEdge.opacity(0.4) : .clear,
+                                                     lineWidth: 1))
                             .overlay {
                                 if uploadingAvatar {
                                     Circle().fill(.black.opacity(0.35))
@@ -220,12 +255,15 @@ struct ProfileView: View {
                                 }
                             }
 
+                        // Dark card: bronze badge with a near-black glyph. Gold
+                        // card: the inverse — a dark badge ringed in gold leaf.
                         Image(systemName: "camera.fill")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Color(hex: 0x161210))
+                            .foregroundStyle(isDark ? Color(hex: 0x161210) : Theme.parchment)
                             .frame(width: 24, height: 24)
-                            .background(bronzeEdge, in: .circle)
-                            .overlay(Circle().stroke(Color(hex: 0x161210), lineWidth: 2))
+                            .background(isDark ? metalEdge : Color(hex: 0x221E1A), in: .circle)
+                            .overlay(Circle().stroke(isDark ? Color(hex: 0x161210) : cardTop,
+                                                     lineWidth: 2))
                             .offset(x: 2, y: 2)
                     }
                 }
@@ -235,14 +273,11 @@ struct ProfileView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(parts.first.isEmpty ? "—" : parts.first)
                         .font(.cfSerif(36))
-                        .foregroundStyle(Theme.parchment)
+                        .foregroundStyle(nameColor)
                     if !parts.last.isEmpty {
-                        // The surname carried the brand's dark red on the cream
-                        // card; on the dark base it takes the gold instead,
-                        // echoing the glow rather than fighting it.
                         Text(parts.last)
                             .font(.cfSerif(36, italic: true))
-                            .foregroundStyle(bronzeEdge)
+                            .foregroundStyle(surnameColor)
                     }
                 }
                 .padding(.top, 6)
@@ -257,12 +292,14 @@ struct ProfileView: View {
             .padding(.init(top: 36, leading: 20, bottom: 40, trailing: 20))
         }
         .clipShape(.rect(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(bronzeEdge.opacity(0.22)))
-        // The card is a fixed dark artifact in both modes now, so pin the
-        // subtree to Dark. Its own colors are all literals; the pin is what
-        // keeps any adaptive token that lands here from inverting into the
-        // near-black base.
-        .environment(\.colorScheme, .dark)
+        .overlay(RoundedRectangle(cornerRadius: 16)
+            .stroke(isDark ? metalEdge.opacity(0.22)
+                           : Color(hex: 0x2A1F12).opacity(0.18)))
+        // Pin the subtree to match the card's own surface, not the app: the gold
+        // card is a light artifact (dark type), the bronze one is dark (light
+        // type). Without this, any adaptive token landing inside would invert
+        // and disappear into the card.
+        .environment(\.colorScheme, isDark ? .dark : .light)
     }
 
     // ── Stats strip ───────────────────────────────────────────────────────────

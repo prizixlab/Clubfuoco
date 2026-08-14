@@ -105,27 +105,24 @@ final class Queries: @unchecked Sendable {
     /// REST route reads with the cookie session, which a native Bearer request
     /// doesn't have, so RLS returns nothing. The direct query runs as the real
     /// signed-in user, so RLS (`auth.uid() = user_id`) passes.
-    /// Bookings select with a drift fallback: newest columns first, retry lean.
+    /// Bookings select. `scan_token` is NOT optional here: it is the only token
+    /// the door accepts, so a response without it yields passes that cannot
+    /// scan. This used to retry without the column on error, which turned a
+    /// migration blip into silently unscannable tickets — far worse than a
+    /// visible failure. The column is deployed and DB-defaulted, so ask for it
+    /// and let a genuine error surface.
     private static func bookingsQuery(_ supabase: SupabaseService, uid: String) async throws -> [Booking] {
-        let base = """
+        let cols = """
             id, booking_type, party_size, booking_date, arrival_window, \
-            status, total_amount, qr_code_token, created_at, \
+            status, total_amount, qr_code_token, scan_token, created_at, \
             attendance_status, attendance_confidence, checked_in_at, \
             clubs (id, name, cover_image_url, address, neighborhood, lat, lng, opening_hours), \
             partner_brands (key, name, logo_url, color, attribution_label)
             """
-        let rich = base.replacingOccurrences(of: "qr_code_token,", with: "qr_code_token, scan_token,")
-        for cols in [rich, base] {
-            do {
-                return try await supabase.client.from("bookings").select(cols)
-                    .eq("user_id", value: uid)
-                    .order("booking_date", ascending: false)
-                    .execute().value
-            } catch {
-                if cols == base { throw error }   // lean failed → a real error
-            }
-        }
-        return []
+        return try await supabase.client.from("bookings").select(cols)
+            .eq("user_id", value: uid)
+            .order("booking_date", ascending: false)
+            .execute().value
     }
 
     func myBookings() async throws -> BookingsResponse {
@@ -136,9 +133,6 @@ final class Queries: @unchecked Sendable {
         }
         let uid = session.user.id.uuidString
 
-        // scan_token lands with a manual migration; production drifts from
-        // supabase/migrations, so ask for it and retry without it on a missing
-        // column rather than letting the whole Tickets page fail.
         async let bookings: [Booking] = Self.bookingsQuery(supabase, uid: uid)
 
         async let signups: [GuestSignup] = supabase.client

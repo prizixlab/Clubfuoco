@@ -16,9 +16,12 @@ struct Booking: Decodable, Identifiable, Sendable {
     let arrivalWindow: String?
     let status: String
     let totalAmount: Double?
+    /// Public CF-XXXXXXXX reference. A LABEL, not a secret: it appears on the
+    /// confirmation screen, in the help sheet and in support tooling. Display it
+    /// freely — but never encode it in a QR, see `doorToken`.
     let qrCodeToken: String?
-    /// Strong 128-bit door secret. The QR encodes this when present; older
-    /// bookings fall back to qrCodeToken (the public CF- reference code).
+    /// Strong 128-bit door secret (bookings.scan_token, DB-defaulted so every
+    /// booking has one).
     let scanToken: String?
     let createdAt: String?
     let clubs: EmbeddedOne<ClubSummary>?
@@ -39,6 +42,12 @@ struct Booking: Decodable, Identifiable, Sendable {
 
     var club: ClubSummary? { clubs?.value }
     var brand: PartnerBrand? { partnerBrands?.value?.model }
+
+    /// The ONLY thing a QR may encode. The door resolver matches on
+    /// `scan_token` alone (see src/lib/door.ts) — a QR carrying the CF-
+    /// reference simply does not scan, so there is deliberately no fallback
+    /// here. nil means "we cannot render a working pass", not "use the code".
+    var doorToken: String? { scanToken }
 }
 
 /// Minimal partner_brands row embedded on a booking — just enough to render the

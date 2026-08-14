@@ -626,7 +626,7 @@ struct BookingsView: View {
                     factCell(locale.t("bookings.factTicket"), locale.t(booking.bookingType == "vip" ? "bookings.vip" : "bookings.general"))
                 }
 
-                if !isCancelled, let token = (booking.scanToken ?? booking.qrCodeToken) {
+                if !isCancelled, let token = booking.doorToken {
                     HStack(spacing: 12) {
                         Button {
                             Haptics.tap()
@@ -878,7 +878,7 @@ struct BookingsView: View {
                 .font(.cfSerif(28))
                 .foregroundStyle(Theme.ink)
 
-            if let token = (booking.scanToken ?? booking.qrCodeToken) {
+            if let token = booking.doorToken {
                 QRCodeView(token: token)
                     .frame(width: 260, height: 260)
                     .padding(20)

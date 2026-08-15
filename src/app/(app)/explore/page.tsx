@@ -10,6 +10,7 @@ import { apiFetch } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import type { RumbalistOffer } from '@/lib/rumbalist-offers'
 import { offerLiveOn } from '@/lib/valid-days'
+import { venueMatch } from '@/lib/venue-match'
 import { usePartner } from '@/contexts/PartnerContext'
 import { rumbaScore } from '@/lib/rumba-score'
 import { useEffect, useState, useCallback } from 'react'
@@ -80,22 +81,6 @@ interface CustomShelfRecord {
   position:    number
 }
 
-// ── Client-side venue matching (mirrors server logic) ─────────────────────────
-const VENUE_STOPWORDS = new Set([
-  'barcelona','club','bar','the','lounge','hotel','cafe','music',
-  'night','live','room','space','house','disco','dance','party',
-  'venue','stage','place','sala','local','bcn','spain',
-])
-function normName(s: string) {
-  return s.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim()
-}
-function venueMatchClient(a: string, b: string): boolean {
-  const na = normName(a), nb = normName(b)
-  if (na === nb) return true
-  const meaningful = (s: string) => s.split(' ').filter(w => w.length > 3 && !VENUE_STOPWORDS.has(w))
-  const wa = meaningful(na), wb = new Set(meaningful(nb))
-  return wa.length > 0 && wa.some(w => wb.has(w))
-}
 function fmtEventDate(iso: string) {
   const d = new Date(iso)
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -296,7 +281,7 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   // is O(places × events) and there are ~100 events.
   const eventDates = new Map<string, Set<string>>()
   for (const p of curatedPool.length >= places.length ? curatedPool : places) {
-    const matched = raEvents.filter(e => venueMatchClient(e.venue_name, p.name))
+    const matched = raEvents.filter(e => venueMatch(e.venue_name, p.name))
     if (matched.length > 0) {
       eventDates.set(p.place_id, new Set(matched.map(e => e.date.slice(0, 10))))
     }
@@ -379,7 +364,7 @@ function buildShelves(places: Place[], prefs: any, raEvents: ExternalEvent[] = [
   if (raEvents.length > 0) {
     const eventPlaces: Place[] = []
     for (const place of places) {
-      const matched = raEvents.filter(e => venueMatchClient(e.venue_name, place.name))
+      const matched = raEvents.filter(e => venueMatch(e.venue_name, place.name))
       if (matched.length === 0) continue
       const next = matched.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0]
       eventPlaces.push({

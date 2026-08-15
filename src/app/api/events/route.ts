@@ -1,51 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { TICKET_MARKUP, type ExternalEvent } from '@/lib/tickets'
+import { venueMatch } from '@/lib/venue-match'
 
 export type { ExternalEvent }
 
 function markUp(cents: number) {
   return Math.ceil(cents * (1 + TICKET_MARKUP))
-}
-
-// Strip accents: Razzmatazz / Räzz, Gràcia / Gracia, etc.
-function stripAccents(s: string) {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '')
-}
-
-function normName(s: string) {
-  return stripAccents(s)
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-// Words that appear in almost every Barcelona venue name — skip for matching
-const VENUE_STOPWORDS = new Set([
-  'barcelona', 'club', 'bar', 'the', 'lounge', 'hotel', 'cafe', 'cafes',
-  'music', 'night', 'live', 'room', 'space', 'house', 'disco', 'dance',
-  'party', 'venue', 'stage', 'place', 'sala', 'local', 'bcn', 'spain',
-  'restaurante', 'restaurant', 'cocktail', 'cocteleria', 'terraza',
-])
-
-function venueMatch(a: string, b: string): boolean {
-  const na = normName(a)
-  const nb = normName(b)
-
-  // Exact normalised match
-  if (na === nb) return true
-
-  // One contains the other (e.g. "Opium" matches "Opium Barcelona Restaurant")
-  if (na.includes(nb) || nb.includes(na)) return true
-
-  // Meaningful word overlap (length > 2, not a stopword)
-  const meaningful = (s: string) =>
-    s.split(' ').filter(w => w.length > 2 && !VENUE_STOPWORDS.has(w))
-  const wordsA = meaningful(na)
-  const wordsB = new Set(meaningful(nb))
-
-  // Need at least one meaningful word match, and source must have ≥1 meaningful word
-  return wordsA.length > 0 && wordsA.some(w => wordsB.has(w))
 }
 
 // Typical Barcelona club entry prices by day (in cents)

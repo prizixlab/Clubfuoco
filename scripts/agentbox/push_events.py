@@ -222,10 +222,10 @@ def main() -> int:
             "attending":   to_int(r["attending"]),
             "cost":        r["cost"] or None,
             "ra_url":      r["ra_url"] or None,
-            # Artwork + copy, where RA exposes them. Read with .get() so this
-            # keeps working before the scraper adds the columns to events.sqlite
-            # — the keys are simply absent until then, and flow through once the
-            # scraper starts writing them (EVENTS_INGEST_BRIEF.md, 2026-08-12).
+            # Front flyer + event copy, written by nightly_research.py. Read with
+            # .get() so an older events.sqlite that predates those columns still
+            # pushes rather than raising; RA leaves both empty on plenty of
+            # events, so null here is normal, not a failure.
             "image":       (r.get("image") or None),
             "description": (r.get("description") or None),
             "first_seen":  existing.get(r["id"]) or r["first_seen"],

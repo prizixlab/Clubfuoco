@@ -124,9 +124,12 @@ struct FeaturedDJSheet: View {
     @Environment(\.openURL) private var openURL
     @Environment(DJPlayer.self) private var djPlayer
     @Environment(AuthStore.self) private var auth
+    @Environment(LocaleStore.self) private var locale
     @State private var opened = false
     @State private var gigs: [DJGig] = []
     @State private var gigsLoaded = false
+    /// The away-night row currently showing its "coming soon" line, if any.
+    @State private var comingSoonGigId: String?
 
     private var soundcloudURL: URL? { canonicalSoundCloud(dj.soundcloud) }
 
@@ -169,9 +172,9 @@ struct FeaturedDJSheet: View {
         .overlay(alignment: .topTrailing) { closeButton }
         .task {
             // Guests (synthetic "guest:" ids) aren't in the RA catalogue, so they
-            // have no dated calendar to match — skip the query for them.
+            // have no scraped timeline — skip the query for them.
             guard !dj.isGuest else { gigsLoaded = true; return }
-            gigs = (try? await auth.queries.djSchedule(artistName: dj.name)) ?? []
+            gigs = (try? await auth.queries.djSchedule(raArtistId: dj.raArtistId)) ?? []
             gigsLoaded = true
         }
         .onAppear {
@@ -252,84 +255,78 @@ struct FeaturedDJSheet: View {
         }
     }
 
-    // Dated upcoming appearances we hold ourselves (the DJ pages were built from
-    // these very events). Falls back to a Resident Advisor link when none of our
-    // calendar rows match this DJ — e.g. their next date is beyond our scrape
-    // window, or they were surfaced from a residency rather than a dated event.
+    // The DJ's own upcoming run, held internally — every city they play, not
+    // just the ones we operate in. There is deliberately NO link out to Resident
+    // Advisor: a night we can't sell is still ours to show.
     @ViewBuilder private var scheduleSection: some View {
         if !gigs.isEmpty {
             section("SCHEDULE") {
                 VStack(spacing: 8) {
                     ForEach(gigs) { gigRow($0) }
-                    if let raw = dj.raUrl, let url = URL(string: raw) {
-                        Button { Haptics.tap(); openURL(url) } label: {
-                            Text("FULL SCHEDULE ON RESIDENT ADVISOR →")
-                                .font(.cfMono(9)).kerning(0.5)
-                                .foregroundStyle(Theme.fadedSand)
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, 4)
-                        }
-                        .buttonStyle(.plain)
-                    }
                 }
             }
-        } else if gigsLoaded, let raw = dj.raUrl, let url = URL(string: raw) {
-            section("SCHEDULE") { scheduleButton(url) }
         }
     }
 
-    // One dated appearance. Rows at one of our venues (club_id present) push the
-    // club page; venues we don't carry are shown but not tappable.
+    // One dated appearance. A venue we carry opens the club page; a city we have
+    // not launched reveals a "coming soon" line in place of a dead end.
     private func gigRow(_ gig: DJGig) -> some View {
-        // Not tappable when it's the club we're already on (nowhere to go) or the
-        // venue isn't one of ours.
-        let tappable = gig.clubId != nil && gig.clubId != currentClubId && onOpenVenue != nil
-        return Button {
-            if let cid = gig.clubId { Haptics.tap(); onOpenVenue?(cid) }
-        } label: {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(gig.displayDate)
-                        .font(.cfSans(14, weight: .semibold)).foregroundStyle(Theme.ink)
-                    if let venue = gig.venueName, !venue.isEmpty {
-                        Text(venue).font(.cfSans(12)).foregroundStyle(Theme.stone).lineLimit(1)
+        // Not tappable when it's the club we're already on — nowhere to go.
+        let opensClub = gig.isBookable && gig.clubId != currentClubId && onOpenVenue != nil
+        let revealsCity = !gig.isBookable
+        let showingCity = comingSoonGigId == gig.id
+
+        return VStack(alignment: .leading, spacing: 0) {
+            Button {
+                if let cid = gig.clubId, opensClub {
+                    Haptics.tap()
+                    onOpenVenue?(cid)
+                } else if revealsCity {
+                    Haptics.tap()
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        comingSoonGigId = showingCity ? nil : gig.id
                     }
                 }
-                Spacer(minLength: 8)
-                if tappable {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Theme.fadedSand)
+            } label: {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(gig.displayDate)
+                            .font(.cfSans(14, weight: .semibold)).foregroundStyle(Theme.ink)
+                        if let venue = gig.venueName, !venue.isEmpty {
+                            Text(venue).font(.cfSans(12)).foregroundStyle(Theme.stone).lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    // The city is the useful signal on an away night; on a home
+                    // night the venue line already says where.
+                    if !gig.isBookable, let city = gig.city, !city.isEmpty {
+                        Text(city.uppercased())
+                            .font(.cfMono(9)).kerning(0.8)
+                            .foregroundStyle(Theme.fadedSand)
+                            .lineLimit(1)
+                    }
+                    if opensClub {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Theme.fadedSand)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 11).padding(.horizontal, 14)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 11).padding(.horizontal, 14)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.fadedSand.opacity(0.3)))
-        }
-        .buttonStyle(.plain)
-        .disabled(!tappable)
-    }
+            .buttonStyle(.plain)
+            .disabled(!opensClub && !revealsCity)
 
-    // Fallback when we hold no matching dated rows: open the DJ's Resident
-    // Advisor page, their live list of upcoming dates and venues.
-    private func scheduleButton(_ url: URL) -> some View {
-        Button { Haptics.tap(); openURL(url) } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "calendar")
-                    .font(.system(size: 13, weight: .semibold))
-                Text("SEE UPCOMING DATES")
-                    .font(.cfMono(11, weight: .medium)).kerning(0.8)
-                Spacer(minLength: 8)
-                Text("RESIDENT ADVISOR →")
-                    .font(.cfMono(9)).kerning(0.5)
-                    .foregroundStyle(Theme.fadedSand)
+            if showingCity {
+                Text(String(format: locale.t("dj.cityComingSoon"), gig.placeLabel))
+                    .font(.cfSans(12))
+                    .foregroundStyle(Theme.stone)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 11)
             }
-            .foregroundStyle(Theme.ink)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 13).padding(.horizontal, 14)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.fadedSand.opacity(0.4)))
         }
-        .buttonStyle(.plain)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.fadedSand.opacity(0.3)))
     }
 
     private var socialRow: some View {

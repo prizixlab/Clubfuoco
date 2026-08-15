@@ -221,21 +221,21 @@ final class Queries: @unchecked Sendable {
             .value
     }
 
-    /// A DJ's upcoming dated appearances, across every venue — each `events`
-    /// row whose `artists` array includes their name, today onward, soonest
-    /// first. These are the same rows the DJ pages were built from (the linker
-    /// flags a lone-artist event as a DJ set), so we already hold the dates and
-    /// don't need a Resident Advisor round-trip. `club_id` is set when the
-    /// venue was matched to one of our clubs at ingest — those rows link
-    /// through to the club page.
-    func djSchedule(artistName: String) async throws -> [DJGig] {
+    /// A DJ's upcoming dated appearances — EVERY city they play, not just
+    /// Barcelona, scraped per artist into `dj_appearances`. The app owns this
+    /// timeline outright: no Resident Advisor round-trip, and no link out.
+    ///
+    /// `club_id` is set only for venues we carry; rows in cities we have not
+    /// launched still appear (a DJ touring is signal, not a gap) and the UI
+    /// offers a "coming soon" note for that city rather than a dead link.
+    func djSchedule(raArtistId: String) async throws -> [DJGig] {
         let today = DateFormatter()
         today.dateFormat = "yyyy-MM-dd"
         today.timeZone = TimeZone(identifier: "Europe/Madrid")
         return try await supabase.client
-            .from("events")
-            .select("date, start_time, venue_name, club_id, ra_url")
-            .contains("artists", value: [artistName])
+            .from("dj_appearances")
+            .select("ra_event_id, date, start_time, venue_name, city, country, club_id")
+            .eq("ra_artist_id", value: raArtistId)
             .gte("date", value: today.string(from: Date()))
             .order("date", ascending: true)
             .limit(30)

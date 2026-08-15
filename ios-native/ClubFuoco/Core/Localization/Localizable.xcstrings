@@ -3669,6 +3669,34 @@
         }
       }
     },
+    "dj.cityComingSoon": {
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ arribarà aviat: de moment només reservem locals de Barcelona."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is coming soon — we only book Barcelona venues for now."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ llegará pronto: por ahora solo reservamos locales de Barcelona."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ arrive bientôt — nous ne réservons que des lieux à Barcelone pour l’instant."
+          }
+        }
+      }
+    },
     "explore.eventsArrow": {
       "localizations": {
         "ca": {

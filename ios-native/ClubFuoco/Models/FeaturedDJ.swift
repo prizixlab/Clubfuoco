@@ -87,22 +87,33 @@ struct FeaturedDJ: Decodable, Identifiable, Sendable, Hashable {
     }
 }
 
-/// One dated appearance for a DJ — an `events` row whose `artists` array
-/// includes them and whose date is today or later. This is the DJ's real
-/// "where they're scheduled to be", across every venue (not only this club):
-/// the very rows the DJ pages were built from carry the date, so we surface it
-/// ourselves rather than sending the user to Resident Advisor.
+/// One dated appearance for a DJ — a `dj_appearances` row, scraped per artist
+/// so it covers EVERY city they play, not just Barcelona. This is the DJ's real
+/// "where they're scheduled to be", held internally: the app never links out to
+/// Resident Advisor for it.
 ///
 /// Field names are camelCase to match SupabaseService's snake_case decoding
 /// (start_time → startTime, venue_name → venueName, club_id → clubId).
 struct DJGig: Decodable, Identifiable, Sendable, Hashable {
+    let raEventId: String
     let date: String            // "yyyy-MM-dd"
     let startTime: String?
     let venueName: String?
-    let clubId: String?         // our clubs.id when the venue was matched at ingest
-    let raUrl: String?
+    let city: String?
+    let country: String?
+    /// Set only when the venue is a club we carry — those rows open the club
+    /// page. Everything else is a city we have not launched yet.
+    let clubId: String?
 
-    var id: String { "\(date)|\(venueName ?? "?")" }
+    var id: String { raEventId }
+
+    /// A night the user can actually act on here.
+    var isBookable: Bool { clubId != nil }
+
+    /// "Berlin" / "Berlin, Germany" — what we tell the user is coming.
+    var placeLabel: String {
+        [city, country].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
+    }
 
     /// "Wed 13 Aug", or the raw string if it somehow doesn't parse.
     var displayDate: String {

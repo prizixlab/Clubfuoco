@@ -30,3 +30,7 @@ yarn-error.log*
 next-env.d.ts
 .vercel
 scripts/out/
+
+# Python — bytecode from the agentbox ingest scripts (scripts/agentbox/*.py)
+__pycache__/
+*.py[cod]

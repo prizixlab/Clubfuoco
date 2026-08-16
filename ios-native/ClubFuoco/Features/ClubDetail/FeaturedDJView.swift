@@ -280,12 +280,26 @@ struct FeaturedDJSheet: View {
 
     /// SF Symbol + URL for each social we actually hold. SoundCloud is omitted:
     /// the player above already plays it, so a link out is redundant.
+    /// True for anything pointing at the upstream listing platform.
+    ///
+    /// The catalogue's `website` is whatever the artist filled in, and some of
+    /// them filled in their own page on that platform — one DJ's website is
+    /// literally `es.ra.co/promoters/…`. Rendering it would put a link to the
+    /// source back on the page through the side door, so any such host is
+    /// dropped rather than shown.
+    private func isUpstreamPlatform(_ url: URL) -> Bool {
+        guard let host = url.host()?.lowercased() else { return false }
+        return host == "ra.co" || host.hasSuffix(".ra.co")
+    }
+
     private var socialLinks: [(String, URL)] {
         var out: [(String, URL)] = []
-        if let ig = normalizedURL(dj.instagram, host: "instagram.com") {
+        if let ig = normalizedURL(dj.instagram, host: "instagram.com"), !isUpstreamPlatform(ig) {
             out.append(("camera", ig))
         }
-        if let site = dj.website, let url = URL(string: site.hasPrefix("http") ? site : "https://\(site)") {
+        if let site = dj.website,
+           let url = URL(string: site.hasPrefix("http") ? site : "https://\(site)"),
+           !isUpstreamPlatform(url) {
             out.append(("globe", url))
         }
         return out

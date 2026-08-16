@@ -389,16 +389,11 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
       }),
     }).catch(() => {})
 
-    // ── External checkout (open the platform's own page) ──────────────────────
-    // We send the user to the source platform in two cases:
-    //   1. The event is FREE — there's no real reservation we can create
-    //      via the platform's API, and faking an in-app "Reserve" success
-    //      tells the user nothing real happened (the venue has no list).
-    //   2. The event is PAID but on a platform with no purchase API
-    //      (Resident Advisor, Xceed, Songkick).
-    // Either way we already wrote the click telemetry above for attribution.
+    // No outbound link. An event we cannot sell in-app is shown as
+    // information only — the button below does not render for it — so this
+    // path should be unreachable. Kept as a guard rather than a redirect: we
+    // do not send users to the upstream platform.
     if (event.base_price === 0 || !isInAppPurchase) {
-      if (typeof window !== 'undefined') window.open(event.platform_url, '_blank')
       setBuying(false)
       return
     }
@@ -533,18 +528,12 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
               <p style={{ fontSize: 18, fontWeight: 700, color: C.accent, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{fmtPrice(event.display_price, event.currency)}</p>
             )}
           </div>
-          {!event.sold_out && (
+          {!event.sold_out && event.base_price > 0 && isInAppPurchase && (
             <button
               onClick={startCheckout}
               disabled={buying}
               style={{ padding: '10px 18px', background: C.ink, color: '#F8F5EE', border: 'none', borderRadius: 99, fontSize: 13, fontWeight: 600, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', cursor: buying ? 'not-allowed' : 'pointer', opacity: buying ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              {buying
-                ? '…'
-                : (event.base_price === 0 || !isInAppPurchase)
-                  ? <>View event
-                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_outward</span>
-                    </>
-                  : 'Get Tickets'}
+              {buying ? '…' : 'Get Tickets'}
             </button>
           )}
         </div>
@@ -567,21 +556,6 @@ function ClubEventCard({ event, placeId }: { event: ClubEvent; placeId: string }
   const lineup  = event.artists.slice(0, 6)
   const hasLink = !!event.ra_url
 
-  function openTickets() {
-    apiFetch('/api/ticket-clicks', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        event_id:       event.ra_event_id,
-        platform:       'ra',
-        event_title:    event.title,
-        venue_name:     event.venue_name,
-        venue_place_id: placeId,
-        event_date:     event.date,
-      }),
-    }).catch(() => {})
-    if (typeof window !== 'undefined') window.open(event.ra_url!, '_blank', 'noopener,noreferrer')
-  }
 
   return (
     <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, overflow: 'hidden' }}>

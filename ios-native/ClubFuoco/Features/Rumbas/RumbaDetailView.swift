@@ -16,10 +16,10 @@ struct RumbaDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 // Hero
                 ZStack(alignment: .bottomLeading) {
-                    Color(hex: 0xEFE9DD)
+                    Theme.imagePlaceholder
                         .overlay {
                             if let url = rumba.coverImage.flatMap(URL.init(string:)) {
-                                CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                                CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Theme.imagePlaceholder }
                             }
                         }
                         .frame(height: 240)
@@ -73,7 +73,7 @@ struct RumbaDetailView: View {
                         .frame(height: 6)
                     }
                     .padding(14)
-                    .background(Color.white, in: .rect(cornerRadius: 12))
+                    .background(Theme.surface, in: .rect(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
                 }
 
@@ -85,7 +85,7 @@ struct RumbaDetailView: View {
                 if let signup = model.mySignup {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.seal.fill")
-                            .foregroundStyle(Color(hex: 0x2D7A46))
+                            .foregroundStyle(Theme.success)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(locale.t("rumba.onList"))
                                 .font(.cfSans(14, weight: .medium))
@@ -99,8 +99,8 @@ struct RumbaDetailView: View {
                         Spacer()
                     }
                     .padding(14)
-                    .background(Color.white, in: .rect(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: 0x2D7A46).opacity(0.3)))
+                    .background(Theme.surface, in: .rect(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.success.opacity(0.3)))
                 } else {
                     VStack(alignment: .leading, spacing: 12) {
                         AuthField(label: locale.t("rumba.yourName")) {
@@ -123,7 +123,7 @@ struct RumbaDetailView: View {
                             disabled: model.name.trimmingCharacters(in: .whitespaces).isEmpty,
                             background: Theme.ember
                         ) {
-                            if auth.user == nil {
+                            if !auth.hasAccount {
                                 showGuestGate = true
                             } else {
                                 model.signUp(rumbaId: rumba.id, api: api)
@@ -142,7 +142,7 @@ struct RumbaDetailView: View {
             await model.loadMySignup(rumbaId: rumba.id, api: api)
         }
         .sheet(isPresented: $showGuestGate) {
-            GuestGateView().presentationDetents([.medium])
+            GuestGateView(reason: .rumba).presentationDetents([.medium])
         }
     }
 

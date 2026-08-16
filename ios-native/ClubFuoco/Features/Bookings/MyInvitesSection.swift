@@ -96,7 +96,7 @@ struct MyInvitesSection: View {
                 .foregroundStyle(Theme.fadedSand)
         }
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.5)))
+        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface.opacity(0.5)))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
     }
 

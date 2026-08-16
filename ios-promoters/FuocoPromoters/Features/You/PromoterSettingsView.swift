@@ -35,6 +35,7 @@ struct PromoterSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
                 account
+                brand
                 preferences
                 payment
                 support
@@ -91,6 +92,29 @@ struct PromoterSettingsView: View {
                     .padding(.horizontal, 9).padding(.vertical, 4)
                     .background(Capsule().fill(igVerified == true ? Theme.ember : Theme.ember.opacity(0.18)))
             })
+        }
+    }
+
+    /// The promoter's own branding on things guests see. One row today; the
+    /// Wallet pass is the only guest-facing artifact they can currently style.
+    private var brand: some View {
+        section("Brand") {
+            NavigationLink { PassThemeView() } label: {
+                HStack(spacing: 14) {
+                    icon("wallet.pass")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Wallet pass").font(.cfSans(15)).foregroundStyle(Theme.parchment)
+                        Text("Colours and wordmark on your guests' passes")
+                            .font(.cfSans(11.5)).foregroundStyle(Theme.parchmentDim)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12)).foregroundStyle(Theme.parchmentDim)
+                }
+                .padding(.vertical, 12).padding(.horizontal, 14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
     }
 

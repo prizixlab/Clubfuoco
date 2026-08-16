@@ -11,6 +11,7 @@ final class AppEnvironment {
     let queries: Queries
     let authStore: AuthStore
     let localeStore: LocaleStore
+    let themeStore: ThemeStore
     let planStore: PlanStore
 
     init() {
@@ -20,6 +21,7 @@ final class AppEnvironment {
         self.queries = Queries(supabase: supabase)
         self.authStore = AuthStore(supabase: supabase, queries: queries)
         self.localeStore = LocaleStore()
+        self.themeStore = ThemeStore()
         self.planStore = PlanStore()
 
         UNUserNotificationCenter.current().delegate = NotificationForegroundDelegate.shared

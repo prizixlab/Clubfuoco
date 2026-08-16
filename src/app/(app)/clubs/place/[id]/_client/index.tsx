@@ -389,16 +389,11 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
       }),
     }).catch(() => {})
 
-    // ── External checkout (open the platform's own page) ──────────────────────
-    // We send the user to the source platform in two cases:
-    //   1. The event is FREE — there's no real reservation we can create
-    //      via the platform's API, and faking an in-app "Reserve" success
-    //      tells the user nothing real happened (the venue has no list).
-    //   2. The event is PAID but on a platform with no purchase API
-    //      (Resident Advisor, Xceed, Songkick).
-    // Either way we already wrote the click telemetry above for attribution.
+    // No outbound link. An event we cannot sell in-app is shown as
+    // information only — the button below does not render for it — so this
+    // path should be unreachable. Kept as a guard rather than a redirect: we
+    // do not send users to the upstream platform.
     if (event.base_price === 0 || !isInAppPurchase) {
-      if (typeof window !== 'undefined') window.open(event.platform_url, '_blank')
       setBuying(false)
       return
     }
@@ -498,11 +493,6 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
     )
   }
 
-  const platformBadge: Record<string, string> = {
-    ra:          'Resident Advisor',
-    eventbrite:  'Eventbrite',
-    dice:        'Dice',
-  }
 
   return (
     <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, overflow: 'hidden' }}>
@@ -510,9 +500,6 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
         <div style={{ position: 'relative', height: 120 }}>
           <img src={event.image} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 60%)' }} />
-          <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', background: 'rgba(0,0,0,0.4)', borderRadius: 99, padding: '2px 7px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
-            {platformBadge[event.platform] ?? event.platform}
-          </span>
           {event.sold_out && (
             <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'white', background: 'rgba(140,42,42,0.9)', borderRadius: 99, padding: '2px 7px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontWeight: 600 }}>Sold out</span>
           )}
@@ -541,18 +528,12 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
               <p style={{ fontSize: 18, fontWeight: 700, color: C.accent, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>{fmtPrice(event.display_price, event.currency)}</p>
             )}
           </div>
-          {!event.sold_out && (
+          {!event.sold_out && event.base_price > 0 && isInAppPurchase && (
             <button
               onClick={startCheckout}
               disabled={buying}
               style={{ padding: '10px 18px', background: C.ink, color: '#F8F5EE', border: 'none', borderRadius: 99, fontSize: 13, fontWeight: 600, fontFamily: 'Geist, -apple-system, system-ui, sans-serif', cursor: buying ? 'not-allowed' : 'pointer', opacity: buying ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              {buying
-                ? '…'
-                : (event.base_price === 0 || !isInAppPurchase)
-                  ? <>View on {platformBadge[event.platform] ?? 'site'}
-                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_outward</span>
-                    </>
-                  : 'Get Tickets'}
+              {buying ? '…' : 'Get Tickets'}
             </button>
           )}
         </div>
@@ -562,9 +543,9 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
 }
 
 // ── Club event box ────────────────────────────────────────────────────────────
-// One box per upcoming event at this venue, from public.events. We do NOT sell
-// these: there is no purchase API for Resident Advisor, so the button opens
-// RA's own page. The click is logged first for partner attribution.
+// One box per upcoming event at this venue, from public.events. There is no
+// outbound link: where a listing was sourced from is ours, not the customer's,
+// so the box never names or links to the upstream platform.
 //
 // No price is shown. The source's `cost` field is free text ("0", "10€", "",
 // "€") and unreliable, and the old card rendered a hardcoded €0 as "Free
@@ -575,21 +556,6 @@ function ClubEventCard({ event, placeId }: { event: ClubEvent; placeId: string }
   const lineup  = event.artists.slice(0, 6)
   const hasLink = !!event.ra_url
 
-  function openTickets() {
-    apiFetch('/api/ticket-clicks', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        event_id:       event.ra_event_id,
-        platform:       'ra',
-        event_title:    event.title,
-        venue_name:     event.venue_name,
-        venue_place_id: placeId,
-        event_date:     event.date,
-      }),
-    }).catch(() => {})
-    if (typeof window !== 'undefined') window.open(event.ra_url!, '_blank', 'noopener,noreferrer')
-  }
 
   return (
     <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, overflow: 'hidden' }}>
@@ -642,15 +608,6 @@ function ClubEventCard({ event, placeId }: { event: ClubEvent; placeId: string }
         </div>
       </div>
 
-      {hasLink && (
-        <button
-          onClick={openTickets}
-          style={{ width: '100%', padding: '11px 14px', background: 'transparent', border: 'none', borderTop: `1px solid ${C.line}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: C.accent, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}
-        >
-          Tickets on Resident Advisor
-          <span className="material-symbols-outlined" style={{ fontSize: 15 }}>arrow_outward</span>
-        </button>
-      )}
     </div>
   )
 }

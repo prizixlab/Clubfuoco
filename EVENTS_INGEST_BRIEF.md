@@ -76,6 +76,8 @@ Fine for eyeballing; use SSH for automation.
 | `attending` | Int. |
 | `cost` | Free text/number, often `0` or empty. Not reliable pricing. |
 | `ra_url` | `https://ra.co/events/<id>`. |
+| `image` | **NEW (2026-08-12).** Flyer image URL (RA CDN, e.g. `https://images.ra.co/<hash>.jpg`). Empty where RA has no flyer. |
+| `description` | **NEW (2026-08-12).** Event copy as plain text. Empty where RA has none. |
 | `first_seen` | Date we first saw it → **use this to detect newly announced events**. |
 | `last_seen` | Date last confirmed present on RA. |
 
@@ -87,6 +89,7 @@ CREATE TABLE events (
   title TEXT, date TEXT, start_time TEXT,
   venue TEXT, area TEXT, promoters TEXT, artists TEXT,
   interested INTEGER, attending INTEGER, cost TEXT, ra_url TEXT,
+  image TEXT, description TEXT,   -- NEW (2026-08-12): flyer + copy, where RA has them
   first_seen TEXT, last_seen TEXT);
 ```
 
@@ -162,6 +165,8 @@ create table if not exists public.events (
   attending     int default 0,
   cost          text,
   ra_url        text,
+  image         text,                   -- flyer URL (RA CDN), where RA has one
+  description   text,                   -- event copy (plain text), where RA has one
   first_seen    date,
   last_seen     date,
   updated_at    timestamptz default now()
@@ -237,3 +242,40 @@ The same box also maintains, in `/home/yvinnik/scraper/intel/`:
   non-nightlife (venue type classified by a local LLM).
 
 Status of everything: `ssh yvinnik@10.0.0.235 '~/scraper/check.py'`
+
+---
+
+## 10. Update 2026-08-12 — capture flyer image + description (action for the scraper)
+
+The app now has a per-event box that wants a **flyer image** and a **description**.
+Neither is captured today, so the box is text-only and blank where copy would go.
+Please extend the scraper to store both, **where RA exposes them** (leave empty
+otherwise — partial coverage is expected and fine).
+
+**What to add to `events.sqlite` (and therefore `upcoming.csv`):**
+
+- `image` — the flyer URL. It's already in the feed you pull: RA's
+  `eventListings` `Event` carries `images { filename }` / `flyerFront`. Take the
+  first image's URL (RA CDN, e.g. `https://images.ra.co/<hash>.jpg`). **No extra
+  request** — it's in the response you already fetch, just currently discarded.
+- `description` — the event copy as **plain text** (strip HTML/markup, collapse
+  whitespace). RA exposes this as the event's `content`. If `content` comes back
+  on the `eventListings` payload, take it there; if it's only on the per-event
+  detail query, fetch it per event over the ~190–330 event window (that's the one
+  added cost — a detail request each; a daily run absorbs it fine, and you can
+  skip events whose `content` you already have and that haven't changed).
+
+**Guarantees to preserve (same as the rest of the pipeline):**
+
+- Store empty/NULL when RA has nothing — don't invent copy or a placeholder image.
+- These are **refreshable** like the counts: overwrite on each run if RA's value
+  changed. They must **not** touch `first_seen`.
+- Keep column names exactly `image` and `description` — the Supabase side
+  (`push_events.py`, and `scripts/ingest-events.mjs` for the CSV path) already
+  reads those keys and upserts them into `public.events.image` /
+  `public.events.description` (migration `20260812_events_description_image.sql`).
+  Until you ship this, those keys are simply absent and the columns stay NULL —
+  nothing breaks in the meantime.
+
+Once the scraper writes these, the app box fills in with zero further changes on
+the Supabase side.

@@ -202,6 +202,46 @@ Ingestion = `upsert on conflict (ra_artist_id)`. Never overwrite `first_seen`.
 
 ---
 
-## 9. Status of everything on the box
+## 9. DJ timelines — `dj_appearances` (added 2026-08-15)
+
+The app shows each DJ's **own** upcoming run, and never links out to Resident
+Advisor for it. `public.events` cannot supply that: it is filtered to Barcelona
+(`areas: {eq: BCN_AREA_ID}`), so a resident playing Berlin next Friday reads as
+a gap rather than as a working artist.
+
+`scripts/agentbox/dj_appearances.py` fills the gap using RA's **`Artist.events`**,
+which is per-artist and *not* area-filtered, and upserts into
+`public.dj_appearances` (migration `20260815_dj_appearances.sql`).
+
+| | |
+|---|---|
+| Horizon | 120 days |
+| Ordering | every **featured** DJ first (`club_dj_sets`), then most-followed |
+| `club_id` | set only when the venue name matches one of our active clubs **exactly** (normalised) |
+
+Two rules worth keeping:
+
+- **`club_id` uses an exact normalised match, not the fuzzy venue matcher.** A
+  wrong id here would make an away night look bookable and send someone to the
+  wrong door. Unmatched is the safe state — the app renders those as
+  "«City» is coming soon" rather than a dead link.
+- **`ra_artist_id` is a FK onto `djs`.** The box's catalogue runs ahead of
+  Supabase, so appearances for an artist not yet pushed are skipped (and logged)
+  rather than failing the batch; the next run picks them up.
+
+### Cron slot
+
+Ordering is load-bearing — it must run after `push_djs.py` (the FK target) and
+after `link_djs.py` (which creates the featured slots it prioritises):
+
+    00:08  nightly_research.py full
+    15:08  push_events.py
+    20:08  push_djs.py
+    25:08  link_djs.py
+    30:08  dj_appearances.py     ← here
+
+---
+
+## 10. Status of everything on the box
 
     ssh yvinnik@10.0.0.235 '~/scraper/check.py'

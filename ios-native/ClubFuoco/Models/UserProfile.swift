@@ -83,7 +83,7 @@ struct GenderPicker: View {
                 .foregroundStyle(isSelected ? Theme.cream : Theme.ink)
                 .frame(maxWidth: .infinity)
                 .frame(height: 44)
-                .background(isSelected ? Theme.wine : Color.white, in: .rect(cornerRadius: 11))
+                .background(isSelected ? Theme.wine : Theme.surface, in: .rect(cornerRadius: 11))
                 .overlay(RoundedRectangle(cornerRadius: 11)
                     .stroke(isSelected ? Theme.wine : Theme.hairline))
         }

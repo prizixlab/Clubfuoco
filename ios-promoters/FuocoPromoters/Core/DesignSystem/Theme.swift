@@ -69,6 +69,27 @@ extension Color {
         guard s.count == 6, let v = UInt32(s, radix: 16) else { return nil }
         self.init(hex: v)
     }
+
+    /// sRGB channels, 0…1. ColorPicker can hand back wide-gamut (Display P3)
+    /// colours, so this converts rather than reading the components raw —
+    /// P3 components fall outside 0…1 in sRGB terms and would otherwise wrap
+    /// into nonsense when packed into a hex byte.
+    var srgbComponents: (r: Double, g: Double, b: Double) {
+        guard let converted = UIColor(self).cgColor
+            .converted(to: CGColorSpace(name: CGColorSpace.sRGB)!,
+                       intent: .defaultIntent, options: nil),
+              let c = converted.components, c.count >= 3
+        else { return (0, 0, 0) }
+        let clamp = { (v: CGFloat) in Double(min(1, max(0, v))) }
+        return (clamp(c[0]), clamp(c[1]), clamp(c[2]))
+    }
+
+    /// "#RRGGBB", upper case — the form the pass-theme API stores.
+    var hexString: String {
+        let (r, g, b) = srgbComponents
+        return String(format: "#%02X%02X%02X",
+                      Int((r * 255).rounded()), Int((g * 255).rounded()), Int((b * 255).rounded()))
+    }
 }
 
 enum Haptics {

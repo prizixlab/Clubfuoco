@@ -381,7 +381,7 @@ struct RumbalistOfferSheet: View {
                     .frame(maxWidth: .infinity)
                     .background(.white.opacity(0.06), in: .rect(cornerRadius: 10))
 
-                    if let token = booking.qrCodeToken {
+                    if let token = booking.doorToken {
                         VStack(spacing: 10) {
                             QRCodeView(token: token)
                                 .frame(width: 200, height: 200)
@@ -525,10 +525,16 @@ struct RumbalistOfferSheet: View {
 }
 
 /// Minimal booking result for the Rumbalist endpoints (the row may not carry
-/// every Booking field, so decode only what the pass needs).
+/// every Booking field, so decode only what the pass needs). Both routes
+/// return `select('*')`, so the door token comes back with the row.
 struct RumbalistBookingResult: Decodable, Sendable {
     let id: UUID
+    /// Public CF- reference — shown as the booking reference, never in a QR.
     let qrCodeToken: String?
+    /// The only token the door accepts (see Booking.doorToken).
+    let scanToken: String?
+
+    var doorToken: String? { scanToken }
 }
 
 @MainActor

@@ -20,7 +20,7 @@ struct WhenPlannerView: View {
                 HStack(spacing: 9) {
                     Image(systemName: "calendar")
                         .font(.system(size: 14))
-                        .foregroundStyle(Theme.wine)
+                        .foregroundStyle(Theme.accent)
                     Text(locale.t("plan.goingOut").uppercased())
                         .font(.cfSans(9.5))
                         .kerning(1)
@@ -70,7 +70,7 @@ struct WhenPlannerView: View {
             }
         }
         .background(
-            open ? Color.white : Color(hex: 0x221E1A).opacity(0.05),
+            open ? Theme.surface : Theme.ink.opacity(0.05),
             in: .rect(cornerRadius: Theme.radiusField)
         )
         .overlay(

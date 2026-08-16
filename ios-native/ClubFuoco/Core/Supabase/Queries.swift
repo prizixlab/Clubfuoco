@@ -105,27 +105,24 @@ final class Queries: @unchecked Sendable {
     /// REST route reads with the cookie session, which a native Bearer request
     /// doesn't have, so RLS returns nothing. The direct query runs as the real
     /// signed-in user, so RLS (`auth.uid() = user_id`) passes.
-    /// Bookings select with a drift fallback: newest columns first, retry lean.
+    /// Bookings select. `scan_token` is NOT optional here: it is the only token
+    /// the door accepts, so a response without it yields passes that cannot
+    /// scan. This used to retry without the column on error, which turned a
+    /// migration blip into silently unscannable tickets — far worse than a
+    /// visible failure. The column is deployed and DB-defaulted, so ask for it
+    /// and let a genuine error surface.
     private static func bookingsQuery(_ supabase: SupabaseService, uid: String) async throws -> [Booking] {
-        let base = """
+        let cols = """
             id, booking_type, party_size, booking_date, arrival_window, \
-            status, total_amount, qr_code_token, created_at, \
+            status, total_amount, qr_code_token, scan_token, created_at, \
             attendance_status, attendance_confidence, checked_in_at, \
             clubs (id, name, cover_image_url, address, neighborhood, lat, lng, opening_hours), \
             partner_brands (key, name, logo_url, color, attribution_label)
             """
-        let rich = base.replacingOccurrences(of: "qr_code_token,", with: "qr_code_token, scan_token,")
-        for cols in [rich, base] {
-            do {
-                return try await supabase.client.from("bookings").select(cols)
-                    .eq("user_id", value: uid)
-                    .order("booking_date", ascending: false)
-                    .execute().value
-            } catch {
-                if cols == base { throw error }   // lean failed → a real error
-            }
-        }
-        return []
+        return try await supabase.client.from("bookings").select(cols)
+            .eq("user_id", value: uid)
+            .order("booking_date", ascending: false)
+            .execute().value
     }
 
     func myBookings() async throws -> BookingsResponse {
@@ -136,9 +133,6 @@ final class Queries: @unchecked Sendable {
         }
         let uid = session.user.id.uuidString
 
-        // scan_token lands with a manual migration; production drifts from
-        // supabase/migrations, so ask for it and retry without it on a missing
-        // column rather than letting the whole Tickets page fail.
         async let bookings: [Booking] = Self.bookingsQuery(supabase, uid: uid)
 
         async let signups: [GuestSignup] = supabase.client
@@ -197,7 +191,7 @@ final class Queries: @unchecked Sendable {
         today.timeZone = TimeZone(identifier: "Europe/Madrid")
         return try await supabase.client
             .from("events")
-            .select("ra_event_id, title, date, start_time, venue_name, promoters, artists, interested, attending, ra_url")
+            .select("ra_event_id, title, date, start_time, end_time, venue_name, promoters, artists, lineup, interested, attending, ra_url, image, description, minimum_age, venue_capacity, cost")
             .eq("club_id", value: clubId)
             // Events that are really just a lone DJ playing are hidden here and
             // surfaced as a Featured DJ box instead (see link_djs.py).
@@ -225,6 +219,88 @@ final class Queries: @unchecked Sendable {
             .order("sort", ascending: true)
             .execute()
             .value
+    }
+
+    /// A DJ's upcoming dated appearances — EVERY city they play, not just
+    /// Barcelona, scraped per artist into `dj_appearances`. The app owns this
+    /// timeline outright: no Resident Advisor round-trip, and no link out.
+    ///
+    /// `club_id` is set only for venues we carry; rows in cities we have not
+    /// launched still appear (a DJ touring is signal, not a gap) and the UI
+    /// offers a "coming soon" note for that city rather than a dead link.
+    func djSchedule(raArtistId: String) async throws -> [DJGig] {
+        let today = DateFormatter()
+        today.dateFormat = "yyyy-MM-dd"
+        today.timeZone = TimeZone(identifier: "Europe/Madrid")
+        return try await supabase.client
+            .from("dj_appearances")
+            .select("ra_event_id, title, date, start_time, venue_name, city, country, club_id")
+            .eq("ra_artist_id", value: raArtistId)
+            .gte("date", value: today.string(from: Date()))
+            .order("date", ascending: true)
+            .limit(30)
+            .execute()
+            .value
+    }
+
+    /// Resolve lineup credits to their `djs` rows BY RA ARTIST ID — the exact
+    /// join. `events.lineup` carries RA's id per credit, and `djs` is keyed on
+    /// the same id, so a night billing two DJs of the same name resolves each
+    /// correctly and a renamed artist still matches.
+    ///
+    /// Prefer this over djsByNames, which is kept only for rows scraped before
+    /// `lineup` existed.
+    func djsByIds(_ ids: [String]) async throws -> [FeaturedDJ] {
+        guard !ids.isEmpty else { return [] }
+        let rows: [DJCatalogueRow] = try await supabase.client
+            .from("djs")
+            .select("""
+                ra_artist_id, name, genres, instagram, soundcloud, website, \
+                known_venues, regions, bio, ra_url, image_url, cover_image_url, ra_followers
+                """)
+            .in("ra_artist_id", values: ids)
+            .execute()
+            .value
+        return rows.map(\.featuredDJ)
+    }
+
+    /// Resolve a set of lineup artist names to their `djs` catalogue rows, so an
+    /// event box can link the DJs it lists to their pages. Only names present in
+    /// the catalogue come back — an unknown name (a live act, a one-off) simply
+    /// isn't tappable. No residency slot is involved, so the returned FeaturedDJ
+    /// carries nil residency.
+    func djsByNames(_ names: [String]) async throws -> [FeaturedDJ] {
+        guard !names.isEmpty else { return [] }
+        let rows: [DJCatalogueRow] = try await supabase.client
+            .from("djs")
+            .select("""
+                ra_artist_id, name, genres, instagram, soundcloud, website, \
+                known_venues, regions, bio, ra_url, image_url, cover_image_url, ra_followers
+                """)
+            .in("name", values: names)
+            .execute()
+            .value
+        return rows.map(\.featuredDJ)
+    }
+
+    /// Flyer images for events, keyed by `ra_event_id`. `events` carries no
+    /// artwork, but the ticketed `ra_events` cache does — its id is "ra_<id>".
+    /// Only a subset of events overlap the ticket feed, so many come back
+    /// imageless (the box then renders text-only).
+    func eventImages(raEventIds: [String]) async throws -> [String: String] {
+        guard !raEventIds.isEmpty else { return [:] }
+        struct Row: Decodable { let id: String; let image: String? }
+        let rows: [Row] = try await supabase.client
+            .from("ra_events")
+            .select("id, image")
+            .in("id", values: raEventIds.map { "ra_\($0)" })
+            .execute()
+            .value
+        var map: [String: String] = [:]
+        for r in rows where r.image != nil {
+            map[String(r.id.dropFirst(3))] = r.image   // strip "ra_"
+        }
+        return map
     }
 
     /// Club ids that currently have a Featured DJ (an active club_dj_sets slot).
@@ -334,5 +410,31 @@ final class Queries: @unchecked Sendable {
             .eq("user_id", value: session.user.id.uuidString)
             .eq("place_id", value: placeId)
             .execute()
+    }
+}
+
+/// A `djs` catalogue row. Shared by djsByIds and djsByNames so the column list
+/// and the mapping live in one place.
+struct DJCatalogueRow: Decodable, Sendable {
+    let raArtistId: String
+    let name: String
+    let genres: [String]?
+    let instagram: String?
+    let soundcloud: String?
+    let website: String?
+    let knownVenues: [String]?
+    let regions: [String]?
+    let bio: String?
+    let raUrl: String?
+    let imageUrl: String?
+    let coverImageUrl: String?
+    let raFollowers: Int?
+
+    var featuredDJ: FeaturedDJ {
+        FeaturedDJ(raArtistId: raArtistId, name: name, genres: genres ?? [],
+                   instagram: instagram, soundcloud: soundcloud, website: website,
+                   knownVenues: knownVenues ?? [], regions: regions ?? [], bio: bio,
+                   raUrl: raUrl, imageUrl: imageUrl, coverImageUrl: coverImageUrl,
+                   raFollowers: raFollowers)
     }
 }

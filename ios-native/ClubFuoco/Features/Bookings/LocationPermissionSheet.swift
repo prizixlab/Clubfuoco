@@ -168,7 +168,7 @@ struct LocationPermissionSheet: View {
                 .padding(.top, 4)
         }
         .padding(14)
-        .background(Color.white.opacity(0.6), in: .rect(cornerRadius: 14))
+        .background(Theme.surface.opacity(0.6), in: .rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
     }
 
@@ -203,7 +203,7 @@ struct LocationPermissionSheet: View {
             }
         }
         .padding(14)
-        .background(Color.white.opacity(0.6), in: .rect(cornerRadius: 14))
+        .background(Theme.surface.opacity(0.6), in: .rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
     }
 

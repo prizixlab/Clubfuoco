@@ -4,22 +4,77 @@ import SwiftUI
 /// (BottomNav.tsx / OAuthButtons.tsx / globals.css).
 enum Theme {
     // ── Colors ────────────────────────────────────────────────────────────────
-    static let ink = Color(hex: 0x221E1A)        // primary text / dark surfaces
-    static let stone = Color(hex: 0x6E6356)      // secondary text
-    static let sand = Color(hex: 0xB0A898)       // inactive / tertiary
-    static let fadedSand = Color(hex: 0x9F9486)  // captions, overlines
-    static let cream = Color(hex: 0xF8F5EE)      // app background
-    static let gold = Color(hex: 0xC09950)       // accent (active pill, highlights)
-    static let wine = Color(hex: 0x8C2A2A)       // badges / destructive accents
+    // `ink` and `cream` are a contrast *pair*: ink is the primary text color and
+    // also the fill of the primary buttons/pills, whose labels are always
+    // `cream`. Because both invert together, those filled controls flip to a
+    // light-on-dark button in Dark Mode with no call-site change.
+    static let ink = Color.adaptive(light: 0x221E1A, dark: 0xEDE6D8)       // primary text / contrast fills
+    static let stone = Color.adaptive(light: 0x6E6356, dark: 0xB4AA9A)     // secondary text
+    static let sand = Color.adaptive(light: 0xB0A898, dark: 0x7A7264)      // inactive / tertiary
+    static let fadedSand = Color.adaptive(light: 0x9F9486, dark: 0x8A8172) // captions, overlines
+    static let cream = Color.adaptive(light: 0xF8F5EE, dark: 0x0E0C0A)     // app background / labels on ink
+    // Saturation, not hue, is what makes these read as gold. A near-pure hue
+    // looks like paint at any lightness — yellow up around 44°, orange down at
+    // 35° — and chasing it by moving hue just trades one for the other. The
+    // brand's own light gold sits at S .58, and that muting is the whole trick.
+    // So the Dark variants hold hue ~41° and match that saturation, taking the
+    // deepening in value alone.
+    //   gold  #C09950 (H39 S.58 V.75) -> #AD8A45 (H40 S.60 V.68)
+    static let gold = Color.adaptive(light: 0xC09950, dark: 0xAD8A45)      // accent (active pill, highlights)
+    // Same correction as the golds: the first dark value lifted brightness
+    // without saturation and came out coral. #B33F38 holds the red hue at S .69
+    // instead of .60 and drops V .78 -> .70, so it reads as wine again.
+    static let wine = Color.adaptive(light: 0x8C2A2A, dark: 0xB33F38)      // badges / destructive accents
 
-    static let hairline = Color(hex: 0x221E1A).opacity(0.10)
+    /// Wine's *decorative* half — venue names, "6 venues ->" links, section
+    /// icons, stat numbers. On the cream page it is the same red; against
+    /// near-black a page full of red reads as noise, so it goes off-white and
+    /// lets the type carry the hierarchy.
+    ///
+    /// Keep `wine` itself for red that MEANS something: errors, destructive
+    /// actions, badges. Those should stay red in both modes.
+    static let accent = Color.adaptive(light: 0x8C2A2A, dark: 0xE8E0D2)
 
-    // Night/cinema palette (splash + dark hero surfaces, see Splash.tsx)
+    static let hairline = Color.adaptive(light: 0x221E1A, lightAlpha: 0.10,
+                                         dark: 0xF4ECDD, darkAlpha: 0.12)
+
+    // ── Surfaces ──────────────────────────────────────────────────────────────
+    // Cards and sheets that sit *on top of* the app background. In light these
+    // are the plain white the app has always used; in dark they are a step
+    // lighter than the background so elevation still reads.
+    static let surface = Color.adaptive(light: 0xFFFFFF, dark: 0x1A1613)
+    static let surfaceRaised = Color.adaptive(light: 0xFFFFFF, dark: 0x232019)
+
+    /// Behind async images while they load — a warm block that matches the
+    /// surrounding page rather than flashing light on a dark screen.
+    static let imagePlaceholder = Color.adaptive(light: 0xEFE9DD, dark: 0x231F1A)
+
+    /// "Open now", confirmed bookings, credited fiamme. Lightened in Dark so it
+    /// still separates from the background.
+    static let success = Color.adaptive(light: 0x2D7A46, dark: 0x4CA96B)
+
+    /// QR cards stay white with dark modules in BOTH modes — door scanners
+    /// need the quiet zone, so these must never follow the appearance.
+    static let qrSurface = Color.white
+    static let onQRSurface = Color(hex: 0x221E1A)
+
+    // Night/cinema palette (splash + dark hero surfaces, see Splash.tsx).
+    // Deliberately *not* adaptive — these surfaces are dark in both modes.
     static let night = Color(hex: 0x0A0807)         // rgb(10,8,7)
     static let parchment = Color(hex: 0xF4ECDD)     // rgb(244,236,221)
-    static let ember = Color(hex: 0xC2562D)         // rgb(194,86,45) primary CTA
+    //   ember #C2562D (H17 S.77 V.76) -> #B8431A (H16 S.86 V.72), 3.5:1
+    // Saturation up rather than value down, so it lands bolder instead of
+    // muddy — an orange that still has bite against the near-black page.
+    static let ember = Color.adaptive(light: 0xC2562D, dark: 0xB8431A) // primary CTA
     static let emberCream = Color(hex: 0xFFF6E5)    // rgb(255,246,229)
-    static let flame = Color(hex: 0xE8B65B)         // rgb(232,182,91) glow/badges
+    //   flame #E8B65B (H39 S.61 V.91) -> #C7A150 (H41 S.60 V.78)
+    static let flame = Color.adaptive(light: 0xE8B65B, dark: 0xC7A150) // glow/badges
+
+    /// The rating star over photo cards. Was two near-identical lemon yellows
+    /// (0xF0C040 / 0xF5C142) that read as highlighter; this keeps their
+    /// brightness but drops to H40 / S.63 so it reads gold. Fixed in both modes
+    /// — it sits on a scrim over a photo, which is dark either way.
+    static let starGold = Color(hex: 0xE0B052)
     static let darkRed = Color(hex: 0x6B1F1F)       // rgb(107,31,31)
 
     // ── Radii ─────────────────────────────────────────────────────────────────
@@ -84,6 +139,30 @@ extension Color {
             red: Double((hex >> 16) & 0xFF) / 255,
             green: Double((hex >> 8) & 0xFF) / 255,
             blue: Double(hex & 0xFF) / 255
+        )
+    }
+
+    /// A color that resolves per trait collection, so the ~850 `Theme.*` call
+    /// sites need no change when Dark Mode flips. Built on a dynamic `UIColor`
+    /// because SwiftUI has no first-class light/dark literal outside an asset
+    /// catalog.
+    static func adaptive(light: UInt32, lightAlpha: Double = 1,
+                         dark: UInt32, darkAlpha: Double = 1) -> Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(hex: dark, alpha: darkAlpha)
+                : UIColor(hex: light, alpha: lightAlpha)
+        })
+    }
+}
+
+private extension UIColor {
+    convenience init(hex: UInt32, alpha: Double) {
+        self.init(
+            red: CGFloat((hex >> 16) & 0xFF) / 255,
+            green: CGFloat((hex >> 8) & 0xFF) / 255,
+            blue: CGFloat(hex & 0xFF) / 255,
+            alpha: CGFloat(alpha)
         )
     }
 }

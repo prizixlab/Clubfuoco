@@ -84,7 +84,7 @@ struct BookingHelpSheet: View {
                     }
                 }
             }
-            .background(Color.white, in: .rect(cornerRadius: 14))
+            .background(Theme.surface, in: .rect(cornerRadius: 14))
             .shadow(color: Theme.ink.opacity(0.05), radius: 8, y: 2)
 
             if topic != nil { composer }
@@ -144,7 +144,7 @@ struct BookingHelpSheet: View {
                 .frame(minHeight: 90)
                 .scrollContentBackground(.hidden)
                 .padding(8)
-                .background(Color.white, in: .rect(cornerRadius: 12))
+                .background(Theme.surface, in: .rect(cornerRadius: 12))
                 .shadow(color: Theme.ink.opacity(0.05), radius: 8, y: 2)
 
             if failed {

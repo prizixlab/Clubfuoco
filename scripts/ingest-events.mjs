@@ -185,6 +185,11 @@ async function main() {
       attending:   intOr0(r.attending),
       cost:        r.cost || null,
       ra_url:      r.ra_url || null,
+      // Artwork + copy, where RA exposes them. Absent from older upcoming.csv
+      // exports (the column just isn't there) → undefined → null, so this stays
+      // compatible until the scraper adds them (EVENTS_INGEST_BRIEF.md, 2026-08-12).
+      image:       r.image || null,
+      description: r.description || null,
       first_seen:  existing.get(r.ra_event_id) ?? (r.first_seen || null),
       last_seen:   r.last_seen || null,
     }

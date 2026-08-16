@@ -13,10 +13,18 @@ struct ClubDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(\.api) private var api
+    @Environment(\.pushPlace) private var pushPlace
     @State private var detail: PlaceDetail?
     @State private var events: [ClubEvent] = []
     @State private var featuredDJs: [FeaturedDJ] = []
     @State private var activeDJ: FeaturedDJ?
+    // Event-box enrichment: flyer image per ra_event_id, and the lineup artists
+    // that are DJs we can link to (name → their catalogue page).
+    @State private var eventImages: [String: String] = [:]
+    @State private var djByName: [String: FeaturedDJ] = [:]
+    /// Credits resolved by RA artist id — the exact join. Names remain as a
+    /// fallback for events scraped before `lineup` carried ids.
+    @State private var djById: [String: FeaturedDJ] = [:]
     @State private var djAutoplay = false
     @State private var showAllWhatsOn = false
     @State private var hoursOpen = false
@@ -25,6 +33,7 @@ struct ClubDetailView: View {
     @State private var activeOffer: RumbalistOffer?
     @State private var planGroup: GroupRef?
     @State private var photoViewer: PhotoIndex?
+    @State private var activeEvent: ClubEvent?
 
     /// Offers actually running on the night the user has planned: the night
     /// must fall within the offer's validDays AND not be one of the supplier's
@@ -59,6 +68,54 @@ struct ClubDetailView: View {
         return nil
     }
 
+    /// The DJ page, wired to this club. Built here rather than at each
+    /// presentation point because a DJ can be opened from the club page or from
+    /// an event's lineup, and both must offer the same guestlist and the same
+    /// venue navigation.
+    ///
+    /// `closeStack` tears down the sheet chain the page is sitting in — the DJ
+    /// sheet alone when it was opened from the club page, or the event sheet
+    /// underneath it when it came from a lineup row. Both destinations (the
+    /// offer sheet, a pushed club page) are presented by THIS view, and neither
+    /// can appear while a sheet is still covering it.
+    private func djPage(_ dj: FeaturedDJ, autoplay: Bool,
+                        closeStack: @escaping () -> Void) -> some View {
+        // The guestlist for a DJ box is for the DJ's OWN night, not tonight:
+        // target the next occurrence of their weekday and open the offer live
+        // on that date (booking then uses plan.date = that night).
+        let djDate = nextDate(forNight: dj.night)
+        let djOffers = offers(on: djDate ?? plan.date)
+        return FeaturedDJSheet(
+            dj: dj,
+            autoplay: autoplay,
+            bookable: !djOffers.isEmpty,
+            onBook: djOffers.isEmpty ? nil : {
+                if let first = djOffers.first { logGuestlistClick(source: "dj", offer: first, dj: dj) }
+                if let djDate { plan.date = djDate }
+                closeStack()
+                // Let the sheets finish dismissing before opening the offer.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    activeOffer = djOffers.first
+                }
+            },
+            onOpenVenue: { clubId in
+                // Only fires for a gig at a DIFFERENT venue (same-club rows
+                // aren't tappable). Dismiss the chain, then push that club
+                // page. pushPlace is a no-op outside the explore stack, so it
+                // degrades to a dismiss there rather than misbehaving.
+                closeStack()
+                guard clubId != place.placeId else { return }
+                Task { @MainActor in
+                    guard let target = try? await auth.queries.clubsByIds([clubId]).first
+                    else { return }
+                    try? await Task.sleep(nanoseconds: 400_000_000)
+                    pushPlace(target)
+                }
+            },
+            currentClubId: place.placeId
+        )
+    }
+
     private let heroHeight: CGFloat = 360
 
     var body: some View {
@@ -69,7 +126,7 @@ struct ClubDetailView: View {
                     .offset(y: -32)   // slide the white sheet up over the hero
             }
         }
-        .background(Color.white)
+        .background(Theme.surface)
         .ignoresSafeArea(edges: .top)
         .scrollIndicators(.hidden)
         .toolbar(.hidden, for: .navigationBar)
@@ -78,7 +135,7 @@ struct ClubDetailView: View {
             if let detail { BookNightSheet(detail: detail) }
         }
         .sheet(isPresented: $showGuestGate) {
-            GuestGateView().presentationDetents([.medium])
+            GuestGateView(reason: .guestlist).presentationDetents([.medium])
         }
         .sheet(item: $activeOffer) { offer in
             RumbalistOfferSheet(
@@ -102,25 +159,15 @@ struct ClubDetailView: View {
         .fullScreenCover(item: $photoViewer) { idx in
             PhotoViewer(photos: photos, startIndex: idx.value)
         }
+        .sheet(item: $activeEvent) { event in
+            EventDetailSheet(event: event, djFor: { dj(for: $0) }) { picked in
+                // Stacked on the event, so closing the DJ lands back on it. The
+                // event sheet is what has to go when the DJ page navigates away.
+                djPage(picked, autoplay: false, closeStack: { activeEvent = nil })
+            }
+        }
         .sheet(item: $activeDJ) { dj in
-            // The guestlist for a DJ box is for the DJ's OWN night, not tonight:
-            // target the next occurrence of their weekday and open the offer live
-            // on that date (booking then uses plan.date = that night).
-            let djDate = nextDate(forNight: dj.night)
-            let djOffers = offers(on: djDate ?? plan.date)
-            FeaturedDJSheet(
-                dj: dj,
-                autoplay: djAutoplay,
-                bookable: !djOffers.isEmpty,
-                onBook: djOffers.isEmpty ? nil : {
-                    if let first = djOffers.first { logGuestlistClick(source: "dj", offer: first, dj: dj) }
-                    if let djDate { plan.date = djDate }
-                    // Let the DJ sheet finish dismissing before opening the offer.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                        activeOffer = djOffers.first
-                    }
-                }
-            )
+            djPage(dj, autoplay: djAutoplay, closeStack: { activeDJ = nil })
         }
         .task {
             // Events are independent of the detail row, so a failure on either
@@ -128,8 +175,24 @@ struct ClubDetailView: View {
             async let upcoming = (try? auth.queries.clubEvents(clubId: place.placeId)) ?? []
             async let djs = (try? auth.queries.featuredDJs(clubId: place.placeId)) ?? []
             detail = try? await auth.queries.clubById(place.placeId)
-            events = await upcoming
+            let evs = await upcoming
+            events = evs
             featuredDJs = await djs
+
+            // Enrich the event boxes: flyer images (from the ticket cache, which
+            // is the only place event artwork lives) and which lineup artists are
+            // DJs we can link through to.
+            let raIds = evs.map(\.raEventId)
+            let credits = evs.flatMap(\.credits)
+            let artistIds = Array(Set(credits.compactMap(\.id)))
+            // Only names that have no id need the name-based lookup.
+            let artistNames = Array(Set(credits.filter { $0.id == nil }.map(\.name)))
+            async let imgs = (try? auth.queries.eventImages(raEventIds: raIds)) ?? [:]
+            async let byId = (try? auth.queries.djsByIds(artistIds)) ?? []
+            async let byName = (try? auth.queries.djsByNames(artistNames)) ?? []
+            eventImages = await imgs
+            djById = (await byId).reduce(into: [:]) { $0[$1.raArtistId] = $1 }
+            djByName = (await byName).reduce(into: [:]) { $0[$1.name] = $1 }
             #if DEBUG
             if ProcessInfo.processInfo.environment["CF_TEST_BOOK"] == "1", detail != nil {
                 showBookSheet = true
@@ -163,10 +226,10 @@ struct ClubDetailView: View {
         // The hero photo is not tappable — the photos strip below is the way to
         // open the full-screen viewer.
         ZStack(alignment: .bottomLeading) {
-            Color(hex: 0xEFE9DD)
+            Theme.imagePlaceholder
                 .overlay {
                     if let url = photos.first.flatMap(URL.init(string:)) {
-                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Theme.imagePlaceholder }
                     } else {
                         Image(systemName: "music.note.house")
                             .font(.system(size: 44))
@@ -277,7 +340,7 @@ struct ClubDetailView: View {
         }
         .padding(.bottom, 40)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white, in: .rect(topLeadingRadius: 24, topTrailingRadius: 24))
+        .background(Theme.surface, in: .rect(topLeadingRadius: 24, topTrailingRadius: 24))
     }
 
     // ── Fact strip ────────────────────────────────────────────────────────────
@@ -307,7 +370,7 @@ struct ClubDetailView: View {
     }
     private var statusColor: Color {
         switch openStatus {
-        case true: return Color(hex: 0x2D7A46)
+        case true: return Theme.success
         case false: return Theme.wine
         default: return Theme.fadedSand
         }
@@ -323,7 +386,11 @@ struct ClubDetailView: View {
                 if star {
                     Image(systemName: "star.fill")
                         .font(.system(size: 11))
-                        .foregroundStyle(Color(hex: 0xD4A017))
+                        // Rating star sits on the adaptive fact tile, so it
+                        // deepens in Dark like the rest of the golds. (The
+                        // stars on the photo cards stay bright — they're over
+                        // images, which are dark in both modes.)
+                        .foregroundStyle(Color.adaptive(light: 0xD4A017, dark: 0xA8883F))
                 }
                 Text(value)
                     .font(.cfSans(15, weight: .bold))
@@ -360,7 +427,7 @@ struct ClubDetailView: View {
                 .lineLimit(4)
                 .padding(.leading, 14)
                 .overlay(alignment: .leading) {
-                    Rectangle().fill(Color(hex: 0x221E1A).opacity(0.16)).frame(width: 2)
+                    Rectangle().fill(Theme.ink.opacity(0.16)).frame(width: 2)
                 }
         }
     }
@@ -425,6 +492,8 @@ struct ClubDetailView: View {
                     }
                 }
                 ForEach(Array(events.prefix(eventsShown))) { event in
+                    // Whole card opens the full detail; the lineup chips inside
+                    // keep their own taps for jumping straight to a DJ.
                     eventBox(event)
                 }
             }
@@ -454,6 +523,18 @@ struct ClubDetailView: View {
     private func eventBox(_ event: ClubEvent) -> some View {
         let parts = event.dateParts
         return VStack(spacing: 0) {
+            // Flyer — the event's own image (from the scraper) when present,
+            // otherwise the ticket-cache fallback; text-only when neither exists.
+            if let flyer = event.image ?? eventImages[event.raEventId], let url = URL(string: flyer) {
+                CachedAsyncImage(url: url, targetWidth: 700) {
+                    $0.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Theme.cream.overlay(ProgressView().tint(Theme.fadedSand))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 160)
+                .clipped()
+            }
             HStack(alignment: .top, spacing: 14) {
                 // Date block — the thing people scan for
                 VStack(spacing: 1) {
@@ -492,12 +573,8 @@ struct ClubDetailView: View {
                         }
                     }
 
-                    if !event.lineup.isEmpty {
-                        Text(event.lineup.joined(separator: " · ")
-                             + (event.extraArtists > 0 ? " +\(event.extraArtists)" : ""))
-                            .font(.cfSans(12))
-                            .foregroundStyle(Theme.stone)
-                            .fixedSize(horizontal: false, vertical: true)
+                    if !event.credits.isEmpty {
+                        lineupView(event)
                     }
 
                     if let promoters = event.promoters, !promoters.isEmpty {
@@ -507,55 +584,81 @@ struct ClubDetailView: View {
                             .foregroundStyle(Theme.fadedSand)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+
+                    if let description = event.description?
+                        .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
+                        Text(description)
+                            .font(.cfSans(12))
+                            .foregroundStyle(Theme.stone)
+                            .lineSpacing(3)
+                            .lineLimit(6)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 2)
+                    }
                 }
                 Spacer(minLength: 0)
             }
             .padding(14)
 
-            if let url = event.ticketsURL {
-                Divider().overlay(Theme.hairline)
-                Button {
-                    Haptics.tap()
-                    logTicketClick(event)
-                    openURL(url)
-                } label: {
-                    HStack(spacing: 6) {
-                        Text(locale.t("detail.ticketsOnRA"))
-                            .font(.cfSans(13, weight: .semibold))
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 11, weight: .semibold))
-                    }
-                    .foregroundStyle(Theme.wine)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                }
-                .buttonStyle(.plain)
-            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.cream, in: .rect(cornerRadius: 14))
+        .background(Theme.cream)
+        .clipShape(.rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
+        .contentShape(.rect)
+        .onTapGesture { Haptics.tap(); activeEvent = event }
     }
 
-    /// Attribution telemetry — fire and forget, never blocks opening the link.
-    private func logTicketClick(_ event: ClubEvent) {
-        // Encodable keys are converted to snake_case by APIClient's encoder.
-        struct Click: Encodable, Sendable {
-            let eventId: String
-            let platform: String
-            let eventTitle: String
-            let venueName: String
-            let venuePlaceId: String
-            let eventDate: String
+    // The event's lineup as chips. A name we hold in the DJ catalogue is a
+    // tappable chip that opens their page (the same sheet Featured DJs use,
+    // schedule and all); anything else is a plain chip.
+    @ViewBuilder private func lineupView(_ event: ClubEvent) -> some View {
+        FlowLayout(spacing: 6, lineSpacing: 6) {
+            // Billing order, every DJ on the night — a card for a four-DJ event
+            // credits all four, each opening its own DJ page.
+            ForEach(event.visibleCredits, id: \.key) { credit in
+                artistChip(credit)
+            }
+            if event.extraCredits > 0 {
+                Text("+\(event.extraCredits)")
+                    .font(.cfSans(11)).foregroundStyle(Theme.fadedSand)
+                    .padding(.vertical, 5)
+            }
         }
-        struct Ack: Decodable, Sendable { let logged: Bool? }
-
-        let click = Click(
-            eventId: event.raEventId, platform: "ra", eventTitle: event.title,
-            venueName: event.venueName ?? place.name, venuePlaceId: place.placeId,
-            eventDate: event.date)
-        Task { let _: Ack? = try? await api.post("/api/ticket-clicks", body: click) }
     }
+
+    /// Resolve a credit to a DJ: by RA id when we have one (exact — two DJs can
+    /// share a name), else by name for legacy rows.
+    private func dj(for credit: LineupCredit) -> FeaturedDJ? {
+        if let id = credit.id, let hit = djById[id] { return hit }
+        return djByName[credit.name]
+    }
+
+    @ViewBuilder private func artistChip(_ credit: LineupCredit) -> some View {
+        let artist = credit.name
+        if let dj = dj(for: credit) {
+            Button {
+                Haptics.tap()
+                djAutoplay = false
+                activeDJ = dj
+            } label: {
+                HStack(spacing: 4) {
+                    Text(artist).font(.cfSans(12, weight: .medium))
+                    Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold))
+                }
+                .foregroundStyle(Theme.wine)
+                .padding(.horizontal, 9).padding(.vertical, 5)
+                .overlay(Capsule().stroke(Theme.wine.opacity(0.35)))
+            }
+            .buttonStyle(.plain)
+        } else {
+            Text(artist)
+                .font(.cfSans(12)).foregroundStyle(Theme.stone)
+                .padding(.horizontal, 9).padding(.vertical, 5)
+                .overlay(Capsule().stroke(Theme.fadedSand.opacity(0.3)))
+        }
+    }
+
 
     /// Transport telemetry — fire and forget, never blocks opening the deep link.
     /// Records which club the guest tried to travel to and via which option.
@@ -613,7 +716,7 @@ struct ClubDetailView: View {
                 ForEach(offers) { offer in
                     Button {
                         Haptics.tap()
-                        if auth.user == nil || auth.isAnonymous {
+                        if !auth.hasAccount {
                             showGuestGate = true
                         } else {
                             logGuestlistClick(source: "club", offer: offer)
@@ -642,7 +745,7 @@ struct ClubDetailView: View {
                 .foregroundStyle(offer.isVip ? ink : Theme.ink)
                 .frame(width: 44, height: 44)
                 .background(
-                    offer.isVip ? ink.opacity(0.18) : Color(hex: 0x221E1A).opacity(0.06),
+                    offer.isVip ? ink.opacity(0.18) : Theme.ink.opacity(0.06),
                     in: .rect(cornerRadius: 12)
                 )
 
@@ -694,8 +797,11 @@ struct ClubDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             if offer.isVip {
+                // Bronze, not yellow gold: the ramp is pulled from hue ~41° down
+                // to ~35° (copper) while holding lightness, so the dark text and
+                // icon stay readable on it.
                 LinearGradient(
-                    colors: [Color(hex: 0xF7E9C8), Color(hex: 0xEBD092), Color(hex: 0xD8B06A)],
+                    colors: [Color(hex: 0xF5D8AE), Color(hex: 0xE7BC80), Color(hex: 0xCF9B54)],
                     startPoint: .topLeading, endPoint: .bottomTrailing
                 )
             } else {
@@ -725,12 +831,12 @@ struct ClubDetailView: View {
                             Haptics.tap()
                             photoViewer = PhotoIndex(value: i + 1)
                         } label: {
-                            Color(hex: 0xEFE9DD)
+                            Theme.imagePlaceholder
                                 .overlay {
                                     if let parsed = URL(string: url) {
                                         // Thumbnail strip — right-sized; the full
                                         // photo loads native in the tap-through viewer.
-                                        CachedAsyncImage(url: parsed, targetWidth: 140) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                                        CachedAsyncImage(url: parsed, targetWidth: 140) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Theme.imagePlaceholder }
                                     }
                                 }
                                 .frame(width: 140, height: 100)
@@ -754,7 +860,10 @@ struct ClubDetailView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "clock")
                         .font(.system(size: 16))
-                        .foregroundStyle(Theme.wine)
+                        // Decorative, not an error — use `accent` so it stays wine
+                        // in light mode but reads as off-white in dark (Theme.wine
+                        // dark is a red that's near-invisible on the black card).
+                        .foregroundStyle(Theme.accent)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(locale.t("detail.openingHours").uppercased())
                             .font(.cfMono(9))

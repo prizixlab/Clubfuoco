@@ -12,6 +12,7 @@ struct SettingsView: View {
     @Environment(\.api) private var api
     @Environment(AuthStore.self) private var auth
     @Environment(LocaleStore.self) private var locale
+    @Environment(ThemeStore.self) private var theme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
@@ -36,6 +37,7 @@ struct SettingsView: View {
 
     var body: some View {
         @Bindable var localeStore = locale
+        @Bindable var themeStore = theme
 
         List {
             Section {
@@ -84,7 +86,7 @@ struct SettingsView: View {
                             .font(.cfSans(14, weight: .semibold))
                         if saving { ProgressView().padding(.leading, 4) }
                     }
-                    .foregroundStyle(savedFlash ? Color(hex: 0x2D7A46) : Theme.wine)
+                    .foregroundStyle(savedFlash ? Theme.success : Theme.wine)
                 }
                 .disabled(saving || !hasChanges)
             }
@@ -152,6 +154,16 @@ struct SettingsView: View {
                     Text(locale.t("settings.lang.es")).tag(LocaleStore.Setting.es)
                     Text(locale.t("settings.lang.ca")).tag(LocaleStore.Setting.ca)
                     Text(locale.t("settings.lang.fr")).tag(LocaleStore.Setting.fr)
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+
+            Section(locale.t("settings.theme")) {
+                Picker(locale.t("settings.theme"), selection: $themeStore.setting) {
+                    Text(locale.t("settings.theme.system")).tag(ThemeStore.Setting.system)
+                    Text(locale.t("settings.theme.light")).tag(ThemeStore.Setting.light)
+                    Text(locale.t("settings.theme.dark")).tag(ThemeStore.Setting.dark)
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
@@ -245,7 +257,7 @@ struct SettingsView: View {
 
     private var locationStatusColor: Color {
         switch locationStatus {
-        case .authorizedAlways:    Color(hex: 0x2D7A46)
+        case .authorizedAlways:    Theme.success
         case .authorizedWhenInUse: Theme.wine
         default:                   Theme.stone
         }

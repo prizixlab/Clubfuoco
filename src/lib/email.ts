@@ -157,7 +157,7 @@ export async function sendTicketConfirmation({
       <tr>
         <td style="background:linear-gradient(135deg,#ff4d00 0%,#cc2200 100%);padding:28px 28px 24px;">
           <p style="margin:0 0 6px;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.7);">
-            ${platform === 'ra' ? 'Resident Advisor' : platform === 'eventbrite' ? 'Eventbrite' : 'Club Fuoco'} · 1 Ticket
+            Club Fuoco · 1 Ticket
           </p>
           <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#fff;line-height:1.2;">${eventName}</h1>
           <p style="margin:0;font-size:16px;color:rgba(255,255,255,0.85);font-weight:500;">${venueName}</p>
@@ -474,9 +474,6 @@ export async function sendAdminTicketAlert({
 
   const ref     = orderId.slice(0, 8).toUpperCase()
   const dateStr = eventDate ? fmtDate(eventDate) : 'Date TBC'
-  const raUrl   = platformEventId && platform === 'ra'
-    ? `https://ra.co/events/${platformEventId.replace('ra_', '')}`
-    : null
 
   const html = `
 <!DOCTYPE html>
@@ -484,7 +481,7 @@ export async function sendAdminTicketAlert({
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#111;padding:32px;max-width:520px;">
   <div style="border-left:4px solid #ff4d00;padding-left:16px;margin-bottom:24px;">
     <h2 style="color:#ff4d00;margin:0 0 4px;font-size:20px;">New ticket order</h2>
-    <p style="color:#666;margin:0;font-size:14px;">Action required — purchase ticket on ${platform === 'ra' ? 'Resident Advisor' : 'Eventbrite'} and forward to customer.</p>
+    <p style="color:#666;margin:0;font-size:14px;">Action required — purchase this ticket and forward it to the customer.</p>
   </div>
 
   <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px;">
@@ -497,10 +494,6 @@ export async function sendAdminTicketAlert({
     <tr style="background:#f9f9f9;"><td style="padding:10px 12px;color:#666;">Charged</td><td style="padding:10px 12px;font-weight:700;font-size:16px;">${fmtPrice(totalCents, currency)}</td></tr>
   </table>
 
-  ${raUrl ? `
-  <a href="${raUrl}" style="display:inline-block;background:#ff4d00;color:#fff;font-weight:700;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;margin-bottom:24px;">
-    → Buy on Resident Advisor
-  </a>` : ''}
 
   <div style="background:#fff8f5;border:1px solid #ffd0bb;border-radius:8px;padding:16px;font-size:13px;line-height:1.6;">
     <strong>Steps:</strong><br>

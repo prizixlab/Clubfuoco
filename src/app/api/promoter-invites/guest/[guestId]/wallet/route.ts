@@ -2,12 +2,20 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { PKPass } from 'passkit-generator'
 import { nightPassDates } from '@/lib/wallet/expiry'
-import path from 'path'
-import fs from 'fs'
+import {
+  passThemeRow, resolvePassTheme, passImages, promoterForGuest,
+  promoterDisplayName, HOUSE_THEME,
+} from '@/lib/wallet/pass-theme'
 
 // Apple Wallet pass for a promoter-invite claim. Mirrors
 // /api/bookings/[id]/wallet — same cert envs — but the primary field is the
 // invited guest's NAME (per spec) instead of the venue.
+//
+// This is the one pass a promoter can brand: the colours, the wordmark and the
+// organisation name come from their theme (see src/lib/wallet/pass-theme.ts).
+// The bundle is still signed with OUR Pass Type ID certificate — there is only
+// one — so the back of the pass says where it came from regardless of what the
+// front looks like.
 
 const CONFIGURED =
   !!process.env.APPLE_PASS_TYPE_ID &&
@@ -66,6 +74,14 @@ export async function GET(
       ? `${nightRow.open_time.slice(0, 5)} – ${nightRow.close_time.slice(0, 5)}`
       : null
 
+  // The promoter who invited this guest owns the branding. No theme row (the
+  // common case) resolves to the house palette, so this is a no-op for anyone
+  // who has never opened the screen.
+  const promoterId = await promoterForGuest(sb, guestId)
+  const themeRow = promoterId ? await passThemeRow(sb, promoterId) : HOUSE_THEME
+  const theme = resolvePassTheme(themeRow)
+  const brandName = promoterId ? await promoterDisplayName(sb, promoterId) : 'Club Fuoco'
+
   const passJson = {
     formatVersion:      1,
     passTypeIdentifier: process.env.APPLE_PASS_TYPE_ID!,
@@ -73,12 +89,16 @@ export async function GET(
     // Relevant on the night, filed under "Expired Passes" the next morning.
     ...nightPassDates(nightRow.night_date),
     teamIdentifier:     process.env.APPLE_TEAM_ID!,
-    organizationName:   'Club Fuoco',
+    // Shown on lock-screen notifications, so it should read as whoever the
+    // guest thinks invited them.
+    organizationName:   brandName,
     description:        `${nightRow.title ?? clubName} guestlist`,
-    foregroundColor:    'rgb(255, 246, 229)',
-    backgroundColor:    'rgb(10, 8, 7)',
-    labelColor:         'rgb(232, 182, 91)',
-    logoText:           'Club Fuoco',
+    foregroundColor:    theme.foregroundColor,
+    backgroundColor:    theme.backgroundColor,
+    labelColor:         theme.labelColor,
+    // Omitted entirely when a logo image is set — PassKit draws both if given
+    // both, which reads as a mistake rather than a brand.
+    ...(theme.logoText ? { logoText: theme.logoText } : {}),
     eventTicket: {
       // Spec: invitee's NAME is the primary field — this is the
       // single most useful piece of info for the bouncer + the invitee.
@@ -99,6 +119,11 @@ export async function GET(
         { key: 'list',    label: 'LIST',     value: 'Promoter guestlist · Comp entry' },
         { key: 'terms',   label: 'TERMS',
           value: 'Non-transferable. Present at door. Subject to capacity and venue policy.' },
+        // Provenance stays on the pass even when the front is entirely the
+        // promoter's — the guest should be able to find out who actually
+        // issued the thing in their Wallet.
+        { key: 'issuer',  label: 'ISSUED BY',
+          value: theme.isHouse ? 'Club Fuoco' : `${brandName} · issued via Club Fuoco` },
       ],
     },
     barcodes: [
@@ -115,17 +140,14 @@ export async function GET(
     },
   }
 
-  const assetsDir = path.join(process.cwd(), 'public', 'pass-assets')
+  // All six image slots come from the promoter or none do — see passImages.
+  const images = await passImages(themeRow)
 
   try {
     const pass = new PKPass(
       {
-        'pass.json':   Buffer.from(JSON.stringify(passJson)),
-        'icon.png':    fs.readFileSync(path.join(assetsDir, 'icon.png')),
-        'icon@2x.png': fs.readFileSync(path.join(assetsDir, 'icon@2x.png')),
-        'icon@3x.png': fs.readFileSync(path.join(assetsDir, 'icon@3x.png')),
-        'logo.png':    fs.readFileSync(path.join(assetsDir, 'logo.png')),
-        'logo@2x.png': fs.readFileSync(path.join(assetsDir, 'logo@2x.png')),
+        'pass.json': Buffer.from(JSON.stringify(passJson)),
+        ...images,
       },
       {
         wwdr:                Buffer.from(process.env.APPLE_WWDR_PEM!,        'base64'),

@@ -95,7 +95,7 @@ struct SplashView: View {
                         Spacer()
                     }
                     .padding(14)
-                    .background(Color.white.opacity(0.55), in: .rect(cornerRadius: 14))
+                    .background(Theme.surface.opacity(0.55), in: .rect(cornerRadius: 14))
                 }
                 Spacer(minLength: 0)
             }

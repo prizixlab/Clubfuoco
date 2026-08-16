@@ -42,7 +42,7 @@ struct ExploreView: View {
     /// The Always upgrade is a separate ask, surfaced after the user actually
     /// books — see `BookNightSheet.confirmedView`.
     private func maybePromptNearby() {
-        guard auth.state == .signedIn, !auth.guestMode else { return }
+        guard auth.hasAccount else { return }
         guard !UserDefaults.standard.bool(forKey: Self.nearbyPromptKey) else { return }
         guard LocationService.shared.authorizationStatus == .notDetermined else { return }
         UserDefaults.standard.set(true, forKey: Self.nearbyPromptKey)
@@ -162,7 +162,7 @@ struct ExploreView: View {
         }
         #endif
         .sheet(isPresented: $showGuestGate) {
-            GuestGateView()
+            GuestGateView(reason: .save)
                 .presentationDetents([.medium])
         }
     }
@@ -200,7 +200,7 @@ struct ExploreView: View {
                         .foregroundStyle(Theme.stone)
                         .padding(.horizontal, 13)
                         .frame(height: 36)
-                        .background(Color(hex: 0x221E1A).opacity(0.05), in: .capsule)
+                        .background(Theme.ink.opacity(0.05), in: .capsule)
                 }
 
                 roundButton(
@@ -219,7 +219,7 @@ struct ExploreView: View {
                 .font(.system(size: 15))
                 .foregroundStyle(active ? Theme.cream : Theme.stone)
                 .frame(width: 36, height: 36)
-                .background(active ? Theme.ink : Color(hex: 0x221E1A).opacity(0.05), in: .circle)
+                .background(active ? Theme.ink : Theme.ink.opacity(0.05), in: .circle)
         }
     }
 
@@ -249,7 +249,7 @@ struct ExploreView: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 50)
-        .background(Color.white, in: .rect(cornerRadius: 16))
+        .background(Theme.surface, in: .rect(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.ink.opacity(0.06), lineWidth: 1))
         .shadow(color: Theme.ink.opacity(0.06), radius: 12, y: 4)
     }
@@ -292,7 +292,7 @@ struct ExploreView: View {
                                 .foregroundStyle(active ? Theme.cream : Theme.stone)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 7)
-                                .background(active ? Theme.ink : Color(hex: 0x221E1A).opacity(0.05), in: .capsule)
+                                .background(active ? Theme.ink : Theme.ink.opacity(0.05), in: .capsule)
                         }
                     }
                 }
@@ -322,7 +322,7 @@ struct ExploreView: View {
     }
 
     private func save(_ place: Place) {
-        if !model.toggleSave(place, isSignedIn: auth.user != nil) {
+        if !model.toggleSave(place, isSignedIn: auth.hasAccount) {
             showGuestGate = true
         }
     }
@@ -343,7 +343,7 @@ struct ExploreView: View {
                     Spacer()
                     Text(String(format: locale.t("explore.eventsArrow"), model.rumbas.count))
                         .font(.cfSans(12))
-                        .foregroundStyle(Theme.wine)
+                        .foregroundStyle(Theme.accent)
                 }
             }
             .padding(.horizontal, 20)
@@ -408,10 +408,10 @@ struct ExploreView: View {
                 ForEach(model.searchResults) { place in
                     NavigationLink(value: place) {
                         HStack(spacing: 12) {
-                            Color(hex: 0xEFE9DD)
+                            Theme.imagePlaceholder
                                 .overlay {
                                     if let url = place.coverPhoto.flatMap(URL.init(string:)) {
-                                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Theme.imagePlaceholder }
                                     }
                                 }
                                 .frame(width: 52, height: 52)
@@ -435,11 +435,11 @@ struct ExploreView: View {
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 7)
                                     .padding(.vertical, 2)
-                                    .background(Color(hex: 0x2D7A46), in: .capsule)
+                                    .background(Theme.success, in: .capsule)
                             }
                         }
                         .padding(12)
-                        .background(Color.white, in: .rect(cornerRadius: 12))
+                        .background(Theme.surface, in: .rect(cornerRadius: 12))
                         .shadow(color: Color(hex: 0x221E1A).opacity(0.05), radius: 6, y: 3)
                     }
                     .buttonStyle(.plain)
@@ -536,7 +536,7 @@ struct ExploreView: View {
             }
             .padding(.init(top: 18, leading: 20, bottom: 20, trailing: 20))
         }
-        .background(Color.white)
+        .background(Theme.surface)
         .clipShape(.rect(cornerRadius: Theme.radiusCard))
         .shadow(color: Color(hex: 0x221E1A).opacity(0.08), radius: 14, y: 10)
     }
@@ -591,7 +591,7 @@ struct ExploreView: View {
             .foregroundStyle(Theme.wine)
         }
         .padding(14)
-        .background(Color.white, in: .rect(cornerRadius: 12))
+        .background(Theme.surface, in: .rect(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.wine.opacity(0.2)))
         .padding(.horizontal, 20)
     }
@@ -601,10 +601,10 @@ private struct CardPhotoLarge: View {
     let url: String?
 
     var body: some View {
-        Color(hex: 0xEFE9DD)
+        Theme.imagePlaceholder
             .overlay {
                 if let url, let parsed = URL(string: url) {
-                    CachedAsyncImage(url: parsed) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0xEFE9DD) }
+                    CachedAsyncImage(url: parsed) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Theme.imagePlaceholder }
                 }
             }
             .frame(height: 200)

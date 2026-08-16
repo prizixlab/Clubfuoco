@@ -85,7 +85,15 @@ export function resolvePassTheme(row: PassThemeRow): ResolvedPassTheme {
     // A wordmark image wins over wordmark text; PassKit shows both if given
     // both, which reads as a mistake.
     logoText: theme.logo_1x_url ? null : (theme.logo_text?.trim() || null),
-    isHouse: !usable || (theme === HOUSE_THEME),
+    // By VALUE, not by identity: a stored row that happens to hold the house
+    // colours and nothing else is a house pass, and should still get the
+    // flame. Only an actual customisation drops it.
+    isHouse: !usable || (
+      theme.background.toUpperCase() === HOUSE_BACKGROUND &&
+      theme.accent.toUpperCase() === HOUSE_ACCENT &&
+      !theme.logo_text?.trim() &&
+      !theme.logo_1x_url
+    ),
   }
 }
 
@@ -94,37 +102,52 @@ const HOUSE_ASSETS = path.join(process.cwd(), 'public', 'pass-assets')
 /** The bundle's image files, keyed as PassKit expects them. */
 export type PassImages = Record<string, Buffer>
 
-function houseImages(): PassImages {
+/** icon.png is REQUIRED by PassKit — a bundle without it will not install. */
+function houseIcons(): PassImages {
   return {
     'icon.png':    fs.readFileSync(path.join(HOUSE_ASSETS, 'icon.png')),
     'icon@2x.png': fs.readFileSync(path.join(HOUSE_ASSETS, 'icon@2x.png')),
     'icon@3x.png': fs.readFileSync(path.join(HOUSE_ASSETS, 'icon@3x.png')),
+  }
+}
+
+/** logo.png is optional — omit it and PassKit renders logoText alone. */
+function houseLogo(): PassImages {
+  return {
     'logo.png':    fs.readFileSync(path.join(HOUSE_ASSETS, 'logo.png')),
     'logo@2x.png': fs.readFileSync(path.join(HOUSE_ASSETS, 'logo@2x.png')),
   }
 }
 
 /**
- * Fetch a themed bundle's images, falling back to the house mark.
+ * The bundle's images for a theme.
  *
- * Every slot is all-or-nothing: a bundle carrying a promoter logo at @2x but
- * the house mark at @1x would render differently by device, which is worse
- * than being consistently un-branded. A fetch failure falls back for the same
- * reason — this runs while a guest is waiting for a download.
+ * The house flame goes on a HOUSE pass and nowhere else. On a promoter's pass
+ * it sat next to their own wordmark, which read as Club Fuoco co-signing their
+ * night rather than as their brand — so a themed pass with no uploaded logo
+ * ships no logo image at all, and PassKit draws the wordmark on its own.
+ * Provenance still lives on the back of the pass, where it belongs.
+ *
+ * Promoter logo slots are all-or-nothing: a bundle carrying their logo at @2x
+ * but the house mark at @1x would render differently by device. A fetch failure
+ * drops to no logo rather than to the house mark, for the same reason — this
+ * runs while a guest waits for a download, so it must not fail, but it also
+ * must not silently re-brand their pass as ours.
  */
-export async function passImages(row: PassThemeRow): Promise<PassImages> {
-  const house = houseImages()
-  if (row.status === 'blocked') return house
+export async function passImages(
+  row: PassThemeRow,
+  opts: { isHouse: boolean }
+): Promise<PassImages> {
+  const icons = houseIcons()
+  if (row.status === 'blocked' || opts.isHouse) return { ...icons, ...houseLogo() }
 
   const slots: [keyof PassThemeRow, string][] = [
-    ['icon_1x_url', 'icon.png'],
-    ['icon_2x_url', 'icon@2x.png'],
-    ['icon_3x_url', 'icon@3x.png'],
     ['logo_1x_url', 'logo.png'],
     ['logo_2x_url', 'logo@2x.png'],
     ['logo_3x_url', 'logo@3x.png'],
   ]
-  if (slots.some(([key]) => !row[key])) return house
+  // Themed, but no logo uploaded yet: wordmark only.
+  if (slots.some(([key]) => !row[key])) return icons
 
   try {
     const entries = await Promise.all(
@@ -134,10 +157,10 @@ export async function passImages(row: PassThemeRow): Promise<PassImages> {
         return [file, Buffer.from(await res.arrayBuffer())] as const
       })
     )
-    return Object.fromEntries(entries)
+    return { ...icons, ...Object.fromEntries(entries) }
   } catch (e) {
-    console.warn('[pass-theme] falling back to house images:', e)
-    return house
+    console.warn('[pass-theme] promoter logo unavailable, shipping wordmark only:', e)
+    return icons
   }
 }
 

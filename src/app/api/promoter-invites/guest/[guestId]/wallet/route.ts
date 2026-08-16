@@ -81,6 +81,10 @@ export async function GET(
   const themeRow = promoterId ? await passThemeRow(sb, promoterId) : HOUSE_THEME
   const theme = resolvePassTheme(themeRow)
   const brandName = promoterId ? await promoterDisplayName(sb, promoterId) : 'Club Fuoco'
+  // A branded pass carries no house flame, so if the promoter set no wordmark
+  // and uploaded no logo, their name stands in rather than leaving it bare.
+  const passLogoText = theme.logoText
+    ?? (theme.isHouse || themeRow.logo_1x_url ? null : brandName)
 
   const passJson = {
     formatVersion:      1,
@@ -97,8 +101,10 @@ export async function GET(
     backgroundColor:    theme.backgroundColor,
     labelColor:         theme.labelColor,
     // Omitted entirely when a logo image is set — PassKit draws both if given
-    // both, which reads as a mistake rather than a brand.
-    ...(theme.logoText ? { logoText: theme.logoText } : {}),
+    // both, which reads as a mistake rather than a brand. A themed pass with
+    // neither falls back to the promoter's name, so the top of the pass is
+    // never blank now that it no longer carries our flame.
+    ...(passLogoText ? { logoText: passLogoText } : {}),
     eventTicket: {
       // Spec: invitee's NAME is the primary field — this is the
       // single most useful piece of info for the bouncer + the invitee.
@@ -140,8 +146,8 @@ export async function GET(
     },
   }
 
-  // All six image slots come from the promoter or none do — see passImages.
-  const images = await passImages(themeRow)
+  // The house flame ships only on a house pass — see passImages.
+  const images = await passImages(themeRow, { isHouse: theme.isHouse })
 
   try {
     const pass = new PKPass(

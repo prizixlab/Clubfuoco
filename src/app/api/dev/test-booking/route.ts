@@ -3,9 +3,16 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { generateQRToken } from '@/lib/utils'
 
-// Allowlisted owner emails that can seed test bookings in production.
-// Same list as the client-side gate in bookings/page.tsx — keep in sync.
-const TEST_BOOKING_ALLOWLIST = ['yakov213409@gmail.com']
+// Owner emails allowed to seed test bookings in production, as a comma-
+// separated TEST_BOOKING_EMAILS. Kept out of the source because this repo is
+// public and a hardcoded address here names exactly whose account to go after.
+//
+// Unset means nobody in production, which is the safe way to fail: the endpoint
+// still works in local development, where NODE_ENV gates it instead.
+const TEST_BOOKING_ALLOWLIST = (process.env.TEST_BOOKING_EMAILS ?? '')
+  .split(',')
+  .map(e => e.trim().toLowerCase())
+  .filter(Boolean)
 
 export async function POST() {
   const { user, response } = await requireAuth()

@@ -83,7 +83,7 @@ struct ClubDetailView: View {
             if let detail { BookNightSheet(detail: detail) }
         }
         .sheet(isPresented: $showGuestGate) {
-            GuestGateView().presentationDetents([.medium])
+            GuestGateView(reason: .guestlist).presentationDetents([.medium])
         }
         .sheet(item: $activeOffer) { offer in
             RumbalistOfferSheet(
@@ -708,7 +708,7 @@ struct ClubDetailView: View {
                 ForEach(offers) { offer in
                     Button {
                         Haptics.tap()
-                        if auth.user == nil || auth.isAnonymous {
+                        if !auth.hasAccount {
                             showGuestGate = true
                         } else {
                             logGuestlistClick(source: "club", offer: offer)

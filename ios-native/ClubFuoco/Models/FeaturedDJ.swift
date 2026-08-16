@@ -96,6 +96,9 @@ struct FeaturedDJ: Decodable, Identifiable, Sendable, Hashable {
 /// (start_time → startTime, venue_name → venueName, club_id → clubId).
 struct DJGig: Decodable, Identifiable, Sendable, Hashable {
     let raEventId: String
+    /// The night's own name ("Bassline Ritual") — the design's primary line,
+    /// with venue · city beneath. Falls back to the venue when absent.
+    let title: String?
     let date: String            // "yyyy-MM-dd"
     let startTime: String?
     let venueName: String?
@@ -110,10 +113,51 @@ struct DJGig: Decodable, Identifiable, Sendable, Hashable {
     /// A night the user can actually act on here.
     var isBookable: Bool { clubId != nil }
 
+    /// The city we operate in. A Barcelona night whose venue we simply don't
+    /// carry a page for is NOT "coming soon" — telling a user that Barcelona is
+    /// coming soon, in a Barcelona app, reads as broken. Those rows are listed
+    /// plainly instead.
+    var isHomeCity: Bool {
+        (city ?? "").localizedCaseInsensitiveCompare("Barcelona") == .orderedSame
+    }
+
+    /// True only for a night in a city we have not launched.
+    var isAwayCity: Bool { !isBookable && !isHomeCity }
+
     /// "Berlin" / "Berlin, Germany" — what we tell the user is coming.
     var placeLabel: String {
         [city, country].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
     }
+
+    /// "Sub Rosa · Barcelona" — the design's second line on a timeline row.
+    var venueCityLine: String {
+        [venueName, city].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    /// Day-of-month for the row's date block ("26").
+    var dayNumber: String {
+        guard let d = DJGig.iso.date(from: date) else { return String(date.suffix(2)) }
+        return DJGig.day.string(from: d)
+    }
+
+    /// Short month for the row's date block ("Jul").
+    var monthLabel: String {
+        guard let d = DJGig.iso.date(from: date) else { return "" }
+        return DJGig.month.string(from: d)
+    }
+
+    private static let day: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "d"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "Europe/Madrid")
+        return f
+    }()
+    private static let month: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "MMM"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "Europe/Madrid")
+        return f
+    }()
 
     /// "Wed 13 Aug", or the raw string if it somehow doesn't parse.
     var displayDate: String {

@@ -203,76 +203,101 @@ extension DJPlayer: WKScriptMessageHandler {
 
 // MARK: - In-sheet control (our own gold player)
 
-/// Full player row for the DJ sheet — gold play/pause, track title, and a
-/// draggable gold scrubber. Bound to the shared DJPlayer.
+/// Player card for the DJ sheet — the `.dj-player` box from the Club Fuoco DJ
+/// Page design: accent play button, track title over a "SoundCloud preview"
+/// overline, a waveform, and the running times, on a bordered surface card.
+///
+/// The waveform IS the scrubber. In the comp it is decoration; here the bars
+/// carry the played fraction and take the drag, so the design's most
+/// characteristic element does the work the old flat slider did rather than
+/// sitting next to a duplicate control.
 struct DJPlayerControl: View {
     @Environment(DJPlayer.self) private var player
+    @Environment(LocaleStore.self) private var locale
     @State private var scrubbing: Double?          // fraction while dragging
 
+    /// The comp's bar heights (32 bars, 28pt tall). A fixed figure, not random:
+    /// it must not reshuffle on every redraw while audio is playing.
+    private static let barHeights: [CGFloat] = [
+        6, 11, 17, 9, 22, 14, 26, 10, 18, 24, 8, 15, 20, 12, 27, 9,
+        16, 21, 11, 25, 13, 19, 7, 23, 17, 10, 14, 22, 9, 18, 12, 20,
+    ]
+
+    private var lineStrong: Color { Theme.fadedSand.opacity(0.34) }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 14) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
                 Button { Haptics.tap(); player.toggle() } label: {
                     ZStack {
-                        Circle().fill(Theme.gold).frame(width: 52, height: 52)
+                        Circle().fill(Theme.ember).frame(width: 38, height: 38)
                         if player.isLoading {
-                            ProgressView().tint(.white)
+                            ProgressView().tint(Theme.cream)
                         } else {
                             Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.system(size: 19))
-                                .foregroundStyle(.white)
-                                .offset(x: player.isPlaying ? 0 : 2)
+                                .font(.system(size: 14))
+                                .foregroundStyle(Theme.cream)
+                                .offset(x: player.isPlaying ? 0 : 1.5)
                         }
                     }
                 }
                 .buttonStyle(.plain)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(player.trackTitle.isEmpty ? "Loading…" : player.trackTitle)
-                        .font(.cfSans(13, weight: .medium))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(player.trackTitle.isEmpty ? locale.t("dj.loadingTrack") : player.trackTitle)
+                        .font(.cfSans(13.5, weight: .semibold))
                         .foregroundStyle(Theme.ink)
                         .lineLimit(1)
-                    Text("VIA SOUNDCLOUD")
-                        .font(.cfMono(9)).kerning(0.8)
+                    Text(locale.t("dj.soundcloudPreview").uppercased())
+                        .font(.cfMono(9)).kerning(0.9)
                         .foregroundStyle(Theme.fadedSand)
                 }
                 Spacer(minLength: 0)
             }
 
-            scrubber
+            waveform.padding(.top, 14)
 
             HStack {
                 Text(DJPlayer.timeLabel(player.positionMs))
                 Spacer()
-                Text("-" + DJPlayer.timeLabel(max(0, player.durationMs - player.positionMs)))
+                Text(DJPlayer.timeLabel(player.durationMs))
             }
-            .font(.cfMono(10))
+            .font(.cfMono(8.5)).kerning(0.5)
             .foregroundStyle(Theme.fadedSand)
+            .padding(.top, 8)
         }
-        .padding(16)
-        .background(Theme.cream, in: .rect(cornerRadius: 14))
+        .padding(.horizontal, 16).padding(.vertical, 14)
+        .background(Theme.surface, in: .rect(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(lineStrong))
     }
 
-    private var scrubber: some View {
+    private var waveform: some View {
         GeometryReader { geo in
             let frac = scrubbing ?? player.progress
-            ZStack(alignment: .leading) {
-                Capsule().fill(Theme.fadedSand.opacity(0.3)).frame(height: 4)
-                Capsule().fill(Theme.gold).frame(width: geo.size.width * frac, height: 4)
-                Circle().fill(Theme.gold).frame(width: 12, height: 12)
-                    .offset(x: geo.size.width * frac - 6)
+            let played = Int((Double(Self.barHeights.count) * frac).rounded())
+            HStack(alignment: .bottom, spacing: 2) {
+                ForEach(Array(Self.barHeights.enumerated()), id: \.offset) { i, h in
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(i < played ? Theme.ember : lineStrong)
+                        .frame(height: h)
+                }
             }
-            .frame(maxHeight: .infinity)
+            .frame(width: geo.size.width, height: 28, alignment: .bottom)
+            // The bars are 2pt apart, so hit-test the whole strip rather than
+            // the glyphs — otherwise a scrub lands between bars and does nothing.
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
-                    .onChanged { v in scrubbing = min(1, max(0, v.location.x / geo.size.width)) }
+                    .onChanged { v in
+                        scrubbing = min(1, max(0, v.location.x / max(geo.size.width, 1)))
+                    }
                     .onEnded { v in
-                        let f = min(1, max(0, v.location.x / geo.size.width))
-                        player.seek(fraction: f); scrubbing = nil
+                        let f = min(1, max(0, v.location.x / max(geo.size.width, 1)))
+                        player.seek(fraction: f)
+                        scrubbing = nil
                     }
             )
         }
-        .frame(height: 16)
+        .frame(height: 28)
     }
 }

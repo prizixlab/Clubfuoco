@@ -234,7 +234,7 @@ final class Queries: @unchecked Sendable {
         today.timeZone = TimeZone(identifier: "Europe/Madrid")
         return try await supabase.client
             .from("dj_appearances")
-            .select("ra_event_id, date, start_time, venue_name, city, country, club_id")
+            .select("ra_event_id, title, date, start_time, venue_name, city, country, club_id")
             .eq("ra_artist_id", value: raArtistId)
             .gte("date", value: today.string(from: Date()))
             .order("date", ascending: true)

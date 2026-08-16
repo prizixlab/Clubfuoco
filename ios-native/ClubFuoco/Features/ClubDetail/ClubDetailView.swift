@@ -22,6 +22,9 @@ struct ClubDetailView: View {
     // that are DJs we can link to (name → their catalogue page).
     @State private var eventImages: [String: String] = [:]
     @State private var djByName: [String: FeaturedDJ] = [:]
+    /// Credits resolved by RA artist id — the exact join. Names remain as a
+    /// fallback for events scraped before `lineup` carried ids.
+    @State private var djById: [String: FeaturedDJ] = [:]
     @State private var djAutoplay = false
     @State private var showAllWhatsOn = false
     @State private var hoursOpen = false
@@ -156,11 +159,16 @@ struct ClubDetailView: View {
             // is the only place event artwork lives) and which lineup artists are
             // DJs we can link through to.
             let raIds = evs.map(\.raEventId)
-            let artistNames = Array(Set(evs.flatMap { $0.artists ?? [] }))
+            let credits = evs.flatMap(\.credits)
+            let artistIds = Array(Set(credits.compactMap(\.id)))
+            // Only names that have no id need the name-based lookup.
+            let artistNames = Array(Set(credits.filter { $0.id == nil }.map(\.name)))
             async let imgs = (try? auth.queries.eventImages(raEventIds: raIds)) ?? [:]
-            async let known = (try? auth.queries.djsByNames(artistNames)) ?? []
+            async let byId = (try? auth.queries.djsByIds(artistIds)) ?? []
+            async let byName = (try? auth.queries.djsByNames(artistNames)) ?? []
             eventImages = await imgs
-            djByName = (await known).reduce(into: [:]) { $0[$1.name] = $1 }
+            djById = (await byId).reduce(into: [:]) { $0[$1.raArtistId] = $1 }
+            djByName = (await byName).reduce(into: [:]) { $0[$1.name] = $1 }
             #if DEBUG
             if ProcessInfo.processInfo.environment["CF_TEST_BOOK"] == "1", detail != nil {
                 showBookSheet = true
@@ -539,7 +547,7 @@ struct ClubDetailView: View {
                         }
                     }
 
-                    if !event.lineup.isEmpty {
+                    if !event.credits.isEmpty {
                         lineupView(event)
                     }
 
@@ -597,19 +605,29 @@ struct ClubDetailView: View {
     // schedule and all); anything else is a plain chip.
     @ViewBuilder private func lineupView(_ event: ClubEvent) -> some View {
         FlowLayout(spacing: 6, lineSpacing: 6) {
-            ForEach(Array(event.lineup.enumerated()), id: \.offset) { _, artist in
-                artistChip(artist)
+            // Billing order, every DJ on the night — a card for a four-DJ event
+            // credits all four, each opening its own DJ page.
+            ForEach(event.visibleCredits, id: \.key) { credit in
+                artistChip(credit)
             }
-            if event.extraArtists > 0 {
-                Text("+\(event.extraArtists)")
+            if event.extraCredits > 0 {
+                Text("+\(event.extraCredits)")
                     .font(.cfSans(11)).foregroundStyle(Theme.fadedSand)
                     .padding(.vertical, 5)
             }
         }
     }
 
-    @ViewBuilder private func artistChip(_ artist: String) -> some View {
-        if let dj = djByName[artist] {
+    /// Resolve a credit to a DJ: by RA id when we have one (exact — two DJs can
+    /// share a name), else by name for legacy rows.
+    private func dj(for credit: LineupCredit) -> FeaturedDJ? {
+        if let id = credit.id, let hit = djById[id] { return hit }
+        return djByName[credit.name]
+    }
+
+    @ViewBuilder private func artistChip(_ credit: LineupCredit) -> some View {
+        let artist = credit.name
+        if let dj = dj(for: credit) {
             Button {
                 Haptics.tap()
                 djAutoplay = false

@@ -191,7 +191,7 @@ final class Queries: @unchecked Sendable {
         today.timeZone = TimeZone(identifier: "Europe/Madrid")
         return try await supabase.client
             .from("events")
-            .select("ra_event_id, title, date, start_time, venue_name, promoters, artists, interested, attending, ra_url, image, description")
+            .select("ra_event_id, title, date, start_time, venue_name, promoters, artists, lineup, interested, attending, ra_url, image, description")
             .eq("club_id", value: clubId)
             // Events that are really just a lone DJ playing are hidden here and
             // surfaced as a Featured DJ box instead (see link_djs.py).
@@ -243,6 +243,27 @@ final class Queries: @unchecked Sendable {
             .value
     }
 
+    /// Resolve lineup credits to their `djs` rows BY RA ARTIST ID — the exact
+    /// join. `events.lineup` carries RA's id per credit, and `djs` is keyed on
+    /// the same id, so a night billing two DJs of the same name resolves each
+    /// correctly and a renamed artist still matches.
+    ///
+    /// Prefer this over djsByNames, which is kept only for rows scraped before
+    /// `lineup` existed.
+    func djsByIds(_ ids: [String]) async throws -> [FeaturedDJ] {
+        guard !ids.isEmpty else { return [] }
+        let rows: [DJCatalogueRow] = try await supabase.client
+            .from("djs")
+            .select("""
+                ra_artist_id, name, genres, instagram, soundcloud, website, \
+                known_venues, regions, bio, ra_url, image_url, cover_image_url, ra_followers
+                """)
+            .in("ra_artist_id", values: ids)
+            .execute()
+            .value
+        return rows.map(\.featuredDJ)
+    }
+
     /// Resolve a set of lineup artist names to their `djs` catalogue rows, so an
     /// event box can link the DJs it lists to their pages. Only names present in
     /// the catalogue come back — an unknown name (a live act, a one-off) simply
@@ -250,22 +271,7 @@ final class Queries: @unchecked Sendable {
     /// carries nil residency.
     func djsByNames(_ names: [String]) async throws -> [FeaturedDJ] {
         guard !names.isEmpty else { return [] }
-        struct Row: Decodable {
-            let raArtistId: String
-            let name: String
-            let genres: [String]?
-            let instagram: String?
-            let soundcloud: String?
-            let website: String?
-            let knownVenues: [String]?
-            let regions: [String]?
-            let bio: String?
-            let raUrl: String?
-            let imageUrl: String?
-            let coverImageUrl: String?
-            let raFollowers: Int?
-        }
-        let rows: [Row] = try await supabase.client
+        let rows: [DJCatalogueRow] = try await supabase.client
             .from("djs")
             .select("""
                 ra_artist_id, name, genres, instagram, soundcloud, website, \
@@ -274,13 +280,7 @@ final class Queries: @unchecked Sendable {
             .in("name", values: names)
             .execute()
             .value
-        return rows.map {
-            FeaturedDJ(raArtistId: $0.raArtistId, name: $0.name, genres: $0.genres ?? [],
-                       instagram: $0.instagram, soundcloud: $0.soundcloud, website: $0.website,
-                       knownVenues: $0.knownVenues ?? [], regions: $0.regions ?? [], bio: $0.bio,
-                       raUrl: $0.raUrl, imageUrl: $0.imageUrl, coverImageUrl: $0.coverImageUrl,
-                       raFollowers: $0.raFollowers)
-        }
+        return rows.map(\.featuredDJ)
     }
 
     /// Flyer images for events, keyed by `ra_event_id`. `events` carries no
@@ -410,5 +410,31 @@ final class Queries: @unchecked Sendable {
             .eq("user_id", value: session.user.id.uuidString)
             .eq("place_id", value: placeId)
             .execute()
+    }
+}
+
+/// A `djs` catalogue row. Shared by djsByIds and djsByNames so the column list
+/// and the mapping live in one place.
+struct DJCatalogueRow: Decodable, Sendable {
+    let raArtistId: String
+    let name: String
+    let genres: [String]?
+    let instagram: String?
+    let soundcloud: String?
+    let website: String?
+    let knownVenues: [String]?
+    let regions: [String]?
+    let bio: String?
+    let raUrl: String?
+    let imageUrl: String?
+    let coverImageUrl: String?
+    let raFollowers: Int?
+
+    var featuredDJ: FeaturedDJ {
+        FeaturedDJ(raArtistId: raArtistId, name: name, genres: genres ?? [],
+                   instagram: instagram, soundcloud: soundcloud, website: website,
+                   knownVenues: knownVenues ?? [], regions: regions ?? [], bio: bio,
+                   raUrl: raUrl, imageUrl: imageUrl, coverImageUrl: coverImageUrl,
+                   raFollowers: raFollowers)
     }
 }

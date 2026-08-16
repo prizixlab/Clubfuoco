@@ -6,6 +6,18 @@ import Foundation
 /// Distinct from `ExternalEvent`, which models the older, thinner `ra_events`
 /// cache the explore feed still reads. Events here are linked to a venue by
 /// `club_id` resolved at ingest, so no fuzzy venue-name matching is involved.
+/// One billed artist on an event, from `events.lineup`. `id` is RA's artist id
+/// — the same key `djs.ra_artist_id` uses — so a credit joins to a DJ page
+/// exactly. nil on rows scraped before the lineup field existed.
+struct LineupCredit: Decodable, Sendable, Hashable, Identifiable {
+    let id: String?
+    let name: String
+
+    /// Stable identity for ForEach: two DJs can share neither id nor position,
+    /// but an id-less legacy credit still needs a key.
+    var key: String { id ?? "name:\(name)" }
+}
+
 struct ClubEvent: Decodable, Sendable, Identifiable, Hashable {
     let raEventId: String
     let title: String
@@ -13,7 +25,10 @@ struct ClubEvent: Decodable, Sendable, Identifiable, Hashable {
     let startTime: String?        // ISO instant; already the correct Madrid time
     let venueName: String?
     let promoters: [String]?
+    /// Names only, unordered — kept for rows that predate `lineup`.
     let artists: [String]?
+    /// Ordered credits with RA artist ids (events.lineup jsonb).
+    let lineup: [LineupCredit]?
     let interested: Int?
     let attending: Int?
     let raUrl: String?
@@ -68,6 +83,19 @@ struct ClubEvent: Decodable, Sendable, Identifiable, Hashable {
         return out.string(from: parsed)
     }
 
-    var lineup: [String] { Array((artists ?? []).prefix(6)) }
-    var extraArtists: Int { max(0, (artists ?? []).count - lineup.count) }
+    /// The billed lineup: every DJ on the night, in the order RA lists them,
+    /// each with RA's artist id so a credit resolves to a DJ page exactly
+    /// rather than by name.
+    ///
+    /// Falls back to the older `artists` name array (no ids, no order) for rows
+    /// scraped before the lineup field existed — those credits still render,
+    /// they just match by name.
+    var credits: [LineupCredit] {
+        if let lineup, !lineup.isEmpty { return lineup }
+        return (artists ?? []).map { LineupCredit(id: nil, name: $0) }
+    }
+
+    /// Shown on the card; the rest sit behind a "+N".
+    var visibleCredits: [LineupCredit] { Array(credits.prefix(6)) }
+    var extraCredits: Int { max(0, credits.count - visibleCredits.count) }
 }

@@ -29,6 +29,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from venue_link import VenueLinker
+
 ROOT = pathlib.Path.home() / "scraper"
 DJS_DB = ROOT / "intel/events/djs.sqlite"
 SUPABASE_ENV = ROOT / "secrets/supabase.env"
@@ -101,28 +103,20 @@ def sb(method: str, path: str, base: str, key: str,
         return e.code, e.read().decode()
 
 
-def load_club_index(base: str, key: str) -> dict[str, str]:
-    """Normalised club name -> id, for the venues we actually carry.
-
-    Deliberately an EXACT normalised match, not the fuzzy venue matcher: a
-    wrong club_id here would make an away night look bookable and send someone
-    to the wrong door. When in doubt the row stays unbookable, which the UI
-    already handles gracefully.
-    """
-    out: dict[str, str] = {}
+def load_club_rows(base: str, key: str) -> list[dict]:
+    """Every active club, as {id, name, is_active} — the linker's corpus."""
+    out: list[dict] = []
     offset = 0
     while True:
         status, text = sb("GET",
-                          f"clubs?select=id,name&is_active=eq.true&offset={offset}&limit=1000",
+                          f"clubs?select=id,name,is_active&is_active=eq.true"
+                          f"&offset={offset}&limit=1000",
                           base, key)
         if status != 200:
             log.warning("clubs fetch failed %s: %s", status, text[:200])
             break
         rows = json.loads(text)
-        for c in rows:
-            n = normalise(c.get("name") or "")
-            if n and n not in out:
-                out[n] = c["id"]
+        out.extend(r for r in rows if r.get("name"))
         if len(rows) < 1000:
             break
         offset += 1000
@@ -219,7 +213,8 @@ def main() -> int:
     args = ap.parse_args()
 
     base, key = supabase_env()
-    clubs = load_club_index(base, key)
+    clubs = load_club_rows(base, key)
+    linker = VenueLinker(clubs)
     log.info("club index: %d active venues", len(clubs))
 
     # The box's catalogue runs ahead of Supabase's `djs` (push_djs.py is a
@@ -255,7 +250,8 @@ def main() -> int:
             venue = e.get("venue") or {}
             area = venue.get("area") or {}
             venue_name = venue.get("name") or ""
-            club_id = clubs.get(normalise(venue_name))
+            city = area.get("name")
+            club_id, _ = linker.resolve(venue_name, city=city)
             if club_id:
                 local += 1
             else:
@@ -267,13 +263,29 @@ def main() -> int:
                 "date": date,
                 "start_time": e.get("startTime"),
                 "venue_name": venue_name or None,
-                "city": area.get("name"),
+                "city": city,
                 "country": (area.get("country") or {}).get("name"),
                 "club_id": club_id,
             })
         if i % 50 == 0:
             log.info("  %d/%d artists, %d appearances so far", i, len(artists), len(payload))
         time.sleep(SLEEP_BETWEEN)
+
+    # Whatever the rules could not place goes to the local model, and its
+    # answers become alias rules. Re-resolve afterwards so THIS run already
+    # benefits from what was just learned rather than waiting for tomorrow.
+    learned = linker.resolve_residue()
+    if learned["linked"] or learned["not_ours"]:
+        log.info("model pass: %d linked, %d not ours, %d skipped",
+                 learned["linked"], learned["not_ours"], learned["skipped"])
+        local = away = 0
+        for row in payload:
+            if not row["club_id"]:
+                row["club_id"], _ = linker.resolve(row["venue_name"] or "",
+                                                   city=row["city"])
+            local += 1 if row["club_id"] else 0
+            away += 0 if row["club_id"] else 1
+    linker.report()
 
     # One artist can appear on the same event twice (b2b credits); the table's
     # PK is (ra_artist_id, ra_event_id), so collapse before sending.

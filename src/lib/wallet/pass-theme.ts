@@ -15,10 +15,15 @@ type SB = Awaited<ReturnType<typeof createServiceClient>>
 export const HOUSE_BACKGROUND = '#0A0807'
 export const HOUSE_ACCENT     = '#E8B65B'
 
+export type LogoMode = 'none' | 'text' | 'image'
+
 export type PassThemeRow = {
   background: string
   accent: string
   logo_text: string | null
+  logo_mode: LogoMode
+  logo_font: string | null
+  logo_color: string | null
   logo_1x_url: string | null
   logo_2x_url: string | null
   logo_3x_url: string | null
@@ -32,10 +37,17 @@ export const HOUSE_THEME: PassThemeRow = {
   background: HOUSE_BACKGROUND,
   accent: HOUSE_ACCENT,
   logo_text: null,
+  logo_mode: 'none',
+  logo_font: null,
+  logo_color: null,
   logo_1x_url: null, logo_2x_url: null, logo_3x_url: null,
   icon_1x_url: null, icon_2x_url: null, icon_3x_url: null,
   status: 'active',
 }
+
+const THEME_COLUMNS =
+  'background, accent, logo_text, logo_mode, logo_font, logo_color, ' +
+  'logo_1x_url, logo_2x_url, logo_3x_url, icon_1x_url, icon_2x_url, icon_3x_url, status'
 
 /** Pass-ready colours: `rgb(r, g, b)` strings, foreground already derived. */
 export type ResolvedPassTheme = {
@@ -55,7 +67,7 @@ export type ResolvedPassTheme = {
 export async function passThemeRow(sb: SB, promoterId: string): Promise<PassThemeRow> {
   const { data } = await sb
     .from('promoter_pass_themes')
-    .select('background, accent, logo_text, logo_1x_url, logo_2x_url, logo_3x_url, icon_1x_url, icon_2x_url, icon_3x_url, status')
+    .select(THEME_COLUMNS)
     .eq('user_id', promoterId)
     .maybeSingle()
   return (data as PassThemeRow | null) ?? HOUSE_THEME

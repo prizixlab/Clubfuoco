@@ -1,4 +1,18 @@
 import SwiftUI
+import PhotosUI
+
+/// What produces the mark at the top of the pass.
+enum LogoMode: String, CaseIterable, Identifiable {
+    case none, text, image
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .none:  return "None"
+        case .text:  return "Wordmark"
+        case .image: return "Image"
+        }
+    }
+}
 
 // Settings → Brand → Wallet pass.
 //
@@ -16,6 +30,18 @@ struct PassThemeView: View {
     @State private var background = Color(hex: 0x0A0807)
     @State private var accent     = Color(hex: 0xE8B65B)
     @State private var wordmark   = ""
+
+    @State private var logoMode: LogoMode = .none
+    @State private var logoFont  = PassLogoRenderer.defaultFace.id
+    @State private var logoColor = Color(hex: 0xFFF6E5)
+    /// The image the promoter picked this session, or the saved one fetched
+    /// back. Also what the preview draws, so preview and upload cannot diverge.
+    @State private var logoImage: UIImage?
+    @State private var logoItem: PhotosPickerItem?
+    @State private var uploadingLogo = false
+    /// Set when the picked image or the wordmark typography changed, so Save
+    /// knows it has bitmaps to re-render and re-upload.
+    @State private var logoDirty = false
 
     @State private var loaded = false
     @State private var saving = false
@@ -40,7 +66,9 @@ struct PassThemeView: View {
     ]
 
     private var check: PassContrast.Check {
-        PassContrast.check(background: background, accent: accent)
+        // The wordmark colour only matters when a wordmark is being typeset.
+        PassContrast.check(background: background, accent: accent,
+                           logo: logoMode == .text ? logoColor : nil)
     }
 
     private var dirty: Bool {
@@ -48,9 +76,19 @@ struct PassThemeView: View {
         return background.hexString != s.background.uppercased()
             || accent.hexString != s.accent.uppercased()
             || wordmark.trimmingCharacters(in: .whitespaces) != (s.logoText ?? "")
+            || logoMode.rawValue != (s.logoMode ?? "none")
+            || logoFont != (s.logoFont ?? PassLogoRenderer.defaultFace.id)
+            || logoColor.hexString != (s.logoColor ?? "#FFF6E5").uppercased()
+            || logoDirty
     }
 
-    private var canSave: Bool { loaded && check.ok && dirty && !saving }
+    private var canSave: Bool {
+        guard loaded, check.ok, dirty, !saving, !uploadingLogo else { return false }
+        // Nothing to typeset / nothing to upload is not a saveable state.
+        if logoMode == .text  { return !wordmark.trimmingCharacters(in: .whitespaces).isEmpty }
+        if logoMode == .image { return logoImage != nil }
+        return true
+    }
 
     var body: some View {
         ScrollView {
@@ -58,7 +96,7 @@ struct PassThemeView: View {
                 preview
                 legibility
                 colours
-                wordmarkField
+                logoSection
                 actions
                 footnote
             }
@@ -88,6 +126,12 @@ struct PassThemeView: View {
             }
         }
         .task { await load() }
+        .onChange(of: logoItem) { _, item in Task { await adopt(item) } }
+        // Changing the face or the ink means the stored bitmaps no longer match
+        // what is on screen, so Save has to re-render them.
+        .onChange(of: logoFont)  { _, _ in if logoMode == .text { logoDirty = true } }
+        .onChange(of: logoColor) { _, _ in if logoMode == .text { logoDirty = true } }
+        .onChange(of: wordmark)  { _, _ in if logoMode == .text { logoDirty = true } }
         .animation(.easeInOut(duration: 0.18), value: check.ok)
     }
 
@@ -103,10 +147,7 @@ struct PassThemeView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .center) {
-                    Text(wordmarkDisplay)
-                        .font(.cfSerif(19))
-                        .foregroundStyle(foreground)
-                        .lineLimit(1)
+                    previewMark
                     Spacer(minLength: 8)
                     Text("GUESTLIST")
                         .font(.cfMono(8)).kerning(1.3)
@@ -152,9 +193,40 @@ struct PassThemeView: View {
 
     private var foreground: Color { check.foreground }
 
+    /// The pass's logo area, drawn the way the bundle will carry it: the
+    /// wordmark in its real face and colour, or the image at its real aspect,
+    /// inside the same 160×50pt box the renderer targets.
+    @ViewBuilder private var previewMark: some View {
+        switch logoMode {
+        case .text:
+            Text(wordmarkDisplay)
+                .font(PassLogoRenderer.font(logoFont, size: 21))
+                .foregroundStyle(logoColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.4)
+                .frame(maxWidth: 160, maxHeight: 50, alignment: .leading)
+        case .image:
+            if let img = logoImage {
+                Image(uiImage: img)
+                    .resizable().scaledToFit()
+                    .frame(maxWidth: 160, maxHeight: 50, alignment: .leading)
+            } else {
+                Text("No image chosen")
+                    .font(.cfSans(12))
+                    .foregroundStyle(foreground.opacity(0.5))
+            }
+        case .none:
+            // What an unbranded pass actually shows: our mark.
+            Text("Club Fuoco")
+                .font(.cfSerif(19))
+                .foregroundStyle(foreground)
+                .lineLimit(1)
+        }
+    }
+
     private var wordmarkDisplay: String {
         let t = wordmark.trimmingCharacters(in: .whitespaces)
-        return t.isEmpty ? "Club Fuoco" : t
+        return t.isEmpty ? "Your name" : t
     }
 
     private func passField(_ label: String, _ value: String, big: Bool = false) -> some View {
@@ -267,11 +339,41 @@ struct PassThemeView: View {
         }
     }
 
-    // MARK: - Wordmark
+    // MARK: - Logo
 
-    private var wordmarkField: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Kicker("Wordmark", color: Theme.parchmentDim)
+    /// Wordmark and image are one control, because on a pass they are one
+    /// thing: PassKit has no typography fields, so a wordmark with a chosen
+    /// face and colour has to become a logo IMAGE. Typing one and uploading one
+    /// land in exactly the same slot.
+    private var logoSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Kicker("Logo", color: Theme.parchmentDim)
+
+            Picker("", selection: $logoMode) {
+                ForEach(LogoMode.allCases) { m in Text(m.label).tag(m) }
+            }
+            .pickerStyle(.segmented)
+
+            switch logoMode {
+            case .none:  noLogoNote
+            case .text:  wordmarkControls
+            case .image: imageControls
+            }
+        }
+        .animation(.easeInOut(duration: 0.18), value: logoMode)
+    }
+
+    private var noLogoNote: some View {
+        Text("Guests see the Club Fuoco mark. Pick Wordmark or Image to put your own there.")
+            .font(.cfSans(11.5))
+            .foregroundStyle(Theme.parchmentDim)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    // ── Typeset wordmark ──────────────────────────────────────────────────────
+
+    private var wordmarkControls: some View {
+        VStack(alignment: .leading, spacing: 14) {
             TextField("", text: $wordmark, prompt:
                 Text("Your name on the pass").foregroundStyle(Theme.parchmentDim))
                 .font(.cfSans(15))
@@ -286,14 +388,103 @@ struct PassThemeView: View {
                 .background(Theme.nightLift, in: .rect(cornerRadius: Theme.radiusField))
                 .overlay(RoundedRectangle(cornerRadius: Theme.radiusField).stroke(Theme.hairline))
                 .onChange(of: wordmark) { _, new in
-                    // PassKit puts this on one line beside the logo and
-                    // silently truncates a long one on-device, which reads as
-                    // a bug rather than a limit. Stop it at the source.
+                    // The logo box is 160×50pt. Longer than this and the
+                    // renderer shrinks the type until nobody can read it, so
+                    // the limit is enforced where it is visible.
                     if new.count > 24 { wordmark = String(new.prefix(24)) }
                 }
-            Text("Leave blank to show Club Fuoco. Max 24 characters.")
+
+            fontPicker
+
+            ColorPicker(selection: $logoColor, supportsOpacity: false) {
+                pickerLabel("Wordmark colour", "The type itself")
+            }
+
+            Text("We set your wordmark as an image, which is the only way Apple lets a pass carry your own typeface. Max 24 characters.")
                 .font(.cfSans(11.5))
                 .foregroundStyle(Theme.parchmentDim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Each option is set in its own face, at the colour it will actually be
+    /// printed in — a font list rendered in one font tells you nothing.
+    private var fontPicker: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(PassLogoRenderer.faces) { face in
+                    let selected = face.id == logoFont
+                    Button {
+                        Haptics.tap()
+                        logoFont = face.id
+                    } label: {
+                        VStack(spacing: 6) {
+                            Text(wordmarkSample)
+                                .font(PassLogoRenderer.font(face.id, size: 19))
+                                .foregroundStyle(logoColor)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                                .frame(height: 26)
+                            Text(face.label)
+                                .font(.cfMono(8.5)).kerning(0.7)
+                                .foregroundStyle(selected ? Theme.flame : Theme.parchmentDim)
+                        }
+                        .frame(width: 104)
+                        .padding(.vertical, 12)
+                        .background(background, in: .rect(cornerRadius: Theme.radiusField))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.radiusField)
+                            .stroke(selected ? Theme.flame : Theme.hairline,
+                                    lineWidth: selected ? 2 : 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    private var wordmarkSample: String {
+        let t = wordmark.trimmingCharacters(in: .whitespaces)
+        return t.isEmpty ? "Aa" : t
+    }
+
+    // ── Uploaded image ────────────────────────────────────────────────────────
+
+    private var imageControls: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            PhotosPicker(selection: $logoItem, matching: .images) {
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: Theme.radiusField).fill(background)
+                        if let img = logoImage {
+                            Image(uiImage: img).resizable().scaledToFit().padding(8)
+                        } else {
+                            Image(systemName: "photo").font(.system(size: 20))
+                                .foregroundStyle(Theme.parchmentDim)
+                        }
+                    }
+                    .frame(width: 128, height: 46)
+                    .overlay(RoundedRectangle(cornerRadius: Theme.radiusField).stroke(Theme.hairline))
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(logoImage == nil ? "Choose an image" : "Replace image")
+                            .font(.cfSans(14, weight: .medium))
+                            .foregroundStyle(Theme.parchment)
+                        Text("PNG with a transparent background works best")
+                            .font(.cfSans(11))
+                            .foregroundStyle(Theme.parchmentDim)
+                    }
+                    Spacer(minLength: 0)
+                    if uploadingLogo { ProgressView().tint(Theme.parchmentDim) }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Text("Shown at its full width — a wide wordmark is not cropped to a square.")
+                .font(.cfSans(11.5))
+                .foregroundStyle(Theme.parchmentDim)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -370,15 +561,45 @@ struct PassThemeView: View {
         background = Color(hexString: theme.background) ?? Color(hex: 0x0A0807)
         accent     = Color(hexString: theme.accent)     ?? Color(hex: 0xE8B65B)
         wordmark   = theme.logoText ?? ""
+        logoMode   = LogoMode(rawValue: theme.logoMode ?? "none") ?? .none
+        logoFont   = theme.logoFont ?? PassLogoRenderer.defaultFace.id
+        logoColor  = Color(hexString: theme.logoColor ?? "") ?? Color(hex: 0xFFF6E5)
+        logoDirty  = false
     }
 
     private func load() async {
         guard !loaded else { return }
         // A load failure leaves the house defaults on screen, which is what an
         // unthemed promoter has anyway — better than an empty screen.
-        if let theme = try? await repo.load() { apply(theme) }
-        else { savedTheme = .house }
+        if let theme = try? await repo.load() {
+            apply(theme)
+            // Pull the stored mark back so the preview shows what guests
+            // currently get, not an empty box.
+            if theme.logoMode == "image", let raw = theme.logoUrl, let url = URL(string: raw) {
+                if let (data, _) = try? await URLSession.shared.data(from: url) {
+                    logoImage = UIImage(data: data)
+                }
+            }
+        } else {
+            savedTheme = .house
+        }
         loaded = true
+    }
+
+    /// Pull a picked photo in and downscale it once, here, so everything after
+    /// this point works from a bounded image.
+    private func adopt(_ item: PhotosPickerItem?) async {
+        guard let item else { return }
+        uploadingLogo = true
+        defer { uploadingLogo = false }
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else {
+            serverError = "That image could not be read."
+            return
+        }
+        logoImage = image
+        logoDirty = true
+        serverError = nil
     }
 
     private func save() async {
@@ -386,10 +607,37 @@ struct PassThemeView: View {
         defer { saving = false }
         do {
             let t = wordmark.trimmingCharacters(in: .whitespaces)
-            let theme = try await repo.save(
+            // Metadata first: it carries the legibility check, so an illegible
+            // pair is refused before any bitmap is uploaded.
+            var theme = try await repo.save(
                 background: background.hexString,
                 accent: accent.hexString,
-                logoText: t.isEmpty ? nil : t)
+                logoText: t.isEmpty ? nil : t,
+                logoMode: logoMode.rawValue,
+                logoFont: logoMode == .text ? logoFont : nil,
+                logoColor: logoMode == .text ? logoColor.hexString : nil)
+
+            // Then the bitmaps. Rendered at exactly the sizes PassKit wants;
+            // the server re-checks every dimension before storing them.
+            switch logoMode {
+            case .text:
+                let images = PassLogoRenderer.renderText(
+                    t,
+                    face: logoFont,
+                    color: UIColor(logoColor),
+                    background: UIColor(background))
+                if !images.isEmpty { try await repo.uploadLogo(images) }
+            case .image:
+                if let img = logoImage, logoDirty {
+                    let images = PassLogoRenderer.renderImage(img, background: UIColor(background))
+                    try await repo.uploadLogo(images)
+                }
+            case .none:
+                try await repo.clearLogo()
+            }
+
+            // Re-read so what is on screen is what the server now holds.
+            if let fresh = try? await repo.load() { theme = fresh }
             apply(theme)
             justSaved = true
             Haptics.success()

@@ -30,7 +30,22 @@ enum PassContrast {
         var ok: Bool { problems.isEmpty }
     }
 
-    static func check(background: Color, accent: Color) -> Check {
+    /// A typeset wordmark's colour against the pass background.
+    ///
+    /// Held to the label threshold, not the value one: a wordmark is large
+    /// display type and survives lower contrast than field text. It is still
+    /// checked, because picking a brand colour without looking at your own
+    /// background is exactly how a logo disappears. Mirrors checkLogoColor in
+    /// src/lib/wallet/contrast.ts.
+    static func logoProblem(background: Color, logo: Color) -> String? {
+        let ratio = PassContrastMath.ratio(rgb(logo), rgb(background))
+        guard ratio < PassContrastMath.labelMinRatio else { return nil }
+        return String(
+            format: "The wordmark colour is too close to the background to see (%.1f:1, needs %.1f:1).",
+            ratio, PassContrastMath.labelMinRatio)
+    }
+
+    static func check(background: Color, accent: Color, logo: Color? = nil) -> Check {
         let m = PassContrastMath.check(background: rgb(background), accent: rgb(accent))
         var problems: [String] = []
 
@@ -43,6 +58,10 @@ enum PassContrast {
             problems.append(String(
                 format: "The accent is too close to the background to read as a label (%.1f:1, needs %.1f:1).",
                 m.labelRatio, PassContrastMath.labelMinRatio))
+        }
+
+        if let logo, let problem = logoProblem(background: background, logo: logo) {
+            problems.append(problem)
         }
 
         return Check(

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { resolvePromoterCaller } from '@/lib/offer-auth'
 import { ok, err } from '@/lib/utils'
-import { checkThemeHex, toHex, toPassColor } from '@/lib/wallet/contrast'
+import { checkThemeHex, checkLogoColor, parseHex, toHex, toPassColor } from '@/lib/wallet/contrast'
 import { passThemeRow, HOUSE_THEME, type PassThemeRow } from '@/lib/wallet/pass-theme'
 
 // The Apple Wallet pass branding a promoter applies to the pass their guests
@@ -18,6 +18,9 @@ function shape(row: PassThemeRow) {
     background: row.background,
     accent: row.accent,
     logo_text: row.logo_text,
+    logo_mode: row.logo_mode,
+    logo_font: row.logo_font,
+    logo_color: row.logo_color,
     logo_url: row.logo_2x_url,          // what the app shows in the picker
     has_logo: !!row.logo_1x_url,
     status: row.status,
@@ -79,12 +82,41 @@ export async function PATCH(request: NextRequest) {
     }
     patch.logo_text = trimmed || null
   }
+  if ('logo_mode' in body) {
+    if (!['none', 'text', 'image'].includes(body.logo_mode)) {
+      return err('logo_mode must be none, text or image')
+    }
+    patch.logo_mode = body.logo_mode
+  }
+  if ('logo_font' in body) {
+    const f = body.logo_font
+    if (f !== null && typeof f !== 'string') return err('logo_font must be a string or null')
+    // Stored as an opaque PostScript name: the app maps it back through its own
+    // fixed list, so an unknown value degrades to the default face rather than
+    // rendering a missing glyph. Length-capped only.
+    patch.logo_font = (typeof f === 'string' ? f.trim().slice(0, 64) : null) || null
+  }
+  if ('logo_color' in body) {
+    const c = body.logo_color
+    if (c !== null && typeof c !== 'string') return err('logo_color must be a string or null')
+    patch.logo_color = typeof c === 'string' && c.trim() ? c.trim().toUpperCase() : null
+  }
 
   if (!Object.keys(patch).length) return ok({ unchanged: true, theme: shape(current) })
 
   const next: PassThemeRow = { ...current, ...patch }
   const check = checkThemeHex(next.background, next.accent)
   if (!check.ok) return err(check.problems.join(' '), 422)
+
+  // A typeset wordmark is drawn on the pass background, so its colour is held
+  // to the same standard as everything else that has to be readable there.
+  if (next.logo_color) {
+    const bg = parseHex(next.background)
+    const logo = parseHex(next.logo_color)
+    if (!bg || !logo) return err('logo_color must be a hex colour like #E8B65B')
+    const logoCheck = checkLogoColor(bg, logo)
+    if (!logoCheck.ok) return err(logoCheck.problem!, 422)
+  }
 
   const { error } = await sb
     .from('promoter_pass_themes')

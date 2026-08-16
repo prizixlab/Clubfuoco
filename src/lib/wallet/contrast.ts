@@ -112,6 +112,24 @@ export function checkTheme(background: Rgb, accent: Rgb): ThemeCheck {
   return { ok: problems.length === 0, foreground, valueRatio, labelRatio, problems }
 }
 
+/**
+ * A typeset wordmark's colour against the pass background.
+ *
+ * Held to the label threshold rather than the value one: a wordmark is large
+ * display type, which stays readable at lower contrast than field text. It is
+ * still checked, because a promoter picking their brand colour without looking
+ * at their own background is exactly how a logo disappears.
+ */
+export function checkLogoColor(background: Rgb, logo: Rgb): { ok: boolean; ratio: number; problem?: string } {
+  const ratio = contrastRatio(logo, background)
+  if (ratio >= LABEL_MIN_RATIO) return { ok: true, ratio }
+  return {
+    ok: false,
+    ratio,
+    problem: `The wordmark colour is too close to the background to see (${ratio.toFixed(1)}:1, needs ${LABEL_MIN_RATIO}:1).`,
+  }
+}
+
 /** Hex-string convenience wrapper. Malformed input is a failure, not a throw. */
 export function checkThemeHex(
   background: string,

@@ -21,6 +21,10 @@ struct PassTheme: Decodable, Hashable {
     let background: String        // "#RRGGBB"
     let accent: String            // "#RRGGBB"
     let logoText: String?
+    /// "none" | "text" (wordmark we typeset) | "image" (their upload)
+    let logoMode: String?
+    let logoFont: String?         // PostScript name, see PassLogoRenderer.faces
+    let logoColor: String?        // "#RRGGBB"
     let logoUrl: String?
     let hasLogo: Bool
     let status: String            // "active" | "under_review" | "blocked"
@@ -29,7 +33,8 @@ struct PassTheme: Decodable, Hashable {
     /// The look every promoter starts on — the pass their guests get today.
     static let house = PassTheme(
         background: "#0A0807", accent: "#E8B65B",
-        logoText: nil, logoUrl: nil, hasLogo: false, status: "active",
+        logoText: nil, logoMode: "none", logoFont: nil, logoColor: nil,
+        logoUrl: nil, hasLogo: false, status: "active",
         derived: PassThemeDerived(
             foreground: "#FFF6E5", valueRatio: 18.7, labelRatio: 8.3,
             legible: true, problems: []))
@@ -87,16 +92,69 @@ final class PassThemeRepo {
 
     /// Save colours / wordmark text. The server re-runs the legibility check
     /// and rejects with a 422 whose message names the failing pair.
-    func save(background: String, accent: String, logoText: String?) async throws -> PassTheme {
+    func save(background: String, accent: String, logoText: String?,
+              logoMode: String, logoFont: String?, logoColor: String?) async throws -> PassTheme {
         try theme(try await request("PATCH", body: [
             "background": background,
             "accent": accent,
-            "logo_text": logoText as Any? ?? NSNull(),
+            "logo_text":  logoText  as Any? ?? NSNull(),
+            "logo_mode":  logoMode,
+            "logo_font":  logoFont  as Any? ?? NSNull(),
+            "logo_color": logoColor as Any? ?? NSNull(),
         ]))
     }
 
     /// Back to the house look.
     func reset() async throws -> PassTheme {
         try theme(try await request("DELETE"))
+    }
+
+    // MARK: - Logo bitmaps
+
+    /// Upload the six rendered PNGs. All six or none — the server rejects a
+    /// partial set, because a bundle carrying their logo at @2x and our mark at
+    /// @1x would render differently depending on the device.
+    func uploadLogo(_ images: [String: Data]) async throws {
+        let boundary = "cf-\(UUID().uuidString)"
+        var body = Data()
+        for (field, data) in images {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(field)\"; filename=\"\(field).png\"\r\n"
+                .data(using: .utf8)!)
+            body.append("Content-Type: image/png\r\n\r\n".data(using: .utf8)!)
+            body.append(data)
+            body.append("\r\n".data(using: .utf8)!)
+        }
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+        var req = URLRequest(url: URL(string: "\(Self.webBase)/api/promoter/pass-theme/images")!)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(try await sb.client.auth.session.accessToken)",
+                     forHTTPHeaderField: "Authorization")
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        req.httpBody = body
+
+        let (data, resp) = try await URLSession.shared.upload(for: req, from: body)
+        let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200...299).contains(code) else {
+            if let env = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let msg = env["error"] as? String { throw OfferError.message(msg) }
+            throw OfferError.message("Logo upload failed (\(code))")
+        }
+    }
+
+    /// Drop their mark, files and all, and go back to no logo.
+    func clearLogo() async throws {
+        var req = URLRequest(url: URL(string: "\(Self.webBase)/api/promoter/pass-theme/images")!)
+        req.httpMethod = "DELETE"
+        req.setValue("Bearer \(try await sb.client.auth.session.accessToken)",
+                     forHTTPHeaderField: "Authorization")
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200...299).contains(code) else {
+            if let env = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let msg = env["error"] as? String { throw OfferError.message(msg) }
+            throw OfferError.message("Could not remove the logo (\(code))")
+        }
     }
 }

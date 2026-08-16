@@ -44,7 +44,9 @@ struct ClubEvent: Decodable, Sendable, Identifiable, Hashable {
 
     var id: String { raEventId }
 
-    var ticketsURL: URL? { raUrl.flatMap(URL.init(string:)) }
+    // No `ticketsURL`. `raUrl` is kept as internal provenance — where the row
+    // came from, for support and de-duping — but is never surfaced: the source
+    // of the listing is not something the customer is shown.
 
     /// A door price only when the source actually gave one.
     ///

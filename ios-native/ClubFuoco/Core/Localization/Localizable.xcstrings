@@ -3557,34 +3557,6 @@
         }
       }
     },
-    "detail.ticketsOnRA": {
-      "localizations": {
-        "ca": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entrades a Resident Advisor"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tickets on Resident Advisor"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entradas en Resident Advisor"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Billets sur Resident Advisor"
-          }
-        }
-      }
-    },
     "detail.upcomingEvents": {
       "localizations": {
         "ca": {

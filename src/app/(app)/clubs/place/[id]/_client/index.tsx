@@ -498,11 +498,6 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
     )
   }
 
-  const platformBadge: Record<string, string> = {
-    ra:          'Resident Advisor',
-    eventbrite:  'Eventbrite',
-    dice:        'Dice',
-  }
 
   return (
     <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, overflow: 'hidden' }}>
@@ -510,9 +505,6 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
         <div style={{ position: 'relative', height: 120 }}>
           <img src={event.image} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 60%)' }} />
-          <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', background: 'rgba(0,0,0,0.4)', borderRadius: 99, padding: '2px 7px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
-            {platformBadge[event.platform] ?? event.platform}
-          </span>
           {event.sold_out && (
             <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'white', background: 'rgba(140,42,42,0.9)', borderRadius: 99, padding: '2px 7px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif', fontWeight: 600 }}>Sold out</span>
           )}
@@ -549,7 +541,7 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
               {buying
                 ? '…'
                 : (event.base_price === 0 || !isInAppPurchase)
-                  ? <>View on {platformBadge[event.platform] ?? 'site'}
+                  ? <>View event
                       <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_outward</span>
                     </>
                   : 'Get Tickets'}
@@ -562,9 +554,9 @@ function EventCard({ event, placeId, placeLat, placeLng, placeName }: {
 }
 
 // ── Club event box ────────────────────────────────────────────────────────────
-// One box per upcoming event at this venue, from public.events. We do NOT sell
-// these: there is no purchase API for Resident Advisor, so the button opens
-// RA's own page. The click is logged first for partner attribution.
+// One box per upcoming event at this venue, from public.events. There is no
+// outbound link: where a listing was sourced from is ours, not the customer's,
+// so the box never names or links to the upstream platform.
 //
 // No price is shown. The source's `cost` field is free text ("0", "10€", "",
 // "€") and unreliable, and the old card rendered a hardcoded €0 as "Free
@@ -642,15 +634,6 @@ function ClubEventCard({ event, placeId }: { event: ClubEvent; placeId: string }
         </div>
       </div>
 
-      {hasLink && (
-        <button
-          onClick={openTickets}
-          style={{ width: '100%', padding: '11px 14px', background: 'transparent', border: 'none', borderTop: `1px solid ${C.line}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: C.accent, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}
-        >
-          Tickets on Resident Advisor
-          <span className="material-symbols-outlined" style={{ fontSize: 15 }}>arrow_outward</span>
-        </button>
-      )}
     </div>
   )
 }

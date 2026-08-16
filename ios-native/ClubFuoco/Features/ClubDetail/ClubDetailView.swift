@@ -592,25 +592,6 @@ struct ClubDetailView: View {
             }
             .padding(14)
 
-            if let url = event.ticketsURL {
-                Divider().overlay(Theme.hairline)
-                Button {
-                    Haptics.tap()
-                    logTicketClick(event)
-                    openURL(url)
-                } label: {
-                    HStack(spacing: 6) {
-                        Text(locale.t("detail.ticketsOnRA"))
-                            .font(.cfSans(13, weight: .semibold))
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 11, weight: .semibold))
-                    }
-                    .foregroundStyle(Theme.wine)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                }
-                .buttonStyle(.plain)
-            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.cream)
@@ -670,25 +651,6 @@ struct ClubDetailView: View {
         }
     }
 
-    /// Attribution telemetry — fire and forget, never blocks opening the link.
-    private func logTicketClick(_ event: ClubEvent) {
-        // Encodable keys are converted to snake_case by APIClient's encoder.
-        struct Click: Encodable, Sendable {
-            let eventId: String
-            let platform: String
-            let eventTitle: String
-            let venueName: String
-            let venuePlaceId: String
-            let eventDate: String
-        }
-        struct Ack: Decodable, Sendable { let logged: Bool? }
-
-        let click = Click(
-            eventId: event.raEventId, platform: "ra", eventTitle: event.title,
-            venueName: event.venueName ?? place.name, venuePlaceId: place.placeId,
-            eventDate: event.date)
-        Task { let _: Ack? = try? await api.post("/api/ticket-clicks", body: click) }
-    }
 
     /// Transport telemetry — fire and forget, never blocks opening the deep link.
     /// Records which club the guest tried to travel to and via which option.

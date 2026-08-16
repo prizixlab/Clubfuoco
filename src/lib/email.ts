@@ -157,7 +157,7 @@ export async function sendTicketConfirmation({
       <tr>
         <td style="background:linear-gradient(135deg,#ff4d00 0%,#cc2200 100%);padding:28px 28px 24px;">
           <p style="margin:0 0 6px;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.7);">
-            ${platform === 'ra' ? 'Resident Advisor' : platform === 'eventbrite' ? 'Eventbrite' : 'Club Fuoco'} · 1 Ticket
+            Club Fuoco · 1 Ticket
           </p>
           <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#fff;line-height:1.2;">${eventName}</h1>
           <p style="margin:0;font-size:16px;color:rgba(255,255,255,0.85);font-weight:500;">${venueName}</p>

@@ -150,17 +150,43 @@ export async function passImages(
   row: PassThemeRow,
   opts: { isHouse: boolean }
 ): Promise<PassImages> {
-  const icons = houseIcons()
-  if (row.status === 'blocked' || opts.isHouse) return { ...icons, ...houseLogo() }
+  if (row.status === 'blocked' || opts.isHouse) {
+    return { ...houseIcons(), ...houseLogo() }
+  }
 
-  const slots: [keyof PassThemeRow, string][] = [
+  const LOGO: [keyof PassThemeRow, string][] = [
     ['logo_1x_url', 'logo.png'],
     ['logo_2x_url', 'logo@2x.png'],
     ['logo_3x_url', 'logo@3x.png'],
   ]
-  // Themed, but no logo uploaded yet: wordmark only.
-  if (slots.some(([key]) => !row[key])) return icons
+  const ICON: [keyof PassThemeRow, string][] = [
+    ['icon_1x_url', 'icon.png'],
+    ['icon_2x_url', 'icon@2x.png'],
+    ['icon_3x_url', 'icon@3x.png'],
+  ]
 
+  // Each set is fetched independently: a promoter whose icons came through but
+  // whose logo did not should still get their icon, and vice versa. Within a
+  // set it stays all-or-nothing, since mixing resolutions is what renders
+  // differently by device.
+  const [logo, icon] = await Promise.all([fetchSet(LOGO, row), fetchSet(ICON, row)])
+
+  return {
+    // icon.png is REQUIRED — fall back to ours rather than ship a bundle that
+    // will not install.
+    ...(icon ?? houseIcons()),
+    // logo.png is optional, so a themed pass with no usable logo ships none at
+    // all rather than reverting to our flame next to their name.
+    ...(logo ?? {}),
+  }
+}
+
+/** All three files, or null. Never a partial set. */
+async function fetchSet(
+  slots: [keyof PassThemeRow, string][],
+  row: PassThemeRow
+): Promise<PassImages | null> {
+  if (slots.some(([key]) => !row[key])) return null
   try {
     const entries = await Promise.all(
       slots.map(async ([key, file]) => {
@@ -169,10 +195,10 @@ export async function passImages(
         return [file, Buffer.from(await res.arrayBuffer())] as const
       })
     )
-    return { ...icons, ...Object.fromEntries(entries) }
+    return Object.fromEntries(entries)
   } catch (e) {
-    console.warn('[pass-theme] promoter logo unavailable, shipping wordmark only:', e)
-    return icons
+    console.warn('[pass-theme] promoter image set unavailable, falling back:', e)
+    return null
   }
 }
 

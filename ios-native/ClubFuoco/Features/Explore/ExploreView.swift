@@ -42,7 +42,7 @@ struct ExploreView: View {
     /// The Always upgrade is a separate ask, surfaced after the user actually
     /// books — see `BookNightSheet.confirmedView`.
     private func maybePromptNearby() {
-        guard auth.state == .signedIn, !auth.guestMode else { return }
+        guard auth.hasAccount else { return }
         guard !UserDefaults.standard.bool(forKey: Self.nearbyPromptKey) else { return }
         guard LocationService.shared.authorizationStatus == .notDetermined else { return }
         UserDefaults.standard.set(true, forKey: Self.nearbyPromptKey)
@@ -162,7 +162,7 @@ struct ExploreView: View {
         }
         #endif
         .sheet(isPresented: $showGuestGate) {
-            GuestGateView()
+            GuestGateView(reason: .save)
                 .presentationDetents([.medium])
         }
     }
@@ -322,7 +322,7 @@ struct ExploreView: View {
     }
 
     private func save(_ place: Place) {
-        if !model.toggleSave(place, isSignedIn: auth.user != nil) {
+        if !model.toggleSave(place, isSignedIn: auth.hasAccount) {
             showGuestGate = true
         }
     }

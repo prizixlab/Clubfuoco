@@ -123,7 +123,7 @@ struct RumbaDetailView: View {
                             disabled: model.name.trimmingCharacters(in: .whitespaces).isEmpty,
                             background: Theme.ember
                         ) {
-                            if auth.user == nil {
+                            if !auth.hasAccount {
                                 showGuestGate = true
                             } else {
                                 model.signUp(rumbaId: rumba.id, api: api)
@@ -142,7 +142,7 @@ struct RumbaDetailView: View {
             await model.loadMySignup(rumbaId: rumba.id, api: api)
         }
         .sheet(isPresented: $showGuestGate) {
-            GuestGateView().presentationDetents([.medium])
+            GuestGateView(reason: .rumba).presentationDetents([.medium])
         }
     }
 

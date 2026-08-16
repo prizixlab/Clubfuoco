@@ -46,8 +46,8 @@ struct MainTabView: View {
                 .tag(Tab.explore)
 
             NavigationStack {
-                if auth.user == nil {
-                    GuestGateView()
+                if !auth.hasAccount {
+                    GuestGateView(reason: .tickets)
                 } else {
                     BookingsView()
                 }
@@ -57,8 +57,8 @@ struct MainTabView: View {
             .tag(Tab.tickets)
 
             NavigationStack {
-                if auth.user == nil {
-                    GuestGateView()
+                if !auth.hasAccount {
+                    GuestGateView(reason: .account)
                 } else {
                     ProfileView()
                 }
@@ -75,7 +75,7 @@ struct MainTabView: View {
     }
 
     private func refreshBadges() async {
-        guard auth.user != nil, !auth.isAnonymous else { return }
+        guard auth.hasAccount else { return }
         async let friends: FriendsData? = try? api.get("/api/friends")
         async let groups: [GroupListItem]? = try? api.get("/api/groups")
         youAlerts = await friends?.incoming.count ?? 0

@@ -48,6 +48,20 @@ final class AuthStore {
     var accountType: AccountType { profile?.accountType ?? .user }
     var isAnonymous: Bool { user?.isAnonymous ?? false }
 
+    /// THE gate for anything that belongs to a person: saving a venue, joining a
+    /// guestlist, booking, tickets, friends.
+    ///
+    /// Both guest shapes must fail it — a session-less guest (`user == nil`) and
+    /// an anonymous Supabase session (`user != nil`, `isAnonymous == true`).
+    /// Call sites used to spell this out individually and disagreed: two checked
+    /// only `user == nil`, so an anonymous guest slipped through and could write
+    /// rows (favourites, RSVPs) against a throwaway id that is orphaned the
+    /// moment they create a real account.
+    ///
+    /// Browsing deliberately does NOT consult this — the catalogue stays open to
+    /// everyone (App Store guideline 5.1.1(v)); only account actions are gated.
+    var hasAccount: Bool { user != nil && !isAnonymous && !guestMode }
+
     private let supabase: SupabaseService
     let queries: Queries
 

@@ -3725,6 +3725,34 @@
         }
       }
     },
+    "dj.loadingTrack": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading track…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cargando pista…"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carregant pista…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chargement du morceau…"
+          }
+        }
+      }
+    },
     "dj.noDates": {
       "localizations": {
         "ca": {
@@ -3749,6 +3777,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aucune date annoncée"
+          }
+        }
+      }
+    },
+    "dj.previewUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No preview available"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vista previa no disponible"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vista prèvia no disponible"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aperçu indisponible"
           }
         }
       }
@@ -3805,6 +3861,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "DJ"
+          }
+        }
+      }
+    },
+    "dj.soundcloudPreview": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SoundCloud preview"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vista previa de SoundCloud"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vista prèvia de SoundCloud"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aperçu SoundCloud"
           }
         }
       }

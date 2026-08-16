@@ -13,16 +13,20 @@ import SwiftUI
 /// Nothing here is faked when absent: a missing flyer removes the image, a
 /// missing lineup says so, and the two fields that lie (`cost`, `venue_capacity`)
 /// are gated behind validators on ClubEvent rather than shown raw.
-struct EventDetailSheet: View {
+struct EventDetailSheet<DJPage: View>: View {
     let event: ClubEvent
     /// Credits resolved to DJ pages — by RA id first, name as legacy fallback.
     let djFor: (LineupCredit) -> FeaturedDJ?
-    /// Opens a DJ's page from a lineup row.
-    var onOpenDJ: (FeaturedDJ) -> Void = { _ in }
+    /// The DJ page for a lineup row. It is presented BY this sheet rather than
+    /// handed back to the club page, so a DJ opens on top of the event and
+    /// closing them returns here — reading a lineup shouldn't cost you the
+    /// event you were reading it on.
+    @ViewBuilder var djPage: (FeaturedDJ) -> DJPage
 
     @Environment(\.dismiss) private var dismiss
     @Environment(LocaleStore.self) private var locale
     @State private var descriptionExpanded = false
+    @State private var openDJ: FeaturedDJ?
 
     private var lineStrong: Color { Theme.fadedSand.opacity(0.34) }
 
@@ -46,6 +50,7 @@ struct EventDetailSheet: View {
         .background(Theme.cream)
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        .sheet(item: $openDJ) { djPage($0) }
     }
 
     // ── Chrome ────────────────────────────────────────────────────────────────
@@ -261,7 +266,7 @@ struct EventDetailSheet: View {
         return VStack(spacing: 0) {
             if showsDivider { Rectangle().fill(Theme.hairline).frame(height: 1) }
             Button {
-                if let dj { Haptics.tap(); onOpenDJ(dj) }
+                if let dj { Haptics.tap(); openDJ = dj }
             } label: {
                 HStack(spacing: 12) {
                     avatar(dj, name: credit.name)
@@ -285,6 +290,11 @@ struct EventDetailSheet: View {
                     }
                 }
                 .padding(.vertical, 11)
+                // The row is one target. Without this the Spacer between the
+                // name and the chevron is empty space that hit-tests to
+                // nothing, leaving two live islands with a dead gap between
+                // them — and the gap is the widest part of the row.
+                .contentShape(Rectangle())
                 // A name we hold no page for is real and stays listed — it just
                 // cannot be opened, and is dimmed so the affordance is honest.
                 .opacity(dj == nil ? 0.55 : 1)

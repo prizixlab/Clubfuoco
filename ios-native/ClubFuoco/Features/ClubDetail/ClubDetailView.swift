@@ -68,6 +68,54 @@ struct ClubDetailView: View {
         return nil
     }
 
+    /// The DJ page, wired to this club. Built here rather than at each
+    /// presentation point because a DJ can be opened from the club page or from
+    /// an event's lineup, and both must offer the same guestlist and the same
+    /// venue navigation.
+    ///
+    /// `closeStack` tears down the sheet chain the page is sitting in — the DJ
+    /// sheet alone when it was opened from the club page, or the event sheet
+    /// underneath it when it came from a lineup row. Both destinations (the
+    /// offer sheet, a pushed club page) are presented by THIS view, and neither
+    /// can appear while a sheet is still covering it.
+    private func djPage(_ dj: FeaturedDJ, autoplay: Bool,
+                        closeStack: @escaping () -> Void) -> some View {
+        // The guestlist for a DJ box is for the DJ's OWN night, not tonight:
+        // target the next occurrence of their weekday and open the offer live
+        // on that date (booking then uses plan.date = that night).
+        let djDate = nextDate(forNight: dj.night)
+        let djOffers = offers(on: djDate ?? plan.date)
+        return FeaturedDJSheet(
+            dj: dj,
+            autoplay: autoplay,
+            bookable: !djOffers.isEmpty,
+            onBook: djOffers.isEmpty ? nil : {
+                if let first = djOffers.first { logGuestlistClick(source: "dj", offer: first, dj: dj) }
+                if let djDate { plan.date = djDate }
+                closeStack()
+                // Let the sheets finish dismissing before opening the offer.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    activeOffer = djOffers.first
+                }
+            },
+            onOpenVenue: { clubId in
+                // Only fires for a gig at a DIFFERENT venue (same-club rows
+                // aren't tappable). Dismiss the chain, then push that club
+                // page. pushPlace is a no-op outside the explore stack, so it
+                // degrades to a dismiss there rather than misbehaving.
+                closeStack()
+                guard clubId != place.placeId else { return }
+                Task { @MainActor in
+                    guard let target = try? await auth.queries.clubsByIds([clubId]).first
+                    else { return }
+                    try? await Task.sleep(nanoseconds: 400_000_000)
+                    pushPlace(target)
+                }
+            },
+            currentClubId: place.placeId
+        )
+    }
+
     private let heroHeight: CGFloat = 360
 
     var body: some View {
@@ -112,54 +160,14 @@ struct ClubDetailView: View {
             PhotoViewer(photos: photos, startIndex: idx.value)
         }
         .sheet(item: $activeEvent) { event in
-            EventDetailSheet(
-                event: event,
-                djFor: { dj(for: $0) },
-                onOpenDJ: { picked in
-                    // Close the event sheet, then open the DJ — presenting one
-                    // sheet from another directly drops the second.
-                    activeEvent = nil
-                    djAutoplay = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                        activeDJ = picked
-                    }
-                }
-            )
+            EventDetailSheet(event: event, djFor: { dj(for: $0) }) { picked in
+                // Stacked on the event, so closing the DJ lands back on it. The
+                // event sheet is what has to go when the DJ page navigates away.
+                djPage(picked, autoplay: false, closeStack: { activeEvent = nil })
+            }
         }
         .sheet(item: $activeDJ) { dj in
-            // The guestlist for a DJ box is for the DJ's OWN night, not tonight:
-            // target the next occurrence of their weekday and open the offer live
-            // on that date (booking then uses plan.date = that night).
-            let djDate = nextDate(forNight: dj.night)
-            let djOffers = offers(on: djDate ?? plan.date)
-            FeaturedDJSheet(
-                dj: dj,
-                autoplay: djAutoplay,
-                bookable: !djOffers.isEmpty,
-                onBook: djOffers.isEmpty ? nil : {
-                    if let first = djOffers.first { logGuestlistClick(source: "dj", offer: first, dj: dj) }
-                    if let djDate { plan.date = djDate }
-                    // Let the DJ sheet finish dismissing before opening the offer.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                        activeOffer = djOffers.first
-                    }
-                },
-                onOpenVenue: { clubId in
-                    // Only fires for a gig at a DIFFERENT venue (same-club rows
-                    // aren't tappable). Dismiss the DJ sheet, then push that club
-                    // page. pushPlace is a no-op outside the explore stack, so it
-                    // degrades to a dismiss there rather than misbehaving.
-                    activeDJ = nil
-                    guard clubId != place.placeId else { return }
-                    Task { @MainActor in
-                        guard let target = try? await auth.queries.clubsByIds([clubId]).first
-                        else { return }
-                        try? await Task.sleep(nanoseconds: 400_000_000)
-                        pushPlace(target)
-                    }
-                },
-                currentClubId: place.placeId
-            )
+            djPage(dj, autoplay: djAutoplay, closeStack: { activeDJ = nil })
         }
         .task {
             // Events are independent of the detail row, so a failure on either

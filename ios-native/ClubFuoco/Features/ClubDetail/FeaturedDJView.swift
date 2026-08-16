@@ -7,16 +7,6 @@ import SwiftUI
 // info and a real SoundCloud preview (their embed is the only free, ToS-compliant
 // way to play SoundCloud), which plays whatever is on the DJ's profile.
 
-// MARK: - SoundCloud URL helper
-
-private func canonicalSoundCloud(_ raw: String?) -> URL? {
-    guard var s = raw?.trimmingCharacters(in: .whitespaces), !s.isEmpty else { return nil }
-    // RA stores "https://www.soundcloud.com/kink"; the widget resolver wants the
-    // canonical "https://soundcloud.com/kink".
-    s = s.replacingOccurrences(of: "://www.soundcloud.com", with: "://soundcloud.com")
-    return URL(string: s)
-}
-
 // MARK: - Collapsed box
 
 struct FeaturedDJBox: View {
@@ -140,7 +130,10 @@ struct FeaturedDJSheet: View {
     /// The away-night row currently showing its "coming soon" line, if any.
     @State private var comingSoonGigId: String?
 
-    private var soundcloudURL: URL? { canonicalSoundCloud(dj.soundcloud) }
+    /// Whether we hold a SoundCloud address that is actually loadable — the
+    /// player owns that judgement, so the card and the engine can never
+    /// disagree about which DJs get a preview.
+    private var soundcloudURL: URL? { DJPlayer.canonicalSoundCloud(dj.soundcloud) }
 
     // --line-strong: the design's heavier rule, used on card borders and the
     // "coming soon" pill. Theme.hairline is --line.
@@ -181,9 +174,11 @@ struct FeaturedDJSheet: View {
             opened = true
             djPlayer.open(dj, autoplay: autoplay)
         }
-        // The player is a sample, not a background service — tear it down when
-        // the sheet closes so audio never follows the user to other pages.
-        .onDisappear { djPlayer.close() }
+        // The player is a sample, not a background service — silence it when the
+        // sheet closes so audio never follows the user to other pages. The web
+        // view behind it stays warm, so reopening a DJ is a profile swap rather
+        // than rebuilding the player and refetching SoundCloud's API each time.
+        .onDisappear { djPlayer.suspend() }
     }
 
     // ── Sheet chrome ──────────────────────────────────────────────────────────
@@ -450,6 +445,10 @@ struct FeaturedDJSheet: View {
                     }
                 }
                 .padding(.vertical, 12)
+                // One target for the whole row: the Spacer holding the date and
+                // the arrow apart is empty space that hit-tests to nothing, so
+                // without this the middle of the row is dead.
+                .contentShape(Rectangle())
                 // The design mutes a night you can't act on, rather than hiding
                 // it — a DJ on tour is signal, not a gap. A home-city night is
                 // never muted: it is ours even when we have no page for it.

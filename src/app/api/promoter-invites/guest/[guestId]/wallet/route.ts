@@ -93,9 +93,11 @@ export async function GET(
     // Relevant on the night, filed under "Expired Passes" the next morning.
     ...nightPassDates(nightRow.night_date),
     teamIdentifier:     process.env.APPLE_TEAM_ID!,
-    // Shown on lock-screen notifications, so it should read as whoever the
-    // guest thinks invited them.
-    organizationName:   brandName,
+    // Shown on lock-screen notifications. It follows the branding rather than
+    // always naming the promoter: on an unthemed pass everything the guest can
+    // see is ours, so a notification saying the promoter's name would
+    // contradict the pass's own "ISSUED BY" line.
+    organizationName:   theme.isHouse ? 'Club Fuoco' : brandName,
     description:        `${nightRow.title ?? clubName} guestlist`,
     foregroundColor:    theme.foregroundColor,
     backgroundColor:    theme.backgroundColor,

@@ -34,3 +34,8 @@ scripts/out/
 # Python — bytecode from the agentbox ingest scripts (scripts/agentbox/*.py)
 __pycache__/
 *.py[cod]
+
+# Credentials — NEVER commit. App Review demo logins live here; this repo is
+# public, and a password in git history stays readable even after the file is
+# deleted in a later commit.
+docs/app-review-login-note.md

@@ -433,10 +433,12 @@ struct BookingDetailView: View {
     }
 
     private func manageLabel(_ icon: String, _ title: String) -> some View {
+        // Centred, not leading: the Wallet button in this stack is a system
+        // control that centres its own content, so a leading Spacer here left
+        // every other row hanging off-axis beside it.
         HStack(spacing: 10) {
             Image(systemName: icon).font(.system(size: 14))
             Text(title).font(.cfSans(14, weight: .medium))
-            Spacer()
         }
         .foregroundStyle(Theme.ink)
         .padding(.horizontal, 16)

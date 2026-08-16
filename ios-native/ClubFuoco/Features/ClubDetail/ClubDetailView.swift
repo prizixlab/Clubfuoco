@@ -33,6 +33,7 @@ struct ClubDetailView: View {
     @State private var activeOffer: RumbalistOffer?
     @State private var planGroup: GroupRef?
     @State private var photoViewer: PhotoIndex?
+    @State private var activeEvent: ClubEvent?
 
     /// Offers actually running on the night the user has planned: the night
     /// must fall within the offer's validDays AND not be one of the supplier's
@@ -109,6 +110,21 @@ struct ClubDetailView: View {
         }
         .fullScreenCover(item: $photoViewer) { idx in
             PhotoViewer(photos: photos, startIndex: idx.value)
+        }
+        .sheet(item: $activeEvent) { event in
+            EventDetailSheet(
+                event: event,
+                djFor: { dj(for: $0) },
+                onOpenDJ: { picked in
+                    // Close the event sheet, then open the DJ — presenting one
+                    // sheet from another directly drops the second.
+                    activeEvent = nil
+                    djAutoplay = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                        activeDJ = picked
+                    }
+                }
+            )
         }
         .sheet(item: $activeDJ) { dj in
             // The guestlist for a DJ box is for the DJ's OWN night, not tonight:
@@ -468,6 +484,8 @@ struct ClubDetailView: View {
                     }
                 }
                 ForEach(Array(events.prefix(eventsShown))) { event in
+                    // Whole card opens the full detail; the lineup chips inside
+                    // keep their own taps for jumping straight to a DJ.
                     eventBox(event)
                 }
             }
@@ -598,6 +616,8 @@ struct ClubDetailView: View {
         .background(Theme.cream)
         .clipShape(.rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
+        .contentShape(.rect)
+        .onTapGesture { Haptics.tap(); activeEvent = event }
     }
 
     // The event's lineup as chips. A name we hold in the DJ catalogue is a

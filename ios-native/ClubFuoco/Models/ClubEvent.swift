@@ -34,13 +34,68 @@ struct ClubEvent: Decodable, Sendable, Identifiable, Hashable {
     let raUrl: String?
     let image: String?            // flyer URL, where the scraper captured one
     let description: String?      // event copy (plain text), where RA had one
-    // `cost` is deliberately not modelled. It is free text on the source
-    // ("0", "10€", "", "€") and the brief is explicit that it is unreliable —
-    // showing it as a price would misstate what the door actually costs.
+    let endTime: String?          // ISO instant; nights routinely cross midnight
+    let minimumAge: Int?          // 18/20/21. nil = RA holds NO policy (see below)
+    let venueCapacity: String?    // free text, and "0" in half the rows
+    /// Free text on the source: "€12–€22", "0", "€", "10€/15€". Modelled now so
+    /// the detail sheet can show a real door price, but only through
+    /// `entryLabel`, which refuses anything that is not an actual amount.
+    let cost: String?
 
     var id: String { raEventId }
 
     var ticketsURL: URL? { raUrl.flatMap(URL.init(string:)) }
+
+    /// A door price only when the source actually gave one.
+    ///
+    /// 60% of rows are "0", "€" or blank, and nothing distinguishes "free" from
+    /// "unknown" — so anything without a non-zero digit is treated as unknown
+    /// and the chip is simply not shown. Guessing here would misstate what
+    /// someone pays at the door.
+    var entryLabel: String? {
+        guard let raw = cost?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !raw.isEmpty else { return nil }
+        let digits = raw.compactMap(\.wholeNumberValue)
+        guard digits.contains(where: { $0 > 0 }) else { return nil }
+        return raw
+    }
+
+    /// Capacity only when it is a real number. The column is non-null on 99% of
+    /// rows but literally "0" on half of them, which is absence, not a room that
+    /// holds nobody.
+    var capacityLabel: String? {
+        guard let raw = venueCapacity?.trimmingCharacters(in: .whitespacesAndNewlines),
+              let n = Int(raw), n > 0 else { return nil }
+        return n.formatted(.number.grouping(.automatic))
+    }
+
+    /// "23:00 – 06:00", plus whether the end lands on the next day. Median night
+    /// here runs six hours and most end between 02:00 and 08:00, so the end time
+    /// usually belongs to tomorrow — rendering it bare would read as wrong.
+    var timeRange: (label: String, crossesMidnight: Bool)? {
+        guard let start = Self.instant(startTime) else { return nil }
+        let out = DateFormatter()
+        out.timeZone = TimeZone(identifier: "Europe/Madrid")
+        out.locale = Locale(identifier: "en_GB")
+        out.dateFormat = "HH:mm"
+        guard let end = Self.instant(endTime) else {
+            return (out.string(from: start), false)
+        }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Europe/Madrid") ?? .current
+        let crosses = !cal.isDate(start, inSameDayAs: end)
+        return ("\(out.string(from: start)) – \(out.string(from: end))", crosses)
+    }
+
+    static func instant(_ iso: String?) -> Date? {
+        guard let iso else { return nil }
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: iso) { return d }
+        let plain = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime]
+        return plain.date(from: iso)
+    }
 
     /// ("SUN", "19", "JUL") for the date block. Parsed with a fixed calendar so
     /// the day never shifts with the device timezone.

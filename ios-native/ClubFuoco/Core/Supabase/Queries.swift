@@ -191,7 +191,7 @@ final class Queries: @unchecked Sendable {
         today.timeZone = TimeZone(identifier: "Europe/Madrid")
         return try await supabase.client
             .from("events")
-            .select("ra_event_id, title, date, start_time, venue_name, promoters, artists, lineup, interested, attending, ra_url, image, description")
+            .select("ra_event_id, title, date, start_time, end_time, venue_name, promoters, artists, lineup, interested, attending, ra_url, image, description, minimum_age, venue_capacity, cost")
             .eq("club_id", value: clubId)
             // Events that are really just a lone DJ playing are hidden here and
             // surfaced as a Featured DJ box instead (see link_djs.py).

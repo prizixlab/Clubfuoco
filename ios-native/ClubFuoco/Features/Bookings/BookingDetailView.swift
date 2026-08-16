@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 /// Full-screen detail for a single reservation, opened by tapping a ticket
 /// card on the Tickets tab.
@@ -7,8 +6,7 @@ import UIKit
 /// Laid out to the "Tickets · fullscreen QR" design: a full-bleed hero with
 /// floating controls, the scannable QR on a card that overlaps it (the QR is
 /// the point of this screen, so it sits above the fold), then the facts strip,
-/// receipt, venue and manage sections. Screen brightness is pushed to full
-/// while the pass is open so door scanners read it off a dim phone.
+/// receipt, venue and manage sections.
 struct BookingDetailView: View {
     let booking: Booking
     /// The group night this booking belongs to, if any.
@@ -28,8 +26,6 @@ struct BookingDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var calendarMessage: String?
     @State private var showHelp = false
-    /// Restored on the way out — never leave the user's screen cranked up.
-    @State private var priorBrightness: CGFloat?
 
     private var isCancelled: Bool { booking.status == "cancelled" }
 
@@ -98,26 +94,8 @@ struct BookingDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showHelp) { BookingHelpSheet(booking: booking) }
         .task { await firePassViewedIfAppropriate() }
-        .onAppear(perform: raiseBrightness)
-        .onDisappear(perform: restoreBrightness)
     }
 
-    // ── Screen brightness ─────────────────────────────────────────────────────
-    // A door scanner needs a bright QR, and phones are usually dimmed in a dark
-    // club. Full brightness while the pass is on screen; the user's own level is
-    // put back when they leave, including if they background the app.
-
-    private func raiseBrightness() {
-        guard !isCancelled, qrToken != nil, priorBrightness == nil else { return }
-        priorBrightness = UIScreen.main.brightness
-        UIScreen.main.brightness = 1.0
-    }
-
-    private func restoreBrightness() {
-        guard let priorBrightness else { return }
-        UIScreen.main.brightness = priorBrightness
-        self.priorBrightness = nil
-    }
 
     /// Fire a passive `pass_viewed` signal so confidence can climb without the
     /// user needing to tap. Silent: we never prompt for location here — only
@@ -273,10 +251,6 @@ struct BookingDetailView: View {
                     .minimumScaleFactor(0.8)
                     .padding(.horizontal, 6)
             }
-            Text(locale.t("bookings.brightnessNote").uppercased())
-                .font(.cfMono(8)).kerning(1)
-                .foregroundStyle(Theme.onQRSurface.opacity(0.45))
-                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 26)

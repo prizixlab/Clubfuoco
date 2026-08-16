@@ -757,34 +757,6 @@
         }
       }
     },
-    "bookings.brightnessNote": {
-      "localizations": {
-        "ca": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "La lluminositat s'ajustarà automàticament"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Brightness will adjust automatically"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "El brillo se ajustará automáticamente"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "La luminosité sʼajustera automatiquement"
-          }
-        }
-      }
-    },
     "bookings.cancelBooking": {
       "localizations": {
         "ca": {

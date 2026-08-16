@@ -235,7 +235,7 @@ joinable. Public discovery feed `/api/nero/events` filters `is_published=true`.
 ## 6. Cleanup / loose ends
 
 - **Throwaway test data in prod:** brand **"ZZ Email Test"** (`zz-emailtest-9663`)
-  linked to `yakov.a.v@icloud.com`; and **Rumba's `login_email` = `test12345@clubfuoco.com`**
+  linked to the owner's personal account; and **Rumba's `login_email` = `test12345@clubfuoco.com`**
   (should be Rumba's real operator address). Delete the test brand + its
   account; set Rumba's real login.
 - **iOS committed, not released:** `ios-promoters` (supplier + approval,

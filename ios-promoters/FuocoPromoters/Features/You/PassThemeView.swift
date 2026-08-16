@@ -22,6 +22,10 @@ struct PassThemeView: View {
     @State private var savedTheme: PassTheme?
     @State private var serverError: String?
     @State private var justSaved = false
+    /// The wordmark field is the only thing on this screen that takes the
+    /// keyboard, and the keyboard covers the preview — which is the whole
+    /// point of the screen. So it has to be easy to put away.
+    @FocusState private var wordmarkFocused: Bool
 
     private let repo = PassThemeRepo()
 
@@ -61,11 +65,28 @@ struct PassThemeView: View {
             .padding(20)
             .padding(.bottom, 40)
         }
+        // Drag the page and the keyboard goes with it, tracking the gesture —
+        // the gesture you already make to get back to the preview.
+        .scrollDismissesKeyboard(.interactively)
+        // And a tap anywhere puts it away. Simultaneous rather than a plain
+        // onTapGesture: a tap gesture owned by the ScrollView would compete
+        // with the preset buttons and colour pickers inside it, and this way
+        // both fire — tapping a preset dismisses the keyboard AND picks it.
+        .simultaneousGesture(TapGesture().onEnded { wordmarkFocused = false })
         .background(Theme.night.ignoresSafeArea())
         .navigationTitle("Wallet pass")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.night, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            // The explicit exit, for anyone who does not think to tap away.
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { wordmarkFocused = false }
+                    .font(.cfSans(15, weight: .semibold))
+                    .foregroundStyle(Theme.gold)
+            }
+        }
         .task { await load() }
         .animation(.easeInOut(duration: 0.18), value: check.ok)
     }
@@ -257,6 +278,10 @@ struct PassThemeView: View {
                 .foregroundStyle(Theme.parchment)
                 .textInputAutocapitalization(.words)
                 .autocorrectionDisabled()
+                .focused($wordmarkFocused)
+                // A wordmark is one line, so Return means "done", not newline.
+                .submitLabel(.done)
+                .onSubmit { wordmarkFocused = false }
                 .padding(.horizontal, 14).padding(.vertical, 12)
                 .background(Theme.nightLift, in: .rect(cornerRadius: Theme.radiusField))
                 .overlay(RoundedRectangle(cornerRadius: Theme.radiusField).stroke(Theme.hairline))

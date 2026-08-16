@@ -31,6 +31,18 @@ async function resolveCaller(): Promise<
   return { userId: user.id, sb }
 }
 
+/// The authenticated FuocoPromoters caller, with no brand requirement.
+///
+/// For promoter-owned resources that exist whether or not the account
+/// publishes public offers — a Wallet pass theme belongs to every promoter,
+/// but a brand is provisioned lazily and most accounts never get one.
+export async function resolvePromoterCaller(): Promise<
+  | { userId: string; sb: SB; response?: undefined }
+  | { response: Response; userId?: undefined; sb?: undefined }
+> {
+  return resolveCaller()
+}
+
 // Resolve the caller to the brand they own. Every /api/offers write must
 // scope to the returned brand.
 //

@@ -228,6 +228,14 @@ def main() -> int:
             # events, so null here is normal, not a failure.
             "image":       (r.get("image") or None),
             "description": (r.get("description") or None),
+            # RA exposes these on the listing; see the 2026-08-16 migration for
+            # why setTimes/tickets are deliberately absent.
+            "end_time":       madrid_iso(r.get("end_time")),
+            "minimum_age":    to_int(r.get("minimum_age")) or None,
+            "venue_capacity": (r.get("venue_capacity") or None),
+            # Stored as a JSON string locally; hand it over as real JSON so the
+            # jsonb column holds an array, not a quoted blob.
+            "lineup":         json.loads(r["lineup"]) if r.get("lineup") else None,
             "first_seen":  existing.get(r["id"]) or r["first_seen"],
             "last_seen":   r["last_seen"],
         })

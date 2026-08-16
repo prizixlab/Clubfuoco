@@ -167,10 +167,11 @@ def fetch_events() -> list[dict]:
         totalResults
         data {
           event {
-            id title date startTime contentUrl interestedCount attending cost
+            id title date startTime endTime contentUrl interestedCount attending cost
+            minimumAge lineup
             content
             images { filename type }
-            venue { name address area { name } }
+            venue { name address capacity area { name } }
             artists { id name }
             genres { name }
             promoters { id name }
@@ -297,11 +298,39 @@ def events_db() -> sqlite3.Connection:
         first_seen TEXT, last_seen TEXT)""")
     existing = {r[1] for r in c.execute("PRAGMA table_info(events)")}
     for col, typ in (("genres", "TEXT"), ("kind", "TEXT"),
-                     ("image", "TEXT"), ("description", "TEXT")):
+                     ("image", "TEXT"), ("description", "TEXT"),
+                     ("end_time", "TEXT"), ("minimum_age", "INTEGER"),
+                     ("venue_capacity", "TEXT"), ("lineup", "TEXT")):
         if col not in existing:
             c.execute(f"ALTER TABLE events ADD COLUMN {col} {typ}")
     c.commit()
     return c
+
+
+_LINEUP_RE = re.compile(r'<artist id="(\d+)"[^>]*>(.*?)</artist>', re.S | re.I)
+
+
+def _lineup(raw: str | None) -> str | None:
+    """RA's `lineup` as ordered [{id, name}] JSON.
+
+    The field is markup, not prose:
+        <artist id="72992">Silverlining</artist>
+    which is worth more than the `artists` array we already store, on two
+    counts: it preserves BILLING ORDER, and it carries RA's artist id per
+    credit. The app currently joins a credit to a DJ page by NAME — the same
+    fragile join that made venue linking painful — and an id makes it exact.
+
+    Returns None when RA gave us no markup, so COALESCE keeps any earlier value
+    rather than blanking it on a bad night.
+    """
+    if not raw:
+        return None
+    out = []
+    for aid, name in _LINEUP_RE.findall(raw):
+        name = re.sub(r"<[^>]+>", "", name).strip()
+        if name:
+            out.append({"id": aid, "name": name})
+    return json.dumps(out, ensure_ascii=False) if out else None
 
 
 def _event_kind(artists: str) -> str:
@@ -360,22 +389,30 @@ def upsert_events(c: sqlite3.Connection, events: list[dict], today: dt.date) -> 
         url = "https://ra.co" + (e.get("contentUrl") or "")
         image = _flyer_url(e)
         description = _clean_content(e.get("content"))
+        lineup = _lineup(e.get("lineup"))
+        capacity = ((e.get("venue") or {}).get("capacity") or "").strip() or None
         vals = (e.get("title"), (e.get("date") or "")[:10], e.get("startTime"),
                 venue, area, proms, arts, e.get("interestedCount") or 0,
                 e.get("attending") or 0, e.get("cost") or "", url, genres, kind,
-                image, description)
+                image, description, e.get("endTime"), e.get("minimumAge"),
+                capacity, lineup)
         if c.execute("SELECT 1 FROM events WHERE id=?", (eid,)).fetchone():
             c.execute("""UPDATE events SET title=?,date=?,start_time=?,venue=?,area=?,
                         promoters=?,artists=?,interested=?,attending=?,cost=?,ra_url=?,
                         genres=?,kind=?,image=COALESCE(?,image),
                         description=COALESCE(?,description),
+                        end_time=COALESCE(?,end_time),
+                        minimum_age=COALESCE(?,minimum_age),
+                        venue_capacity=COALESCE(?,venue_capacity),
+                        lineup=COALESCE(?,lineup),
                         last_seen=? WHERE id=?""", (*vals, now, eid))
         else:
             c.execute("""INSERT INTO events
                         (id,title,date,start_time,venue,area,promoters,artists,
                          interested,attending,cost,ra_url,genres,kind,image,description,
+                         end_time,minimum_age,venue_capacity,lineup,
                          first_seen,last_seen)
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                       (eid, *vals, now, now))
             new += 1
     c.commit()

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AuthStore.self) private var auth
+    @Environment(\.api) private var api
     @State private var router = InviteLinkRouter.shared
     private static let notifPromptKey = "cf.notifPromptShown"
 
@@ -35,6 +36,9 @@ struct RootView: View {
                 .presentationDragIndicator(.visible)
         }
         .task { await maybePromptNotifications() }
+        // Recover an invite tapped before the app was installed. Runs once per
+        // install, and only ever pre-fills the sheet above — see InviteHandoff.
+        .task { await InviteHandoff.resolveIfNeeded(api: api) }
     }
 
     /// Fires the iOS notification permission dialog directly on app open —

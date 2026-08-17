@@ -30,6 +30,55 @@ function tryOpenApp(token: string) {
   }
 }
 
+/** Hand the invite across the App Store gap.
+ *
+ *  A Universal Link only works if the app is already installed, so someone
+ *  installing from here cold-launches with no idea what they came for. Apple
+ *  offers nothing for this, so we use two channels and let the app take
+ *  whichever arrives:
+ *
+ *  1. CLIPBOARD — deterministic. The app checks the pasteboard on first launch
+ *     with detectPatterns (which does NOT prompt) and only reads it if a URL is
+ *     there. An https:// URL rather than clubfuoco:// because that is what
+ *     detectPatterns recognises as a URL.
+ *  2. SERVER TICKET — probabilistic, silent, and the fallback when the user
+ *     copies something else in between. See src/lib/invite-handoff.ts.
+ *
+ *  Both are best-effort by construction. Neither is awaited long enough to
+ *  delay the App Store, because a guest staring at a dead button is a worse
+ *  failure than a lost handoff — they still have the link in their messages.
+ */
+async function handoff(token: string) {
+  const url = `https://clubfuoco.com/i/${token}`
+  try {
+    await navigator.clipboard?.writeText(url)
+  } catch {
+    // Denied, or no secure context. The server ticket is the whole point.
+  }
+  try {
+    await fetch('/api/invite-handoff', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+      keepalive: true,          // survives the navigation to the App Store
+    })
+  } catch {
+    // Offline or blocked — fall through, the link still exists in their chat.
+  }
+}
+
+/** Run the handoff, then go to the App Store.
+ *
+ *  The 150ms is for the clipboard write, not the fetch — that carries
+ *  `keepalive` and survives the navigation on its own. Short enough that nobody
+ *  perceives a stalled button.
+ */
+async function goToStore(token: string) {
+  const done = handoff(token)
+  await Promise.race([done, new Promise(r => setTimeout(r, 150))])
+  window.location.href = APP_STORE_URL
+}
+
 /** Explicit "Open in app": attempt the deep link, and if we're still visible
  *  after `timeoutMs` (app not installed), fall back to the App Store. */
 function openInAppOrStore(token: string, timeoutMs = 1500) {
@@ -39,7 +88,7 @@ function openInAppOrStore(token: string, timeoutMs = 1500) {
   const t = setTimeout(() => {
     document.removeEventListener('visibilitychange', onHide)
     if (Date.now() - start < timeoutMs + 500 && !document.hidden) {
-      window.location.href = APP_STORE_URL
+      void goToStore(token)
     }
   }, timeoutMs)
   window.location.href = `clubfuoco://i/${token}`
@@ -168,7 +217,14 @@ export default function InviteClaimClient({
                 Tap the <strong>⋯</strong> menu and choose <strong>Open in Safari</strong> to
                 continue — then reserve your spot in the app.
               </p>
-              <a href={APP_STORE_URL} style={primaryBtn}>Get the app</a>
+              {/* The handoff matters MOST here. Instagram's webview honours
+                  neither Universal Links nor custom schemes, so this is the one
+                  path with no way back into the app on its own. Its clipboard
+                  is usually blocked, but the server ticket carries the same IP
+                  as the install that follows. */}
+              <button onClick={() => void goToStore(token)} style={{ ...primaryBtn, border: 'none', font: 'inherit', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                Get the app
+              </button>
             </>
           ) : iOS ? (
             <>
@@ -178,7 +234,9 @@ export default function InviteClaimClient({
               <button onClick={() => openInAppOrStore(token)} style={{ ...primaryBtn, border: 0, cursor: 'pointer' }}>
                 Open in app
               </button>
-              <a href={APP_STORE_URL} style={secondaryBtn}>Don&rsquo;t have it? Get the app</a>
+              <button onClick={() => void goToStore(token)} style={{ ...secondaryBtn, border: 'none', font: 'inherit', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                Don&rsquo;t have it? Get the app
+              </button>
             </>
           ) : (
             <>
@@ -186,7 +244,9 @@ export default function InviteClaimClient({
                 Club Fuoco is an iPhone app. Open this invite on your iPhone, or download it
                 from the App Store to reserve your spot.
               </p>
-              <a href={APP_STORE_URL} style={primaryBtn}>Get it on the App Store</a>
+              <button onClick={() => void goToStore(token)} style={{ ...primaryBtn, border: 'none', font: 'inherit', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                Get it on the App Store
+              </button>
             </>
           )}
         </div>

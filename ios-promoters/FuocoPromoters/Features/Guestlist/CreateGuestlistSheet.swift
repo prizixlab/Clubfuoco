@@ -84,6 +84,15 @@ final class CreateGuestlistModel: ObservableObject {
 
     var cardOnFile: Bool { billing?.cardVerified == true }
 
+    /// A private event is link-only and its door is gated by an event code.
+    ///
+    /// Mutually exclusive with `featured`, which is paid promotion onto the
+    /// front screen — paying to advertise an event only people with the link
+    /// can find is money for nothing.
+    @Published var isPrivate = false {
+        didSet { if isPrivate { featured = false } }
+    }
+
     @Published var trackPayouts = false
     @Published var payoutPerGuestText = "10.00"
     @Published var groupVisible = true
@@ -372,7 +381,8 @@ final class CreateGuestlistModel: ObservableObject {
                     description: desc.isEmpty ? nil : desc,
                     theme: themeVal.isEmpty ? nil : themeVal,
                     themeTranslate: translateVal, photoUrls: photoURLs,
-                    featured: featured, maxPlusOnes: maxPlus, promoterId: promoterId)
+                    featured: featured, maxPlusOnes: maxPlus,
+                    isPrivate: isPrivate, promoterId: promoterId)
                 Haptics.success()
                 // If the night came back held (is_published == false), it's
                 // awaiting review → confirm pending. Otherwise (pre-migration)
@@ -696,6 +706,7 @@ struct CreateGuestlistSheet: View {
                 descriptionField
                 themeCard
                 photosCard
+                privateEventCard
                 featuredCard
                 scheduleCard
                 hoursCard
@@ -848,6 +859,39 @@ struct CreateGuestlistSheet: View {
         }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
+    }
+
+    /// Private event: link-only, and its door is gated by a code you give your
+    /// scanners. Sits above the promotion card because turning it on switches
+    /// promotion off — the two are contradictory, and seeing that happen
+    /// beneath your thumb explains it better than any copy would.
+    private var privateEventCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "lock.shield").font(.system(size: 13)).foregroundStyle(Theme.gold)
+                Kicker("Private event", color: Theme.gold)
+            }
+            Toggle(isOn: $model.isPrivate.animation()) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Invite only")
+                        .font(.cfSans(14, weight: .medium))
+                        .foregroundStyle(Theme.parchment)
+                    Text("Only people with your link can see it, and only scanners with your event code can let them in.")
+                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                }
+            }
+            .tint(Theme.ember)
+
+            if model.isPrivate {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "key.horizontal").font(.system(size: 13)).foregroundStyle(Theme.gold)
+                    Text("You'll get a **six-character door code** once it's created. Give it to whoever works the door — without it, no scanner can admit or void your guests.")
+                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Theme.gold.opacity(0.08)))
+            }
+        }
     }
 
     private var featuredCard: some View {

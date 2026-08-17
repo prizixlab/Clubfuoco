@@ -67,7 +67,13 @@ struct PromoterNight: Codable, Identifiable, Equatable, Hashable {
     // the columns (see PromoterRepo's fallback selects).
     var reviewStatus: String?
     var rejectionReason: String?
+    /// "public" | "private". Optional for the same reason as the two above —
+    /// absent from the row when the schema level didn't ask for it.
+    var visibility: String?
     var club: Club?
+
+    /// Link-only, with a code-gated door.
+    var isPrivate: Bool { visibility == "private" }
 
     /// Venue label — club name for partner clubs, custom name otherwise.
     var venueName: String { club?.name ?? locationName ?? "Custom location" }

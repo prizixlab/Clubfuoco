@@ -27,7 +27,15 @@ final class PromoterRepo: ObservableObject {
     // reports a missing column, so a screen never breaks on an unapplied
     // migration. Level 3 → + skipped_dates (series only), 2 → review_status +
     // rejection_reason, 1 → review_status, 0 → none.
-    private static var reviewColumnLevel = 3
+    // Level 5 → + promoter_nights.visibility (private events).
+    //
+    // Was 3, which meant the `level >= 4` branch for checked_in_source could
+    // never be reached — the level only ever steps DOWN on a missing column, so
+    // a branch above the starting value is unreachable. Verified against
+    // production before raising it: visibility, checked_in_source and
+    // skipped_dates all exist, and the fallback still covers any environment
+    // where they don't.
+    private static var reviewColumnLevel = 5
 
     private static func reviewCols(_ level: Int) -> String {
         switch level {
@@ -42,7 +50,7 @@ final class PromoterRepo: ObservableObject {
         id, club_id, title, night_date, doors_at, open_time, close_time,
         total_capacity, is_published,
         location_name, address, lat, lng, auto_checkin,
-        description, theme, theme_translate, photo_urls, featured, max_plus_ones\(reviewCols(level))
+        description, theme, theme_translate, photo_urls, featured, max_plus_ones\(level >= 5 ? ", visibility" : "")\(reviewCols(level))
         """
     }
 
@@ -230,6 +238,88 @@ final class PromoterRepo: ObservableObject {
         let photoUrls: [String]
         let featured: Bool
         let maxPlusOnes: Int?
+        /// "private", or nil for an ordinary night.
+        ///
+        /// Nil rather than "public" so the synthesized encoder omits the key
+        /// entirely (Optionals encode via encodeIfPresent) and the column
+        /// default applies — the payload stays byte-identical to what we sent
+        /// before private events existed.
+        var visibility: String? = nil
+    }
+
+    // MARK: - Private event door codes
+
+    /// The code a promoter's door team types into Fuoco Door to scan a private
+    /// event, plus how many scanners are live on it right now.
+    ///
+    /// `activeDoors` is not decoration: rotating revokes every session, so a
+    /// promoter about to rotate mid-shift needs to see they are about to lock
+    /// out their own bouncers.
+    struct EventCode: Decodable {
+        let code: String?
+        let rotatedAt: Date?
+        let activeDoors: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case code
+            case rotatedAt = "rotated_at"
+            case activeDoors = "active_doors"
+        }
+    }
+
+    private func eventCodeRequest(
+        _ path: String, method: String, body: [String: Any]? = nil
+    ) async throws -> Data {
+        let token = try await sb.client.auth.session.accessToken
+        var req = URLRequest(url: URL(string: "\(Self.webBase)/api/promoter/event-code\(path)")!)
+        req.httpMethod = method
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let body {
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        }
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            struct E: Decodable { let error: String? }
+            let message = (try? JSONDecoder().decode(E.self, from: data))?.error
+            throw NSError(domain: "EventCode", code: http.statusCode,
+                          userInfo: [NSLocalizedDescriptionKey: message ?? "Couldn't reach the server."])
+        }
+        return data
+    }
+
+    private static let eventCodeDecoder: JSONDecoder = {
+        let d = JSONDecoder()
+        d.dateDecodingStrategy = .iso8601
+        return d
+    }()
+
+    func eventCode(nightId: UUID) async throws -> EventCode {
+        let data = try await eventCodeRequest("?night=\(nightId.uuidString.lowercased())", method: "GET")
+        struct Env: Decodable { let data: EventCode? }
+        guard let c = try Self.eventCodeDecoder.decode(Env.self, from: data).data else {
+            throw NSError(domain: "EventCode", code: 1)
+        }
+        return c
+    }
+
+    /// Creates the code, or rotates it when `rotate` is true. Rotating revokes
+    /// every door currently holding the old one.
+    @discardableResult
+    func setEventCode(nightId: UUID, rotate: Bool = false) async throws -> String {
+        let data = try await eventCodeRequest(
+            "", method: "POST",
+            body: ["night_id": nightId.uuidString.lowercased(), "rotate": rotate])
+        struct Resp: Decodable { let code: String }
+        struct Env: Decodable { let data: Resp? }
+        guard let c = try Self.eventCodeDecoder.decode(Env.self, from: data).data else {
+            throw NSError(domain: "EventCode", code: 1)
+        }
+        return c.code
+    }
+
+    func clearEventCode(nightId: UUID) async throws {
+        _ = try await eventCodeRequest("?night=\(nightId.uuidString.lowercased())", method: "DELETE")
     }
 
     // MARK: - Staff referral links
@@ -570,6 +660,13 @@ final class PromoterRepo: ObservableObject {
         let photoUrls: [String]
         let featured: Bool
         let maxPlusOnes: Int?
+        /// "private", or nil for an ordinary night.
+        ///
+        /// Nil rather than "public" so the synthesized encoder omits the key
+        /// entirely (Optionals encode via encodeIfPresent) and the column
+        /// default applies — the payload stays byte-identical to what we sent
+        /// before private events existed.
+        var visibility: String? = nil
     }
     struct NewAllocation: Encodable {
         let nightId: UUID
@@ -597,7 +694,7 @@ final class PromoterRepo: ObservableObject {
         spots: Int, payoutPerGuest: Decimal,
         groupVisible: Bool, autoCheckin: Bool,
         description: String?, theme: String?, themeTranslate: Bool, photoUrls: [String],
-        featured: Bool, maxPlusOnes: Int?, promoterId: UUID
+        featured: Bool, maxPlusOnes: Int?, isPrivate: Bool = false, promoterId: UUID
     ) async throws -> PromoterAllocation {
         let nightPayload = dates.map {
             NewNight(clubId: location.clubId, title: title, nightDate: $0,
@@ -607,7 +704,8 @@ final class PromoterRepo: ObservableObject {
                      lat: location.lat, lng: location.lng, autoCheckin: autoCheckin,
                      description: description, theme: theme,
                      themeTranslate: themeTranslate, photoUrls: photoUrls, featured: featured,
-                     maxPlusOnes: maxPlusOnes)
+                     maxPlusOnes: maxPlusOnes,
+                     visibility: isPrivate ? "private" : nil)
         }
         let nights: [PromoterNight] = try await withReviewFallback { level in
             try await sb.client

@@ -122,7 +122,13 @@ export async function POST(req: NextRequest) {
   return ok({ recorded: true, token_ref, used })
 }
 
-export interface TokenContext {
+// Local to this route. A `route.ts` may only export the HTTP handlers and
+// Next's config constants — a value export like the function below fails the
+// build with "does not match the required types of a Next.js Route", and `tsc
+// --noEmit` does not catch it because the check lives in Next's generated
+// route types, not the app's own tsconfig. Move these to src/lib/door.ts if
+// another route ever needs them.
+interface TokenContext {
   kind: 'booking' | 'guest'
   id: string
   /** null for a promoter night at a custom location — see nightId. */
@@ -144,7 +150,7 @@ export interface TokenContext {
  * private event is normally at a warehouse or a roof rather than a club, so the
  * scope is now (club OR night) and the ledger records whichever it has.
  */
-export async function tokenContext(
+async function tokenContext(
   supabase: Awaited<ReturnType<typeof createServiceClient>>, tokenRef: string,
 ): Promise<TokenContext | null> {
   if (tokenRef.startsWith('bk_')) {

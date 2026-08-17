@@ -74,10 +74,23 @@ final class ScanController: ObservableObject {
     private func scoped(_ d: AccessDescriptor) -> AccessDescriptor {
         guard d.status != .invalid else { return d }
         let door = venueId
-        // Fail closed: an unset door venue, or a credential whose venue we
-        // couldn't resolve, must NOT be admitted. Previously an empty venue
-        // skipped the check entirely and showed ADMIT.
-        guard !door.isEmpty, !d.venue.isEmpty, d.venue == door else {
+        // A door scoped by EVENT (redeemed an event code) stores the night id
+        // where a club door stores its club id, so one comparison covers both:
+        //
+        //   club door, club ticket      → d.venue   == clubId
+        //   event door, online resolve  → d.eventId == nightId
+        //   event door, offline pack    → d.venue   == nightId (the pack's
+        //                                 `venue` field carries the night)
+        //
+        // Night ids and club ids are distinct uuids, so the two branches can't
+        // collide into a false match.
+        //
+        // Still fails closed: an unset door, or a credential we couldn't scope
+        // at all, must NOT be admitted. An empty venue used to skip the check
+        // entirely and show ADMIT.
+        let matches = (!d.venue.isEmpty && d.venue == door)
+            || (!(d.eventId ?? "").isEmpty && d.eventId == door)
+        guard !door.isEmpty, matches else {
             var copy = d
             copy.status = .wrongVenue
             return copy

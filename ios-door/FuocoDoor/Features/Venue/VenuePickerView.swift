@@ -10,6 +10,8 @@ struct VenuePickerView: View {
     let repo: DoorRepo
     /// Non-nil when changing venue from inside the app (vs. first-run).
     var current: DeviceSession? = nil
+    /// A private event has no club row to pick, so it needs its own way in.
+    var onPrivateEvent: (() -> Void)? = nil
     var onPick: (DeviceSession) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -62,10 +64,29 @@ struct VenuePickerView: View {
     }
 
     private var intro: some View {
-        Text("Tickets for any other venue will be rejected at this door.")
-            .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 24).padding(.vertical, 12)
+        VStack(spacing: 10) {
+            Text("Tickets for any other venue will be rejected at this door.")
+                .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                .multilineTextAlignment(.center)
+
+            // A private event is normally at a warehouse or a roof, so it never
+            // appears in this list — there is no club row for it. The promoter's
+            // event code is the way in.
+            if let onPrivateEvent {
+                Button {
+                    onPrivateEvent()
+                    dismiss()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "lock.shield")
+                        Text("Working a private event? Enter its code")
+                    }
+                    .font(.cfSans(13, weight: .semibold))
+                    .foregroundStyle(Theme.gold)
+                }
+            }
+        }
+        .padding(.horizontal, 24).padding(.vertical, 12)
     }
 
     private func row(_ v: DoorVenue) -> some View {

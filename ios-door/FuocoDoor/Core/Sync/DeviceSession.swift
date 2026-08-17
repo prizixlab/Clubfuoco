@@ -8,6 +8,22 @@ struct DeviceSession: Codable {
     var venueName: String
     var enrolledAt: Date
 
+    /// Set when this door was scoped by an EVENT CODE rather than by venue
+    /// enrollment. `venue` then holds the promoter night's id, which is what
+    /// `ScanController.scoped()` matches a descriptor's `eventId` against.
+    ///
+    /// Optional so a session persisted before event codes existed still decodes.
+    var eventToken: String? = nil
+    /// When the event session stops being accepted — the night's end plus the
+    /// 12-hour ceiling. Past this the door must re-enter the code.
+    var eventExpiresAt: Date? = nil
+
+    var isEventScoped: Bool { eventToken != nil }
+    var eventExpired: Bool {
+        guard let eventExpiresAt else { return false }
+        return eventExpiresAt < Date()
+    }
+
     private static let key = "cf.door.session"
 
     static func load() -> DeviceSession? {

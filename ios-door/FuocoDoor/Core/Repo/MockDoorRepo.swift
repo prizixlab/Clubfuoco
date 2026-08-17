@@ -19,6 +19,20 @@ struct MockDoorRepo: DoorRepo {
                             venueName: "Villa Agrippina")
     }
 
+    func redeemEventCode(_ code: String) async throws -> EventSessionResult {
+        try await Task.sleep(nanoseconds: 500_000_000)
+        guard code.trimmingCharacters(in: .whitespaces).count == 6 else { throw DoorRepoError.badCode }
+        return EventSessionResult(eventToken: "evt_mock-\(UUID().uuidString.prefix(8))",
+                                  nightId: "mock-night",
+                                  nightDate: "2026-08-19",
+                                  eventName: "Warehouse — private",
+                                  expiresAt: Date().addingTimeInterval(36 * 3600))
+    }
+
+    func eventPack(nightId: String) async throws -> EncryptedManifest {
+        throw DoorRepoError.offline      // sealed packs have no useful mock
+    }
+
     func resolve(_ payload: String) async throws -> AccessDescriptor {
         try await Task.sleep(nanoseconds: 250_000_000)
         let m = Self.demoManifest(venue: "villa-agrippina", date: "2026-08-05")

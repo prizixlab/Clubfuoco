@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
 import { resolveDescriptor } from '@/lib/door'
+import { eventAccessDenied } from '@/lib/door-events'
 
 // POST /api/door/resolve  { payload }
 // Live per-scan resolution for OPEN-ACCESS mode: the door scans a QR (a URL like
@@ -33,8 +34,23 @@ export async function POST(req: NextRequest) {
       venue: '',
       venue_name: '',
       night: '',
+      event_id: null,
       token_ref: `invalid-${payload.slice(0, 40)}`,
     })
   }
+
+  // A private event's list is the promoter's, not the platform's. Without a
+  // live session for that night this endpoint must not say who is on it —
+  // gating admit alone would still leak the guest list to anyone who scans.
+  const access = await eventAccessDenied(supabase, req, descriptor.event_id)
+  if (access !== 'ok') {
+    return err(
+      access === 'needs_code'
+        ? 'This is a private event — enter the event code to scan it.'
+        : 'That code is for a different event.',
+      403,
+    )
+  }
+
   return ok(descriptor)
 }

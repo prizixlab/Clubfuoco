@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// Real backend client for the /api/door/* endpoints (§5). These routes are NOT
 /// built yet — this is written to the planned contract so it's a drop-in once
@@ -17,7 +18,11 @@ struct DoorAPIRepo: DoorRepo {
         var req = URLRequest(url: url)
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let deviceToken { req.setValue("Bearer \(deviceToken)", forHTTPHeaderField: "Authorization") }
+        // An event-code door carries its session on every call: /resolve and
+        // /admit refuse a private event without it, and the pack endpoint won't
+        // hand one over. Explicit tokens (device enrollment) still win.
+        let bearer = deviceToken ?? DeviceSession.load()?.eventToken
+        if let bearer { req.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }
         if let body {
             let enc = JSONEncoder()
             enc.keyEncodingStrategy = .convertToSnakeCase
@@ -28,7 +33,12 @@ struct DoorAPIRepo: DoorRepo {
             let (data, resp) = try await URLSession.shared.data(for: req)
             guard let http = resp as? HTTPURLResponse else { throw DoorRepoError.offline }
             guard (200..<300).contains(http.statusCode) else {
-                throw DoorRepoError.server("Server error \(http.statusCode)")
+                // Surface the server's own sentence. "This is a private event —
+                // enter the event code to scan it" is actionable at a door;
+                // "Server error 403" sends someone hunting for a bug.
+                struct ErrorEnvelope: Decodable { let error: String? }
+                let message = (try? JSONDecoder().decode(ErrorEnvelope.self, from: data))?.error
+                throw DoorRepoError.server(message ?? "Server error \(http.statusCode)")
             }
             return data
         } catch let e as DoorRepoError {
@@ -52,6 +62,18 @@ struct DoorAPIRepo: DoorRepo {
     func enroll(code: String) async throws -> EnrollResult {
         struct Body: Encodable { let code: String }
         let data = try await request("api/door/enroll", body: Body(code: code))
+        return try decode(data)
+    }
+
+    func redeemEventCode(_ code: String) async throws -> EventSessionResult {
+        struct Body: Encodable { let code: String; let deviceModel: String }
+        let data = try await request("api/door/event-code",
+                                     body: Body(code: code, deviceModel: UIDevice.current.model))
+        return try decode(data)
+    }
+
+    func eventPack(nightId: String) async throws -> EncryptedManifest {
+        let data = try await request("api/door/night?event=\(nightId)", method: "GET")
         return try decode(data)
     }
 

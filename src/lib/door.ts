@@ -254,6 +254,17 @@ export interface AccessDescriptorDTO {
   venue: string
   venue_name: string
   night: string
+  /**
+   * The promoter night this credential belongs to, when it has one.
+   *
+   * A door scopes itself by VENUE — `ScanController.scoped()` fails a scan
+   * closed unless `descriptor.venue` equals the door's own club. A private
+   * event has no club to compare against, so it needs a second scope: a door
+   * that redeemed an event code is bound to this id instead.
+   *
+   * Null for bookings, which are always at a club.
+   */
+  event_id: string | null
   token_ref: string
 }
 
@@ -333,6 +344,7 @@ export async function resolveDescriptor(
       venue: b.club_id,
       venue_name: club?.name ?? 'Venue',
       night: b.booking_date,
+      event_id: null,            // a booking is always at a club
       token_ref: tokenRef,
     }
   }
@@ -347,11 +359,17 @@ async function resolveGuest(supabase: SupabaseClient, guestId: string): Promise<
   if (!UUID_RE.test(guestId)) return null
   const { data: g } = await supabase
     .from('promoter_guests')
-    .select('id, full_name, plus_ones, allocation_id, promoter_allocations(night_id, promoter_nights(club_id, night_date, clubs(name)))')
+    .select('id, full_name, plus_ones, allocation_id, promoter_allocations(night_id, promoter_nights(id, club_id, night_date, location_name, clubs(name)))')
     .eq('id', guestId)
     .maybeSingle()
   if (!g) return null
-  const alloc = g.promoter_allocations as { promoter_nights?: { club_id?: string; night_date?: string; clubs?: { name?: string } } } | null
+  const alloc = g.promoter_allocations as {
+    night_id?: string
+    promoter_nights?: {
+      id?: string; club_id?: string; night_date?: string
+      location_name?: string; clubs?: { name?: string }
+    }
+  } | null
   const night = alloc?.promoter_nights
   const plus = g.plus_ones ?? 0
   const allowed = plus + 1
@@ -369,10 +387,34 @@ async function resolveGuest(supabase: SupabaseClient, guestId: string): Promise<
     allowance: { used, allowed },
     status: used >= allowed && used > 0 ? 'over' : 'ok',
     venue: night?.club_id ?? '',
-    venue_name: night?.clubs?.name ?? 'Venue',
+    // A custom-location night has no club row to name it. Falling back to the
+    // night's own location keeps the door from displaying a bare "Venue" for
+    // every private event.
+    venue_name: night?.clubs?.name ?? night?.location_name ?? 'Venue',
     night: night?.night_date ?? '',
+    event_id: night?.id ?? alloc?.night_id ?? null,
     token_ref: tokenRef,
   }
+}
+
+/**
+ * Net admitted heads per token_ref for one promoter night.
+ *
+ * The by-club variant below can't serve a night with no `club_id`, which is
+ * every private event at a custom location.
+ */
+export async function usedByNight(
+  supabase: SupabaseClient, nightId: string,
+): Promise<Map<string, number>> {
+  const { data } = await supabase
+    .from('admission_scans')
+    .select('token_ref, action, count')
+    .eq('night_id', nightId)
+  const m = new Map<string, number>()
+  for (const r of data ?? []) {
+    m.set(r.token_ref, (m.get(r.token_ref) ?? 0) + (r.action === 'admit' ? r.count : -r.count))
+  }
+  return m
 }
 
 /** Net admitted heads per token_ref for a club/night (admit − void, clamped ≥0). */

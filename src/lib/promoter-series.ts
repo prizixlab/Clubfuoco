@@ -38,6 +38,9 @@ export interface PromoterSeries {
   // Drift-defensive: lands with the 20260715 migration. Undefined until the
   // column exists — treated as "no weeks skipped".
   skipped_dates?: string[] | null
+  // Drift-defensive: lands with 20260819_private_events. A series is private or
+  // public as a whole; every night it materializes inherits it.
+  visibility?: 'public' | 'private' | null
 }
 
 const MADRID = 'Europe/Madrid'
@@ -132,9 +135,16 @@ export async function ensureOccurrence(
   // by a PARTIAL index, which Postgres can't use as an ON CONFLICT target
   // (error 42P10) — so we insert and fall back to a read on unique-violation
   // instead of upserting.
-  const { data: night, error: nightErr } = await sb
+  // A private series must not materialize public nights — that would put the
+  // event back in front of every other promoter a week at a time. Omitted
+  // entirely when the series predates the column, so the night takes the
+  // 'public' default exactly as it does today.
+  const inherited = series.visibility === 'private' ? { visibility: 'private' } : {}
+
+  const insertNight = (extra: Record<string, unknown>) => sb
     .from('promoter_nights')
     .insert({
+      ...extra,
       series_id: series.id,
       club_id: series.club_id,
       title: series.title,
@@ -157,6 +167,15 @@ export async function ensureOccurrence(
     })
     .select('id')
     .single()
+
+  let { data: night, error: nightErr } = await insertNight(inherited)
+  // Drift-defensive: the column lands with a manual migration, and a series
+  // must keep materializing its weekly night whether or not it has been
+  // applied. Only retried when we actually asked for it.
+  if (nightErr && Object.keys(inherited).length
+      && /visibility|column|schema cache/i.test(nightErr.message ?? '')) {
+    ;({ data: night, error: nightErr } = await insertNight({}))
+  }
 
   let nightId = night?.id as string | undefined
   if (!nightId) {

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
 import { billableForKind, isoNoMs, usedForToken, type CredentialKind } from '@/lib/door'
+import { eventAccessDenied } from '@/lib/door-events'
 
 // POST /api/door/admit  { scan_id, action, token_ref, count, kind, holder_name, reason? }
 //
@@ -32,22 +33,47 @@ export async function POST(req: NextRequest) {
   const ctx = await tokenContext(supabase, token_ref)
   if (!ctx) return err('Unknown token_ref', 404)
 
+  // The gate that actually stops someone walking guests into a private party.
+  // /resolve refuses to identify them; this refuses to admit them.
+  const access = await eventAccessDenied(supabase, req, ctx.nightId)
+  if (access !== 'ok') {
+    return err(
+      access === 'needs_code'
+        ? 'This is a private event — enter the event code to scan it.'
+        : 'That code is for a different event.',
+      403,
+    )
+  }
+
   const kind = (body.kind ?? 'paid_entry') as CredentialKind
-  const { error } = await supabase
+  const row = {
+    scan_id,
+    club_id: ctx.clubId,
+    night_id: ctx.nightId,
+    night_date: ctx.night,
+    token_ref,
+    credential_kind: kind,
+    action,
+    count: Math.max(1, Math.floor(body.count ?? 1)),
+    billable: billableForKind(kind),
+    holder_name: body.holder_name ?? null,
+    reason: body.reason ?? null,
+    device_time: isoNoMs(),
+  }
+  let { error } = await supabase
     .from('admission_scans')
-    .upsert({
-      scan_id,
-      club_id: ctx.clubId,
-      night_date: ctx.night,
-      token_ref,
-      credential_kind: kind,
-      action,
-      count: Math.max(1, Math.floor(body.count ?? 1)),
-      billable: billableForKind(kind),
-      holder_name: body.holder_name ?? null,
-      reason: body.reason ?? null,
-      device_time: isoNoMs(),
-    }, { onConflict: 'scan_id', ignoreDuplicates: true })
+    .upsert(row, { onConflict: 'scan_id', ignoreDuplicates: true })
+  // night_id lands with a manual migration. A club night worked before it and
+  // must keep working after — retry without the column rather than turning a
+  // deployment-ordering problem into a guest stuck at the door. A night with no
+  // club can't be saved this way, but it couldn't be admitted at all before the
+  // migration either, so nothing regresses.
+  if (error && /night_id|column|schema cache/i.test(error.message ?? '') && ctx.clubId) {
+    const { night_id: _dropped, ...lean } = row
+    ;({ error } = await supabase
+      .from('admission_scans')
+      .upsert(lean, { onConflict: 'scan_id', ignoreDuplicates: true }))
+  }
   if (error) return err(error.message)
 
   const used = await usedForToken(supabase, token_ref)
@@ -96,13 +122,31 @@ export async function POST(req: NextRequest) {
   return ok({ recorded: true, token_ref, used })
 }
 
-/** Resolve club_id + night_date (and row id) straight from a token_ref. */
-async function tokenContext(
+export interface TokenContext {
+  kind: 'booking' | 'guest'
+  id: string
+  /** null for a promoter night at a custom location — see nightId. */
+  clubId: string | null
+  /** The promoter night, when there is one. Bookings are always at a club. */
+  nightId: string | null
+  night: string
+  allowed?: number
+  status?: string
+  visibility?: 'public' | 'private'
+}
+
+/**
+ * Resolve the admission scope straight from a token_ref.
+ *
+ * This used to require a `club_id` and return null without one, which made
+ * every custom-location night un-admittable — a 404 "Unknown token_ref" for a
+ * perfectly real guest. `promoter_nights.club_id` is nullable by design, and a
+ * private event is normally at a warehouse or a roof rather than a club, so the
+ * scope is now (club OR night) and the ledger records whichever it has.
+ */
+export async function tokenContext(
   supabase: Awaited<ReturnType<typeof createServiceClient>>, tokenRef: string,
-): Promise<{
-  kind: 'booking' | 'guest'; id: string; clubId: string; night: string
-  allowed?: number; status?: string
-} | null> {
+): Promise<TokenContext | null> {
   if (tokenRef.startsWith('bk_')) {
     const id = tokenRef.slice(3)
     const { data } = await supabase
@@ -111,21 +155,37 @@ async function tokenContext(
       .eq('id', id).maybeSingle()
     if (!data) return null
     return {
-      kind: 'booking', id: data.id, clubId: data.club_id, night: data.booking_date,
+      kind: 'booking', id: data.id, clubId: data.club_id, nightId: null,
+      night: data.booking_date,
       allowed: data.admissions_allowed ?? data.party_size ?? 1,
       status: data.status,
     }
   }
   if (tokenRef.startsWith('pg_')) {
     const id = tokenRef.slice(3)
-    const { data } = await supabase
-      .from('promoter_guests')
-      .select('id, promoter_allocations(promoter_nights(club_id, night_date))')
-      .eq('id', id).maybeSingle()
-    if (!data) return null
-    const night = (data.promoter_allocations as { promoter_nights?: { club_id?: string; night_date?: string } } | null)?.promoter_nights
-    if (!night?.club_id || !night?.night_date) return null
-    return { kind: 'guest', id: data.id, clubId: night.club_id, night: night.night_date }
+    // visibility lands with a manual migration; a missing column must not stop
+    // a guest getting through the door, so fall back to the lean select and
+    // treat the night as public (today's behaviour).
+    const cols = 'id, promoter_allocations(promoter_nights(id, club_id, night_date, visibility))'
+    let row = await supabase.from('promoter_guests').select(cols).eq('id', id).maybeSingle()
+    if (row.error) {
+      row = await supabase.from('promoter_guests')
+        .select('id, promoter_allocations(promoter_nights(id, club_id, night_date))')
+        .eq('id', id).maybeSingle()
+    }
+    if (!row.data) return null
+    const night = (row.data.promoter_allocations as {
+      promoter_nights?: { id?: string; club_id?: string; night_date?: string; visibility?: string }
+    } | null)?.promoter_nights
+    // A night with neither a club nor an id can't be counted against anything.
+    if (!night?.night_date || (!night.club_id && !night.id)) return null
+    return {
+      kind: 'guest', id: row.data.id as string,
+      clubId: night.club_id ?? null,
+      nightId: night.id ?? null,
+      night: night.night_date,
+      visibility: night.visibility === 'private' ? 'private' : 'public',
+    }
   }
   return null
 }

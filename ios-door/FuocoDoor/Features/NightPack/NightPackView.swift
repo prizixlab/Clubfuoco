@@ -122,6 +122,16 @@ struct NightPackView: View {
     private func load() async {
         loading = true; error = nil
         defer { loading = false }
+
+        // An event-scoped door has no club, so /venues can never list it —
+        // `session.venue` holds a night id, not a club id. The event IS the one
+        // row, and it is already known from redeeming the code.
+        if session.isEventScoped {
+            venues = [DoorVenue(id: session.venue, name: session.venueName,
+                                neighborhood: "Private event", bookingCount: 0)]
+            return
+        }
+
         do {
             // Only this door's venue — staff can't cache another club's guests.
             venues = try await repo.venues(date: dateString).filter { $0.id == session.venue }
@@ -134,7 +144,9 @@ struct NightPackView: View {
         downloading = v.id
         defer { downloading = nil }
         do {
-            let m = try await repo.nightPack(venue: v.id, date: dateString)
+            let m = session.isEventScoped
+                ? try await repo.eventPack(nightId: session.venue)
+                : try await repo.nightPack(venue: v.id, date: dateString)
             pack.store(m)
             Haptics.success()
         } catch {

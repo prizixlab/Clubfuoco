@@ -72,6 +72,13 @@ struct AccessDescriptor: Codable, Identifiable, Hashable {
     var venueName: String?
     var night: String            // ISO date "2026-08-05"
     var tokenRef: String         // what a later void refers to
+    /// The promoter night this credential belongs to, when it has one.
+    ///
+    /// A private event usually has no club, so `venue` comes back empty and
+    /// can't scope anything. A door that redeemed an event code stores the
+    /// night id as its venue and matches on this instead — see
+    /// `ScanController.scoped()`. Nil for bookings, which are always at a club.
+    var eventId: String? = nil
 }
 
 // MARK: - Night manifest (server → app, cached locally, §4)

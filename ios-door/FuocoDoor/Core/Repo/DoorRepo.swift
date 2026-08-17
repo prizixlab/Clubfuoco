@@ -11,6 +11,19 @@ struct EnrollResult: Codable {
     var venueName: String
 }
 
+/// A door scoped to ONE private event by its promoter's code.
+///
+/// The venue-enrollment counterpart of `EnrollResult`. A private event usually
+/// has no club, so there is nothing for the venue picker to show — the code is
+/// both the credential and the scope.
+struct EventSessionResult: Codable {
+    var eventToken: String
+    var nightId: String
+    var nightDate: String
+    var eventName: String
+    var expiresAt: Date
+}
+
 struct SyncResult: Codable {
     var acceptedScanIds: [UUID]
     var rejectedScanIds: [UUID]     // e.g. allowance exceeded by another door
@@ -20,6 +33,10 @@ struct SyncResult: Codable {
 protocol DoorRepo {
     /// Enroll this physical device to a venue with a revocable credential.
     func enroll(code: String) async throws -> EnrollResult
+    /// Redeem a promoter's event code for a session scoped to that one night.
+    func redeemEventCode(_ code: String) async throws -> EventSessionResult
+    /// The encrypted pack for one private event, authorised by that session.
+    func eventPack(nightId: String) async throws -> EncryptedManifest
     /// Live per-scan resolution of a scanned QR payload (open-access path).
     func resolve(_ payload: String) async throws -> AccessDescriptor
     /// Record one admission/void immediately (open-access path). Idempotent on

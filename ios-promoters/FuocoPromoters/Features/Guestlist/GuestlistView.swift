@@ -149,6 +149,14 @@ struct GuestlistView: View {
 
                     InviteShareCard(allocation: model.allocation, tokenOverride: shareTokenOverride)
 
+                    // Directly under the invite link, because the two are one
+                    // job: this is the link you send guests, and this is the
+                    // code you send the door.
+                    if model.allocation.night?.isSecured == true,
+                       let nightId = model.allocation.night?.id {
+                        EventCodeCard(nightId: nightId)
+                    }
+
                     if shareToken != nil {
                         Button { Haptics.tap(); showShare = true } label: {
                             HStack(spacing: 8) {

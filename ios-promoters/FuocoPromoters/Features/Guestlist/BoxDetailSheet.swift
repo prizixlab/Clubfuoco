@@ -178,11 +178,6 @@ struct NightDetailSheet: View {
                 statsBlock(joined: allocation.guestCount,
                            capacityLabel: allocation.isUnlimited ? "∞" : "\(allocation.spots)",
                            guests: guests)
-                // Only a private event has a code — a club night's door is
-                // scoped by venue and needs no secret from the promoter.
-                if allocation.night?.isSecured == true, let nightId = allocation.night?.id {
-                    EventCodeCard(nightId: nightId)
-                }
                 GuestPreviewList(guests: guests, loading: loading)
                 actions
                 Spacer(minLength: 20)

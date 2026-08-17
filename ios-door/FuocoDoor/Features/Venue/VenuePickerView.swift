@@ -10,8 +10,6 @@ struct VenuePickerView: View {
     let repo: DoorRepo
     /// Non-nil when changing venue from inside the app (vs. first-run).
     var current: DeviceSession? = nil
-    /// A private event has no club row to pick, so it needs its own way in.
-    var onPrivateEvent: (() -> Void)? = nil
     var onPick: (DeviceSession) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -19,6 +17,7 @@ struct VenuePickerView: View {
     @State private var query = ""
     @State private var loading = true
     @State private var error: String?
+    @State private var enteringCode = false
 
     private var filtered: [DoorVenue] {
         guard !query.isEmpty else { return venues }
@@ -31,6 +30,12 @@ struct VenuePickerView: View {
                 Theme.night.ignoresSafeArea()
                 VStack(spacing: 0) {
                     intro
+                    // The first thing on the screen, and deliberately OUTSIDE
+                    // the list: a secured door has no club row, so it must stay
+                    // reachable while the venue list is loading, empty, or
+                    // failing. Burying it under a network error is exactly when
+                    // someone needs it.
+                    eventCodeRow
                     if loading {
                         Spacer(); ProgressView().tint(Theme.parchment); Spacer()
                     } else if let error {
@@ -61,36 +66,66 @@ struct VenuePickerView: View {
         }
         .preferredColorScheme(.dark)
         .task { await load() }
+        // Owned here rather than handed up to the parent. It used to be a
+        // closure the caller had to pass, and ScanView's "change venue" simply
+        // didn't pass it — so a door already committed to a club had no route
+        // to a secured event at all. Keeping the flow inside the picker means
+        // every entry point gets it and none can forget.
+        .fullScreenCover(isPresented: $enteringCode) {
+            EventCodeView(
+                repo: repo,
+                onJoined: { joined in
+                    enteringCode = false
+                    // EventCodeView has already persisted the session; both
+                    // callers re-read it from onPick.
+                    onPick(joined)
+                    dismiss()
+                },
+                onCancel: { enteringCode = false }
+            )
+        }
     }
 
     private var intro: some View {
-        VStack(spacing: 10) {
-            Text("Tickets for any other venue will be rejected at this door.")
-                .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
-                .multilineTextAlignment(.center)
+        Text("Tickets for any other venue will be rejected at this door.")
+            .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 24).padding(.vertical, 12)
+    }
 
-            // A secured event is normally at a warehouse or a roof, so it never
-            // appears in this list — there is no club row for it. The promoter's
-            // event code is the way in.
-            //
-            // This string is duplicated in the promoters app's EventCodeCard,
-            // which tells the promoter to say it out loud. Change one, change
-            // both, or the bouncer is hunting for words that aren't on screen.
-            if let onPrivateEvent {
-                Button {
-                    onPrivateEvent()
-                    dismiss()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "lock.shield")
-                        Text("Working a secured door? Enter its code")
-                    }
-                    .font(.cfSans(13, weight: .semibold))
-                    .foregroundStyle(Theme.gold)
+    /// A secured event is usually at a warehouse or a roof, so it never appears
+    /// in the venue list — there is no club row for it. This is the only way in,
+    /// which is why it leads rather than trailing the list as a footnote.
+    ///
+    /// The label matches the promoters app's EventCodeCard word for word: the
+    /// promoter reads it out, the bouncer looks for it here. Change one, change
+    /// both.
+    private var eventCodeRow: some View {
+        Button {
+            Haptics.tap()
+            enteringCode = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "lock.shield")
+                    .font(.system(size: 18)).foregroundStyle(Theme.gold)
+                    .frame(width: 26)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Working a secured door? Enter its code")
+                        .font(.cfSans(15, weight: .semibold))
+                        .foregroundStyle(Theme.parchment)
+                        .multilineTextAlignment(.leading)
+                    Text("The promoter gives you a six-character code.")
+                        .font(.cfMono(10)).foregroundStyle(Theme.parchmentDim)
                 }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12)).foregroundStyle(Theme.parchmentDim)
             }
+            .padding(.horizontal, 16).padding(.vertical, 14)
+            .background(Theme.gold.opacity(0.07))
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 24).padding(.vertical, 12)
+        .overlay(Rectangle().fill(Theme.hairline).frame(height: 1), alignment: .bottom)
     }
 
     private func row(_ v: DoorVenue) -> some View {

@@ -9,9 +9,12 @@ import SwiftUI
 /// a venue-enrolled door stores its club id, and `ScanController.scoped()`
 /// matches a scanned credential's `eventId` against it.
 struct EventCodeView: View {
+    /// Injected so this shares the picker's repo — a mock in previews or tests
+    /// has to reach here too, or the one screen that needs the network is the
+    /// one screen that can't be faked.
+    var repo: DoorRepo = RepoFactory.make()
     var onJoined: (DeviceSession) -> Void
     var onCancel: (() -> Void)? = nil
-    private let repo = RepoFactory.make()
 
     @State private var code = ""
     @State private var loading = false

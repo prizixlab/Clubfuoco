@@ -28,16 +28,15 @@ struct RootView: View {
                     // Re-read the persisted session so the whole screen rebinds.
                     withAnimation { self.session = RootView.liveSession() }
                 }
-            } else if joiningEvent {
-                EventCodeView(onJoined: { joined in
-                    withAnimation { joiningEvent = false; session = joined }
-                }, onCancel: { withAnimation { joiningEvent = false } })
             } else if AppMode.openAccess {
                 // No enrollment credential, but the door still commits to one
-                // venue — otherwise it could admit anyone's ticket anywhere.
-                VenuePickerView(repo: repo, onPrivateEvent: {
-                    withAnimation { joiningEvent = true }
-                }) { picked in
+                // scope — a venue, or one secured event. Otherwise it could
+                // admit anyone's ticket anywhere.
+                //
+                // The picker owns the event-code path itself, so this no longer
+                // routes it. That indirection is what let ScanView's "change
+                // venue" ship without a way into a secured event at all.
+                VenuePickerView(repo: repo) { picked in
                     withAnimation { session = picked }
                 }
             } else {

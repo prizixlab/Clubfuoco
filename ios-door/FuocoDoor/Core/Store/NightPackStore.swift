@@ -15,7 +15,10 @@ struct SealedEntry: Codable {
     let allowed: Int
     let used: Int
     let billable: Bool
-    let tokenRef: String
+    // No tokenRef: it is `pg_<guestId>` for a guestlist spot, and that id is
+    // the very secret the entry is sealed against. In the clear it handed
+    // anyone who fetched the pack the key to open it. It now arrives inside
+    // SealedPayload, after the scan has proved the holder has the QR.
 }
 
 struct EncryptedManifest: Codable {
@@ -35,6 +38,7 @@ struct SealedPayload: Codable {
     let holderAvatarUrl: String?
     let kind: CredentialKind
     let entitlement: Entitlement
+    let tokenRef: String
 }
 
 /// Holds the downloaded night pack for offline scanning.
@@ -88,7 +92,7 @@ final class NightPackStore: ObservableObject {
                     allowance: Allowance(used: e.used, allowed: e.allowed),
                     status: e.used >= e.allowed && e.used > 0 ? .over : .ok,
                     venue: m.venue, venueName: m.venueName, night: m.night,
-                    tokenRef: e.tokenRef)
+                    tokenRef: p.tokenRef)
             }
         }
         return nil

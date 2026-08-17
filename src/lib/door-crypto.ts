@@ -38,7 +38,14 @@ export interface SealedEntry {
   allowed: number             // NOT secret — needed for counting, reveals nothing
   used: number
   billable: boolean
-  token_ref: string           // opaque row ref; safe to expose
+  // NO token_ref here. It used to sit in the clear, described as an "opaque row
+  // ref; safe to expose" — but for a guestlist entry it is `pg_<guestId>`, and
+  // the guest id IS the scanned secret this entry is sealed against. The pack
+  // was shipping the key to its own contents: 46 of 46 guests on a real club
+  // night decrypted straight out of an unauthenticated GET /api/door/night.
+  //
+  // It now lives inside the sealed payload, where the door reads it after a
+  // successful scan — the one moment it is entitled to know.
 }
 
 export interface EncryptedManifest {
@@ -96,7 +103,11 @@ export function sealEntry(args: {
   tokenRef: string
 }): SealedEntry[] {
   const ck = crypto.randomBytes(32)
-  const plain = Buffer.from(JSON.stringify(args.payload), 'utf8')
+  // token_ref goes INSIDE the envelope — see the note on SealedEntry.
+  const plain = Buffer.from(
+    JSON.stringify({ ...(args.payload as object), token_ref: args.tokenRef }),
+    'utf8',
+  )
   const blob = gcmEncrypt(ck, plain)
 
   const out: SealedEntry[] = []
@@ -115,7 +126,6 @@ export function sealEntry(args: {
       allowed: args.allowed,
       used: args.used,
       billable: args.billable,
-      token_ref: args.tokenRef,
     }
   }
   // Each accepted token gets its own sealed record pointing at the same payload.

@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (access !== 'ok') {
     return err(
       access === 'needs_code'
-        ? 'This is a private event — enter the event code to scan it.'
+        ? 'This door is secured — enter the event code to scan it.'
         : 'That code is for a different event.',
       403,
     )

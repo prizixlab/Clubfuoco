@@ -69,9 +69,13 @@ struct VenuePickerView: View {
                 .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
                 .multilineTextAlignment(.center)
 
-            // A private event is normally at a warehouse or a roof, so it never
+            // A secured event is normally at a warehouse or a roof, so it never
             // appears in this list — there is no club row for it. The promoter's
             // event code is the way in.
+            //
+            // This string is duplicated in the promoters app's EventCodeCard,
+            // which tells the promoter to say it out loud. Change one, change
+            // both, or the bouncer is hunting for words that aren't on screen.
             if let onPrivateEvent {
                 Button {
                     onPrivateEvent()
@@ -79,7 +83,7 @@ struct VenuePickerView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "lock.shield")
-                        Text("Working a private event? Enter its code")
+                        Text("Working a secured door? Enter its code")
                     }
                     .font(.cfSans(13, weight: .semibold))
                     .foregroundStyle(Theme.gold)

@@ -247,7 +247,7 @@ final class PromoterRepo: ObservableObject {
         var visibility: String? = nil
     }
 
-    // MARK: - Private event door codes
+    // MARK: - Secured scanning door codes
 
     /// The code a promoter's door team types into Fuoco Door to scan a private
     /// event, plus how many scanners are live on it right now.
@@ -694,7 +694,7 @@ final class PromoterRepo: ObservableObject {
         spots: Int, payoutPerGuest: Decimal,
         groupVisible: Bool, autoCheckin: Bool,
         description: String?, theme: String?, themeTranslate: Bool, photoUrls: [String],
-        featured: Bool, maxPlusOnes: Int?, isPrivate: Bool = false, promoterId: UUID
+        featured: Bool, maxPlusOnes: Int?, securedScanning: Bool = false, promoterId: UUID
     ) async throws -> PromoterAllocation {
         let nightPayload = dates.map {
             NewNight(clubId: location.clubId, title: title, nightDate: $0,
@@ -705,7 +705,7 @@ final class PromoterRepo: ObservableObject {
                      description: description, theme: theme,
                      themeTranslate: themeTranslate, photoUrls: photoUrls, featured: featured,
                      maxPlusOnes: maxPlusOnes,
-                     visibility: isPrivate ? "private" : nil)
+                     visibility: securedScanning ? "private" : nil)
         }
         let nights: [PromoterNight] = try await withReviewFallback { level in
             try await sb.client

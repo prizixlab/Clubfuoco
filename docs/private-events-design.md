@@ -4,7 +4,8 @@
 **Scope:** three linked features requested together —
 1. an invite link that survives the App Store install, landing in a stripped-down signup;
 2. promoters charging for a private event;
-3. a promoter-set **event code** that gates which scanners can admit, void, and cache the guest list.
+3. **secured scanning** — a promoter-set event code that gates which scanners
+   can admit, void, and cache the guest list.
 
 They're one feature set because they share a spine: a private event is a night
 whose guest list is reachable only through a link, whose spots may cost money,
@@ -241,7 +242,16 @@ and look twice.
 
 ---
 
-## 4. Feature 3 — the event code
+## 4. Feature 3 — secured scanning
+
+> **Naming.** Called "secured scanning" everywhere a promoter can see it, never
+> "private event". This whole flow is *already* the app's "Private event" type —
+> the create chooser offers Private event vs Public offer, and TonightView
+> labels every allocation "Private event" — and every promoter night is
+> link-only regardless. A toggle offering privacy inside it reads as nonsense.
+> What is actually new is the door. The stored value stays
+> `visibility = 'private'` because it also hides the night from other
+> promoters, but that name never reaches a screen.
 
 ### What it protects
 

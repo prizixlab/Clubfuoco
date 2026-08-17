@@ -84,13 +84,19 @@ final class CreateGuestlistModel: ObservableObject {
 
     var cardOnFile: Bool { billing?.cardVerified == true }
 
-    /// A private event is link-only and its door is gated by an event code.
+    /// Secured scanning: only a scanner holding this event's door code can
+    /// admit or void its guests.
+    ///
+    /// NOT called "private" anywhere the promoter can see it. This whole flow
+    /// is already the app's "Private event" type, and every promoter night is
+    /// link-only — so a toggle offering privacy inside it reads as nonsense.
+    /// What is actually new is the door.
     ///
     /// Mutually exclusive with `featured`, which is paid promotion onto the
-    /// front screen — paying to advertise an event only people with the link
-    /// can find is money for nothing.
-    @Published var isPrivate = false {
-        didSet { if isPrivate { featured = false } }
+    /// front screen: a night nobody can find without your link has nothing to
+    /// gain from being advertised.
+    @Published var securedScanning = false {
+        didSet { if securedScanning { featured = false } }
     }
 
     @Published var trackPayouts = false
@@ -382,7 +388,7 @@ final class CreateGuestlistModel: ObservableObject {
                     theme: themeVal.isEmpty ? nil : themeVal,
                     themeTranslate: translateVal, photoUrls: photoURLs,
                     featured: featured, maxPlusOnes: maxPlus,
-                    isPrivate: isPrivate, promoterId: promoterId)
+                    securedScanning: securedScanning, promoterId: promoterId)
                 Haptics.success()
                 // If the night came back held (is_published == false), it's
                 // awaiting review → confirm pending. Otherwise (pre-migration)
@@ -706,7 +712,7 @@ struct CreateGuestlistSheet: View {
                 descriptionField
                 themeCard
                 photosCard
-                privateEventCard
+                securedScanningCard
                 featuredCard
                 scheduleCard
                 hoursCard
@@ -861,31 +867,32 @@ struct CreateGuestlistSheet: View {
         .background(RoundedRectangle(cornerRadius: Theme.radiusCard).fill(Theme.nightLift))
     }
 
-    /// Private event: link-only, and its door is gated by a code you give your
-    /// scanners. Sits above the promotion card because turning it on switches
-    /// promotion off — the two are contradictory, and seeing that happen
-    /// beneath your thumb explains it better than any copy would.
-    private var privateEventCard: some View {
+    /// Secured scanning — who is allowed to work this door.
+    ///
+    /// Sits above the promotion card because turning it on switches promotion
+    /// off, and watching the other toggle move explains that better than copy
+    /// would.
+    private var securedScanningCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "lock.shield").font(.system(size: 13)).foregroundStyle(Theme.gold)
-                Kicker("Private event", color: Theme.gold)
+                Kicker("Secured scanning", color: Theme.gold)
             }
-            Toggle(isOn: $model.isPrivate.animation()) {
+            Toggle(isOn: $model.securedScanning.animation()) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Invite only")
+                    Text("Require a door code")
                         .font(.cfSans(14, weight: .medium))
                         .foregroundStyle(Theme.parchment)
-                    Text("Only people with your link can see it, and only scanners with your event code can let them in.")
+                    Text("Only your own scanners can work this door — everyone else is turned away, even with a valid ticket.")
                         .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
                 }
             }
             .tint(Theme.ember)
 
-            if model.isPrivate {
+            if model.securedScanning {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "key.horizontal").font(.system(size: 13)).foregroundStyle(Theme.gold)
-                    Text("You'll get a **six-character door code** once it's created. Give it to whoever works the door — without it, no scanner can admit or void your guests.")
+                    Text("You'll get a **six-character code** once this is created. Give it to whoever works the door — without it, no scanner can admit or void your guests, and the night stays hidden from other promoters.")
                         .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
                 }
                 .padding(12)

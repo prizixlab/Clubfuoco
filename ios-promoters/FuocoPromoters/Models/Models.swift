@@ -72,8 +72,12 @@ struct PromoterNight: Codable, Identifiable, Equatable, Hashable {
     var visibility: String?
     var club: Club?
 
-    /// Link-only, with a code-gated door.
-    var isPrivate: Bool { visibility == "private" }
+    /// Secured scanning: only a scanner holding this event's door code can
+    /// admit or void its guests. Stored as visibility='private' because it also
+    /// hides the night from other promoters — but the door is the point, and
+    /// every promoter night is link-only regardless, so "private" would be a
+    /// misleading name to show anyone.
+    var isSecured: Bool { visibility == "private" }
 
     /// Venue label — club name for partner clubs, custom name otherwise.
     var venueName: String { club?.name ?? locationName ?? "Custom location" }

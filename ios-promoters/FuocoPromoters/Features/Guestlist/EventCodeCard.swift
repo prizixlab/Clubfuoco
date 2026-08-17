@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The door code for a private event, shown to the promoter who owns it.
+/// The secured-scanning door code, shown to the promoter who owns the event.
 ///
 /// This is the thing they read out to a bouncer over WhatsApp, so it is set in
 /// mono at a size that survives a photo of a phone screen, and it copies with
@@ -35,7 +35,7 @@ struct EventCodeCard: View {
             } else if let code {
                 codeBlock(code)
             } else {
-                Text("No code yet. Your scanners can't open this event without one.")
+                Text("No code yet. Nobody can scan this door until there is one.")
                     .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
                 Button { Task { await create() } } label: {
                     Label(working ? "Creating…" : "Create door code", systemImage: "key.horizontal")
@@ -85,7 +85,7 @@ struct EventCodeCard: View {
                 }
             }
 
-            Text("Give this to whoever works the door. In Fuoco Door: **Working a private event? Enter its code**.")
+            Text("Give this to whoever works the door. In Fuoco Door: **Working a secured door? Enter its code**.")
                 .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
 
             HStack(spacing: 14) {

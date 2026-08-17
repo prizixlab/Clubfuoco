@@ -30,7 +30,7 @@ struct EventCodeView: View {
                 VStack(spacing: 10) {
                     Image(systemName: "lock.shield")
                         .font(.system(size: 48)).foregroundStyle(Theme.gold)
-                    Text("Private event").font(.cfSerif(38)).foregroundStyle(Theme.parchment)
+                    Text("Secured door").font(.cfSerif(38)).foregroundStyle(Theme.parchment)
                     Text("Enter the event code the promoter gave you to scan this door.")
                         .font(.cfSans(14)).foregroundStyle(Theme.parchmentDim)
                         .multilineTextAlignment(.center).padding(.horizontal, 40)

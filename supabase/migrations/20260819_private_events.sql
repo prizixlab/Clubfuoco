@@ -106,6 +106,32 @@ end $$;
 --                      has created_by = null, so its owner would otherwise be
 --                      locked out of their own private event.
 --   published+public — the shared pool, unchanged from today.
+--
+-- The allocation check goes through a SECURITY DEFINER function rather than an
+-- inline subquery. A policy on promoter_nights that selects from
+-- promoter_allocations runs that table's OWN policies; if any of them reads
+-- back from promoter_nights, Postgres raises "infinite recursion detected in
+-- policy for relation" and every promoter loses night reads at once.
+-- promoter_allocations' policies live only in the production SQL editor, not in
+-- this folder, so that is unverifiable from here — and this is the standard way
+-- to make the question moot. SET search_path so the definer rights can't be
+-- aimed at a shadowed table.
+create or replace function public.promoter_owns_night(n_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.promoter_allocations a
+    where a.night_id = n_id and a.promoter_id = auth.uid()
+  );
+$$;
+
+revoke all on function public.promoter_owns_night(uuid) from public;
+grant execute on function public.promoter_owns_night(uuid) to authenticated;
+
 drop policy if exists "promoters read nights" on public.promoter_nights;
 create policy "promoters read nights"
   on public.promoter_nights for select to authenticated
@@ -113,10 +139,7 @@ create policy "promoters read nights"
     exists (select 1 from public.users u where u.id = auth.uid() and u.is_promoter = true)
     and (
       created_by = auth.uid()
-      or exists (
-        select 1 from public.promoter_allocations a
-        where a.night_id = promoter_nights.id and a.promoter_id = auth.uid()
-      )
+      or public.promoter_owns_night(id)
       or (is_published = true and coalesce(visibility, 'public') = 'public')
     )
   );
@@ -167,19 +190,10 @@ create policy "promoter reads own door codes" on public.promoter_door_codes
 -- No insert/update/delete policy: rotation goes through a service-role route
 -- that also revokes live sessions, and a direct write would skip that.
 
--- Unambiguous alphabet: no O/0, no I/1, no L. A door team reads this off a
--- phone screen in the dark and types it into another phone.
-create or replace function public.gen_door_code() returns text as $$
-declare
-  alphabet constant text := '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
-  out text := '';
-  i int;
-begin
-  for i in 1..6 loop
-    out := out || substr(alphabet, 1 + floor(random() * length(alphabet))::int, 1);
-  end loop;
-  return out;
-end $$ language plpgsql volatile;
+-- Codes are minted by generateDoorCode() in src/lib/door-events.ts — with
+-- rejection sampling over the 31-symbol alphabet, and a retry loop against the
+-- unique index above. No SQL generator: a second implementation of the same
+-- alphabet is a second place for it to drift.
 
 -- ── 4. Door sessions ─────────────────────────────────────────────────────────
 --

@@ -47,6 +47,14 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
         UIUserInterfaceStyle: Dark
+        # InstagramShareSheet gates "Share to Story" on
+        # canOpenURL("instagram-stories://…"), which iOS answers FALSE for any
+        # scheme not declared here — silently, with no error. This lived only in
+        # the generated Info.plist, so the next `xcodegen generate` dropped it
+        # and took Instagram sharing with it. It belongs in the source file.
+        LSApplicationQueriesSchemes:
+          - instagram-stories
+          - instagram
         UIAppFonts:
           - InstrumentSerif-Regular.ttf
           - InstrumentSerif-Italic.ttf

@@ -25,6 +25,10 @@ struct InviteClaimView: View {
     @State private var pickingSlotId: UUID?
     @State private var submitting = false
     @State private var claimedGuestId: String?
+    // Reduced signup, run AFTER the claim — see saveSpotCard.
+    @State private var attaching = false
+    @State private var attached = false
+    @State private var attachError: String?
     @State private var guests: [InviteGuest] = []
     // Post-claim party management (on the ticket).
     @State private var partyPlusOnes = 0
@@ -373,6 +377,17 @@ struct InviteClaimView: View {
                     .font(.cfMono(10)).kerning(1.5)
                     .foregroundStyle(Theme.parchment.opacity(0.5))
 
+                // The reduced signup. It sits HERE, after the spot is already
+                // theirs, rather than in front of the claim: a wizard between a
+                // guest and an RSVP loses the guest, and the claim endpoint has
+                // always accepted anonymous callers anyway.
+                //
+                // What it actually buys is keeping. An anonymous claim leaves
+                // claimed_by_user null, so the spot exists only in this screen's
+                // state — relaunch and the ticket is gone, it never reaches the
+                // Tickets tab, and the Wallet URL is one nobody remembers.
+                if !auth.hasAccount { saveSpotCard(guestId: guestId) }
+
                 Link(destination: URL(string: "\(Self.baseURL)/api/promoter-invites/guest/\(guestId)/wallet")!) {
                     HStack(spacing: 8) {
                         Image(systemName: "wallet.pass.fill")
@@ -386,6 +401,7 @@ struct InviteClaimView: View {
 
                 // ── Your party — editable: adjust open spots, invite friends ──
                 partyCard(guestId: guestId)
+
 
                 // ── Who's going: the roster (when the promoter makes it visible)
                 if !guests.isEmpty {
@@ -444,6 +460,77 @@ struct InviteClaimView: View {
             .reduce(0) { $0 + 1 + $1.plusOnes }
         let spots = detail?.spots ?? Int.max
         return max(0, min(cap, spots - others - 1))
+    }
+
+    /// "Keep this spot" — one tap, no form.
+    ///
+    /// Name is already captured (they typed it to claim), and Apple supplies a
+    /// verified identity without a keyboard, so this asks for nothing else.
+    /// Birthday, email, gender and the survey all wait: the app blocks on a
+    /// complete profile at the next launch, which is the right moment for them
+    /// and the wrong moment for this one.
+    @ViewBuilder
+    private func saveSpotCard(guestId: String) -> some View {
+        VStack(spacing: 12) {
+            if attached {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.seal.fill").foregroundStyle(Theme.gold)
+                    Text("Saved to your account")
+                        .font(.cfSans(14, weight: .semibold))
+                        .foregroundStyle(Theme.parchment)
+                }
+            } else {
+                VStack(spacing: 4) {
+                    Text("Keep this spot")
+                        .font(.cfSerif(22)).foregroundStyle(Theme.parchment)
+                    Text("Save it to your phone so it's here tomorrow, and in your tickets.")
+                        .font(.cfSans(12))
+                        .foregroundStyle(Theme.parchment.opacity(0.65))
+                        .multilineTextAlignment(.center)
+                }
+
+                if attaching {
+                    ProgressView().tint(Theme.parchment)
+                } else {
+                    OAuthButtonsView(path: .constant([])) { _ in
+                        // Deliberately ignoring `needsProfile`: the profile
+                        // wizard is exactly what this lane exists to defer.
+                        Task { await attachSpot(guestId: guestId) }
+                    }
+                }
+
+                if let attachError {
+                    Text(attachError)
+                        .font(.cfSans(12)).foregroundStyle(Theme.flame)
+                        .multilineTextAlignment(.center)
+                }
+            }
+        }
+        .padding(18)
+        .background(RoundedRectangle(cornerRadius: 18).fill(Theme.parchment.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.parchment.opacity(0.12)))
+        .padding(.top, 6)
+    }
+
+    /// Bind the already-claimed spot to the account that just signed in.
+    private func attachSpot(guestId: String) async {
+        attaching = true
+        attachError = nil
+        defer { attaching = false }
+        struct Resp: Decodable, Sendable { let attached: Bool }
+        do {
+            let _: Resp = try await api.post("/api/promoter-invites/guest/\(guestId)/attach")
+            attached = true
+            Haptics.success()
+            // The Tickets tab can show it now.
+            NotificationCenter.default.post(name: .cfInviteClaimed, object: nil)
+        } catch {
+            // They ARE signed in at this point — only the binding failed. Say so
+            // plainly rather than implying the spot is gone, because it isn't:
+            // the QR above still opens the door either way.
+            attachError = "Signed in, but couldn't attach this spot. Your QR still works — pull it up from this link again."
+            Haptics.error()
+        }
     }
 
     private func partyCard(guestId: String) -> some View {

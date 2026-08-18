@@ -15,7 +15,14 @@ struct RootView: View {
                 SplashView()
             } else if auth.state == .signedIn
                         && !auth.onboardingInProgress
-                        && !(auth.profile?.isComplete ?? false) {
+                        && !(auth.profile?.isComplete ?? false)
+                        // …unless an invite is open. Signing in from a ticket is
+                        // the whole point of the reduced lane: swapping the
+                        // screen underneath for the profile wizard at that exact
+                        // moment would dismiss the sheet they are standing in and
+                        // demand four more fields. The wall still comes — on the
+                        // next launch, or the moment they close the invite.
+                        && router.pendingToken == nil {
                 // Existing user with a restored session whose profile is missing
                 // a required field (e.g. gender, added 2026-06-22). Block the
                 // app behind complete-profile until they fill it in. The signup

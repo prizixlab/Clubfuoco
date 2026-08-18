@@ -12,6 +12,13 @@ import Supabase
 ///   reproduce, so GoTrue's nonce check always fails ("Nonces mismatch").
 struct OAuthButtonsView: View {
     @Binding var path: [AuthRoute]
+    /// When set, the caller decides what happens after a successful sign-in and
+    /// `path` is left alone.
+    ///
+    /// The invite lane needs the same two buttons without the navigation: a
+    /// guest signing in from their ticket must stay on their ticket, not be
+    /// pushed into the profile wizard mid-RSVP.
+    var onSignedIn: ((_ needsProfile: Bool) -> Void)? = nil
     @Environment(AuthStore.self) private var auth
     @Environment(LocaleStore.self) private var locale
 
@@ -118,7 +125,9 @@ struct OAuthButtonsView: View {
             do {
                 let needsProfile = try await auth.signInWithGoogleOAuth()
                 Haptics.success()
-                if needsProfile {
+                if let onSignedIn {
+                    onSignedIn(needsProfile)
+                } else if needsProfile {
                     path.append(.completeProfile)
                 }
             } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
@@ -146,7 +155,9 @@ struct OAuthButtonsView: View {
                     providerName: providerName.isEmpty ? nil : providerName
                 )
                 Haptics.success()
-                if needsProfile {
+                if let onSignedIn {
+                    onSignedIn(needsProfile)
+                } else if needsProfile {
                     path.append(.completeProfile)
                 }
             } catch {

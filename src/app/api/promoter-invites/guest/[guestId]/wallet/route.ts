@@ -41,7 +41,7 @@ export async function GET(
   const { data: guest, error } = await sb
     .from('promoter_guests')
     .select(`
-      id, full_name, plus_ones,
+      id, full_name, plus_ones, payment_status,
       allocation:promoter_allocations (
         id,
         night:promoter_nights (
@@ -59,6 +59,14 @@ export async function GET(
   const nightRow = Array.isArray(night) ? night[0] : night
   if (error || !nightRow) {
     return NextResponse.json({ error: 'Invite not found' }, { status: 404 })
+  }
+  // A pass is a door credential, so it follows the same rule as the QR: a spot
+  // whose checkout was started but never paid does not get one. Without this,
+  // opening checkout and abandoning it still yields a scannable pass sitting in
+  // Apple Wallet — and unlike the QR, a pass keeps working offline once added.
+  const paymentStatus = (guest as { payment_status?: string }).payment_status ?? 'free'
+  if (paymentStatus === 'pending' || paymentStatus === 'refunded') {
+    return NextResponse.json({ error: 'Payment required' }, { status: 402 })
   }
   const club = Array.isArray(nightRow.club) ? nightRow.club[0] : nightRow.club
   const clubName = club?.name ?? nightRow.location_name ?? 'Club Fuoco'

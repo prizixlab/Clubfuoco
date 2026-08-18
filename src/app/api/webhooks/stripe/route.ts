@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe'
 import { sendTicketConfirmation, sendAdminTicketAlert } from '@/lib/email'
 import { pushWalletUpdate } from '@/lib/wallet/push'
 import { applyCardVerification } from '@/lib/promoter-billing'
+import { syncAccount } from '@/lib/connect'
 import type Stripe from 'stripe'
 
 // Uses Postgres sequence to give each new paid member a unique sequential number
@@ -45,6 +46,40 @@ export async function POST(request: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
         const m = session.metadata
+
+        // ---- A paid spot on a promoter's event ----
+        //
+        // THIS is where a spot becomes real. Not the success_url — a guest who
+        // closes the tab, loses signal, or never gets redirected has still paid,
+        // and the money landing is the only fact that counts.
+        //
+        // Idempotent on payment_status: Stripe retries this event, and marking
+        // an already-paid row paid again must stay a no-op.
+        if (session.mode === 'payment' && m?.purpose === 'event_spot' && m?.guest_id) {
+          // Its own try, deliberately OUTSIDE the handler's catch-all below.
+          // That catch logs and returns 200, so Stripe never retries — which is
+          // survivable for a subscription tidy-up and not survivable here: a
+          // guest has been charged, and if we fail to record it we need Stripe
+          // to keep asking until we get it right.
+          try {
+            const { error: payErr } = await supabase
+              .from('promoter_guests')
+              .update({
+                payment_status: 'paid',
+                paid_at: new Date().toISOString(),
+                hold_expires_at: null,        // it is theirs now; nothing to expire
+                stripe_payment_intent_id: (session.payment_intent as string) ?? null,
+              })
+              .eq('id', m.guest_id)
+              .neq('payment_status', 'paid')  // idempotent: retries are no-ops
+            if (payErr) throw new Error(payErr.message)
+          } catch (e) {
+            console.error('[webhook] event_spot: could not mark paid —',
+              m.guest_id, e instanceof Error ? e.message : e)
+            return NextResponse.json({ error: 'could not record payment' }, { status: 500 })
+          }
+          break
+        }
 
         // ---- Promoter card-on-file (€2 verification hold, then released) ----
         if (session.mode === 'payment' && m?.purpose === 'card_verification' && m?.promoter_id) {
@@ -322,6 +357,18 @@ export async function POST(request: NextRequest) {
             .update({ status: 'past_due' })
             .eq('stripe_subscription_id', subId)
         }
+        break
+      }
+
+      // ---- A promoter's Connect account changed ----
+      //
+      // Stripe owns the truth about whether someone can be paid; this mirrors
+      // it so the app can gate pricing on charges_enabled without calling the
+      // API on every screen. Fires throughout onboarding and again whenever
+      // Stripe later demands more (a document expiring, a threshold crossed).
+      case 'account.updated': {
+        const account = event.data.object as Stripe.Account
+        await syncAccount(supabase, account)
         break
       }
 

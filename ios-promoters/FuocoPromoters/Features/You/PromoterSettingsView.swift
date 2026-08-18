@@ -115,6 +115,23 @@ struct PromoterSettingsView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+
+            NavigationLink { PayoutsView() } label: {
+                HStack(spacing: 14) {
+                    icon("eurosign.circle")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Getting paid").font(.cfSans(15)).foregroundStyle(Theme.parchment)
+                        Text("Charge for entry and get paid by Stripe")
+                            .font(.cfSans(11.5)).foregroundStyle(Theme.parchmentDim)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12)).foregroundStyle(Theme.parchmentDim)
+                }
+                .padding(.vertical, 12).padding(.horizontal, 14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
     }
 

@@ -99,6 +99,32 @@ final class CreateGuestlistModel: ObservableObject {
         didSet { if securedScanning { featured = false } }
     }
 
+    /// What a spot costs, in euros as typed. Empty or 0 = free, which is every
+    /// night that exists today.
+    @Published var priceText = ""
+    /// Whether Stripe has actually cleared this promoter to take money. Gates
+    /// the field entirely: offering a price box to someone who cannot be paid
+    /// produces an event whose first guest fails at the card form.
+    @Published var payouts: PromoterRepo.PayoutStatus?
+    @Published var checkingPayouts = false
+
+    var priceCents: Int {
+        let cleaned = priceText.replacingOccurrences(of: ",", with: ".")
+            .trimmingCharacters(in: .whitespaces)
+        guard let euros = Double(cleaned), euros > 0 else { return 0 }
+        // Round rather than truncate: 12.99 * 100 is 1298.9999… in binary
+        // floating point, and truncating would quietly undercharge by a cent.
+        return Int((euros * 100).rounded())
+    }
+
+    var canCharge: Bool { payouts?.canCharge == true }
+
+    func refreshPayouts() async {
+        checkingPayouts = true
+        defer { checkingPayouts = false }
+        payouts = try? await repo.payoutStatus()
+    }
+
     @Published var trackPayouts = false
     @Published var payoutPerGuestText = "10.00"
     @Published var groupVisible = true
@@ -388,7 +414,8 @@ final class CreateGuestlistModel: ObservableObject {
                     theme: themeVal.isEmpty ? nil : themeVal,
                     themeTranslate: translateVal, photoUrls: photoURLs,
                     featured: featured, maxPlusOnes: maxPlus,
-                    securedScanning: securedScanning, promoterId: promoterId)
+                    securedScanning: securedScanning,
+                    priceCents: canCharge ? priceCents : 0, promoterId: promoterId)
                 Haptics.success()
                 // If the night came back held (is_published == false), it's
                 // awaiting review → confirm pending. Otherwise (pre-migration)
@@ -546,10 +573,10 @@ struct CreateGuestlistSheet: View {
                 }
             }
         }
-        .task { await model.loadClubs(); await model.refreshBilling() }
+        .task { await model.loadClubs(); await model.refreshBilling(); await model.refreshPayouts() }
         .onChange(of: scenePhase) { _, phase in
             // Re-check card status when returning from the Stripe browser flow.
-            if phase == .active { Task { await model.refreshBilling() } }
+            if phase == .active { Task { await model.refreshBilling(); await model.refreshPayouts() } }
         }
     }
 
@@ -713,6 +740,7 @@ struct CreateGuestlistSheet: View {
                 themeCard
                 photosCard
                 securedScanningCard
+                priceCard
                 featuredCard
                 scheduleCard
                 hoursCard
@@ -897,6 +925,56 @@ struct CreateGuestlistSheet: View {
                 }
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: 12).fill(Theme.gold.opacity(0.08)))
+            }
+        }
+    }
+
+    /// What a spot costs.
+    ///
+    /// Hidden entirely until Stripe has cleared the promoter to take money. A
+    /// price box on an account Stripe hasn't approved produces an event whose
+    /// first guest hits a dead card form — so the screen offers the way to fix
+    /// that instead of the field.
+    @ViewBuilder
+    private var priceCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "eurosign.circle").font(.system(size: 13)).foregroundStyle(Theme.gold)
+                Kicker("Entry price", color: Theme.gold)
+            }
+
+            if model.canCharge {
+                HStack(spacing: 10) {
+                    Text("€").font(.cfSerif(24)).foregroundStyle(Theme.parchmentDim)
+                    TextField("", text: $model.priceText,
+                              prompt: Text("Free").foregroundColor(Theme.parchmentFaint))
+                        .keyboardType(.decimalPad)
+                        .font(.cfMono(22))
+                        .foregroundStyle(Theme.parchment)
+                }
+                .padding(.vertical, 12).padding(.horizontal, 14)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Theme.nightLift))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
+
+                if model.priceCents > 0 {
+                    Text("Charged per person, plus-ones included. Guests who don't pay can still save the event — they just don't get a QR.")
+                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                } else {
+                    Text("Leave blank for a free guestlist.")
+                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                }
+            } else if model.checkingPayouts {
+                ProgressView().tint(Theme.parchment)
+            } else {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "info.circle").font(.system(size: 13)).foregroundStyle(Theme.parchmentDim)
+                    Text(model.payouts?.onboarded == true
+                         ? "Stripe is still reviewing your payout setup. Once it clears you can price this event."
+                         : "Set up payouts in Settings → Getting paid to charge for entry. Free guestlists work without it.")
+                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Theme.parchment.opacity(0.05)))
             }
         }
     }

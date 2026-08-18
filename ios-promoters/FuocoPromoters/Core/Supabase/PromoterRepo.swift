@@ -238,6 +238,8 @@ final class PromoterRepo: ObservableObject {
         let photoUrls: [String]
         let featured: Bool
         let maxPlusOnes: Int?
+        /// Entry price in cents. 0 = free, the default and every night today.
+        var priceCents: Int? = nil
         /// "private", or nil for an ordinary night.
         ///
         /// Nil rather than "public" so the synthesized encoder omits the key
@@ -245,6 +247,76 @@ final class PromoterRepo: ObservableObject {
         /// default applies — the payload stays byte-identical to what we sent
         /// before private events existed.
         var visibility: String? = nil
+    }
+
+    // MARK: - Getting paid (Stripe Connect)
+
+    /// Where a promoter stands with Stripe.
+    ///
+    /// `requirementsDue` carries Stripe's own field names untranslated — the
+    /// screen shows them as-is, because paraphrasing
+    /// "individual.verification.document" is how somebody ends up stuck at
+    /// "pending" with no idea what to upload.
+    struct PayoutStatus: Decodable {
+        let onboarded: Bool
+        let canCharge: Bool
+        let payoutsEnabled: Bool
+        let detailsSubmitted: Bool
+        let requirementsDue: [String]
+        let disabledReason: String?
+        let country: String?
+        let currency: String?
+        let feePercent: String
+
+        enum CodingKeys: String, CodingKey {
+            case onboarded
+            case canCharge        = "can_charge"
+            case payoutsEnabled   = "payouts_enabled"
+            case detailsSubmitted = "details_submitted"
+            case requirementsDue  = "requirements_due"
+            case disabledReason   = "disabled_reason"
+            case country, currency
+            case feePercent       = "fee_percent"
+        }
+    }
+
+    struct PayoutLink: Decodable {
+        let url: String
+        let kind: String        // "onboarding" | "dashboard"
+    }
+
+    func payoutStatus() async throws -> PayoutStatus {
+        let token = try await sb.client.auth.session.accessToken
+        var req = URLRequest(url: URL(string: "\(Self.webBase)/api/promoter/payouts")!)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, _) = try await URLSession.shared.data(for: req)
+        struct Env: Decodable { let data: PayoutStatus?; let error: String? }
+        let env = try JSONDecoder().decode(Env.self, from: data)
+        guard let s = env.data else {
+            throw NSError(domain: "Payouts", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: env.error ?? "Couldn't load payouts."])
+        }
+        return s
+    }
+
+    /// Onboarding link if they aren't cleared yet, Stripe dashboard if they are.
+    func payoutLink() async throws -> PayoutLink {
+        let token = try await sb.client.auth.session.accessToken
+        var req = URLRequest(url: URL(string: "\(Self.webBase)/api/promoter/payouts")!)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = "{}".data(using: .utf8)
+        let (data, _) = try await URLSession.shared.data(for: req)
+        struct Env: Decodable { let data: PayoutLink?; let error: String? }
+        let env = try JSONDecoder().decode(Env.self, from: data)
+        guard let l = env.data else {
+            // Stripe's own message is the useful one here ("Connect is not
+            // enabled on this account", "country not supported").
+            throw NSError(domain: "Payouts", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: env.error ?? "Couldn't open Stripe."])
+        }
+        return l
     }
 
     // MARK: - Secured scanning door codes
@@ -660,6 +732,8 @@ final class PromoterRepo: ObservableObject {
         let photoUrls: [String]
         let featured: Bool
         let maxPlusOnes: Int?
+        /// Entry price in cents. 0 = free, the default and every night today.
+        var priceCents: Int? = nil
         /// "private", or nil for an ordinary night.
         ///
         /// Nil rather than "public" so the synthesized encoder omits the key
@@ -694,7 +768,8 @@ final class PromoterRepo: ObservableObject {
         spots: Int, payoutPerGuest: Decimal,
         groupVisible: Bool, autoCheckin: Bool,
         description: String?, theme: String?, themeTranslate: Bool, photoUrls: [String],
-        featured: Bool, maxPlusOnes: Int?, securedScanning: Bool = false, promoterId: UUID
+        featured: Bool, maxPlusOnes: Int?, securedScanning: Bool = false,
+        priceCents: Int = 0, promoterId: UUID
     ) async throws -> PromoterAllocation {
         let nightPayload = dates.map {
             NewNight(clubId: location.clubId, title: title, nightDate: $0,
@@ -705,6 +780,7 @@ final class PromoterRepo: ObservableObject {
                      description: description, theme: theme,
                      themeTranslate: themeTranslate, photoUrls: photoUrls, featured: featured,
                      maxPlusOnes: maxPlusOnes,
+                     priceCents: priceCents > 0 ? priceCents : nil,
                      visibility: securedScanning ? "private" : nil)
         }
         let nights: [PromoterNight] = try await withReviewFallback { level in

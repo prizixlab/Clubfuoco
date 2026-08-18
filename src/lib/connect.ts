@@ -133,7 +133,10 @@ export async function onboardingLink(
 ): Promise<string> {
   const link = await stripe.accountLinks.create({
     account: accountId,
-    refresh_url: `${appUrl}/api/promoter/payouts/refresh`,
+    // The account id has to be ON the refresh URL — Stripe does not append it,
+    // and the refresh handler has no session to infer it from (the promoter is
+    // coming back from Stripe's domain, in whatever browser it opened).
+    refresh_url: `${appUrl}/api/promoter/payouts/refresh?account=${encodeURIComponent(accountId)}`,
     return_url: `${appUrl}/payouts/done`,
     type: 'account_onboarding',
   })

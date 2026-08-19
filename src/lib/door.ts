@@ -211,6 +211,7 @@ async function collectEntries(
         .from('promoter_guests')
         .select('id, full_name, plus_ones, allocation_id')
         .in('allocation_id', allocIds)
+        .in('payment_status', ['free', 'paid'])   // see /api/door/night
 
       for (const g of guests ?? []) {
         const plus = g.plus_ones ?? 0
@@ -359,7 +360,7 @@ async function resolveGuest(supabase: SupabaseClient, guestId: string): Promise<
   if (!UUID_RE.test(guestId)) return null
   const { data: g } = await supabase
     .from('promoter_guests')
-    .select('id, full_name, plus_ones, allocation_id, promoter_allocations(night_id, promoter_nights(id, club_id, night_date, location_name, clubs(name)))')
+    .select('id, full_name, plus_ones, payment_status, allocation_id, promoter_allocations(night_id, promoter_nights(id, club_id, night_date, location_name, clubs(name)))')
     .eq('id', guestId)
     .maybeSingle()
   if (!g) return null
@@ -375,17 +376,27 @@ async function resolveGuest(supabase: SupabaseClient, guestId: string): Promise<
   const allowed = plus + 1
   const tokenRef = `pg_${g.id}`
   const used = await usedForToken(supabase, tokenRef)
+
+  // Checkout started, money never landed. Reported as 'cancelled' rather than a
+  // new status because AccessStatus on the door is a plain String enum with no
+  // unknown-value fallback — an unrecognised string throws and takes the whole
+  // descriptor with it, so a new case would break every installed build. The
+  // entitlement label carries the real reason.
+  const pay = (g as { payment_status?: string }).payment_status ?? 'free'
+  const paid = pay !== 'pending' && pay !== 'refunded'
   return {
     holder_name: g.full_name ?? 'Guest',
     holder_avatar_url: null,
     kind: 'guestlist',
     entitlement: {
-      label: plus > 0 ? `Guestlist +${plus}` : 'Guestlist',
+      label: paid
+        ? (plus > 0 ? `Guestlist +${plus}` : 'Guestlist')
+        : 'Not paid — no entry',
       count: allowed,
       extras: [],
     },
     allowance: { used, allowed },
-    status: used >= allowed && used > 0 ? 'over' : 'ok',
+    status: !paid ? 'cancelled' : (used >= allowed && used > 0 ? 'over' : 'ok'),
     venue: night?.club_id ?? '',
     // A custom-location night has no club row to name it. Falling back to the
     // night's own location keeps the door from displaying a bare "Venue" for

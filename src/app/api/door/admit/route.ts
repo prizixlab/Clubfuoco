@@ -172,14 +172,24 @@ async function tokenContext(
     // visibility lands with a manual migration; a missing column must not stop
     // a guest getting through the door, so fall back to the lean select and
     // treat the night as public (today's behaviour).
-    const cols = 'id, promoter_allocations(promoter_nights(id, club_id, night_date, visibility))'
+    const cols = 'id, payment_status, promoter_allocations(promoter_nights(id, club_id, night_date, visibility))'
     let row = await supabase.from('promoter_guests').select(cols).eq('id', id).maybeSingle()
     if (row.error) {
       row = await supabase.from('promoter_guests')
-        .select('id, promoter_allocations(promoter_nights(id, club_id, night_date))')
+        .select('id, payment_status, promoter_allocations(promoter_nights(id, club_id, night_date))')
         .eq('id', id).maybeSingle()
     }
     if (!row.data) return null
+    // The last line of defence. resolve() refuses an unpaid spot and the night
+    // pack no longer seals one in, but admit is what actually WRITES an entry —
+    // and a door running an older cached pack, or a hand-made QR built from a
+    // guest id the checkout response handed out, must not get through here.
+    //
+    // Note payment_status stays in BOTH selects above, including the drift
+    // fallback: dropping it there to survive a missing column would fail open,
+    // which is exactly the bug this closes.
+    const pay = (row.data as { payment_status?: string }).payment_status ?? 'free'
+    if (pay === 'pending' || pay === 'refunded') return null
     const night = (row.data.promoter_allocations as {
       promoter_nights?: { id?: string; club_id?: string; night_date?: string; visibility?: string }
     } | null)?.promoter_nights

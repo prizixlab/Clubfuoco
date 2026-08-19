@@ -29,6 +29,10 @@ struct InviteClaimView: View {
     @State private var attaching = false
     @State private var attached = false
     @State private var attachError: String?
+    // Paid events: checkout + save-for-later.
+    @State private var saved = false
+    @State private var savingEvent = false
+    @State private var checkoutURL: URL?
     @State private var guests: [InviteGuest] = []
     // Post-claim party management (on the ticket).
     @State private var partyPlusOnes = 0
@@ -149,6 +153,87 @@ struct InviteClaimView: View {
         }
     }
 
+    /// What the primary button says. On a paid night the price is ON the
+    /// button, not buried in the body — nobody should tap "join" and discover a
+    /// card form.
+    private func buttonTitle(detail: InviteDetail) -> String {
+        if submitting { return detail.night.isPaid ? "Opening checkout…" : "Joining…" }
+        guard detail.night.isPaid else { return "Add me to the list" }
+        let heads = 1 + openSpots
+        return heads > 1
+            ? "Join for \(detail.night.priceLabel(heads: heads)) · \(heads) people"
+            : "Join for \(detail.night.priceLabel())"
+    }
+
+    /// Open Stripe Checkout. The spot is held while they're on Stripe's page and
+    /// released if they never finish — see the checkout route.
+    private func startCheckout() {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        submitting = true
+        Task {
+            defer { submitting = false }
+            struct Body: Encodable, Sendable {
+                let fullName: String
+                let plusOnes: Int
+                enum CodingKeys: String, CodingKey {
+                    case fullName = "full_name"
+                    case plusOnes = "plus_ones"
+                }
+            }
+            struct Resp: Decodable, Sendable {
+                let url: String?
+                let alreadyPaid: Bool?
+                let guestId: String?
+            }
+            do {
+                let resp: Resp = try await api.post(
+                    "/api/promoter-invites/\(token)/checkout",
+                    body: Body(fullName: trimmed, plusOnes: openSpots))
+                // Already bought on another device — go straight to the ticket
+                // rather than charging twice.
+                if resp.alreadyPaid == true, let id = resp.guestId {
+                    claimedGuestId = id
+                    Haptics.success()
+                    return
+                }
+                guard let raw = resp.url, let url = URL(string: raw) else {
+                    self.error = "Couldn't open checkout. Try again in a moment."
+                    return
+                }
+                checkoutURL = url
+                await UIApplication.shared.open(url)
+            } catch {
+                self.error = (error as? LocalizedError)?.errorDescription
+                    ?? "Couldn't open checkout. Try again in a moment."
+                Haptics.error()
+            }
+        }
+    }
+
+    /// Bookmark it. Holds nothing and grants nothing — the copy says so, because
+    /// a guest who thinks a save is a spot turns up to a full door.
+    private func toggleSave() {
+        savingEvent = true
+        Task {
+            defer { savingEvent = false }
+            struct Resp: Decodable, Sendable { let saved: Bool }
+            do {
+                let resp: Resp = saved
+                    ? try await api.delete("/api/promoter-invites/\(token)/save")
+                    : try await api.post("/api/promoter-invites/\(token)/save")
+                saved = resp.saved
+                Haptics.success()
+                NotificationCenter.default.post(name: .cfInviteClaimed, object: nil)
+            } catch {
+                // Needs an account — there is nowhere to put a bookmark for
+                // somebody who doesn't exist yet.
+                self.error = "Sign in to save this event for later."
+                Haptics.error()
+            }
+        }
+    }
+
     // ── Form ─────────────────────────────────────────────────────────────────
 
     private func form(detail: InviteDetail) -> some View {
@@ -227,8 +312,8 @@ struct InviteClaimView: View {
                 .padding(18)
                 .background(RoundedRectangle(cornerRadius: 18).fill(Color(hex: 0x15110E)))
 
-                Button(action: submit) {
-                    Text(submitting ? "Joining…" : "Add me to the list")
+                Button(action: { detail.night.isPaid ? startCheckout() : submit() }) {
+                    Text(buttonTitle(detail: detail))
                         .font(.cfSans(15, weight: .semibold))
                         .foregroundStyle(Color(hex: 0xFFF6E5))
                         .frame(maxWidth: .infinity)
@@ -236,6 +321,33 @@ struct InviteClaimView: View {
                         .background(Capsule().fill(Theme.ember))
                 }
                 .disabled(submitting || name.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                // Pay later. Only offered on a paid night — a free list has
+                // nothing to defer, and the button would just be a second,
+                // worse way to say yes.
+                if detail.night.isPaid {
+                    Button(action: toggleSave) {
+                        HStack(spacing: 7) {
+                            Image(systemName: saved ? "bookmark.fill" : "bookmark")
+                                .font(.system(size: 13))
+                            Text(saved ? "Saved — pay any time before the night"
+                                       : "Save it, pay later")
+                                .font(.cfSans(14, weight: .medium))
+                        }
+                        .foregroundStyle(saved ? Theme.gold : Theme.parchment.opacity(0.85))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Capsule().stroke(
+                            saved ? Theme.gold.opacity(0.5) : Theme.parchment.opacity(0.22)))
+                    }
+                    .disabled(savingEvent)
+
+                    Text("Saving doesn't hold a spot — pay to lock it in.")
+                        .font(.cfMono(9)).kerning(1.2)
+                        .foregroundStyle(Theme.parchment.opacity(0.45))
+                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
+                }
 
                 if detail.groupVisible {
                     Text("EVERYONE WILL SEE YOU ON THE GUESTLIST")
@@ -776,7 +888,24 @@ struct InviteNight: Decodable, Sendable {
     let lng: Double?
     let autoCheckin: Bool?
     let maxPlusOnes: Int?
+    /// 0 = free, which is every night that existed before paid events.
+    /// Optional so an older API response (or a night predating the column)
+    /// decodes rather than throwing.
+    let priceCents: Int?
+    let currency: String?
     let club: InviteClub?
+
+    var isPaid: Bool { (priceCents ?? 0) > 0 }
+
+    /// "€12" or "€12.50" — trailing ".00" dropped, because a door price is
+    /// almost always whole euros and "€12.00" reads like a form field.
+    func priceLabel(heads: Int = 1) -> String {
+        let total = (priceCents ?? 0) * max(1, heads)
+        let symbol = (currency ?? "eur").lowercased() == "eur" ? "€" : ""
+        return total % 100 == 0
+            ? "\(symbol)\(total / 100)"
+            : String(format: "%@%.2f", symbol, Double(total) / 100)
+    }
 
     /// Venue label — club name for partner clubs, custom name otherwise.
     var venueName: String { club?.name ?? locationName ?? "Location TBA" }

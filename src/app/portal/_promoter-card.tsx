@@ -5,6 +5,7 @@ import Link from 'next/link'
 import type { BrandRow } from '@/lib/partner'
 import type { PromoterRow } from '@/app/api/portal/promoters/route'
 import { ActivateButton, HideOffersButton, Badge, Btn, Card, api, C, caps, font, mono } from './_ui'
+import { FeeControl } from './_fee-control'
 
 // Shared mutation helpers for the promoter roster. Every action targets the
 // promoter's application (grant/revoke access, IG verification) via
@@ -215,6 +216,12 @@ export function PromoterCard({ row, live, actions, onReload }: {
             {row.is_promoter
               ? <Btn small kind="danger" onClick={() => decide(row, 'revoke')} disabled={busy === row.id}>Revoke</Btn>
               : <Btn small onClick={() => decide(row, 'approve')} disabled={busy === row.id}>Grant access</Btn>}
+            {/* Only for a promoter who actually has access — there is nothing to
+                negotiate with someone who can't sell a ticket yet. Keyed on
+                user_id, not the row id, because the rate lives on the user. */}
+            {row.is_promoter && row.user_id && (
+              <FeeControl userId={row.user_id} name={row.full_name || row.email || 'this promoter'} />
+            )}
           </span>
         )}
       </div>

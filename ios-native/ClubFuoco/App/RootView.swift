@@ -36,9 +36,10 @@ struct RootView: View {
         }
         .sheet(item: Binding(
             get: { router.pendingToken.map(InviteToken.init) },
-            set: { if $0 == nil { router.pendingToken = nil } }
+            set: { if $0 == nil { router.pendingToken = nil; router.paidGuestId = nil } }
         )) { wrapped in
-            InviteClaimView(token: wrapped.value)
+            InviteClaimView(token: wrapped.value,
+                            preclaimedGuestId: router.paidGuestId)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }

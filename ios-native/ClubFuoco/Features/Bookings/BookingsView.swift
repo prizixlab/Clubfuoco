@@ -16,6 +16,9 @@ struct BookingsView: View {
     @State private var openGroup: GroupListItem?
     @State private var reviewBooking: Booking?
     @State private var openInvite: InviteSummary?
+    /// A saved event reopened to pay for it — no guest row exists yet, so it
+    /// goes through the normal claim sheet rather than the preclaimed path.
+    @State private var savedInviteToken: String?
     @State private var tab: TopTab = .tickets
     /// Live pager position, 0 = Tickets … 1 = Reviews — drives the slider
     /// indicator continuously during the swipe.
@@ -181,6 +184,16 @@ struct BookingsView: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
+        .sheet(item: Binding(
+            get: { savedInviteToken.map(SavedToken.init) },
+            set: { if $0 == nil { savedInviteToken = nil } }
+        ), onDismiss: {
+            Task { await model.load(api: api, queries: auth.queries) }
+        }) { wrapped in
+            InviteClaimView(token: wrapped.value)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
         .sheet(item: $reviewBooking) { booking in
             ReviewSurveySheet(
                 booking: booking,
@@ -336,6 +349,11 @@ struct BookingsView: View {
             VStack(alignment: .leading, spacing: 24) {
                 if !model.pendingInvites.isEmpty {
                     invitesSection
+                }
+                // Saved-but-unpaid sits ABOVE real tickets: it's the only thing
+                // on this screen with something still to do.
+                SavedEventsSection { token in
+                    savedInviteToken = token
                 }
                 if !model.tonight.isEmpty {
                     section(locale.t("bookings.tonight"), items: model.tonight, tonight: true)
@@ -1224,4 +1242,11 @@ final class BookingsViewModel {
 private struct PagerProgressKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+
+/// Identifiable wrapper so a saved event's token can drive a .sheet(item:).
+private struct SavedToken: Identifiable {
+    let value: String
+    var id: String { value }
 }

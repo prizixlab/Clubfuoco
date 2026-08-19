@@ -13,6 +13,16 @@ final class InviteLinkRouter {
     /// sheet is dismissed. Used as the .sheet binding's identity.
     var pendingToken: String?
 
+    /// Set when the link came back from Stripe Checkout carrying ?paid=1&guest=.
+    ///
+    /// Stripe's success_url is an https://clubfuoco.com/i/<token> URL, so it
+    /// re-enters the app through the SAME Universal Link that opened the invite
+    /// in the first place — and without reading the query the buyer would land
+    /// back on the join form having just paid, with no sign anything happened.
+    /// The id only jumps them to their ticket; the webhook is what actually
+    /// marks the spot paid, so a forged query buys nothing.
+    var paidGuestId: String?
+
     /// Returns true if we recognized this URL and handled it (caller should
     /// stop further processing). False otherwise — lets other handlers
     /// (Google Sign-In, etc.) try.
@@ -36,6 +46,10 @@ final class InviteLinkRouter {
         guard parts.count >= 2, parts[0] == "i" else { return false }
         let token = String(parts[1])
         guard !token.isEmpty else { return false }
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        if items?.first(where: { $0.name == "paid" })?.value == "1" {
+            paidGuestId = items?.first(where: { $0.name == "guest" })?.value
+        }
         pendingToken = token
         return true
     }

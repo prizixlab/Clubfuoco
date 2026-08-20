@@ -25,11 +25,20 @@ export async function GET() {
 
   const account = await payoutAccount(sb, userId)
 
-  // Refresh from Stripe when we have an account but it isn't cleared yet.
-  // account.updated normally keeps us in step, but a promoter staring at this
-  // screen right after finishing onboarding should not have to wait on a
-  // webhook to see it — and that is exactly when they look.
-  if (account.stripe_account_id && !account.charges_enabled) {
+  // Refresh from Stripe whenever there IS an account — not only when it looks
+  // disabled.
+  //
+  // The `!charges_enabled` version of this check was wrong in the direction
+  // that costs money. It caught a promoter finishing onboarding, but never the
+  // reverse: once enabled, we stopped asking, so an account Stripe LATER
+  // disables — an expired document, a requirement falling past due — kept
+  // reading as sellable in our mirror. We would go on letting them price and
+  // sell nights whose guests then die at the card form, which is precisely the
+  // moment this whole gate exists to avoid.
+  //
+  // One Stripe call per open of this screen is a fair price for the mirror
+  // being right in both directions.
+  if (account.stripe_account_id) {
     try {
       const fresh = await stripe.accounts.retrieve(account.stripe_account_id)
       const { syncAccount } = await import('@/lib/connect')

@@ -24,16 +24,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 })
   }
 
-  let event: Stripe.Event
-  try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    )
-  } catch (err: any) {
-    console.error('Stripe webhook signature verification failed:', err.message)
-    return NextResponse.json({ error: err.message }, { status: 400 })
+  // Two secrets, because Connect events arrive from a SEPARATE endpoint.
+  //
+  // account.updated for a connected account is only delivered to a
+  // Connect-enabled webhook endpoint, and Stripe gives that endpoint its own
+  // signing secret. Verifying against one secret only would mean every Connect
+  // event failed signature verification and was silently dropped — which is
+  // exactly what was happening to syncAccount.
+  //
+  // Try each in turn; the event is genuine if either verifies.
+  const secrets = [
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET,
+  ].filter(Boolean) as string[]
+
+  let event: Stripe.Event | null = null
+  let lastError = 'no webhook secret configured'
+  for (const secret of secrets) {
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, secret)
+      break
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err)
+    }
+  }
+  if (!event) {
+    console.error('Stripe webhook signature verification failed:', lastError)
+    return NextResponse.json({ error: lastError }, { status: 400 })
   }
 
   // Service client bypasses RLS — needed for cross-user updates

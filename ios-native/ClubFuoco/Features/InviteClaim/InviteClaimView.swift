@@ -528,6 +528,11 @@ struct InviteClaimView: View {
             .padding(.vertical, 32)
         }
         .task {
+            // Straight back from Stripe: the webhook usually beats the redirect,
+            // but when it doesn't the ticket would render with a QR that 402s.
+            // Ask Stripe directly rather than leaving them holding a receipt and
+            // no way in.
+            await confirmPaymentIfNeeded(guestId: guestId)
             await refreshRoster()
             if !partyLoaded {
                 partyPlusOnes = myGuest(guestId)?.plusOnes ?? 0
@@ -622,6 +627,16 @@ struct InviteClaimView: View {
         .background(RoundedRectangle(cornerRadius: 18).fill(Theme.parchment.opacity(0.06)))
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.parchment.opacity(0.12)))
         .padding(.top, 6)
+    }
+
+    /// Settle a just-paid spot whose webhook hasn't landed yet.
+    ///
+    /// Cheap and silent: it no-ops for a free spot or one already paid, and a
+    /// failure changes nothing on screen — the webhook and the daily sweeper are
+    /// both still coming.
+    private func confirmPaymentIfNeeded(guestId: String) async {
+        struct Resp: Decodable, Sendable { let paid: Bool }
+        _ = try? await api.post("/api/promoter-invites/guest/\(guestId)/verify-payment") as Resp
     }
 
     /// Bind the already-claimed spot to the account that just signed in.

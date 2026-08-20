@@ -2,7 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { resolveTokenToAllocation } from '@/lib/promoter-series'
 import { stripe } from '@/lib/stripe'
 import { ok, err } from '@/lib/utils'
-import { payoutAccount, canCharge, syncAccount } from '@/lib/connect'
+import { payoutAccount, canCharge, syncAccount, feeBpsForVisibility } from '@/lib/connect'
 import { platformFeeCents } from '@/lib/platform-fee'
 
 // POST /api/promoter-invites/<token>/checkout   { full_name, plus_ones? }
@@ -49,7 +49,7 @@ export async function POST(
     .select(`
       id, spots, promoter_id,
       night:promoter_nights ( id, title, night_date, price_cents, currency, location_name,
-                              club:clubs ( name ) ),
+                              visibility, club:clubs ( name ) ),
       promoter_guests ( id, plus_ones, claimed_by_user, payment_status, hold_expires_at )
     `)
     .eq('id', resolved.allocationId)
@@ -59,7 +59,8 @@ export async function POST(
   const night = (Array.isArray(alloc.night) ? alloc.night[0] : alloc.night) as {
     id: string; title: string | null; night_date: string
     price_cents: number | null; currency: string | null
-    location_name: string | null; club: { name?: string } | null
+    location_name: string | null; visibility: string | null
+    club: { name?: string } | null
   } | null
   if (!night) return err('Invite not found', 404)
 
@@ -140,7 +141,8 @@ export async function POST(
   if (used + heads > alloc.spots) return err('Not enough spots left', 409)
 
   const amount = unitPrice * heads
-  const feeBps = payout.platform_fee_bps
+  // Public offer or private event — two different deals, two different rates.
+  const feeBps = feeBpsForVisibility(payout, night.visibility)
   const fee = platformFeeCents(amount, feeBps)
   const currency = (night.currency || 'eur').toLowerCase()
 

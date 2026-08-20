@@ -16,14 +16,23 @@ type Fee = {
   fee_bps: number
   percent: string
   note: string | null
+  public_fee_bps: number
+  public_percent: string
+  public_note: string | null
   updated_at: string | null
   charges_enabled: boolean
   onboarded: boolean
 }
 
+/** What PATCH echoes back — the single rate it just wrote. */
+type FeeWrite = { kind: Kind; fee_bps: number; fee_percent: string }
+
+type Kind = 'private' | 'public'
+
 export function FeeControl({ userId, name }: { userId: string; name: string }) {
   const [open, setOpen] = useState(false)
   const [fee, setFee] = useState<Fee | null>(null)
+  const [kind, setKind] = useState<Kind>('private')
   const [percent, setPercent] = useState('')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -35,35 +44,40 @@ export function FeeControl({ userId, name }: { userId: string; name: string }) {
     try {
       const r = await api<Fee>(`/api/portal/promoters/${userId}/fee`)
       setFee(r)
-      setPercent(r.percent)
-      setNote(r.note ?? '')
+      setPercent(kind === 'public' ? r.public_percent : r.percent)
+      setNote((kind === 'public' ? r.public_note : r.note) ?? '')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load the rate')
     }
-  }, [userId])
+  }, [userId, kind])
 
   useEffect(() => { if (open && !fee) void load() }, [open, fee, load])
 
   const save = useCallback(async () => {
     const trimmed = percent.trim()
     if (!trimmed) return
+    const label = kind === 'public' ? 'public offer' : 'private event'
     if (!confirm(
-      `Set ${name}'s rate to ${trimmed}%?\n\n` +
-      `This changes what Club Fuoco takes from every future ticket they sell. ` +
-      `Sales already completed are unaffected.`
+      `Set ${name}'s ${label} rate to ${trimmed}%?\n\n` +
+      `This changes what Club Fuoco takes from every future ${label} ticket they ` +
+      `sell. Their other rate and any completed sales are unaffected.`
     )) return
     setBusy(true); setError(null); setSaved(false)
     try {
-      const r = await api<Fee>(`/api/portal/promoters/${userId}/fee`, {
+      const w = await api<FeeWrite>(`/api/portal/promoters/${userId}/fee`, {
         method: 'PATCH',
-        body: JSON.stringify({ percent: trimmed, note: note.trim() || undefined }),
+        body: JSON.stringify({ kind, percent: trimmed, note: note.trim() || undefined }),
       })
-      setFee(r); setPercent(r.percent); setSaved(true)
+      setPercent(w.fee_percent)
+      // Re-read so BOTH rates on screen reflect what is stored, not just the
+      // one just written.
+      setFee(await api<Fee>(`/api/portal/promoters/${userId}/fee`))
+      setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save the rate')
     } finally { setBusy(false) }
-  }, [percent, note, userId, name])
+  }, [percent, note, userId, name, kind])
 
   if (!open) {
     return (
@@ -80,7 +94,9 @@ export function FeeControl({ userId, name }: { userId: string; name: string }) {
     )
   }
 
-  const dirty = fee ? percent.trim() !== fee.percent || (note.trim() || null) !== (fee.note ?? null) : false
+  const active = fee ? (kind === 'public' ? fee.public_percent : fee.percent) : ''
+  const activeNote = fee ? (kind === 'public' ? fee.public_note : fee.note) : null
+  const dirty = fee ? percent.trim() !== active || (note.trim() || null) !== (activeNote ?? null) : false
 
   return (
     <div style={{
@@ -106,6 +122,27 @@ export function FeeControl({ userId, name }: { userId: string; name: string }) {
               No Stripe account yet. The rate is saved and applies from their first sale.
             </span>
           )}
+          {/* Which deal is being repriced. Both rates are always visible so
+              nobody changes one thinking it was the other. */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            {(['private', 'public'] as Kind[]).map(k => {
+              const on = kind === k
+              const pct = fee ? (k === 'public' ? fee.public_percent : fee.percent) : '—'
+              return (
+                <button key={k} onClick={() => setKind(k)} style={{
+                  flex: 1, fontFamily: font, fontSize: 11.5, fontWeight: on ? 600 : 400,
+                  padding: '7px 8px', borderRadius: 3, cursor: 'pointer', textAlign: 'left',
+                  background: on ? 'rgba(192,153,80,0.14)' : 'transparent',
+                  color: on ? C.text : C.dim,
+                  border: `1px solid ${on ? C.gold : C.line}`,
+                }}>
+                  <div>{k === 'public' ? 'Public offer' : 'Private event'}</div>
+                  <div style={{ fontFamily: mono, fontSize: 13, color: on ? C.goldHi : C.dim }}>{pct}</div>
+                </button>
+              )
+            })}
+          </div>
+
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               value={percent}

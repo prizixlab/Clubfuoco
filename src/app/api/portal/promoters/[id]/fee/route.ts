@@ -45,15 +45,19 @@ export async function GET(
 
   const { data } = await sb
     .from('promoter_payout_accounts')
-    .select('platform_fee_bps, fee_note, fee_updated_at, charges_enabled, payouts_enabled, stripe_account_id')
+    .select('platform_fee_bps, platform_fee_public_bps, fee_note, fee_note_public, fee_updated_at, charges_enabled, payouts_enabled, stripe_account_id')
     .eq('user_id', userId)
     .maybeSingle()
 
   const bps = (data as { platform_fee_bps?: number } | null)?.platform_fee_bps
     ?? DEFAULT_PLATFORM_FEE_BPS
 
+  const pubBps = (data as { platform_fee_public_bps?: number } | null)?.platform_fee_public_bps
   return ok({
     fee_bps: bps,
+    public_fee_bps: Number.isInteger(pubBps) ? pubBps! : DEFAULT_PLATFORM_FEE_BPS,
+    public_percent: formatFeeBps(Number.isInteger(pubBps) ? pubBps! : DEFAULT_PLATFORM_FEE_BPS),
+    public_note: (data as { fee_note_public?: string } | null)?.fee_note_public ?? null,
     fee_percent: formatFeeBps(bps),
     is_default: bps === DEFAULT_PLATFORM_FEE_BPS,
     note: (data as { fee_note?: string } | null)?.fee_note ?? null,
@@ -75,6 +79,9 @@ export async function PATCH(
 
   const body = await request.json().catch(() => null)
   if (!body || typeof body !== 'object') return err('Bad request')
+  // Which deal is being repriced. Defaults to private so an older caller that
+  // predates the split keeps changing the rate it always changed.
+  const kind = body.kind === 'public' ? 'public' : 'private'
   if (typeof body.percent !== 'string') return err('percent is required, e.g. "10" or "7.5"')
 
   const bps = parseFeePercent(body.percent)
@@ -93,7 +100,8 @@ export async function PATCH(
     .select('platform_fee_bps')
     .eq('user_id', userId)
     .maybeSingle()
-  const previous = (before as { platform_fee_bps?: number } | null)?.platform_fee_bps
+  const prevRow = before as { platform_fee_bps?: number; platform_fee_public_bps?: number } | null
+  const previous = (kind === 'public' ? prevRow?.platform_fee_public_bps : prevRow?.platform_fee_bps)
     ?? DEFAULT_PLATFORM_FEE_BPS
 
   // Upsert: a promoter can be given a negotiated rate before they have ever
@@ -102,8 +110,9 @@ export async function PATCH(
     .from('promoter_payout_accounts')
     .upsert({
       user_id: userId,
-      platform_fee_bps: bps,
-      fee_note: note,
+      ...(kind === 'public'
+        ? { platform_fee_public_bps: bps, fee_note_public: note }
+        : { platform_fee_bps: bps, fee_note: note }),
       fee_updated_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
@@ -111,13 +120,15 @@ export async function PATCH(
 
   await logAudit(sb, {
     action: 'promoter.fee_changed',
-    summary: `Rate ${formatFeeBps(previous)} → ${formatFeeBps(bps)}${note ? ` — ${note}` : ''}`,
+    summary: `${kind === 'public' ? 'Public offer' : 'Private event'} rate `
+      + `${formatFeeBps(previous)} → ${formatFeeBps(bps)}${note ? ` — ${note}` : ''}`,
     target_type: 'promoter',
     target_id: userId,
-    meta: { from_bps: previous, to_bps: bps, note },
+    meta: { kind, from_bps: previous, to_bps: bps, note },
   })
 
   return ok({
+    kind,
     fee_bps: bps,
     fee_percent: formatFeeBps(bps),
     is_default: bps === DEFAULT_PLATFORM_FEE_BPS,

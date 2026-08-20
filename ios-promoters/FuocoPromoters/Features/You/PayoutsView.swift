@@ -114,19 +114,37 @@ struct PayoutsView: View {
         .background(RoundedRectangle(cornerRadius: 16).fill(Theme.flame.opacity(0.08)))
     }
 
+    /// What we take. Two numbers when the deals differ, one when they don't —
+    /// showing "12% / 12%" would invent a distinction the promoter doesn't have.
     private func feeCard(_ s: PromoterRepo.PayoutStatus) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "percent").font(.system(size: 13)).foregroundStyle(Theme.gold)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Club Fuoco takes \(s.feePercent)")
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "percent").font(.system(size: 13)).foregroundStyle(Theme.gold)
+                Text(s.feesMatch ? "Club Fuoco takes \(s.feePercent)" : "What Club Fuoco takes")
                     .font(.cfSans(14, weight: .medium)).foregroundStyle(Theme.parchment)
-                Text("Taken automatically from each sale. The rest is yours.")
-                    .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+
+            if !s.feesMatch, let pub = s.publicFeePercent {
+                VStack(spacing: 6) {
+                    rateRow("Private events", s.feePercent)
+                    rateRow("Public offers", pub)
+                }
+            }
+
+            Text("Taken automatically from each sale. The rest is yours.")
+                .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
         }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 14).fill(Theme.nightLift))
+    }
+
+    private func rateRow(_ label: String, _ pct: String) -> some View {
+        HStack {
+            Text(label).font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
+            Spacer()
+            Text(pct).font(.cfMono(14)).foregroundStyle(Theme.gold)
+        }
     }
 
     private func actionButton(_ s: PromoterRepo.PayoutStatus) -> some View {

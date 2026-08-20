@@ -266,7 +266,14 @@ final class PromoterRepo: ObservableObject {
         let disabledReason: String?
         let country: String?
         let currency: String?
+        /// Our cut of a PRIVATE event's sales.
         let feePercent: String
+        /// Our cut of a PUBLIC offer's sales — a separate deal, separate rate.
+        let publicFeePercent: String?
+
+        /// True when both deals are on the same number, so the screen can say
+        /// it once instead of twice.
+        var feesMatch: Bool { publicFeePercent == nil || publicFeePercent == feePercent }
 
         enum CodingKeys: String, CodingKey {
             case onboarded
@@ -277,6 +284,7 @@ final class PromoterRepo: ObservableObject {
             case disabledReason   = "disabled_reason"
             case country, currency
             case feePercent       = "fee_percent"
+            case publicFeePercent = "public_fee_percent"
         }
     }
 

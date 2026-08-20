@@ -25,12 +25,16 @@ export type PayoutAccount = {
   disabled_reason: string | null
   country: string | null
   default_currency: string | null
+  /** Our cut of a PRIVATE event's sales, in basis points. */
   platform_fee_bps: number
+  /** Our cut of a PUBLIC offer's sales. A different deal, so a different rate. */
+  platform_fee_public_bps: number
 }
 
 const COLUMNS =
   'user_id, stripe_account_id, charges_enabled, payouts_enabled, details_submitted, ' +
-  'requirements_due, disabled_reason, country, default_currency, platform_fee_bps'
+  'requirements_due, disabled_reason, country, default_currency, ' +
+  'platform_fee_bps, platform_fee_public_bps'
 
 /** The promoter's payout row, creating the local half if it's missing. */
 export async function payoutAccount(
@@ -53,7 +57,26 @@ export async function payoutAccount(
     country: null,
     default_currency: null,
     platform_fee_bps: DEFAULT_PLATFORM_FEE_BPS,
+    platform_fee_public_bps: DEFAULT_PLATFORM_FEE_BPS,
   }
+}
+
+/**
+ * The rate that applies to one night.
+ *
+ * Which of the two depends on how the night is sold, not on who sells it: a
+ * private event is the promoter's own crowd through their own link, a public
+ * offer is an audience we supplied. Falls back to the private rate for a night
+ * whose visibility is missing, because link-only is what a promoter night is
+ * unless it was deliberately published.
+ */
+export function feeBpsForVisibility(
+  account: PayoutAccount, visibility: string | null | undefined
+): number {
+  const bps = visibility === 'public'
+    ? account.platform_fee_public_bps
+    : account.platform_fee_bps
+  return Number.isInteger(bps) ? bps : DEFAULT_PLATFORM_FEE_BPS
 }
 
 /**

@@ -66,8 +66,12 @@ function shape(a: Awaited<ReturnType<typeof payoutAccount>>) {
     disabled_reason: a.disabled_reason,
     country: a.country,
     currency: a.default_currency,
+    // Both rates: a promoter running public offers and private events is on
+    // two different deals, and showing one number would misstate one of them.
     fee_percent: formatFeeBps(a.platform_fee_bps),
     fee_bps: a.platform_fee_bps,
+    public_fee_percent: formatFeeBps(a.platform_fee_public_bps),
+    public_fee_bps: a.platform_fee_public_bps,
   }
 }
 

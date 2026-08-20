@@ -74,6 +74,18 @@ export async function POST(
   if (!canCharge(payout)) {
     return err('This event can’t take payments yet. Ask the promoter to finish their payout setup.', 409)
   }
+  // A card on file is checked HERE too, not only when the price was set. Stripe
+  // can disable an account, and a card expires, weeks after a night went on
+  // sale — and the moment either lapses we would be selling a ticket whose
+  // refunds and chargebacks have nowhere to land.
+  const { data: billing } = await sb
+    .from('promoter_billing_accounts')
+    .select('card_verified')
+    .eq('user_id', alloc.promoter_id)
+    .maybeSingle()
+  if (!(billing as { card_verified?: boolean } | null)?.card_verified) {
+    return err('This event can’t take payments yet. Ask the promoter to finish their payout setup.', 409)
+  }
 
   const guests = (alloc.promoter_guests ?? []) as {
     id: string; plus_ones: number; claimed_by_user: string | null
@@ -151,6 +163,19 @@ export async function POST(
       payment_intent_data: {
         application_fee_amount: fee,
         transfer_data: { destination: payout.stripe_account_id! },
+        // WHO IS THE SELLER. Without on_behalf_of the charge is created on the
+        // PLATFORM account: Club Fuoco becomes merchant of record, the charge
+        // settles under our US entity, and — the part that costs money — a
+        // chargeback debits OUR balance even though the funds were already
+        // transferred to the promoter. We would be paying back money we no
+        // longer hold.
+        //
+        // on_behalf_of makes the connected account the merchant of record. The
+        // charge settles in their country and currency (which is also what
+        // makes a EUR price coherent under a US platform), their name is on the
+        // statement, and a dispute comes out of their balance, where the sale
+        // happened.
+        on_behalf_of: payout.stripe_account_id!,
         // On the promoter's statement, not ours — they are the seller.
         description: `${eventName} · ${night.night_date}`,
         metadata: { guest_id: guest.id, night_id: night.id },

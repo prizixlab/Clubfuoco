@@ -117,7 +117,26 @@ final class CreateGuestlistModel: ObservableObject {
         return Int((euros * 100).rounded())
     }
 
-    var canCharge: Bool { payouts?.canCharge == true }
+    /// Both halves, because they are different risks: payouts is money coming
+    /// IN to the promoter, the card is money going back OUT — refunds,
+    /// chargebacks, unpaid fees. The database enforces the same pair; this is
+    /// only so the promoter finds out here rather than from a rejected insert.
+    var canCharge: Bool { payouts?.canCharge == true && cardOnFile }
+
+    /// What's still missing, for the copy under the toggle.
+    var chargeBlocker: String? {
+        if canCharge { return nil }
+        let needsPayouts = payouts?.canCharge != true
+        if needsPayouts && !cardOnFile {
+            return "Set up payouts and add a card to charge for entry."
+        }
+        if needsPayouts {
+            return payouts?.onboarded == true
+                ? "Stripe is still reviewing your payout setup. Once it clears you can price this event."
+                : "Set up payouts in Settings → Getting paid to charge for entry."
+        }
+        return "Add a card in Settings before charging for entry — it's what refunds and chargebacks come back to."
+    }
 
     func refreshPayouts() async {
         checkingPayouts = true
@@ -968,9 +987,7 @@ struct CreateGuestlistSheet: View {
             } else {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "info.circle").font(.system(size: 13)).foregroundStyle(Theme.parchmentDim)
-                    Text(model.payouts?.onboarded == true
-                         ? "Stripe is still reviewing your payout setup. Once it clears you can price this event."
-                         : "Set up payouts in Settings → Getting paid to charge for entry. Free guestlists work without it.")
+                    Text(model.chargeBlocker ?? "")
                         .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
                 }
                 .padding(12)

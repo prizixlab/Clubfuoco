@@ -1,10 +1,15 @@
 import SwiftUI
 
-// Tap-anywhere detail sheets for the promoter's boxes. Tapping a night or a
-// series card anywhere in Tonight/Guestlist opens one of these: live guest
-// data (who's coming, how many, arrived, agreed to location) plus every
-// action for that item — open, edit, share, visibility, skip-a-week
-// (series), delete. All reads stay defensive against schema drift.
+// The series detail sheet, plus the pieces it shares.
+//
+// Tapping a SERIES card in Tonight/Guestlist opens this: live guest data for
+// the current week (who's coming, arrived, agreed to location) plus every
+// action for it — open, edit, share, visibility, skip-a-week, delete. All
+// reads stay defensive against schema drift.
+//
+// A one-off night has no sheet: tapping one navigates straight to
+// GuestlistView. A NightDetailSheet used to live here and was never presented
+// by anything, so edits to it silently did nothing — removed 2026-08-20.
 
 // ── Shared bits ──────────────────────────────────────────────────────────────
 
@@ -136,134 +141,6 @@ private func statsBlock(joined: Int, capacityLabel: String, guests: [PromoterGue
         SheetStat(label: "Joined", value: "\(joined) / \(capacityLabel)")
         SheetStat(label: "Arrived", value: "\(arrived)")
         SheetStat(label: "Location OK", value: anyConsentKnown ? "\(consented)" : "—")
-    }
-}
-
-// ── Night sheet ──────────────────────────────────────────────────────────────
-
-struct NightDetailSheet: View {
-    let allocation: PromoterAllocation
-    var onOpenList: () -> Void
-    var onEdit: () -> Void
-    var onDelete: () -> Void
-    var onChanged: () -> Void = {}
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var guests: [PromoterGuest] = []
-    @State private var loading = true
-    @State private var groupVisible: Bool
-
-    private let repo = PromoterRepo()
-
-    init(allocation: PromoterAllocation,
-         onOpenList: @escaping () -> Void,
-         onEdit: @escaping () -> Void,
-         onDelete: @escaping () -> Void,
-         onChanged: @escaping () -> Void = {}) {
-        self.allocation = allocation
-        self.onOpenList = onOpenList
-        self.onEdit = onEdit
-        self.onDelete = onDelete
-        self.onChanged = onChanged
-        _groupVisible = State(initialValue: allocation.groupVisible ?? true)
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                header
-                if allocation.night?.reviewState == .rejected {
-                    RejectionNotice(reason: allocation.night?.rejectionReason)
-                }
-                statsBlock(joined: allocation.guestCount,
-                           capacityLabel: allocation.isUnlimited ? "∞" : "\(allocation.spots)",
-                           guests: guests)
-                GuestPreviewList(guests: guests, loading: loading)
-                actions
-                Spacer(minLength: 20)
-            }
-            .padding(22)
-        }
-        .background(Theme.night.ignoresSafeArea())
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-        .task {
-            guests = (try? await repo.guests(allocationId: allocation.id)) ?? []
-            loading = false
-        }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 10) {
-                Text(allocation.night?.displayTitle ?? "Night")
-                    .font(.cfSerif(30)).foregroundStyle(Theme.parchment)
-                if let state = allocation.night?.reviewState { ReviewBadge(state: state) }
-            }
-            Text("\(allocation.night?.venueName ?? "") · \(formatted(allocation.night?.nightDate))")
-                .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
-        }
-        .padding(.top, 10)
-    }
-
-    private var actions: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Kicker("Actions", color: Theme.parchmentDim).padding(.bottom, 4)
-            SheetActionRow(icon: "list.bullet.rectangle", title: "Open full guestlist") {
-                dismiss(); onOpenList()
-            }
-            Divider().background(Theme.hairline)
-            SheetActionRow(icon: "pencil", title: "Edit night") {
-                dismiss(); onEdit()
-            }
-            Divider().background(Theme.hairline)
-            if let token = allocation.inviteToken,
-               let url = URL(string: "https://clubfuoco.com/i/\(token)") {
-                ShareLink(item: url) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 15)).foregroundStyle(Theme.ember)
-                            .frame(width: 24)
-                        Text("Share invite link")
-                            .font(.cfSans(15, weight: .medium)).foregroundStyle(Theme.parchment)
-                        Spacer()
-                    }
-                    .padding(.vertical, 13)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                Divider().background(Theme.hairline)
-            }
-            Toggle(isOn: $groupVisible) {
-                HStack(spacing: 12) {
-                    Image(systemName: groupVisible ? "eye" : "eye.slash")
-                        .font(.system(size: 15)).foregroundStyle(Theme.ember)
-                        .frame(width: 24)
-                    Text("Show invitees who else is coming")
-                        .font(.cfSans(15, weight: .medium)).foregroundStyle(Theme.parchment)
-                }
-            }
-            .tint(Theme.ember)
-            .padding(.vertical, 10)
-            .onChange(of: groupVisible) { _, v in
-                Task {
-                    try? await repo.setGroupVisible(allocationId: allocation.id, visible: v)
-                    onChanged()
-                }
-            }
-            Divider().background(Theme.hairline)
-            SheetActionRow(icon: "trash", title: "Delete night", tint: Theme.wine) {
-                dismiss(); onDelete()
-            }
-        }
-    }
-
-    private func formatted(_ s: String?) -> String {
-        guard let s else { return "" }
-        let inF = DateFormatter(); inF.dateFormat = "yyyy-MM-dd"
-        guard let d = inF.date(from: s) else { return s }
-        let outF = DateFormatter(); outF.dateFormat = "EEE, MMM d"
-        return outF.string(from: d)
     }
 }
 

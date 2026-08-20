@@ -2,7 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { resolveTokenToAllocation } from '@/lib/promoter-series'
 import { stripe } from '@/lib/stripe'
 import { ok, err } from '@/lib/utils'
-import { payoutAccount, canCharge } from '@/lib/connect'
+import { payoutAccount, canCharge, syncAccount } from '@/lib/connect'
 import { platformFeeCents } from '@/lib/platform-fee'
 
 // POST /api/promoter-invites/<token>/checkout   { full_name, plus_ones? }
@@ -70,7 +70,34 @@ export async function POST(
 
   // The promoter must be able to receive money BEFORE a guest is asked for any.
   // Discovering this at the card form is the worst possible moment.
-  const payout = await payoutAccount(sb, alloc.promoter_id)
+  let payout = await payoutAccount(sb, alloc.promoter_id)
+
+  // Ask STRIPE, not just our mirror.
+  //
+  // Our copy of charges_enabled is only as fresh as the last account.updated we
+  // received — and a webhook is a wire that can be unsubscribed, misconfigured,
+  // or silently failing signature verification, none of which is visible from
+  // here. Depending on it to decide whether someone can be paid means a promoter
+  // Stripe disabled last week still takes a guest's card and fails.
+  //
+  // One extra API call at the START of a checkout is cheap: this is a payment
+  // flow, nobody notices 200ms, and being wrong costs a guest their night. The
+  // webhook stays as the fast path that keeps the mirror warm for the UI; this
+  // is the check that actually gates money.
+  if (payout.stripe_account_id) {
+    try {
+      const fresh = await stripe.accounts.retrieve(payout.stripe_account_id)
+      await syncAccount(sb, fresh)
+      payout = await payoutAccount(sb, alloc.promoter_id)
+    } catch (e) {
+      // Stripe unreachable. Fall through on the mirror rather than refusing a
+      // sale on our own outage — the charge itself would fail anyway if the
+      // account really is disabled.
+      console.warn('[checkout] could not re-verify the payout account:',
+        e instanceof Error ? e.message : e)
+    }
+  }
+
   if (!canCharge(payout)) {
     return err('This event can’t take payments yet. Ask the promoter to finish their payout setup.', 409)
   }

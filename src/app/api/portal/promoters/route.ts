@@ -23,6 +23,10 @@ export interface PromoterRow {
   ig_code: string | null
   ig_verified: boolean
   is_promoter: boolean
+  // What we take from their sales, so the roster shows it without a click.
+  // Null when they have no payout row yet, which reads as "on the default".
+  fee_bps: number | null
+  public_fee_bps: number | null
   // Application (null for a brand with no application behind it)
   application_id: string | null
   status: 'pending' | 'approved' | 'rejected' | null
@@ -63,6 +67,19 @@ export async function GET() {
     ...appList.map(a => a.user_id),
     ...brands.map(b => b.owner_user_id).filter((v): v is string => !!v),
   ])]
+  // Rates for the whole roster in one query rather than one per card.
+  const feeByUser: Record<string, { fee: number | null; pub: number | null }> = {}
+  {
+    const { data: fees } = await sb
+      .from('promoter_payout_accounts')
+      .select('user_id, platform_fee_bps, platform_fee_public_bps')
+    for (const f of (fees ?? []) as {
+      user_id: string; platform_fee_bps: number | null; platform_fee_public_bps: number | null
+    }[]) {
+      feeByUser[f.user_id] = { fee: f.platform_fee_bps, pub: f.platform_fee_public_bps }
+    }
+  }
+
   const userById: Record<string, { email: string | null; full_name: string | null; is_promoter: boolean }> = {}
   if (userIds.length) {
     const { data: users } = await sb.from('users').select('id, email, full_name, is_promoter').in('id', userIds)
@@ -89,6 +106,8 @@ export async function GET() {
       ig_code: a.ig_code,
       ig_verified: a.ig_verified,
       is_promoter: u?.is_promoter ?? false,
+      fee_bps: a.user_id ? feeByUser[a.user_id]?.fee ?? null : null,
+      public_fee_bps: a.user_id ? feeByUser[a.user_id]?.pub ?? null : null,
       application_id: a.id,
       status: a.status,
       clubs: a.clubs,
@@ -113,6 +132,8 @@ export async function GET() {
       ig_code: null,
       ig_verified: false,
       is_promoter: u?.is_promoter ?? false,
+      fee_bps: b.owner_user_id ? feeByUser[b.owner_user_id]?.fee ?? null : null,
+      public_fee_bps: b.owner_user_id ? feeByUser[b.owner_user_id]?.pub ?? null : null,
       application_id: null,
       status: null,
       clubs: null,

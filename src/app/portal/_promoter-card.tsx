@@ -216,12 +216,21 @@ export function PromoterCard({ row, live, actions, onReload }: {
             {row.is_promoter
               ? <Btn small kind="danger" onClick={() => decide(row, 'revoke')} disabled={busy === row.id}>Revoke</Btn>
               : <Btn small onClick={() => decide(row, 'approve')} disabled={busy === row.id}>Grant access</Btn>}
-            {/* Only for a promoter who actually has access — there is nothing to
-                negotiate with someone who can't sell a ticket yet. Keyed on
-                user_id, not the row id, because the rate lives on the user. */}
-            {row.is_promoter && row.user_id && (
-              <FeeControl userId={row.user_id} name={row.full_name || row.email || 'this promoter'} />
-            )}
+          </span>
+        )}
+
+        {/* OUTSIDE the application gate on purpose. The rate lives on the USER,
+            not on an application — and the roster builds rows two ways, with
+            application_id null for a brand that never applied. Nested inside,
+            this was invisible for exactly those promoters. */}
+        {row.user_id && (
+          <span style={{ flex: '1 1 100%' }}>
+            <FeeControl
+              userId={row.user_id}
+              name={row.full_name || row.email || 'this promoter'}
+              feeBps={row.fee_bps}
+              publicFeeBps={row.public_fee_bps}
+            />
           </span>
         )}
       </div>

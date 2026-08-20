@@ -29,7 +29,21 @@ type FeeWrite = { kind: Kind; fee_bps: number; fee_percent: string }
 
 type Kind = 'private' | 'public'
 
-export function FeeControl({ userId, name }: { userId: string; name: string }) {
+/** bps → "12%", or the 12% default when a promoter has no payout row yet. */
+function pct(bps: number | null | undefined): string {
+  const v = Number.isInteger(bps) ? (bps as number) : 1200
+  const n = v / 100
+  return `${Number.isInteger(n) ? n : Number(n.toFixed(2))}%`
+}
+
+export function FeeControl({ userId, name, feeBps, publicFeeBps }: {
+  userId: string
+  name: string
+  /** Current rates from the roster, so the collapsed button can show them
+   *  without a request. Null means no payout row yet — the default applies. */
+  feeBps?: number | null
+  publicFeeBps?: number | null
+}) {
   const [open, setOpen] = useState(false)
   const [fee, setFee] = useState<Fee | null>(null)
   const [kind, setKind] = useState<Kind>('private')
@@ -80,16 +94,32 @@ export function FeeControl({ userId, name }: { userId: string; name: string }) {
   }, [percent, note, userId, name, kind])
 
   if (!open) {
+    // The numbers are ON the button. A control labelled only "Rate", sat among
+    // four other small buttons, is one nobody finds — and the rate is worth
+    // seeing at a glance across the roster anyway.
+    const priv = pct(feeBps)
+    const pub = pct(publicFeeBps)
+    const same = priv === pub
     return (
       <button
         onClick={() => setOpen(true)}
         style={{
-          fontFamily: mono, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase',
-          color: C.dim, background: 'none', border: `1px solid ${C.line}`,
-          padding: '4px 8px', cursor: 'pointer', borderRadius: 3,
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+          fontFamily: font, fontSize: 12, color: C.dim, textAlign: 'left',
+          background: 'transparent', border: `1px solid ${C.line}`,
+          padding: '8px 11px', cursor: 'pointer', borderRadius: 4,
         }}
       >
-        Rate
+        <span style={{
+          fontFamily: mono, fontSize: 9.5, letterSpacing: '.12em',
+          textTransform: 'uppercase', color: C.faint,
+        }}>
+          Our cut
+        </span>
+        <span style={{ fontFamily: mono, fontSize: 13, color: C.goldHi }}>
+          {same ? priv : `${priv} private · ${pub} public`}
+        </span>
+        <span style={{ marginLeft: 'auto', color: C.faint }}>Adjust</span>
       </button>
     )
   }

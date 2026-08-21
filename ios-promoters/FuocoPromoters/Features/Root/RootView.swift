@@ -377,16 +377,26 @@ struct GuestlistTabRoot: View {
 
     /// The promoter's PUBLIC offers, listed under their private nights — same
     /// tab, same promoter, just the other thing they can create.
+    private var offersHeader: some View {
+        HStack {
+            Kicker("Public offers", color: Theme.parchmentDim)
+            Spacer()
+            Text("Listed on the Fuoco app")
+                .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+        }
+        .padding(.top, 20)
+    }
+
     @ViewBuilder
     private var publicOffersSection: some View {
-        if !offers.offers.isEmpty {
-            HStack {
-                Kicker("Public offers", color: Theme.parchmentDim)
-                Spacer()
-                Text("Listed on the Fuoco app")
-                    .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
-            }
-            .padding(.top, 20)
+        // Offers land after the rest of this screen, so the section used to be
+        // absent and then pop in — which reads as "nothing for you tonight"
+        // right up until it doesn't. Show the shape of it while it loads.
+        if offers.loading && offers.offers.isEmpty {
+            offersHeader
+            OfferSkeleton()
+        } else if !offers.offers.isEmpty {
+            offersHeader
 
             VStack(spacing: 12) {
                 ForEach(offers.byClub, id: \.club) { group in

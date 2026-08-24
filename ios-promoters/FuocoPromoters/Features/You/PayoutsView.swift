@@ -90,8 +90,7 @@ struct PayoutsView: View {
             }
             if s.onboarded {
                 return ("clock.fill", Theme.flame, "Stripe is reviewing you",
-                        s.disabledReason.map { "Stripe says: \($0)" }
-                        ?? "You can't price an event yet. This usually clears in a few minutes, sometimes a day.")
+                        Self.explain(s.disabledReason))
             }
             return ("creditcard", Theme.parchmentDim, "Not set up",
                     "Set up payouts to charge for entry. Free guestlists work without this.")
@@ -110,20 +109,82 @@ struct PayoutsView: View {
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.hairline))
     }
 
-    /// Stripe's outstanding requirements, in Stripe's words.
+    /// What Stripe still wants, in categories rather than field paths.
+    ///
+    /// This used to list `currently_due` verbatim — fifteen rows of
+    /// "representative · address · city" on a fresh account. The intent was not
+    /// to paraphrase away detail a stuck promoter needs, but the result read
+    /// like a schema dump and, worse, arrived BEFORE the button that fixes it.
+    ///
+    /// Embedded onboarding collects every one of these fields itself, properly
+    /// labelled and in order. So the card's job is no longer to enumerate — it
+    /// is to set expectations for what the next tap will ask for. The raw list
+    /// stays one disclosure away for the rare account that is genuinely stuck.
     private func requirementsCard(_ s: PromoterRepo.PayoutStatus) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Kicker("Stripe still needs", color: Theme.flame)
-            ForEach(s.requirementsDue, id: \.self) { req in
+        let groups = Self.summarise(s.requirementsDue)
+        return VStack(alignment: .leading, spacing: 10) {
+            Kicker("Stripe will ask for", color: Theme.flame)
+
+            ForEach(groups, id: \.self) { g in
                 HStack(alignment: .top, spacing: 8) {
-                    Text("•").foregroundStyle(Theme.flame)
-                    Text(Self.humanise(req))
-                        .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                    Image(systemName: "circle.fill")
+                        .font(.system(size: 4)).foregroundStyle(Theme.flame)
+                        .padding(.top, 6)
+                    Text(g).font(.cfSans(13)).foregroundStyle(Theme.parchment)
                 }
             }
+
+            DisclosureGroup {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(s.requirementsDue, id: \.self) { req in
+                        Text(req)
+                            .font(.cfMono(10)).foregroundStyle(Theme.parchmentFaint)
+                            .textSelection(.enabled)
+                    }
+                }
+                .padding(.top, 6)
+            } label: {
+                Text("Stripe's exact field list")
+                    .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
+            }
+            .tint(Theme.parchmentDim)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .background(RoundedRectangle(cornerRadius: 16).fill(Theme.flame.opacity(0.08)))
+    }
+
+    /// Collapse Stripe's dotted field paths into the handful of things a person
+    /// actually has to go and find. Order is the order they'll be asked.
+    static func summarise(_ due: [String]) -> [String] {
+        var out: [String] = []
+        func add(_ s: String) { if !out.contains(s) { out.append(s) } }
+
+        for key in due {
+            switch true {
+            case key.contains("business_type"), key.contains("business_profile"):
+                add("What kind of business you are")
+            case key.contains("dob"), key.contains("first_name"), key.contains("last_name"),
+                 key.contains("nationality"), key.contains("id_number"):
+                add("Your name, date of birth and nationality")
+            case key.contains("address"):
+                add("Your address")
+            case key.contains("email"), key.contains("phone"):
+                add("Contact details")
+            case key.contains("verification.document"):
+                add("A photo of your ID")
+            case key.contains("external_account"):
+                add("A bank account to be paid into")
+            case key.contains("tos_acceptance"):
+                add("Accepting Stripe's terms")
+            default:
+                break
+            }
+        }
+        // Anything unrecognised is still worth flagging, without naming it —
+        // the disclosure below has the specifics.
+        if out.isEmpty && !due.isEmpty { add("A few more details") }
+        return out
     }
 
     /// Balance, drawn natively from the connected account. "Available" is what
@@ -258,6 +319,24 @@ struct PayoutsView: View {
     /// Stripe's requirement keys are dotted paths. Left recognisable rather
     /// than rewritten — a promoter forwarding this to their accountant needs
     /// the term Stripe itself will use.
+    /// Stripe's `disabled_reason` is an enum — "requirements.past_due",
+    /// "under_review". Printing it as `Stripe says: …` presented a machine
+    /// constant as if it were a message to the promoter.
+    static func explain(_ reason: String?) -> String {
+        switch reason {
+        case .some(let r) where r.contains("past_due"):
+            return "Stripe needs a few details before you can take payments. It takes about five minutes."
+        case .some(let r) where r.contains("pending_verification"), .some(let r) where r.contains("under_review"):
+            return "Stripe is checking what you sent. This usually clears in a few minutes, sometimes a day."
+        case .some(let r) where r.contains("rejected"):
+            return "Stripe couldn't approve this account. Their support can tell you why."
+        case .some(let r) where r.contains("listed"):
+            return "Stripe needs to review this account before it can take payments."
+        default:
+            return "You can't price an event yet. Finish setup and this clears on its own."
+        }
+    }
+
     static func humanise(_ key: String) -> String {
         let map: [String: String] = [
             "individual.verification.document": "A photo ID (individual verification document)",

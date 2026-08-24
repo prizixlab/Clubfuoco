@@ -88,9 +88,18 @@ struct PayoutsView: View {
                 return ("checkmark.seal.fill", Theme.gold, "Taking payments",
                         "You can charge for entry. Stripe is still finishing your bank payouts — the money is safe in your Stripe balance until it does.")
             }
-            if s.onboarded {
+            // An account EXISTING is not the same as having sent Stripe
+            // anything. This branch used to key on `onboarded` alone, so the
+            // moment an account was created the screen claimed "Stripe is
+            // reviewing you" — while the sentence under it said Stripe still
+            // needed details. Nothing was under review; nothing had been sent.
+            if s.onboarded && s.detailsSubmitted {
                 return ("clock.fill", Theme.flame, "Stripe is reviewing you",
                         Self.explain(s.disabledReason))
+            }
+            if s.onboarded {
+                return ("creditcard", Theme.flame, "Almost there",
+                        "Stripe needs a few details before you can take payments. It takes about five minutes.")
             }
             return ("creditcard", Theme.parchmentDim, "Not set up",
                     "Set up payouts to charge for entry. Free guestlists work without this.")
@@ -122,8 +131,11 @@ struct PayoutsView: View {
     /// stays one disclosure away for the rare account that is genuinely stuck.
     private func requirementsCard(_ s: PromoterRepo.PayoutStatus) -> some View {
         let groups = Self.summarise(s.requirementsDue)
+        // Tense follows the state: things Stripe is about to ask for, versus
+        // things it looked at and still wants.
         return VStack(alignment: .leading, spacing: 10) {
-            Kicker("Stripe will ask for", color: Theme.flame)
+            Kicker(s.detailsSubmitted ? "Stripe still needs" : "Stripe will ask for",
+                   color: Theme.flame)
 
             ForEach(groups, id: \.self) { g in
                 HStack(alignment: .top, spacing: 8) {

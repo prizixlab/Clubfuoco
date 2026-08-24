@@ -331,7 +331,13 @@ final class PromoterRepo: ObservableObject {
 
     struct PayoutSession: Decodable {
         let clientSecret: String
-        enum CodingKeys: String, CodingKey { case clientSecret = "client_secret" }
+        /// Set on STPAPIClient.shared before any component loads — StripeCore
+        /// asserts without it, which traps in debug builds.
+        let publishableKey: String?
+        enum CodingKeys: String, CodingKey {
+            case clientSecret = "client_secret"
+            case publishableKey = "publishable_key"
+        }
     }
 
     /// One paid-out (or clearing) transfer to the promoter's bank.

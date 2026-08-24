@@ -35,7 +35,16 @@ final class PayoutOnboardingModel: NSObject, ObservableObject, AccountOnboarding
 
     @MainActor
     private static func fetchClientSecret() async -> String? {
-        try? await PromoterRepo().payoutSession().clientSecret
+        guard let session = try? await PromoterRepo().payoutSession() else { return nil }
+        // MUST happen before the component makes its first request. The manager
+        // uses STPAPIClient.shared, and StripeCore's validateKey() calls
+        // assertionFailure on a nil key — which traps in a debug build, so the
+        // app simply vanishes when you tap the button. This closure runs before
+        // anything else the SDK does, which makes it the right place.
+        if let key = session.publishableKey, !key.isEmpty {
+            STPAPIClient.shared.publishableKey = key
+        }
+        return session.clientSecret
     }
 
     /// Presents Stripe's embedded onboarding from the top-most view controller.

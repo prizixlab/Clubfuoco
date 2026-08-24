@@ -46,7 +46,20 @@ export async function POST(request: Request) {
     }
 
     const clientSecret = await accountSession(account.stripe_account_id)
-    return ok({ client_secret: clientSecret })
+
+    // The SDK's EmbeddedComponentManager defaults to STPAPIClient.shared, and
+    // StripeCore asserts on a missing publishable key — which TRAPS in a debug
+    // build, so the app dies the moment a component makes its first request.
+    //
+    // Sent from here rather than baked into the binary: publishable keys are
+    // public by design, but shipping one in the app pins it to whichever mode
+    // was built, and a test-vs-live mismatch against the account session is a
+    // confusing failure. The server already knows which mode it is in.
+    const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? null
+    if (!publishableKey) {
+      console.warn('[payouts/session] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is unset')
+    }
+    return ok({ client_secret: clientSecret, publishable_key: publishableKey })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Could not start payout setup'
     console.error('[payouts/session]', message)

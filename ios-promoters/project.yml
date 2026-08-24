@@ -9,6 +9,14 @@ packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift
     from: 2.0.0
+  # Stripe Connect embedded components — native in-app onboarding & payouts.
+  # Presents Stripe's own KYC UI inside the app (no Safari hand-off), driven by
+  # an account-session client secret minted by /api/promoter/payouts/session.
+  Stripe:
+    url: https://github.com/stripe/stripe-ios
+    # 26.x is the first line to ship the StripeConnect embedded-components
+    # product; earlier majors have no StripeConnect target.
+    from: 26.0.0
 
 targets:
   FuocoPromoters:
@@ -19,6 +27,8 @@ targets:
     dependencies:
       - package: Supabase
         product: Supabase
+      - package: Stripe
+        product: StripeConnect
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.clubfuoco.promoters
@@ -47,6 +57,11 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
         UIUserInterfaceStyle: Dark
+        # Stripe Connect embedded onboarding captures an ID document; the SDK
+        # asserts on a missing camera usage string, and photo-library access
+        # lets promoters upload an existing photo of their ID instead.
+        NSCameraUsageDescription: Used to photograph your ID when you set up payouts.
+        NSPhotoLibraryUsageDescription: Used to upload a photo of your ID when you set up payouts.
         # InstagramShareSheet gates "Share to Story" on
         # canOpenURL("instagram-stories://…"), which iOS answers FALSE for any
         # scheme not declared here — silently, with no error. This lived only in

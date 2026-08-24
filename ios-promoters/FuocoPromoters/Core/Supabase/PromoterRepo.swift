@@ -327,6 +327,85 @@ final class PromoterRepo: ObservableObject {
         return l
     }
 
+    // MARK: - In-app embedded onboarding + native payout tracking
+
+    struct PayoutSession: Decodable {
+        let clientSecret: String
+        enum CodingKeys: String, CodingKey { case clientSecret = "client_secret" }
+    }
+
+    /// One paid-out (or clearing) transfer to the promoter's bank.
+    struct Payout: Decodable, Identifiable {
+        let id: String
+        let amountCents: Int
+        let currency: String
+        /// paid | pending | in_transit | canceled | failed
+        let status: String
+        /// Unix seconds — when it hit / should hit the bank.
+        let arrivalDate: Int
+        let created: Int
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case amountCents  = "amount_cents"
+            case currency, status
+            case arrivalDate  = "arrival_date"
+            case created
+        }
+    }
+
+    struct PayoutSummary: Decodable {
+        let onboarded: Bool
+        let currency: String
+        let availableCents: Int
+        let pendingCents: Int
+        let paidOutCents: Int
+        let payouts: [Payout]
+
+        enum CodingKeys: String, CodingKey {
+            case onboarded, currency, payouts
+            case availableCents = "available_cents"
+            case pendingCents   = "pending_cents"
+            case paidOutCents   = "paid_out_cents"
+        }
+    }
+
+    /// A single-use client secret for the embedded Connect onboarding component.
+    /// Creates the Connect account on first call. Minted per presentation —
+    /// Stripe expires these quickly.
+    func payoutSession() async throws -> PayoutSession {
+        let token = try await sb.client.auth.session.accessToken
+        var req = URLRequest(url: URL(string: "\(Self.webBase)/api/promoter/payouts/session")!)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = "{}".data(using: .utf8)
+        let (data, _) = try await URLSession.shared.data(for: req)
+        struct Env: Decodable { let data: PayoutSession?; let error: String? }
+        let env = try JSONDecoder().decode(Env.self, from: data)
+        guard let s = env.data else {
+            throw NSError(domain: "Payouts", code: 3,
+                          userInfo: [NSLocalizedDescriptionKey: env.error ?? "Couldn't start setup."])
+        }
+        return s
+    }
+
+    /// The promoter's money — balance, what's clearing, lifetime paid, and
+    /// recent payouts — for the native tracking screen.
+    func payoutSummary() async throws -> PayoutSummary {
+        let token = try await sb.client.auth.session.accessToken
+        var req = URLRequest(url: URL(string: "\(Self.webBase)/api/promoter/payouts/summary")!)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, _) = try await URLSession.shared.data(for: req)
+        struct Env: Decodable { let data: PayoutSummary?; let error: String? }
+        let env = try JSONDecoder().decode(Env.self, from: data)
+        guard let s = env.data else {
+            throw NSError(domain: "Payouts", code: 4,
+                          userInfo: [NSLocalizedDescriptionKey: env.error ?? "Couldn't load payouts."])
+        }
+        return s
+    }
+
     // MARK: - Secured scanning door codes
 
     /// The code a promoter's door team types into Fuoco Door to scan a private

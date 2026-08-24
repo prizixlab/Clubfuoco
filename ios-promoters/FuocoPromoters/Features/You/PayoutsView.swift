@@ -1,23 +1,25 @@
 import SwiftUI
 
-/// Getting paid for a ticketed event.
+/// Getting paid for a ticketed event — now fully in-app.
 ///
-/// Everything real happens on Stripe: they run the identity checks, hold the
-/// balance, and pay out to the promoter's bank on their own schedule. This
-/// screen only ever does two things — say honestly where Stripe has got to, and
-/// open the right hosted page.
+/// Stripe still does the real work: identity checks, holding the balance, and
+/// paying out to the promoter's bank on its own schedule. What changed is that
+/// the promoter never leaves Fuoco to deal with any of it. Onboarding is the
+/// embedded StripeConnect component (`AccountOnboardingSheet`), presented as a
+/// sheet; the money — balance, what's clearing, lifetime paid, recent payouts —
+/// is drawn natively from `/api/promoter/payouts/summary`.
 ///
 /// The one thing it must not do is imply approval. Stripe returns a promoter
-/// here whether they finished, abandoned, or were left pending review, and a
-/// screen that says "you're set up" when Stripe hasn't cleared them sends
+/// from onboarding whether they finished, abandoned, or were left pending, and
+/// a screen that says "you're set up" when Stripe hasn't cleared them sends
 /// someone off to price an event whose first guest will fail at the card form.
 struct PayoutsView: View {
     @State private var status: PromoterRepo.PayoutStatus?
+    @State private var summary: PromoterRepo.PayoutSummary?
     @State private var loading = true
-    @State private var opening = false
     @State private var error: String?
 
-    @Environment(\.openURL) private var openURL
+    @StateObject private var onboarding = PayoutOnboardingModel()
     private let repo = PromoterRepo()
 
     var body: some View {
@@ -30,6 +32,13 @@ struct PayoutsView: View {
                 } else if let s = status {
                     stateCard(s)
                     if !s.requirementsDue.isEmpty { requirementsCard(s) }
+
+                    // The money — only once Stripe can actually pay them.
+                    if s.canCharge, let sum = summary {
+                        balanceCard(sum)
+                        if !sum.payouts.isEmpty { payoutsCard(sum) }
+                    }
+
                     feeCard(s)
                     actionButton(s)
                 }
@@ -47,9 +56,12 @@ struct PayoutsView: View {
         .background(Theme.night.ignoresSafeArea())
         .navigationTitle("Getting paid")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await load() }
-        // Onboarding happens in a browser, so the answer changes while this
-        // screen is backgrounded — not while it's on top.
+        .task {
+            // Stripe's onboarding exits back into the app; reload when it does.
+            onboarding.onExit = { Task { await load() } }
+            await load()
+        }
+        // Stripe's answer can also change while the app is backgrounded.
         .onReceive(NotificationCenter.default.publisher(
             for: UIApplication.willEnterForegroundNotification)) { _ in
             Task { await load() }
@@ -114,6 +126,80 @@ struct PayoutsView: View {
         .background(RoundedRectangle(cornerRadius: 16).fill(Theme.flame.opacity(0.08)))
     }
 
+    /// Balance, drawn natively from the connected account. "Available" is what
+    /// Stripe can pay out next; "On the way" is still clearing from recent
+    /// sales; "Paid out" is the lifetime total that has reached the bank.
+    private func balanceCard(_ sum: PromoterRepo.PayoutSummary) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Kicker("Your money", color: Theme.gold)
+
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(Self.money(sum.availableCents, sum.currency))
+                    .font(.cfSerif(34)).foregroundStyle(Theme.parchment)
+                Text("available")
+                    .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
+            }
+
+            HStack(spacing: 24) {
+                amountStat("On the way", sum.pendingCents, sum.currency, Theme.flame)
+                amountStat("Paid out", sum.paidOutCents, sum.currency, Theme.parchmentDim)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .background(RoundedRectangle(cornerRadius: 18).fill(Theme.nightLift))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.hairline))
+    }
+
+    private func amountStat(_ label: String, _ cents: Int, _ currency: String, _ tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label).font(.cfSans(11)).foregroundStyle(Theme.parchmentFaint)
+            Text(Self.money(cents, currency)).font(.cfMono(15)).foregroundStyle(tint)
+        }
+    }
+
+    /// Recent payouts to the bank, newest first, each with Stripe's status.
+    private func payoutsCard(_ sum: PromoterRepo.PayoutSummary) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Kicker("Recent payouts", color: Theme.gold)
+            ForEach(sum.payouts) { p in
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(Self.money(p.amountCents, p.currency))
+                            .font(.cfSans(15, weight: .medium)).foregroundStyle(Theme.parchment)
+                        Text(Self.payoutDateLine(p))
+                            .font(.cfSans(11)).foregroundStyle(Theme.parchmentDim)
+                    }
+                    Spacer(minLength: 0)
+                    statusPill(p.status)
+                }
+                if p.id != sum.payouts.last?.id {
+                    Rectangle().fill(Theme.hairline).frame(height: 1)
+                }
+            }
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 16).fill(Theme.nightLift))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.hairline))
+    }
+
+    private func statusPill(_ status: String) -> some View {
+        let (label, tint): (String, Color) = {
+            switch status {
+            case "paid":       return ("Paid", Theme.gold)
+            case "in_transit": return ("On the way", Theme.flame)
+            case "pending":    return ("Pending", Theme.flame)
+            case "failed":     return ("Failed", Theme.wine)
+            case "canceled":   return ("Canceled", Theme.wine)
+            default:           return (status.capitalized, Theme.parchmentDim)
+            }
+        }()
+        return Text(label)
+            .font(.cfSans(11, weight: .semibold)).foregroundStyle(tint)
+            .padding(.horizontal, 10).padding(.vertical, 4)
+            .background(Capsule().fill(tint.opacity(0.12)))
+    }
+
     /// What we take. Two numbers when the deals differ, one when they don't —
     /// showing "12% / 12%" would invent a distinction the promoter doesn't have.
     private func feeCard(_ s: PromoterRepo.PayoutStatus) -> some View {
@@ -147,22 +233,21 @@ struct PayoutsView: View {
         }
     }
 
+    /// Onboarding opens the embedded sheet in-app. Once cleared, there is no
+    /// button — the money is shown right here, so there is nothing to "open".
+    @ViewBuilder
     private func actionButton(_ s: PromoterRepo.PayoutStatus) -> some View {
-        Button {
-            Task { await open() }
-        } label: {
-            HStack(spacing: 8) {
-                if opening { ProgressView().tint(Theme.emberCream).scaleEffect(0.85) }
-                Text(s.canCharge ? "Open Stripe dashboard"
-                     : s.onboarded ? "Continue setup on Stripe"
-                     : "Set up payouts")
+        if !s.canCharge {
+            Button {
+                onboarding.present()
+            } label: {
+                Text(s.onboarded ? "Continue setup" : "Set up payouts")
                     .font(.cfSans(15, weight: .semibold))
+                    .foregroundStyle(Theme.emberCream)
+                    .frame(maxWidth: .infinity).padding(.vertical, 14)
+                    .background(Capsule().fill(Theme.ember))
             }
-            .foregroundStyle(Theme.emberCream)
-            .frame(maxWidth: .infinity).padding(.vertical, 14)
-            .background(Capsule().fill(Theme.ember))
         }
-        .disabled(opening)
     }
 
     private var disclaimer: some View {
@@ -187,23 +272,39 @@ struct PayoutsView: View {
                   .replacingOccurrences(of: ".", with: " · ")
     }
 
+    /// Cents → a currency string in the account's own currency.
+    static func money(_ cents: Int, _ currency: String) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .currency
+        f.currencyCode = currency.uppercased()
+        f.maximumFractionDigits = 2
+        return f.string(from: NSNumber(value: Double(cents) / 100)) ?? "\(Double(cents) / 100)"
+    }
+
+    /// "Arrives 12 Aug" while clearing; "Paid 12 Aug" once it has landed.
+    static func payoutDateLine(_ p: PromoterRepo.Payout) -> String {
+        let date = Date(timeIntervalSince1970: TimeInterval(p.arrivalDate))
+        let df = DateFormatter()
+        df.dateFormat = "d MMM"
+        let verb = p.status == "paid" ? "Paid" : "Arrives"
+        return "\(verb) \(df.string(from: date))"
+    }
+
     private func load() async {
         loading = true
         defer { loading = false }
-        do { status = try await repo.payoutStatus() }
-        catch { self.error = error.localizedDescription }
-    }
-
-    private func open() async {
-        opening = true
-        error = nil
-        defer { opening = false }
         do {
-            let link = try await repo.payoutLink()
-            if let url = URL(string: link.url) { openURL(url) }
+            status = try await repo.payoutStatus()
+            // Money only matters once Stripe can pay them; skip the call
+            // otherwise so a not-yet-onboarded promoter sees no spurious error.
+            if status?.canCharge == true {
+                summary = try await repo.payoutSummary()
+            } else {
+                summary = nil
+            }
+            error = nil
         } catch {
             self.error = error.localizedDescription
-            Haptics.error()
         }
     }
 }

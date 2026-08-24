@@ -127,8 +127,17 @@ export async function ensureConnectAccount(
       mcc: '7922',
       product_description: 'Admission to nightlife events promoted via Club Fuoco',
     },
-    // Losses on a promoter's charges fall to their balance, not ours.
-    settings: { payouts: { schedule: { interval: 'daily', delay_days: 'minimum' } } },
+    // Daily payouts, but NOT at minimum delay.
+    //
+    // We picked destination charges, which makes the PLATFORM liable for
+    // refunds and chargebacks — Stripe's own words on the Connect
+    // questionnaire. Ticketing is a high-dispute category ("I never went"
+    // arrives weeks later), and paying a promoter out as fast as Stripe allows
+    // leaves their balance empty when it does. Then the dispute is ours alone.
+    //
+    // A 7-day delay keeps a rolling buffer to recover against, and no promoter
+    // notices the difference between money arriving Tuesday and Thursday.
+    settings: { payouts: { schedule: { interval: 'daily', delay_days: 7 } } },
     metadata: { club_fuoco_user_id: userId },
   })
 
@@ -204,4 +213,103 @@ export async function syncAccount(
  */
 export function canCharge(a: PayoutAccount): boolean {
   return Boolean(a.stripe_account_id) && a.charges_enabled
+}
+
+// ── In-app embedded onboarding + native payout tracking ─────────────────────
+//
+// Everything above uses Stripe's HOSTED pages: accountLinks for onboarding,
+// createLoginLink for the Express dashboard. Both bounce the promoter out to a
+// browser. The two functions below keep them inside the app instead:
+//
+//   • accountSession — a short-lived client secret that drives Stripe's
+//     *embedded* Connect components (the iOS StripeConnect SDK). Same KYC UI
+//     Stripe legally has to render, but presented natively in-app, no Safari.
+//   • payoutSummary — the money, read straight off the CONNECTED account's
+//     balance and payout history, so we can draw our own gold-themed tracking
+//     screen instead of shipping the promoter to Stripe's dashboard.
+//
+// Both are additive: the hosted paths stay as the fallback for web.
+
+/**
+ * A single-use client secret for the embedded Connect components.
+ *
+ * Onboarding + payouts are enabled: the app presents account_onboarding for a
+ * promoter who isn't cleared yet, and can present the payouts component too —
+ * though our own native summary screen is what we actually surface. Minted per
+ * request because Stripe expires these quickly, same as an account link.
+ */
+export async function accountSession(accountId: string): Promise<string> {
+  const session = await stripe.accountSessions.create({
+    account: accountId,
+    components: {
+      account_onboarding: { enabled: true },
+      payouts: { enabled: true },
+      notification_banner: { enabled: true },
+    },
+  })
+  return session.client_secret
+}
+
+export type PayoutSummary = {
+  currency: string
+  available_cents: number
+  pending_cents: number
+  /** Lifetime paid out to the promoter's bank, in the account's currency. */
+  paid_out_cents: number
+  payouts: {
+    id: string
+    amount_cents: number
+    currency: string
+    /** paid | pending | in_transit | canceled | failed */
+    status: string
+    /** Unix seconds — when it should hit / hit the bank. */
+    arrival_date: number
+    created: number
+  }[]
+}
+
+/**
+ * The connected account's own money, for a native tracking screen.
+ *
+ * Read on the CONNECTED account (`stripeAccount` header) because that is where
+ * destination-charge funds actually land — the platform balance never holds a
+ * promoter's ticket money. Balance is summed per currency but a promoter is
+ * single-currency in practice (their country is fixed at creation), so the
+ * first available/pending row is the whole story; extra currencies are folded
+ * in defensively rather than dropped.
+ */
+export async function payoutSummary(accountId: string): Promise<PayoutSummary> {
+  const [balance, payoutList] = await Promise.all([
+    stripe.balance.retrieve({ stripeAccount: accountId }),
+    stripe.payouts.list({ limit: 12 }, { stripeAccount: accountId }),
+  ])
+
+  const sum = (rows: { amount: number }[]) => rows.reduce((n, r) => n + r.amount, 0)
+  const currency =
+    balance.available[0]?.currency ??
+    balance.pending[0]?.currency ??
+    payoutList.data[0]?.currency ??
+    'eur'
+
+  const payouts = payoutList.data.map(p => ({
+    id: p.id,
+    amount_cents: p.amount,
+    currency: p.currency,
+    status: p.status,
+    arrival_date: p.arrival_date,
+    created: p.created,
+  }))
+
+  // Lifetime paid: what Stripe has actually pushed to the bank (status 'paid').
+  const paidOut = payoutList.data
+    .filter(p => p.status === 'paid')
+    .reduce((n, p) => n + p.amount, 0)
+
+  return {
+    currency,
+    available_cents: sum(balance.available),
+    pending_cents: sum(balance.pending),
+    paid_out_cents: paidOut,
+    payouts,
+  }
 }

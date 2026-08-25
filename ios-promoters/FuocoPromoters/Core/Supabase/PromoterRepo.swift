@@ -270,6 +270,9 @@ final class PromoterRepo: ObservableObject {
         let feePercent: String
         /// Our cut of a PUBLIC offer's sales — a separate deal, separate rate.
         let publicFeePercent: String?
+        /// Stripe's platform key. Must be applied before the onboarding
+        /// controller is built, or StripeCore traps the app.
+        let publishableKey: String?
 
         /// True when both deals are on the same number, so the screen can say
         /// it once instead of twice.
@@ -285,6 +288,7 @@ final class PromoterRepo: ObservableObject {
             case country, currency
             case feePercent       = "fee_percent"
             case publicFeePercent = "public_fee_percent"
+            case publishableKey   = "publishable_key"
         }
     }
 

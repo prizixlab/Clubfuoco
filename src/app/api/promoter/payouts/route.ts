@@ -72,6 +72,10 @@ function shape(a: Awaited<ReturnType<typeof payoutAccount>>) {
     fee_bps: a.platform_fee_bps,
     public_fee_percent: formatFeeBps(a.platform_fee_public_bps),
     public_fee_bps: a.platform_fee_public_bps,
+    // The SDK validates this when it CONSTRUCTS the onboarding controller, not
+    // when it fetches a client secret — so it has to be in hand before the
+    // button is tappable. This endpoint is what the screen loads first.
+    publishable_key: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? null,
   }
 }
 

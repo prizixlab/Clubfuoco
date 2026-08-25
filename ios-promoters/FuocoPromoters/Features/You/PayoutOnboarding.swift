@@ -47,6 +47,26 @@ final class PayoutOnboardingModel: NSObject, ObservableObject, AccountOnboarding
         return session.clientSecret
     }
 
+    /// Apply the platform's publishable key.
+    ///
+    /// MUST run before `present()`. StripeConnect validates the key while
+    /// CONSTRUCTING the onboarding controller — ConnectJSURLParams.init calls
+    /// STPAPIClient.validateKey, which assertionFailures on nil and traps in a
+    /// debug build. Setting it inside fetchClientSecret was too late: that
+    /// closure only runs once the controller already exists.
+    @MainActor
+    static func configure(publishableKey: String?) {
+        guard let key = publishableKey, !key.isEmpty else { return }
+        STPAPIClient.shared.publishableKey = key
+    }
+
+    /// True once a key is set — the caller keeps the button disabled until then
+    /// rather than letting a tap trap the app.
+    @MainActor
+    static var isConfigured: Bool {
+        !(STPAPIClient.shared.publishableKey ?? "").isEmpty
+    }
+
     /// Presents Stripe's embedded onboarding from the top-most view controller.
     @MainActor
     func present() {

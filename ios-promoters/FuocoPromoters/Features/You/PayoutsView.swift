@@ -312,6 +312,12 @@ struct PayoutsView: View {
     private func actionButton(_ s: PromoterRepo.PayoutStatus) -> some View {
         if !s.canCharge {
             Button {
+                // Guarded: without a publishable key the SDK traps on
+                // controller construction, so refuse rather than crash.
+                guard PayoutOnboardingModel.isConfigured else {
+                    error = "Payments aren't configured yet. Pull down to retry in a moment."
+                    return
+                }
                 onboarding.present()
             } label: {
                 Text(s.onboarded ? "Continue setup" : "Set up payouts")
@@ -385,7 +391,12 @@ struct PayoutsView: View {
         loading = true
         defer { loading = false }
         do {
-            status = try await repo.payoutStatus()
+            let st = try await repo.payoutStatus()
+            // Applied BEFORE the button becomes tappable. StripeConnect
+            // validates the key while constructing the onboarding controller,
+            // so a missing key is a trap, not an error.
+            PayoutOnboardingModel.configure(publishableKey: st.publishableKey)
+            status = st
             // Money only matters once Stripe can pay them; skip the call
             // otherwise so a not-yet-onboarded promoter sees no spurious error.
             if status?.canCharge == true {

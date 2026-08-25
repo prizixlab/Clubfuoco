@@ -20,15 +20,33 @@ import {
 // receives, so "who dropped Nova to 5%, and when" has to be answerable later —
 // and a note field exists so the answer can include why.
 
+/**
+ * Accepts EITHER an application id or a user id.
+ *
+ * The sibling routes key on promoter_applications.id, because the portal's
+ * roster was originally built from applications. But the rate lives on the
+ * USER, and the roster also emits rows for brands that never applied — those
+ * carry application_id null, so an application id is not something the client
+ * can always supply. The fee control therefore sends the user id, and this
+ * accepts both rather than forcing one convention onto a list that has two.
+ */
 async function resolveUser(
-  sb: Awaited<ReturnType<typeof createServiceClient>>, applicationId: string
+  sb: Awaited<ReturnType<typeof createServiceClient>>, id: string
 ): Promise<string | null> {
-  const { data } = await sb
+  const { data: app } = await sb
     .from('promoter_applications')
     .select('user_id')
-    .eq('id', applicationId)
+    .eq('id', id)
     .maybeSingle()
-  return (data as { user_id?: string } | null)?.user_id ?? null
+  const fromApp = (app as { user_id?: string } | null)?.user_id
+  if (fromApp) return fromApp
+
+  const { data: user } = await sb
+    .from('users')
+    .select('id')
+    .eq('id', id)
+    .maybeSingle()
+  return (user as { id?: string } | null)?.id ?? null
 }
 
 export async function GET(

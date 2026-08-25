@@ -30,6 +30,29 @@ import {
  * can always supply. The fee control therefore sends the user id, and this
  * accepts both rather than forcing one convention onto a list that has two.
  */
+/**
+ * The GET response, exported so the portal control imports it instead of
+ * hand-writing a duplicate.
+ *
+ * It previously declared `percent` while this route returned `fee_percent`.
+ * api<T>() is an unchecked cast, so that was not a compile error — it was
+ * `undefined` at runtime, and calling .trim() on it crashed the whole portal
+ * page. Sharing the type makes that class of drift impossible.
+ */
+export type FeeResponse = {
+  fee_bps: number
+  fee_percent: string
+  public_fee_bps: number
+  public_percent: string
+  note: string | null
+  public_note: string | null
+  is_default: boolean
+  updated_at: string | null
+  onboarded: boolean
+  charges_enabled: boolean
+  payouts_enabled: boolean
+}
+
 async function resolveUser(
   sb: Awaited<ReturnType<typeof createServiceClient>>, id: string
 ): Promise<string | null> {
@@ -71,7 +94,7 @@ export async function GET(
     ?? DEFAULT_PLATFORM_FEE_BPS
 
   const pubBps = (data as { platform_fee_public_bps?: number } | null)?.platform_fee_public_bps
-  return ok({
+  const body: FeeResponse = {
     fee_bps: bps,
     public_fee_bps: Number.isInteger(pubBps) ? pubBps! : DEFAULT_PLATFORM_FEE_BPS,
     public_percent: formatFeeBps(Number.isInteger(pubBps) ? pubBps! : DEFAULT_PLATFORM_FEE_BPS),
@@ -84,7 +107,8 @@ export async function GET(
     onboarded: Boolean((data as { stripe_account_id?: string } | null)?.stripe_account_id),
     charges_enabled: (data as { charges_enabled?: boolean } | null)?.charges_enabled ?? false,
     payouts_enabled: (data as { payouts_enabled?: boolean } | null)?.payouts_enabled ?? false,
-  })
+  }
+  return ok(body)
 }
 
 export async function PATCH(

@@ -12,17 +12,7 @@ import { api, C, font, mono } from './_ui'
 // rate field on every row invites a mis-tap on a number that changes what
 // someone earns. It loads only when expanded, and confirms before writing.
 
-type Fee = {
-  fee_bps: number
-  percent: string
-  note: string | null
-  public_fee_bps: number
-  public_percent: string
-  public_note: string | null
-  updated_at: string | null
-  charges_enabled: boolean
-  onboarded: boolean
-}
+import type { FeeResponse as Fee } from '@/app/api/portal/promoters/[id]/fee/route'
 
 /** What PATCH echoes back — the single rate it just wrote. */
 type FeeWrite = { kind: Kind; fee_bps: number; fee_percent: string }
@@ -58,7 +48,7 @@ export function FeeControl({ userId, name, feeBps, publicFeeBps }: {
     try {
       const r = await api<Fee>(`/api/portal/promoters/${userId}/fee`)
       setFee(r)
-      setPercent(kind === 'public' ? r.public_percent : r.percent)
+      setPercent((kind === 'public' ? r.public_percent : r.fee_percent) ?? '')
       setNote((kind === 'public' ? r.public_note : r.note) ?? '')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load the rate')
@@ -82,7 +72,7 @@ export function FeeControl({ userId, name, feeBps, publicFeeBps }: {
         method: 'PATCH',
         body: JSON.stringify({ kind, percent: trimmed, note: note.trim() || undefined }),
       })
-      setPercent(w.fee_percent)
+      setPercent(w.fee_percent ?? '')
       // Re-read so BOTH rates on screen reflect what is stored, not just the
       // one just written.
       setFee(await api<Fee>(`/api/portal/promoters/${userId}/fee`))
@@ -124,7 +114,7 @@ export function FeeControl({ userId, name, feeBps, publicFeeBps }: {
     )
   }
 
-  const active = fee ? (kind === 'public' ? fee.public_percent : fee.percent) : ''
+  const active = fee ? ((kind === 'public' ? fee.public_percent : fee.fee_percent) ?? '') : ''
   const activeNote = fee ? (kind === 'public' ? fee.public_note : fee.note) : null
   const dirty = fee ? percent.trim() !== active || (note.trim() || null) !== (activeNote ?? null) : false
 
@@ -157,7 +147,7 @@ export function FeeControl({ userId, name, feeBps, publicFeeBps }: {
           <div style={{ display: 'flex', gap: 6 }}>
             {(['private', 'public'] as Kind[]).map(k => {
               const on = kind === k
-              const pct = fee ? (k === 'public' ? fee.public_percent : fee.percent) : '—'
+              const pct = fee ? ((k === 'public' ? fee.public_percent : fee.fee_percent) ?? '—') : '—'
               return (
                 <button key={k} onClick={() => setKind(k)} style={{
                   flex: 1, fontFamily: font, fontSize: 11.5, fontWeight: on ? 600 : 400,

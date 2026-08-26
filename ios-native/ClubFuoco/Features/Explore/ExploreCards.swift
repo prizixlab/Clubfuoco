@@ -110,7 +110,7 @@ struct HeroCard: View {
                     }
                     .padding(12)
 
-                    if let rating = RumbaScore.score(clubId: place.placeId, realRating: place.rating).value {
+                    if let rating = FuocoScore.score(clubId: place.placeId, realRating: place.rating).value {
                         VStack {
                             Spacer()
                             HStack {

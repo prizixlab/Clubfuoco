@@ -155,7 +155,7 @@ enum RumbalistOffers {
     /// successful fetch — overwritten even when the answer is "none" (unlike
     /// `byClub`, which keeps the bundle as an offline seed for the detail
     /// sheets). nil until the first successful fetch. This is the membership
-    /// signal for deal-derived cosmetics like RumbaScore.
+    /// signal for deal-derived cosmetics like FuocoScore.
     nonisolated(unsafe) private(set) static var liveClubIds: Set<String>?
 
     /// Does this club have a live offer? Falls back to the bundled catalog
@@ -234,7 +234,7 @@ enum RumbalistOffers {
     /// nil on a FAILED request (network/decode) so callers that rank venues
     /// can degrade to no-deal-signal; an empty map is a real answer ("nothing
     /// is live"). Also refreshes the shared catalog so the detail sheets and
-    /// RumbaScore see the same set — the bundle stays as an offline fallback
+    /// FuocoScore see the same set — the bundle stays as an offline fallback
     /// there, but ranking must never key off it.
     @MainActor
     static func fetchLive(api: APIClient) async -> [String: [RumbalistOffer]]? {

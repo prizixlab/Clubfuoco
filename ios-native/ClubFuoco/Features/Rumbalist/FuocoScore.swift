@@ -1,7 +1,7 @@
 import Foundation
 
 /// Native counterpart of src/lib/rumba-score.ts. Deal-partner venues with a
-/// weak Google rating (below 4.5) get a "Rumba Score" — a deterministic,
+/// weak Google rating (below 4.5) get a "Fuoco Score" — a deterministic,
 /// believable 4.5–4.9. Anything else is left untouched.
 ///
 /// Membership comes from the LIVE offer catalog (RumbalistOffers.byClub is
@@ -12,12 +12,12 @@ import Foundation
 /// signed or dropped. An FNV-1a hash keeps the spread across 4.5–4.9 without
 /// the char-code clustering that the old summing hash suffered on UUIDs, and
 /// is stable regardless of set membership or size.
-enum RumbaScore {
+enum FuocoScore {
     private static let opts: [Double] = [4.5, 4.6, 4.7, 4.8, 4.9]
 
     struct Result {
         let value: Double?     // nil when there is nothing to show
-        let boosted: Bool      // true when this is a Rumba Score, not the real rating
+        let boosted: Bool      // true when this is a Fuoco Score, not the real rating
     }
 
     static func score(clubId: String?, realRating: Double?) -> Result {

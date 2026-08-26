@@ -2941,6 +2941,34 @@
         }
       }
     },
+    "detail.fuocoScore": {
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fuoco Score"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fuoco Score"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fuoco Score"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fuoco Score"
+          }
+        }
+      }
+    },
     "detail.hours": {
       "localizations": {
         "ca": {

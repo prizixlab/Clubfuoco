@@ -114,7 +114,7 @@ struct ShelfListView: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 10)
-                if let rating = RumbaScore.score(clubId: place.placeId, realRating: place.rating).value {
+                if let rating = FuocoScore.score(clubId: place.placeId, realRating: place.rating).value {
                     HStack(spacing: 3) {
                         Image(systemName: "star.fill")
                             .font(.system(size: 10))

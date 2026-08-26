@@ -211,8 +211,8 @@ struct ClubDetailView: View {
     private var tags: [String] { detail?.tags ?? place.tags }
     private var weekdayHours: [String] { detail?.weekdayHours ?? place.weekdayHours }
     private var ratingsTotal: Int { detail?.ratingsTotal ?? place.ratingsTotal }
-    private var ratingResult: RumbaScore.Result {
-        RumbaScore.score(clubId: place.placeId, realRating: detail?.rating ?? place.rating)
+    private var ratingResult: FuocoScore.Result {
+        FuocoScore.score(clubId: place.placeId, realRating: detail?.rating ?? place.rating)
     }
     private var rating: Double? { ratingResult.value }
     private var entryPrice: Double? { detail?.generalEntryPrice ?? place.generalEntryPrice }
@@ -350,7 +350,7 @@ struct ClubDetailView: View {
             factTile(label: locale.t("detail.door"), value: doorLabel)
             factTile(label: locale.t("detail.reviewsLabel"), value: reviewsLabel, sub: ratingsTotal > 0 ? locale.t("detail.onGoogle") : nil)
             factTile(label: locale.t("detail.statusLabel"), value: statusValue, valueColor: statusColor)
-            factTile(label: locale.t("detail.ratingLabel"), value: rating.map { String(format: "%.1f", $0) } ?? "—", sub: ratingResult.boosted ? "Rumba Score" : nil, star: rating != nil)
+            factTile(label: locale.t("detail.ratingLabel"), value: rating.map { String(format: "%.1f", $0) } ?? "—", sub: ratingResult.boosted ? locale.t("detail.fuocoScore") : nil, star: rating != nil)
         }
     }
 

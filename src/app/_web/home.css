@@ -300,14 +300,14 @@
 .step-rule { display: none; }
 
 /* ---------- Partner network ---------- */
-.partner { text-align: center; }
-.partner h2 {
+.venue-network { text-align: center; }
+.venue-network h2 {
   font-size: clamp(32px, 4.6vw, 50px);
   color: var(--ink);
   max-width: 760px;
   margin: 0 auto;
 }
-.partner .sub {
+.venue-network .sub {
   max-width: 620px;
   margin: 22px auto 0;
   font-size: 17px;

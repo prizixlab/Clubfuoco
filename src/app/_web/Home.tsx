@@ -3,6 +3,12 @@ import './site.css'
 import './home.css'
 import SiteNav from './SiteNav'
 import MiniFooter from './MiniFooter'
+import {
+  NETWORK_VENUES,
+  NETWORK_VENUE_COUNT,
+  NETWORK_VENUE_COUNT_WORD,
+  NETWORK_VENUE_COUNT_WORD_CAP,
+} from '@/lib/network-venues'
 
 export default function WebHome() {
   return (
@@ -21,8 +27,9 @@ export default function WebHome() {
         <p className="hero-tag">Barcelona nightlife, curated.</p>
         <hr className="divider" />
         <p className="hero-lede">
-          Eleven of Barcelona&rsquo;s best venues, end-to-end inside one app.
-          Booked, paid, and on your phone before you leave the house.
+          {NETWORK_VENUE_COUNT_WORD_CAP} of Barcelona&rsquo;s best venues,
+          end-to-end inside one app. Booked, paid, and on your phone before you
+          leave the house.
         </p>
         <div className="hero-cta">
           <a
@@ -36,7 +43,7 @@ export default function WebHome() {
           <a href="#how" className="btn btn-secondary">How it works ↓</a>
         </div>
         <div className="hero-stats">
-          <div className="hstat"><div className="num">11</div><div className="lbl">Partner venues</div></div>
+          <div className="hstat"><div className="num">{NETWORK_VENUE_COUNT}</div><div className="lbl">Venues available</div></div>
           <div className="hstat"><div className="num">1,700+</div><div className="lbl">Barcelona venues catalogued</div></div>
           <div className="hstat"><div className="num">May 2026</div><div className="lbl">App Store launch</div></div>
           <div className="hstat"><div className="num">Apple Pay</div><div className="lbl">Native payments</div></div>
@@ -108,19 +115,19 @@ export default function WebHome() {
         </div>
       </section>
 
-      {/* ===== PARTNER NETWORK ===== */}
-      <section className="section partner">
+      {/* ===== VENUE NETWORK ===== */}
+      <section className="section venue-network">
         <div className="wrap">
           <p className="eyebrow" style={{ textAlign: 'center' }}>The network</p>
           <h2 className="serif-title" style={{ marginTop: 18 }}>
-            Curated with the operators who own Barcelona nights.
+            Built around {NETWORK_VENUE_COUNT_WORD} of Barcelona&rsquo;s best rooms.
           </h2>
           <p className="sub">
-            Guest lists, VIP tables, and direct entry at eleven of the
-            city&rsquo;s best venues.
+            Guest lists, VIP tables, and direct entry at {NETWORK_VENUE_COUNT_WORD} of
+            the city&rsquo;s best venues.
           </p>
-          <div className="venues" aria-label="Partner venues">
-            {['Opium','Ku','Jamboree','CDLC','Shôko','Sutton','Bling Bling','Disco City Hall','Downtown','Twenties','Carpe Diem'].map((name, i, arr) => (
+          <div className="venues" aria-label="Featured venues">
+            {NETWORK_VENUES.map((name, i, arr) => (
               <span key={name}>
                 <span>{name}</span>
                 {i < arr.length - 1 && <span className="sep">·</span>}
@@ -153,7 +160,7 @@ export default function WebHome() {
         <nav className="route-links" aria-label="Secondary">
           <a href="/partners">For Partners →</a>
           <span className="dot" aria-hidden="true">·</span>
-          <a href="/investors">About the company →</a>
+          <a href="/investors">For Investors →</a>
         </nav>
       </section>
 

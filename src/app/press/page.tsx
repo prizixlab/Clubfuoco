@@ -3,6 +3,7 @@ import '../_web/site.css'
 import '../_web/press.css'
 import SiteNav    from '../_web/SiteNav'
 import MiniFooter from '../_web/MiniFooter'
+import { NETWORK_VENUE_COUNT_WORD } from '@/lib/network-venues'
 
 export default function PressPage() {
   if (process.env.BUILD_TARGET === 'ios') return null
@@ -34,16 +35,16 @@ export default function PressPage() {
           </div>
           <div className="press-grid">
             <article className="release">
-              <span className="date">June 2026</span>
+              <span className="date">May 2026</span>
               <h3>Club Fuoco launches on the App Store</h3>
               <p>
-                The curated nightlife app goes live across Spain, opening with
-                eleven partner venues in Barcelona.
+                The curated nightlife app goes live across Spain, launching with{' '}
+                {NETWORK_VENUE_COUNT_WORD} of Barcelona&rsquo;s best venues.
               </p>
             </article>
             <article className="release">
               <span className="date">May 2026</span>
-              <h3>Club Fuoco opens its partner venue network</h3>
+              <h3>Club Fuoco unveils its launch venue line-up</h3>
               <p>
                 Guest lists, VIP tables, and direct entry at the city&rsquo;s
                 best rooms, brought into one app.

@@ -187,18 +187,11 @@ export default function PartnersLanding() {
         </div>
       </section>
 
-      <section className="section integrate">
-        <div className="wrap">
-          <p>Designed to sit alongside the tools operators already use — not replace them.</p>
-          <div className="names" aria-label="Compatible platforms">
-            <span>Dice</span><span className="sep">·</span>
-            <span>Resident Advisor</span><span className="sep">·</span>
-            <span>Xceed</span><span className="sep">·</span>
-            <span>Fourvenues</span><span className="sep">·</span>
-            <span>Cover</span>
-          </div>
-        </div>
-      </section>
+      {/* The "Compatible platforms" strip (Dice · Resident Advisor · Xceed ·
+          Fourvenues · Cover) was removed: naming those platforms implied
+          integrations we don't have. Don't list a third party here until the
+          integration actually ships. The .integrate styles remain in
+          partners.css if the section comes back. */}
 
       <section className="section">
         <div className="wrap">

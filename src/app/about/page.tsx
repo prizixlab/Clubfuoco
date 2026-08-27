@@ -3,6 +3,7 @@ import '../_web/site.css'
 import '../_web/about.css'
 import SiteNav    from '../_web/SiteNav'
 import MiniFooter from '../_web/MiniFooter'
+import { NETWORK_VENUE_COUNT_WORD } from '@/lib/network-venues'
 
 export default function AboutPage() {
   if (process.env.BUILD_TARGET === 'ios') return null
@@ -53,16 +54,16 @@ export default function AboutPage() {
               may not answer, and a queue at the door regardless.
             </p>
             <p>
-              Club Fuoco is the app we wanted to exist. It works with the
-              operators who actually run Barcelona nights, so what you see is
+              Club Fuoco is the app we wanted to exist. It&rsquo;s built around
+              the venues that actually run Barcelona nights, so what you see is
               real: open rooms tonight, tables you can actually book, guest
               lists that actually clear you at the door.
             </p>
             <p>
               We&rsquo;re deliberately small and deliberately local.
-              We&rsquo;d rather cover eleven venues perfectly than five
-              hundred badly. Every venue on Club Fuoco is one we&rsquo;d
-              send a friend to.
+              We&rsquo;d rather cover {NETWORK_VENUE_COUNT_WORD} venues
+              perfectly than five hundred badly. Every venue on Club Fuoco is
+              one we&rsquo;d send a friend to.
             </p>
           </div>
         </div>
@@ -91,10 +92,10 @@ export default function AboutPage() {
               </p>
             </div>
             <div className="belief">
-              <h3>Operators are partners</h3>
+              <h3>Built with operators, not around them</h3>
               <p>
-                We build with the venues and promoters who own these nights,
-                not around them. Real inventory, real entry.
+                The venues and promoters who own these nights should be part of
+                how the product works, never an afterthought.
               </p>
             </div>
           </div>

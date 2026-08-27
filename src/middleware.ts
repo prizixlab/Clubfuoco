@@ -115,6 +115,7 @@ export async function middleware(request: NextRequest) {
   if (!pathname.startsWith('/api/')) {
     const WEB_ALLOWED = [
       '/about', '/partners', '/investors', '/press', '/legal',   // marketing
+      '/deck',                                                    // investor deck PDF (stable link in outreach)
       '/join',                                                    // invite flow
       '/i',                                                       // promoter invite links (/i/<token>)
       '/billing',                                                 // Stripe card-setup return page

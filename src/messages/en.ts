@@ -81,6 +81,7 @@ export const en = {
   'signup.orOtherSide':        "or, if you're on the other side",
 
   // ── Bottom nav ────────────────────────────────────────────────────────────
+  'nav.events':     'Events',
   'nav.explore':    'Explore',
   'nav.tickets':    'Tickets',
   'nav.you':        'You',

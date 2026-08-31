@@ -36,6 +36,8 @@ export interface FeedEvent {
   /** Event flyer if the row has one, else the venue's cover photo. */
   image: string | null
   photo_urls: string[]
+  /** Billed DJs in order: RA artist id + name. Same shape as events.lineup. */
+  lineup: { id: string | null; name: string }[]
   total_capacity: number
   price_cents: number
   currency: string
@@ -66,7 +68,7 @@ export async function GET() {
     .select(
       'id, title, night_date, open_time, close_time, description, club_id, ' +
       'location_name, address, lat, lng, photo_urls, total_capacity, ' +
-      'price_cents, currency, is_pinned, featured, is_house',
+      'price_cents, currency, is_pinned, featured, is_house, lineup',
     )
     .limit(100)
 
@@ -116,6 +118,14 @@ export async function GET() {
       // fallback so a card is never blank.
       image: photos[0] ?? club?.cover ?? null,
       photo_urls: photos,
+      // Defensive: the column is constrained to an array, but a row written
+      // before the constraint existed could still hold something else, and a
+      // non-array here would break decoding on the client.
+      lineup: Array.isArray(r.lineup)
+        ? (r.lineup as { id?: string; name?: string }[])
+            .filter(c => c && typeof c.name === 'string' && c.name.trim() !== '')
+            .map(c => ({ id: c.id ?? null, name: c.name as string }))
+        : [],
       total_capacity: r.total_capacity as number,
       price_cents: r.price_cents as number,
       currency: r.currency as string,

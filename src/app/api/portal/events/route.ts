@@ -34,6 +34,7 @@ export interface PortalEvent {
   total_capacity: number
   price_cents: number
   photo_urls: string[]
+  lineup: { id: string | null; name: string }[]
   /** Guest-visible right now — the same predicate v_events_feed applies. */
   live: boolean
 }
@@ -56,7 +57,7 @@ function clubName(row: unknown): string | null {
 const SELECT =
   'id, title, night_date, club_id, location_name, is_published, visibility, ' +
   'review_status, featured, is_house, pinned_at, pin_rank, pin_note, ' +
-  'total_capacity, price_cents, photo_urls, club:clubs(name)'
+  'total_capacity, price_cents, photo_urls, lineup, club:clubs(name)'
 
 // GET /api/portal/events?scope=upcoming|past
 export async function GET(req: Request) {
@@ -95,6 +96,11 @@ export async function GET(req: Request) {
       total_capacity: row.total_capacity as number,
       price_cents: row.price_cents as number,
       photo_urls: (row.photo_urls as string[]) ?? [],
+      lineup: Array.isArray(row.lineup)
+        ? (row.lineup as { id?: string; name?: string }[])
+            .filter(c => c && typeof c.name === 'string')
+            .map(c => ({ id: c.id ?? null, name: c.name as string }))
+        : [],
       live:
         (row.is_published as boolean) &&
         row.review_status === 'approved' &&
@@ -141,6 +147,17 @@ export async function POST(req: Request) {
     ? (body.photo_urls as unknown[]).map(String).filter(Boolean)
     : []
 
+  // Billed DJs in order. Stored as [{id, name}] where id is an RA artist id,
+  // matching public.events.lineup so the client's existing credit type works
+  // unchanged. A name is required; the id may be null for someone not in the
+  // catalogue, which still renders — it just cannot link to a DJ page.
+  const lineup = Array.isArray(body.lineup)
+    ? (body.lineup as { id?: unknown; name?: unknown }[])
+        .filter(c => c && typeof c.name === 'string' && c.name.trim() !== '')
+        .slice(0, 20)
+        .map(c => ({ id: c.id == null ? null : String(c.id), name: String(c.name).trim() }))
+    : []
+
   const { data, error } = await sb
     .from('promoter_nights')
     .insert({
@@ -155,6 +172,7 @@ export async function POST(req: Request) {
       total_capacity: capacity,
       max_plus_ones: body.max_plus_ones == null ? null : Number(body.max_plus_ones),
       photo_urls: photos,
+      lineup,
       is_house: true,
       // Ours, so it skips the promoter review queue.
       review_status: 'approved',

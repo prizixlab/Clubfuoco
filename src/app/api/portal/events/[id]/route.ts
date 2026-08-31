@@ -17,6 +17,8 @@ type Body = {
   pin_rank?: number | null
   pin_note?: string | null
   is_published?: boolean
+  /** Replaces the whole billing, in order. */
+  lineup?: { id?: string | null; name?: string }[]
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -53,13 +55,24 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   if (typeof body.is_published === 'boolean') patch.is_published = body.is_published
 
+  if (body.lineup !== undefined) {
+    // A whole-list replace rather than an append: billing ORDER is the point,
+    // and the only way to reorder or remove a credit is to send the new list.
+    patch.lineup = Array.isArray(body.lineup)
+      ? body.lineup
+          .filter(c => c && typeof c.name === 'string' && c.name.trim() !== '')
+          .slice(0, 20)
+          .map(c => ({ id: c.id == null ? null : String(c.id), name: String(c.name).trim() }))
+      : []
+  }
+
   if (Object.keys(patch).length === 0) return err('Nothing to change', 400)
 
   const { data, error } = await sb
     .from('promoter_nights')
     .update(patch)
     .eq('id', id)
-    .select('id, pinned_at, pin_rank, pin_note, is_published')
+    .select('id, pinned_at, pin_rank, pin_note, is_published, lineup')
     .single()
 
   if (error) return err(error.message, 500)

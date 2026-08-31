@@ -38,6 +38,9 @@ export interface FeedEvent {
   photo_urls: string[]
   /** Billed DJs in order: RA artist id + name. Same shape as events.lineup. */
   lineup: { id: string | null; name: string }[]
+  /** Who RUNS the night — partner_brands id where we have one, else free text.
+   *  Distinct from `lineup`, which is who plays it. */
+  hosts: { id: string | null; name: string }[]
   total_capacity: number
   price_cents: number
   currency: string
@@ -60,6 +63,17 @@ function usableCover(url: string | null): string | null {
   return url
 }
 
+/// Normalise a jsonb [{id, name}] column. Shared by `lineup` and `hosts`
+/// because they carry the same shape — and defensive because a row written
+/// before the array constraint existed could still hold something else, which
+/// would break decoding on the client rather than just rendering nothing.
+function credits(raw: unknown): { id: string | null; name: string }[] {
+  if (!Array.isArray(raw)) return []
+  return (raw as { id?: string; name?: string }[])
+    .filter(c => c && typeof c.name === 'string' && c.name.trim() !== '')
+    .map(c => ({ id: c.id ?? null, name: c.name as string }))
+}
+
 export async function GET() {
   const sb = await createServiceClient()
 
@@ -68,7 +82,7 @@ export async function GET() {
     .select(
       'id, title, night_date, open_time, close_time, description, club_id, ' +
       'location_name, address, lat, lng, photo_urls, total_capacity, ' +
-      'price_cents, currency, is_pinned, featured, is_house, lineup',
+      'price_cents, currency, is_pinned, featured, is_house, lineup, hosts',
     )
     .limit(100)
 
@@ -121,11 +135,8 @@ export async function GET() {
       // Defensive: the column is constrained to an array, but a row written
       // before the constraint existed could still hold something else, and a
       // non-array here would break decoding on the client.
-      lineup: Array.isArray(r.lineup)
-        ? (r.lineup as { id?: string; name?: string }[])
-            .filter(c => c && typeof c.name === 'string' && c.name.trim() !== '')
-            .map(c => ({ id: c.id ?? null, name: c.name as string }))
-        : [],
+      lineup: credits(r.lineup),
+      hosts: credits(r.hosts),
       total_capacity: r.total_capacity as number,
       price_cents: r.price_cents as number,
       currency: r.currency as string,

@@ -38,6 +38,7 @@ export default function EventsPage() {
   const [busy, setBusy] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [editingLineup, setEditingLineup] = useState<PortalEvent | null>(null)
+  const [editingHosts, setEditingHosts] = useState<PortalEvent | null>(null)
 
   const load = useCallback(() => {
     setEvents(null)
@@ -122,13 +123,22 @@ export default function EventsPage() {
         {(events ?? []).map(ev => (
           <Row key={ev.id} ev={ev} busy={busy === ev.id}
                onPatch={b => patch(ev.id, b)} onDelete={() => remove(ev)}
-               onEditLineup={() => setEditingLineup(ev)} />
+               onEditLineup={() => setEditingLineup(ev)}
+               onEditHosts={() => setEditingHosts(ev)} />
         ))}
       </div>
 
       {creating && (
         <CreateModal clubs={clubs} onClose={() => setCreating(false)}
                      onDone={() => { setCreating(false); setScope('upcoming'); load() }} />
+      )}
+
+      {editingHosts && (
+        <HostsModal ev={editingHosts} onClose={() => setEditingHosts(null)}
+                    onSave={async next => {
+                      await patch(editingHosts.id, { hosts: next })
+                      setEditingHosts(null)
+                    }} />
       )}
 
       {editingLineup && (
@@ -142,12 +152,13 @@ export default function EventsPage() {
   )
 }
 
-function Row({ ev, busy, onPatch, onDelete, onEditLineup }: {
+function Row({ ev, busy, onPatch, onDelete, onEditLineup, onEditHosts }: {
   ev: PortalEvent
   busy: boolean
   onPatch: (b: Record<string, unknown>) => void
   onDelete: () => void
   onEditLineup: () => void
+  onEditHosts: () => void
 }) {
   const isPinned = !!ev.pinned_at
   return (
@@ -172,6 +183,11 @@ function Row({ ev, busy, onPatch, onDelete, onEditLineup }: {
           {ev.club_name ?? ev.location_name ?? 'No venue set'}
           {' · '}{ev.total_capacity} cap
         </div>
+        {ev.hosts.length > 0 && (
+          <div style={{ fontFamily: font, fontSize: 12, color: C.dim, marginTop: 5 }}>
+            Hosted by {ev.hosts.map(h => h.name).join(' × ')}
+          </div>
+        )}
         {ev.lineup.length > 0 && (
           <div style={{ fontFamily: font, fontSize: 12.5, color: C.text, marginTop: 5 }}>
             {ev.lineup.map(c => c.name).join(', ')}
@@ -220,6 +236,9 @@ function Row({ ev, busy, onPatch, onDelete, onEditLineup }: {
         <Btn small kind="ghost" disabled={busy} onClick={onEditLineup}>
           {ev.lineup.length > 0 ? 'Line-up' : 'Add DJs'}
         </Btn>
+        <Btn small kind="ghost" disabled={busy} onClick={onEditHosts}>
+          Hosts
+        </Btn>
         <Btn small kind="ghost" disabled={busy}
              onClick={() => onPatch({ is_published: !ev.is_published })}>
           {ev.is_published ? 'Unpublish' : 'Publish'}
@@ -241,8 +260,12 @@ type Credit = { id: string | null; name: string }
 //
 // Order is the billing order, so credits can be moved up and down; the API
 // replaces the whole list rather than appending.
-function LineupPicker({ value, onChange }: {
-  value: Credit[]; onChange: (next: Credit[]) => void
+function LineupPicker({ value, onChange, source = 'djs', label = 'Line-up' }: {
+  value: Credit[]
+  onChange: (next: Credit[]) => void
+  /** 'djs' searches the artist catalogue; 'brands' searches the promoter roster. */
+  source?: 'djs' | 'brands'
+  label?: string
 }) {
   const [q, setQ] = useState('')
   const [results, setResults] = useState<DJOption[]>([])
@@ -257,13 +280,19 @@ function LineupPicker({ value, onChange }: {
     // is an ILIKE across every row.
     timer.current = setTimeout(() => {
       setSearching(true)
-      api<{ djs: DJOption[] }>(`/api/portal/djs?q=${encodeURIComponent(term)}`)
-        .then(r => setResults(r.djs))
-        .catch(() => setResults([]))
-        .finally(() => setSearching(false))
+      const req = source === 'brands'
+        // The roster is a handful of rows, so it is fetched whole and filtered
+        // here rather than given its own search endpoint.
+        ? api<{ id: string; name: string; logo_url: string | null }[]>('/api/portal/brands')
+            .then(bs => bs
+              .filter(b => b.name.toLowerCase().includes(term.toLowerCase()))
+              .slice(0, 20)
+              .map(b => ({ id: b.id, name: b.name, image_url: b.logo_url, followers: null })))
+        : api<{ djs: DJOption[] }>(`/api/portal/djs?q=${encodeURIComponent(term)}`).then(r => r.djs)
+      req.then(setResults).catch(() => setResults([])).finally(() => setSearching(false))
     }, 220)
     return () => { if (timer.current) clearTimeout(timer.current) }
-  }, [q])
+  }, [q, source])
 
   function add(dj: DJOption) {
     if (value.some(c => c.id === dj.id)) return
@@ -288,7 +317,7 @@ function LineupPicker({ value, onChange }: {
 
   return (
     <div style={{ marginBottom: 18 }}>
-      <span style={{ ...caps, display: 'block', color: C.dim, marginBottom: 8 }}>Line-up</span>
+      <span style={{ ...caps, display: 'block', color: C.dim, marginBottom: 8 }}>{label}</span>
 
       {value.length > 0 && (
         <div style={{ display: 'grid', gap: 6, marginBottom: 10 }}>
@@ -316,7 +345,7 @@ function LineupPicker({ value, onChange }: {
       <TextInput
         value={q}
         onChange={e => setQ(e.target.value)}
-        placeholder="Search DJs by name…"
+        placeholder={source === 'brands' ? 'Search promoters, or type a name…' : 'Search DJs by name…'}
         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (results[0]) add(results[0]); else addFreeText() } }}
       />
 
@@ -374,6 +403,7 @@ function CreateModal({ clubs, onClose, onDone }: {
   const [openTime, setOpenTime] = useState('')
   const [closeTime, setCloseTime] = useState('')
   const [lineup, setLineup] = useState<Credit[]>([])
+  const [hosts, setHosts] = useState<Credit[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -390,6 +420,7 @@ function CreateModal({ clubs, onClose, onDone }: {
           description: description || null,
           total_capacity: Number(capacity),
           lineup,
+          hosts,
           open_time: openTime || null,
           close_time: closeTime || null,
         }),
@@ -447,6 +478,9 @@ function CreateModal({ clubs, onClose, onDone }: {
         <Field label="Closes"><TextInput type="time" value={closeTime} onChange={e => setCloseTime(e.target.value)} /></Field>
       </div>
 
+      <LineupPicker value={hosts} onChange={setHosts} source="brands"
+                    label="Hosted by" />
+
       <LineupPicker value={lineup} onChange={setLineup} />
 
       <Field label="Description">
@@ -483,6 +517,30 @@ function LineupModal({ ev, onClose, onSave }: {
         <Btn kind="primary" disabled={saving}
              onClick={async () => { setSaving(true); await onSave(lineup) }}>
           {saving ? 'Saving…' : 'Save line-up'}
+        </Btn>
+      </div>
+    </Modal>
+  )
+}
+
+/// Edit who runs the night. Same picker as the line-up, pointed at the promoter
+/// roster instead of the DJ catalogue, because a host is usually a brand we
+/// already know — and storing its id is what lets a host resolve to that
+/// brand's logo and attribution clause later.
+function HostsModal({ ev, onClose, onSave }: {
+  ev: PortalEvent; onClose: () => void; onSave: (next: Credit[]) => Promise<void>
+}) {
+  const [hosts, setHosts] = useState<Credit[]>(ev.hosts)
+  const [saving, setSaving] = useState(false)
+
+  return (
+    <Modal title={`Hosts — ${ev.title ?? 'Untitled'}`} onClose={onClose} width={520}>
+      <LineupPicker value={hosts} onChange={setHosts} source="brands" label="Hosted by" />
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+        <Btn kind="ghost" onClick={onClose}>Cancel</Btn>
+        <Btn kind="primary" disabled={saving}
+             onClick={async () => { setSaving(true); await onSave(hosts) }}>
+          {saving ? 'Saving…' : 'Save hosts'}
         </Btn>
       </div>
     </Modal>

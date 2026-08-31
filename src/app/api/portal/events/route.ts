@@ -35,6 +35,7 @@ export interface PortalEvent {
   price_cents: number
   photo_urls: string[]
   lineup: { id: string | null; name: string }[]
+  hosts: { id: string | null; name: string }[]
   /** Guest-visible right now — the same predicate v_events_feed applies. */
   live: boolean
 }
@@ -48,6 +49,14 @@ function todayMadrid(): string {
   }).format(new Date())
 }
 
+/// Normalise a jsonb [{id, name}] column — used by both `lineup` and `hosts`.
+function credits(raw: unknown): { id: string | null; name: string }[] {
+  if (!Array.isArray(raw)) return []
+  return (raw as { id?: string; name?: string }[])
+    .filter(c => c && typeof c.name === 'string' && c.name.trim() !== '')
+    .map(c => ({ id: c.id ?? null, name: c.name as string }))
+}
+
 function clubName(row: unknown): string | null {
   const c = (row as { club?: { name?: string } | { name?: string }[] }).club
   const name = Array.isArray(c) ? c[0]?.name : c?.name
@@ -57,7 +66,7 @@ function clubName(row: unknown): string | null {
 const SELECT =
   'id, title, night_date, club_id, location_name, is_published, visibility, ' +
   'review_status, featured, is_house, pinned_at, pin_rank, pin_note, ' +
-  'total_capacity, price_cents, photo_urls, lineup, club:clubs(name)'
+  'total_capacity, price_cents, photo_urls, lineup, hosts, club:clubs(name)'
 
 // GET /api/portal/events?scope=upcoming|past
 export async function GET(req: Request) {
@@ -96,11 +105,8 @@ export async function GET(req: Request) {
       total_capacity: row.total_capacity as number,
       price_cents: row.price_cents as number,
       photo_urls: (row.photo_urls as string[]) ?? [],
-      lineup: Array.isArray(row.lineup)
-        ? (row.lineup as { id?: string; name?: string }[])
-            .filter(c => c && typeof c.name === 'string')
-            .map(c => ({ id: c.id ?? null, name: c.name as string }))
-        : [],
+      lineup: credits(row.lineup),
+      hosts: credits(row.hosts),
       live:
         (row.is_published as boolean) &&
         row.review_status === 'approved' &&
@@ -151,12 +157,10 @@ export async function POST(req: Request) {
   // matching public.events.lineup so the client's existing credit type works
   // unchanged. A name is required; the id may be null for someone not in the
   // catalogue, which still renders — it just cannot link to a DJ page.
-  const lineup = Array.isArray(body.lineup)
-    ? (body.lineup as { id?: unknown; name?: unknown }[])
-        .filter(c => c && typeof c.name === 'string' && c.name.trim() !== '')
-        .slice(0, 20)
-        .map(c => ({ id: c.id == null ? null : String(c.id), name: String(c.name).trim() }))
-    : []
+  const lineup = credits(body.lineup).slice(0, 20)
+  // Who runs the night. Defaults to the house brand when nothing is given on a
+  // house event, so "Hosted by" is never blank on an event that is ours.
+  const hosts = credits(body.hosts).slice(0, 10)
 
   const { data, error } = await sb
     .from('promoter_nights')
@@ -173,6 +177,7 @@ export async function POST(req: Request) {
       max_plus_ones: body.max_plus_ones == null ? null : Number(body.max_plus_ones),
       photo_urls: photos,
       lineup,
+      hosts: hosts.length > 0 ? hosts : [{ id: null, name: 'Club Fuoco' }],
       is_house: true,
       // Ours, so it skips the promoter review queue.
       review_status: 'approved',

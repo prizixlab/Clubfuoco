@@ -19,6 +19,16 @@ type Body = {
   is_published?: boolean
   /** Replaces the whole billing, in order. */
   lineup?: { id?: string | null; name?: string }[]
+  /** Replaces the whole host list, in order. */
+  hosts?: { id?: string | null; name?: string }[]
+}
+
+/// Normalise a jsonb [{id, name}] payload — used by both `lineup` and `hosts`.
+function credits(raw: unknown): { id: string | null; name: string }[] {
+  if (!Array.isArray(raw)) return []
+  return (raw as { id?: unknown; name?: unknown }[])
+    .filter(c => c && typeof c.name === 'string' && c.name.trim() !== '')
+    .map(c => ({ id: c.id == null ? null : String(c.id), name: String(c.name).trim() }))
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -55,16 +65,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   if (typeof body.is_published === 'boolean') patch.is_published = body.is_published
 
-  if (body.lineup !== undefined) {
-    // A whole-list replace rather than an append: billing ORDER is the point,
-    // and the only way to reorder or remove a credit is to send the new list.
-    patch.lineup = Array.isArray(body.lineup)
-      ? body.lineup
-          .filter(c => c && typeof c.name === 'string' && c.name.trim() !== '')
-          .slice(0, 20)
-          .map(c => ({ id: c.id == null ? null : String(c.id), name: String(c.name).trim() }))
-      : []
-  }
+  // Whole-list replaces rather than appends: ORDER is the point in both, and
+  // the only way to reorder or remove an entry is to send the new list.
+  if (body.lineup !== undefined) patch.lineup = credits(body.lineup).slice(0, 20)
+  if (body.hosts !== undefined) patch.hosts = credits(body.hosts).slice(0, 10)
 
   if (Object.keys(patch).length === 0) return err('Nothing to change', 400)
 
@@ -72,7 +76,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     .from('promoter_nights')
     .update(patch)
     .eq('id', id)
-    .select('id, pinned_at, pin_rank, pin_note, is_published, lineup')
+    .select('id, pinned_at, pin_rank, pin_note, is_published, lineup, hosts')
     .single()
 
   if (error) return err(error.message, 500)

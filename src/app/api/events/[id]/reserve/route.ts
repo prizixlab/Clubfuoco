@@ -32,6 +32,58 @@ function token(): string {
   return crypto.randomUUID().replace(/-/g, '')
 }
 
+// GET /api/events/[id]/reserve — my standing on this night.
+//
+// The detail screen needs this on load: without it a returning guest sees
+// "Reserve a spot" on a night they are already on, and taps it expecting
+// something to happen. `full` is answered here too, because remaining spots
+// live on the allocation and the public feed deliberately does not carry them.
+export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params
+  const sb = await createServiceClient()
+
+  const { data: event } = await sb
+    .from('v_events_feed')
+    .select('id, club_id, night_date, total_capacity')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!event) return err('That event is not open for reservations', 404)
+
+  // Capacity is a property of the night, not of the caller, so it is computed
+  // before auth — a signed-out guest still needs to know the room is full.
+  const { data: allocs } = await sb
+    .from('promoter_allocations')
+    .select('id, spots')
+    .eq('night_id', id)
+
+  let full = false
+  const allocIds = (allocs ?? []).map(a => a.id)
+  if (allocIds.length > 0) {
+    const spots = (allocs ?? []).reduce((n, a) => n + (a.spots ?? 0), 0)
+    const { count } = await sb
+      .from('promoter_guests')
+      .select('id', { count: 'exact', head: true })
+      .in('allocation_id', allocIds)
+    full = (count ?? 0) >= spots
+  }
+
+  // Guests get the capacity answer and nothing personal.
+  const { user } = await requireAuth()
+  if (!user) return ok({ reserved: false, full, booking_id: null })
+
+  const { data: booking } = await sb
+    .from('bookings')
+    .select('id, status')
+    .eq('user_id', user.id)
+    .eq('club_id', event.club_id)
+    .eq('booking_date', event.night_date)
+    .neq('status', 'cancelled')
+    .maybeSingle()
+
+  return ok({ reserved: !!booking, full, booking_id: booking?.id ?? null })
+}
+
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { user, response } = await requireAuth()
   if (response) return response

@@ -18,15 +18,15 @@ struct ShelfListView: View {
                     Text(shelf.subtitle.uppercased())
                         .font(.cfSans(9))
                         .kerning(1.3)
-                        .foregroundStyle(Theme.fadedSand)
+                        .foregroundStyle(Explore.ink3)
                     Text(shelf.title)
-                        .font(.cfSerif(38, italic: true))
-                        .foregroundStyle(Theme.ink)
+                        .font(.cfDisplay(28, weight: .bold))
+                        .foregroundStyle(Explore.ink)
                     Text(String(format: locale.t("explore.shelfCount"), shelf.places.count))
                         .font(.cfSans(13))
-                        .foregroundStyle(Theme.fadedSand)
+                        .foregroundStyle(Explore.ink3)
                 }
-                .padding(.init(top: 6, leading: 20, bottom: 22, trailing: 20))
+                .padding(.init(top: 6, leading: Explore.gutter, bottom: 22, trailing: Explore.gutter))
 
                 VStack(spacing: 16) {
                     ForEach(shelf.places) { place in
@@ -42,11 +42,11 @@ struct ShelfListView: View {
                             }
                     }
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Explore.gutter)
                 .padding(.bottom, 32)
             }
         }
-        .background(Theme.cream)
+        .background(Explore.bg)
         .toolbar(.hidden, for: .navigationBar)
         .safeAreaInset(edge: .top, spacing: 0) {
             HStack {
@@ -54,7 +54,7 @@ struct ShelfListView: View {
                 Spacer()
             }
             .padding(.bottom, 6)
-            .background(Theme.cream)
+            .background(Explore.bg)
         }
     }
 
@@ -65,11 +65,11 @@ struct ShelfListView: View {
         } label: {
             Image(systemName: "chevron.left")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Theme.ink)
+                .foregroundStyle(Explore.ink)
                 .frame(width: 38, height: 38)
-                .background(Theme.surface, in: .circle)
-                .overlay(Circle().stroke(Theme.hairline))
-                .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 6, y: 3)
+                .background(Explore.surface, in: .circle)
+                .overlay(Circle().stroke(Explore.line))
+                .shadow(color: Color.black.opacity(0.18), radius: 6, y: 3)
         }
         .padding(.leading, 16)
         .padding(.top, 4)
@@ -81,10 +81,10 @@ struct ShelfListView: View {
         // the photo. Replaces the original thumbnail rows, which truncated
         // names and read like a settings list.
         ZStack(alignment: .bottomLeading) {
-            Theme.imagePlaceholder
+            Explore.photoPlaceholder
                 .overlay {
                     if let url = place.coverPhoto.flatMap(URL.init(string:)) {
-                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Theme.imagePlaceholder }
+                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Explore.photoPlaceholder }
                     }
                 }
                 .frame(height: 190)
@@ -104,7 +104,7 @@ struct ShelfListView: View {
             HStack(alignment: .lastTextBaseline) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(place.name)
-                        .font(.cfSerif(24, italic: true))
+                        .font(.cfDisplay(20))
                         .foregroundStyle(.white)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
@@ -118,7 +118,9 @@ struct ShelfListView: View {
                     HStack(spacing: 3) {
                         Image(systemName: "star.fill")
                             .font(.system(size: 10))
-                            .foregroundStyle(Theme.starGold)
+                            // Over a photo — the accent is wine in light mode,
+                            // which is nearly invisible against a dark scrim.
+                            .foregroundStyle(Explore.onPhoto)
                         Text(String(format: "%.1f", rating))
                             .font(.cfSans(12, weight: .semibold))
                             .foregroundStyle(.white)
@@ -147,12 +149,12 @@ struct ShelfListView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Theme.success, in: .capsule)
+                        .background(Explore.ember, in: .capsule)
                 }
             }
             .padding(12)
         }
-        .shadow(color: Color(hex: 0x221E1A).opacity(0.10), radius: 10, y: 6)
+        .shadow(color: Color.black.opacity(0.28), radius: 10, y: 6)
     }
 
     private func saveButton(_ place: Place) -> some View {

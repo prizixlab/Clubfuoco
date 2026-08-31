@@ -5,6 +5,11 @@ import Observation
 /// direct-query path), favorites, admin custom shelves via the REST API, and
 /// the shelf-building pipeline. Geolocation is Phase 2 — Barcelona center is
 /// the web fallback and the dominant real-world case.
+/// Envelope of GET /api/events/feed.
+struct EventsPayload: Decodable, Sendable {
+    let events: [FeedEvent]
+}
+
 @MainActor
 @Observable
 final class ExploreViewModel {
@@ -41,6 +46,21 @@ final class ExploreViewModel {
     /// Club ids with a Featured DJ — boosted in the ranking so programmed
     /// venues surface instead of the same popular names repeating.
     private(set) var djClubIds: Set<String> = []
+
+    /// OUR events — promoter nights and house nights, already gated and ordered
+    /// by the server (editorial pin, then paid promotion, then soonest). They
+    /// sit above the venue shelves in the feed rather than in a tab of their
+    /// own. Empty on failure: the venue feed must still render.
+    private(set) var feedEvents: [FeedEvent] = []
+
+    /// The pinned event takes the top of the feed — the tier-1 hero spot the
+    /// portal's pin control is choosing. Falls back to the soonest event when
+    /// nothing is pinned, so the slot is filled whenever there is anything at
+    /// all to put in it.
+    var heroEvent: FeedEvent? { feedEvents.first { $0.pinned } ?? feedEvents.first }
+
+    /// Everything else, for the rail under the hero.
+    var railEvents: [FeedEvent] { feedEvents.filter { $0.id != heroEvent?.id } }
 
     // Personalisation inputs (nil for guests / on error → unpersonalised feed).
     private(set) var userPrefs: UserPreferences?
@@ -108,6 +128,8 @@ final class ExploreViewModel {
         // serialises; they're folded into the enriched build below.
         async let liveOffers = RumbalistOffers.fetchLive(api: api)
         async let upcoming = (try? queries.upcomingEvents()) ?? []
+        // Our own events. Public route, so guests get them too.
+        async let ourEvents: EventsPayload? = try? await api.get("/api/events/feed")
         async let djClubs = (try? queries.djClubIds()) ?? []
         async let prefs = try? queries.userPreferences()
         // Survey profile comes from the API route — the derivation lives once,
@@ -152,6 +174,7 @@ final class ExploreViewModel {
         // everything); the feed must still render, never block on offers.
         offersByClub = await liveOffers ?? [:]
         events = await upcoming
+        feedEvents = await ourEvents?.events ?? []
         djClubIds = await djClubs
         userPrefs = await prefs ?? nil
         surveyPrefs = await survey ?? nil

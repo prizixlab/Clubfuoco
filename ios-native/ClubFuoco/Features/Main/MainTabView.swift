@@ -38,6 +38,10 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selection) {
+            // No Events tab. Events live INSIDE Explore — the pinned one takes
+            // the hero slot at the top of the feed, above the venue shelves.
+            // A separate tab split the "what's on tonight" question across two
+            // places and left one of them empty most of the time.
             NavigationStack(path: $explorePath) { ExploreView() }
                 // Set on the stack (not on ExploreView) so pushed destinations —
                 // ShelfListView's rows, etc. — inherit it too.

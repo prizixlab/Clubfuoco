@@ -61,6 +61,8 @@
 		<string>Geist-Bold.ttf</string>
 		<string>GeistMono-Regular.ttf</string>
 		<string>GeistMono-Medium.ttf</string>
+		<string>BricolageGrotesque-SemiBold.ttf</string>
+		<string>BricolageGrotesque-Bold.ttf</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>

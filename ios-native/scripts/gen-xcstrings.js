@@ -165,6 +165,39 @@ const NATIVE_KEYS = {
   'explore.featured': { en: 'Featured', es: 'Destacado' },
   'explore.noneNearby': { en: 'No clubs found nearby', es: 'No hay clubs cerca' },
   'explore.loadError': { en: 'Could not load nearby clubs', es: 'No se pudieron cargar los clubs cercanos' },
+  // Dark feed ("Event Cards - App Front"). `seeAll` replaces the old
+  // "%d venues →" header link. Cards carry no CTA label — the card itself is
+  // the tap target — so there is no join/view string here.
+  'explore.seeAll': { en: 'See all', es: 'Ver todo' },
+  'explore.city': { en: 'Barcelona', es: 'Barcelona' },
+
+  // Events tab — our own nights (promoter + house). `pickTag` is the editorial
+  // pin surfaced to guests; the promoter's PAID `featured` flag is never
+  // labelled, it only buys rank.
+  'events.kicker': { en: 'Club Fuoco nights', es: 'Noches de Club Fuoco' },
+  'events.more': { en: 'More nights', es: 'Más noches' },
+  'events.lineup': { en: 'Line-up', es: 'Cartel' },
+  'events.reserve': { en: 'Reserve a spot', es: 'Reservar plaza' },
+  'events.reserved': { en: "You're on the list", es: 'Estás en la lista' },
+  'events.reserveHint': { en: 'Free entry — your pass appears under Tickets.', es: 'Entrada gratis — tu pase aparece en Entradas.' },
+  'events.reservedHint': { en: 'Find your pass under Tickets.', es: 'Encuentra tu pase en Entradas.' },
+  'events.tonight': { en: 'Tonight', es: 'Esta noche' },
+  'events.thisWeek': { en: 'This week', es: 'Esta semana' },
+  'events.later': { en: 'Later on', es: 'Más adelante' },
+  'events.tonightTag': { en: 'Tonight', es: 'Esta noche' },
+  'events.pickTag': { en: 'Our pick', es: 'Elección nuestra' },
+  'events.oursTag': { en: 'Ours', es: 'Nuestro' },
+  'events.free': { en: 'Free entry', es: 'Entrada gratis' },
+  'events.entry': { en: 'Entry', es: 'Entrada' },
+  'events.capacity': { en: 'Room holds', es: 'Aforo' },
+  'events.host': { en: 'Hosted by', es: 'Organiza' },
+  'events.where': { en: 'Where', es: 'Dónde' },
+  'events.emptyTitle': { en: 'Nothing on yet', es: 'Nada por ahora' },
+  'events.emptyBody': {
+    en: 'No nights are scheduled right now. Check back soon — or browse venues in Explore.',
+    es: 'No hay noches programadas ahora mismo. Vuelve pronto o explora locales en Explorar.',
+  },
+  'events.loadError': { en: 'Could not load events', es: 'No se pudieron cargar los eventos' },
   'plan.tonight': { en: 'Tonight', es: 'Esta noche' },
   'plan.tomorrow': { en: 'Tomorrow', es: 'Mañana' },
   'plan.next': { en: 'Next', es: 'Próximo' },

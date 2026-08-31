@@ -101,6 +101,16 @@ extension Font {
     static func cfMono(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         Font.custom(weight == .regular ? "GeistMono-Regular" : "GeistMono-Medium", fixedSize: size)
     }
+    /// Bricolage Grotesque — the display face of the dark explore feed
+    /// ("Event Cards - App Front"). Only two weights are bundled because only
+    /// two appear in the design: 600 on card titles, 700 on section and hero
+    /// titles. Like Geist, each weight is its own family, so both are
+    /// referenced by exact PostScript name rather than via `.weight()`.
+    static func cfDisplay(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
+        let name = weight == .bold ? "BricolageGrotesque-Bold" : "BricolageGrotesque-SemiBold"
+        return Font.custom(name, fixedSize: size)
+    }
+
     static func cfSans(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         let name: String
         switch weight {

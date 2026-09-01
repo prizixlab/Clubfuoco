@@ -70,7 +70,11 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   // Guests get the capacity answer and nothing personal.
   const { user } = await requireAuth()
-  if (!user) return ok({ reserved: false, full, booking_id: null })
+  // Same SHAPE for a guest as for a signed-in caller — a response that drops
+  // keys depending on auth makes every client branch on their absence.
+  if (!user) {
+    return ok({ reserved: false, full, booking_id: null, scan_token: null, reference: null })
+  }
 
   const { data: booking } = await sb
     .from('bookings')

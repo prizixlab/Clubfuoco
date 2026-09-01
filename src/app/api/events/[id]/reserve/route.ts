@@ -101,7 +101,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // never be made against a night a guest is not allowed to see.
   const { data: event, error: evErr } = await sb
     .from('v_events_feed')
-    .select('id, club_id, night_date, title, total_capacity, max_plus_ones, price_cents, is_house')
+    .select('id, club_id, night_date, title, total_capacity, max_plus_ones, price_cents, is_house, hosts')
     .eq('id', id)
     .maybeSingle()
 
@@ -188,6 +188,23 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     .eq('id', user!.id)
     .maybeSingle()
 
+  // Stamp the hosting brand so the Apple Wallet pass carries its name, colour
+  // and logo — `/api/bookings/[id]/wallet` reads `brand_id` for exactly that.
+  // The first host with a real partner_brands id wins; a free-text host has
+  // nothing to style from. House events fall back to the Club Fuoco brand.
+  const hostId = Array.isArray(event.hosts)
+    ? (event.hosts as { id?: string }[]).find(h => h?.id)?.id ?? null
+    : null
+  let brandId = hostId
+  if (!brandId && event.is_house) {
+    const { data: house } = await sb
+      .from('partner_brands')
+      .select('id')
+      .eq('key', 'clubfuoco')
+      .maybeSingle()
+    brandId = (house?.id as string) ?? null
+  }
+
   const { data: booking, error: bookErr } = await sb
     .from('bookings')
     .insert({
@@ -196,6 +213,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       booking_date: event.night_date,
       booking_type: 'general',
       party_size: partySize,
+      brand_id: brandId,
       // Free entry, so nothing is owed and there is nothing to confirm later.
       status: 'confirmed',
     })

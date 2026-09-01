@@ -6358,6 +6358,34 @@
         }
       }
     },
+    "events.passUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your pass will appear in Tickets shortly."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu pase aparecerá en Entradas en breve."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El teu pase apareixerà a Entrades de seguida."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre pass apparaîtra dans Billets sous peu."
+          }
+        }
+      }
+    },
     "events.cancelRsvp": {
       "localizations": {
         "en": {

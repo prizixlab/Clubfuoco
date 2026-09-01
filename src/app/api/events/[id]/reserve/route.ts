@@ -74,14 +74,22 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   const { data: booking } = await sb
     .from('bookings')
-    .select('id, status')
+    .select('id, status, scan_token, qr_code_token')
     .eq('user_id', user.id)
     .eq('club_id', event.club_id)
     .eq('booking_date', event.night_date)
     .neq('status', 'cancelled')
     .maybeSingle()
 
-  return ok({ reserved: !!booking, full, booking_id: booking?.id ?? null })
+  return ok({
+    reserved: !!booking,
+    full,
+    booking_id: booking?.id ?? null,
+    // The 128-bit door secret. The CF- reference is a LABEL and does not
+    // scan — see the note on Booking.doorToken — so the pass needs this one.
+    scan_token: booking?.scan_token ?? null,
+    reference: booking?.qr_code_token ?? null,
+  })
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -130,14 +138,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // minting a second one for the same night.
   const { data: existing } = await sb
     .from('bookings')
-    .select('id, status, qr_code_token')
+    .select('id, status, qr_code_token, scan_token')
     .eq('user_id', user!.id)
     .eq('club_id', event.club_id)
     .eq('booking_date', event.night_date)
     .neq('status', 'cancelled')
     .maybeSingle()
 
-  if (existing) return ok({ booking_id: existing.id, already: true })
+  if (existing) {
+    return ok({
+      booking_id: existing.id,
+      scan_token: existing.scan_token,
+      reference: existing.qr_code_token,
+      already: true,
+    })
+  }
 
   // ── Capacity ───────────────────────────────────────────────────────────────
   // Counted off the door list (promoter_guests via allocations), which is the
@@ -217,7 +232,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       // Free entry, so nothing is owed and there is nothing to confirm later.
       status: 'confirmed',
     })
-    .select('id, qr_code_token')
+    .select('id, qr_code_token, scan_token')
     .single()
 
   if (bookErr) return err(bookErr.message, 500)
@@ -241,7 +256,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return err(guestErr.message, 500)
   }
 
-  return ok({ booking_id: booking.id, qr_code_token: booking.qr_code_token, party_size: partySize })
+  return ok({
+    booking_id: booking.id,
+    scan_token: booking.scan_token,
+    reference: booking.qr_code_token,
+    party_size: partySize,
+  })
 }
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {

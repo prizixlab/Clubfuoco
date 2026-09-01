@@ -185,6 +185,7 @@ const NATIVE_KEYS = {
   'events.joinToReserve': { en: 'Join to reserve', es: 'Únete para reservar' },
   'events.joinNote': { en: 'Free account · takes a second', es: 'Cuenta gratis · un segundo' },
   'events.viewPass': { en: 'View pass', es: 'Ver pase' },
+  'events.passUnavailable': { en: 'Your pass will appear in Tickets shortly.', es: 'Tu pase aparecerá en Entradas en breve.' },
   'events.cancelRsvp': { en: 'Cancel', es: 'Cancelar' },
   'events.cancelTitle': { en: 'Give up your spot?', es: '¿Dejar tu plaza?' },
   'events.cancelConfirm': { en: 'Give up my spot', es: 'Dejar mi plaza' },

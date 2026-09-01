@@ -27,6 +27,10 @@ struct EventDetailView: View {
     @State private var errorText: String?
     @State private var showGuestGate = false
     @State private var showCancelConfirm = false
+    @State private var showPass = false
+    @State private var bookingId: String?
+    @State private var scanToken: String?
+    @State private var reference: String?
     /// How far the flow has scrolled, for the collapsing bar.
     @State private var scrollY: CGFloat = 0
 
@@ -65,6 +69,13 @@ struct EventDetailView: View {
         .animation(.easeOut(duration: 0.18), value: barShown)
         .sheet(isPresented: $showGuestGate) {
             GuestGateView(reason: .save).presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showPass) {
+            if let bookingId {
+                ReservedSheet(event: event, bookingId: bookingId,
+                              scanToken: scanToken, reference: reference)
+                    .presentationDetents([.large])
+            }
         }
         .confirmationDialog(
             locale.t("events.cancelTitle"),
@@ -437,9 +448,14 @@ struct EventDetailView: View {
 
                 if state == .reserved {
                     HStack(spacing: 14) {
-                        Text(locale.t("events.viewPass"))
-                            .font(.cfMono(9.5)).kerning(1.4)
-                            .foregroundStyle(Explore.accent)
+                        Button {
+                            Haptics.tap()
+                            showPass = true
+                        } label: {
+                            Text(locale.t("events.viewPass"))
+                                .font(.cfMono(9.5)).kerning(1.4)
+                                .foregroundStyle(Explore.accent)
+                        }
                         Rectangle().fill(Explore.lineStrong).frame(width: 1, height: 11)
                         Button {
                             showCancelConfirm = true
@@ -480,10 +496,16 @@ struct EventDetailView: View {
             .opacity(0.72)
 
         case .reserved:
-            dockShell(fill: Explore.accentSoft, stroke: Explore.accentDim, text: Explore.ink) {
-                HStack(spacing: 9) {
-                    Image(systemName: "checkmark").font(.system(size: 14, weight: .bold))
-                    Text(locale.t("events.reserved"))
+            // Tapping the settled button gives the spot up — behind a
+            // confirmation, because it is the same control that a moment ago
+            // meant "reserve" and a mis-tap would silently drop them off the
+            // door list.
+            Button { showCancelConfirm = true } label: {
+                dockShell(fill: Explore.accentSoft, stroke: Explore.accentDim, text: Explore.ink) {
+                    HStack(spacing: 9) {
+                        Image(systemName: "checkmark").font(.system(size: 14, weight: .bold))
+                        Text(locale.t("events.reserved"))
+                    }
                 }
             }
 
@@ -537,6 +559,8 @@ struct EventDetailView: View {
         let reserved: Bool?
         let full: Bool?
         let bookingId: String?
+        let scanToken: String?
+        let reference: String?
     }
 
     private func loadState() async {
@@ -545,15 +569,24 @@ struct EventDetailView: View {
         else { return }
         reserved = result.reserved ?? false
         full = result.full ?? false
+        bookingId = result.bookingId
+        scanToken = result.scanToken
+        reference = result.reference
     }
 
     private func reserve() async {
         working = true
         errorText = nil
         do {
-            let _: StateResult = try await api.post("/api/events/\(event.id)/reserve")
+            let result: StateResult = try await api.post("/api/events/\(event.id)/reserve")
             reserved = true
+            bookingId = result.bookingId
+            scanToken = result.scanToken
+            reference = result.reference
             Haptics.success()
+            // Straight into the pass — the QR, Wallet and the calendar, the
+            // same three things a paid booking offers on confirmation.
+            if bookingId != nil { showPass = true }
         } catch {
             errorText = error.localizedDescription
         }
@@ -566,6 +599,7 @@ struct EventDetailView: View {
         do {
             let _: StateResult = try await api.delete("/api/events/\(event.id)/reserve")
             reserved = false
+            bookingId = nil; scanToken = nil; reference = nil
             Haptics.tap()
             // A spot just reopened, so the full flag may have changed too.
             await loadState()

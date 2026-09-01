@@ -695,6 +695,10 @@
   "ca": "Nostre",
   "fr": "Chez nous"
  },
+ "events.passUnavailable": {
+  "ca": "El teu pase apareixerà a Entrades de seguida.",
+  "fr": "Votre pass apparaîtra dans Billets sous peu."
+ },
  "events.pickTag": {
   "ca": "La nostra tria",
   "fr": "Notre sélection"

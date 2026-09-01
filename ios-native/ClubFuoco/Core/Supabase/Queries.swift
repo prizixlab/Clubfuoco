@@ -117,7 +117,8 @@ final class Queries: @unchecked Sendable {
             status, total_amount, qr_code_token, scan_token, created_at, \
             attendance_status, attendance_confidence, checked_in_at, \
             clubs (id, name, cover_image_url, address, neighborhood, lat, lng, opening_hours), \
-            partner_brands (key, name, logo_url, color, attribution_label)
+            partner_brands (key, name, logo_url, color, attribution_label), \
+            promoter_nights (id, title, open_time, close_time, lineup, hosts)
             """
         return try await supabase.client.from("bookings").select(cols)
             .eq("user_id", value: uid)

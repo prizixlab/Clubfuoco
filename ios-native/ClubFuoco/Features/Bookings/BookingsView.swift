@@ -543,7 +543,16 @@ struct BookingsView: View {
             ForEach(items) { item in
                 switch item {
                 case .booking(let booking):
-                    bookingCard(booking, tonight: tonight)
+                    // Only the first upcoming ticket carries the Wallet button
+                    // (see the artboard) — on every card it becomes wallpaper.
+                    TicketCard(
+                        booking: booking,
+                        group: groupFor(booking),
+                        showWallet: booking.id == model.nextUpBookingID,
+                        onShowQR: { qrBooking = booking },
+                        onOpenGroup: { if let g = groupFor(booking) { openGroup = g } }
+                    )
+                    .padding(.horizontal, 20)
                 case .signup(let signup):
                     signupCard(signup)
                 case .ticket(let order):
@@ -566,167 +575,6 @@ struct BookingsView: View {
         return model.groups.first { $0.clubId == clubId && $0.bookingDate == booking.bookingDate }
     }
 
-    private func bookingCard(_ booking: Booking, tonight: Bool) -> some View {
-        let isCancelled = booking.status == "cancelled"
-        let isLive = tonight && !isCancelled
-        let group = groupFor(booking)
-
-        return VStack(spacing: 0) {
-            // ── Hero (tap to open the group when this is a group night) ────────
-            ZStack(alignment: .topLeading) {
-                Color(hex: 0x2A1F1A)
-                    .overlay {
-                        if let url = booking.club?.coverImageUrl.flatMap(URL.init(string:)) {
-                            CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0x2A1F1A) }
-                        }
-                    }
-                    .frame(height: 140)
-                    .clipped()
-                    .overlay(
-                        LinearGradient(colors: [.black.opacity(0.1), .black.opacity(0.65)],
-                                       startPoint: .top, endPoint: .bottom)
-                    )
-
-                VStack(alignment: .leading) {
-                    HStack {
-                        if group != nil {
-                            Text(locale.t("bookings.groupTag").uppercased())
-                                .font(.cfSans(9, weight: .semibold))
-                                .kerning(0.8)
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(.white.opacity(0.22), in: .capsule)
-                        } else {
-                            Text(locale.t("bookings.nightlife"))
-                                .font(.cfSans(10))
-                                .foregroundStyle(.white.opacity(0.85))
-                        }
-                        Spacer()
-                        heroBadge(isCancelled: isCancelled, isLive: isLive)
-                    }
-                    Spacer()
-                    Text(booking.club?.name ?? "—")
-                        .font(.cfSerif(22, italic: true))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                    HStack(spacing: 6) {
-                        Text(formatDate(booking.bookingDate))
-                            .font(.cfSans(12))
-                            .foregroundStyle(.white.opacity(0.7))
-                        // Credit the promoter whose guestlist this entry came
-                        // from — a contractual requirement for suppliers like
-                        // Rumbalist. On the dark hero the mark keeps its own
-                        // white ink so it stays legible over the photo.
-                        if let brand = booking.brand {
-                            Text("·").font(.cfSans(12)).foregroundStyle(.white.opacity(0.4))
-                            Text(locale.t("rumbalist.via"))
-                                .font(.cfSans(11))
-                                .foregroundStyle(.white.opacity(0.6))
-                            SupplierMark(brand: brand, height: 11, animated: false,
-                                         tint: .white.opacity(0.9))
-                        }
-                    }
-                }
-                .padding(12)
-            }
-            .frame(height: 140)
-
-            // ── Perforation ───────────────────────────────────────────────────
-            TicketPerforation()
-
-            // ── Stub ──────────────────────────────────────────────────────────
-            VStack(spacing: 14) {
-                HStack(spacing: 8) {
-                    factCell(locale.t("bookings.factDate"), shortDate(booking.bookingDate))
-                    factCell(locale.t("bookings.factDoors"), "23:00")
-                    factCell(locale.t("bookings.factGuests"), "\(booking.partySize)")
-                    factCell(locale.t("bookings.factTicket"), locale.t(booking.bookingType == "vip" ? "bookings.vip" : "bookings.general"))
-                }
-
-                if !isCancelled, let token = booking.doorToken {
-                    HStack(spacing: 12) {
-                        Button {
-                            Haptics.tap()
-                            qrBooking = booking
-                        } label: {
-                            QRCodeView(token: token)
-                                .frame(width: 46, height: 46)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(locale.t("bookings.atDoor"))
-                                .font(.cfSans(12))
-                                .foregroundStyle(Theme.stone)
-                            if let total = booking.totalAmount, total > 0 {
-                                Text("€\(String(format: "%.2f", total))")
-                                    .font(.cfSans(13, weight: .semibold))
-                                    .foregroundStyle(Theme.ink)
-                            }
-                        }
-                        Spacer()
-                        Button {
-                            Haptics.tap()
-                            qrBooking = booking
-                        } label: {
-                            Text(locale.t("bookings.showQR"))
-                                .font(.cfSans(12, weight: .semibold))
-                                .foregroundStyle(Theme.cream)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 9)
-                                .background(Theme.ink, in: .capsule)
-                        }
-                    }
-
-                    HStack(spacing: 10) {
-                        WalletPassButton(passPath: "/api/bookings/\(booking.id.uuidString.lowercased())/wallet", compact: true)
-                        Spacer()
-                        CancelConfirmButton {
-                            Task { await model.cancel(booking, api: api, queries: auth.queries, locale: locale) }
-                        } label: {
-                            Text(locale.t("common.cancel"))
-                                .font(.cfSans(12))
-                                .foregroundStyle(Theme.wine)
-                        }
-                    }
-                }
-
-                if let group {
-                    Rectangle().fill(Theme.hairline).frame(height: 1)
-                    Button {
-                        Haptics.tap()
-                        openGroup = group
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "person.2.fill")
-                                .font(.system(size: 12))
-                            Text(locale.t("bookings.seeWhosGoing"))
-                                .font(.cfSans(13, weight: .medium))
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(Theme.fadedSand)
-                        }
-                        .foregroundStyle(Theme.ink)
-                    }
-                }
-            }
-            .padding(16)
-        }
-        .background(Theme.surface)
-        .overlay(alignment: .leading) {
-            if isLive { Rectangle().fill(Theme.wine).frame(width: 3) }
-        }
-        .clipShape(.rect(cornerRadius: 16))
-        .shadow(color: Color(hex: 0x221E1A).opacity(0.08), radius: 8, y: 2)
-        .opacity(isCancelled ? 0.6 : 1)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            Haptics.tap()
-            detailBooking = booking
-        }
-    }
-
-    /// Cancelling is allowed for upcoming bookings that aren't already cancelled.
     private func canCancel(_ booking: Booking) -> Bool {
         let today = DateFormatter()
         today.dateFormat = "yyyy-MM-dd"
@@ -1097,6 +945,18 @@ final class BookingsViewModel {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: Date())
+    }
+
+    /// The one ticket that gets the Wallet button — tonight's if there is one,
+    /// otherwise the soonest upcoming. Putting it on every card turns a
+    /// deliberate action into wallpaper.
+    var nextUpBookingID: UUID? {
+        guard let data else { return nil }
+        let today = todayString
+        let live = data.bookings
+            .filter { $0.bookingDate >= today && $0.status != "cancelled" }
+            .sorted { $0.bookingDate < $1.bookingDate }
+        return live.first?.id
     }
 
     var tonight: [Item] {

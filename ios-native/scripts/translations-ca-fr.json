@@ -107,6 +107,10 @@
   "ca": "Ensenya això a la porta",
   "fr": "Présentez ceci à l'entrée"
  },
+ "bookings.atVenue": {
+  "ca": "a %@",
+  "fr": "au %@"
+ },
  "bookings.cancelBooking": {
   "ca": "Cancel·la la reserva",
   "fr": "Annuler la réservation"
@@ -118,6 +122,14 @@
  "bookings.cancelled": {
   "ca": "Reserva cancel·lada.",
   "fr": "Réservation annulée."
+ },
+ "bookings.cancelledNote": {
+  "ca": "Cancel·lada — aquest pase no funciona",
+  "fr": "Annulée — ce pass ne fonctionne pas"
+ },
+ "bookings.checkedInNote": {
+  "ca": "Escanejat a la porta — ja ets dins",
+  "fr": "Scanné à l'entrée — vous êtes dedans"
  },
  "bookings.detailTitle": {
   "ca": "Reserva",
@@ -191,6 +203,10 @@
   "ca": "Mantén la reserva",
   "fr": "Conserver la réservation"
  },
+ "bookings.liveTonight": {
+  "ca": "Aquesta nit",
+  "fr": "Ce soir"
+ },
  "bookings.manage": {
   "ca": "Gestiona",
   "fr": "Gérer"
@@ -218,6 +234,14 @@
  "bookings.past": {
   "ca": "Passades",
   "fr": "Passées"
+ },
+ "bookings.playing": {
+  "ca": "Punxen",
+  "fr": "Aux platines"
+ },
+ "bookings.plusMore": {
+  "ca": "+%d més",
+  "fr": "+%d autres"
  },
  "bookings.receipt": {
   "ca": "Rebut",
@@ -266,6 +290,10 @@
  "bookings.tickets": {
   "ca": "%d × entrades",
   "fr": "%d × billets"
+ },
+ "bookings.till": {
+  "ca": "fins a %@",
+  "fr": "jusqu'à %@"
  },
  "bookings.tonight": {
   "ca": "Aquesta nit",

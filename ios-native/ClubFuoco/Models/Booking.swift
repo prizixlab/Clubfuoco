@@ -30,6 +30,10 @@ struct Booking: Decodable, Identifiable, Sendable {
     var attendanceStatus: String? = nil
     var attendanceConfidence: Int? = nil
     var checkedInAt: String? = nil
+    /// The event this booking was reserved for, when it came from one. Null on
+    /// an ordinary venue booking — which is most of them, so every reader must
+    /// handle its absence rather than assume a ticket is an event ticket.
+    var promoterNights: EmbeddedOne<BookingEvent>? = nil
     /// HH:MM cutoff for time-boxed invitations (rumba list etc.). When set, the
     /// attendance window ends at cutoff + 3h instead of club closing. Currently
     /// always nil for paid bookings — reserved for guest-list-backed entries.
@@ -48,6 +52,40 @@ struct Booking: Decodable, Identifiable, Sendable {
     /// reference simply does not scan, so there is deliberately no fallback
     /// here. nil means "we cannot render a working pass", not "use the code".
     var doorToken: String? { scanToken }
+
+    /// The event behind this ticket, if there is one.
+    var event: BookingEvent? { promoterNights?.value }
+}
+
+/// The slice of a `promoter_nights` row a ticket needs. Deliberately thin —
+/// the ticket card shows a name, a billing and the real door times, and
+/// nothing else about the night belongs on a pass.
+struct BookingEvent: Decodable, Sendable, Hashable {
+    let id: String?
+    let title: String?
+    let openTime: String?
+    let closeTime: String?
+    let lineup: [LineupCredit]?
+    let hosts: [LineupCredit]?
+
+    /// "23:30" — the stored value is a bare clock, so it is trimmed rather
+    /// than parsed; there is no instant to convert.
+    private func clock(_ s: String?) -> String? {
+        guard let s, s.count >= 5 else { return nil }
+        return String(s.prefix(5))
+    }
+
+    var doorsLabel: String? { clock(openTime) }
+    var closesLabel: String? { clock(closeTime) }
+
+    var credits: [LineupCredit] { lineup ?? [] }
+    var hostCredits: [LineupCredit] { hosts ?? [] }
+
+    /// "Club Fuoco × Nova Nights", or nil when nobody is credited.
+    var hostLine: String? {
+        let names = hostCredits.map(\.name)
+        return names.isEmpty ? nil : names.joined(separator: " × ")
+    }
 }
 
 /// Minimal partner_brands row embedded on a booking — just enough to render the

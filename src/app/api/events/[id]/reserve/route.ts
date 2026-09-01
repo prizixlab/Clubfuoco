@@ -233,6 +233,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       booking_type: 'general',
       party_size: partySize,
       brand_id: brandId,
+      // What the ticket card reads back to show the event's name, line-up and
+      // real door times. Matching on (club_id, booking_date) instead would
+      // break the moment two events run at one venue on one night.
+      night_id: id,
       // Free entry, so nothing is owed and there is nothing to confirm later.
       status: 'confirmed',
     })

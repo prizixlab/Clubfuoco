@@ -285,6 +285,14 @@ const NATIVE_KEYS = {
   'bookings.manage': { en: 'Manage', es: 'Gestionar' },
   'bookings.shareTicket': { en: 'Share ticket', es: 'Compartir entrada' },
   'bookings.factGuestlist': { en: 'Guestlist', es: 'Lista' },
+  // Ticket card ("Ticket Card.html")
+  'bookings.atVenue': { en: 'at %@', es: 'en %@' },
+  'bookings.liveTonight': { en: 'Live tonight', es: 'Esta noche' },
+  'bookings.playing': { en: 'Playing', es: 'Pinchan' },
+  'bookings.plusMore': { en: '+%d more', es: '+%d más' },
+  'bookings.till': { en: 'till %@', es: 'hasta %@' },
+  'bookings.checkedInNote': { en: "Scanned at the door — you're inside", es: 'Escaneado en la puerta — ya estás dentro' },
+  'bookings.cancelledNote': { en: "Cancelled — this pass won't scan", es: 'Cancelada — este pase no funciona' },
 
   // Bookings list — group invites
   'bookings.invited': { en: 'Invited', es: 'Invitación' },

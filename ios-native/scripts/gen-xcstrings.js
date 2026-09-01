@@ -216,6 +216,127 @@ const NATIVE_KEYS = {
     es: 'No hay noches programadas ahora mismo. Vuelve pronto o explora locales en Explorar.',
   },
   'events.loadError': { en: 'Could not load events', es: 'No se pudieron cargar los eventos' },
+
+  // ── Backfill: keys referenced in Swift that had no catalog entry ──────────
+  // `locale.t()` returns the key itself when it is missing, so each of these
+  // was rendering literal text like "forgot.title" on screen. Found by diffing
+  // every locale.t("…") in the Swift tree against the catalog.
+
+  // Forgot-password wizard
+  'forgot.kicker': { en: 'Reset access', es: 'Recuperar acceso' },
+  'forgot.title': { en: 'Forgot your', es: '¿Olvidaste la' },
+  'forgot.titleEm': { en: 'password?', es: 'contraseña?' },
+  'forgot.emailSub': {
+    en: 'Enter your email and we’ll send you an 8-digit code.',
+    es: 'Introduce tu email y te enviaremos un código de 8 dígitos.',
+  },
+  'forgot.codeSub': {
+    en: 'We sent a code to %@. Enter it below.',
+    es: 'Hemos enviado un código a %@. Introdúcelo abajo.',
+  },
+  'forgot.passwordSub': {
+    en: 'Choose a new password. At least 8 characters.',
+    es: 'Elige una contraseña nueva. Mínimo 8 caracteres.',
+  },
+  'forgot.codeLabel': { en: 'Verification code', es: 'Código de verificación' },
+  'forgot.newPassword': { en: 'New password', es: 'Contraseña nueva' },
+  'forgot.resend': { en: 'Resend code', es: 'Reenviar código' },
+  'forgot.resendIn': { en: 'Resend in %ds', es: 'Reenviar en %ds' },
+  'forgot.sendCode': { en: 'Send code', es: 'Enviar código' },
+  'forgot.verify': { en: 'Verify code', es: 'Verificar código' },
+  'forgot.setPassword': { en: 'Set password', es: 'Guardar contraseña' },
+  'forgot.working': { en: 'Working…', es: 'Un momento…' },
+  'forgot.codeError': {
+    en: 'That code isn’t right, or it has expired.',
+    es: 'Ese código no es correcto o ha caducado.',
+  },
+
+  // Help sheet (from a booking)
+  'help.title': { en: 'Get help', es: 'Ayuda' },
+  'help.subtitle': {
+    en: 'Tell us what’s wrong with this booking and we’ll come back to you by email.',
+    es: 'Cuéntanos qué pasa con esta reserva y te responderemos por email.',
+  },
+  'help.urgent': { en: 'At the door right now?', es: '¿Estás en la puerta?' },
+  'help.urgentBody': {
+    en: 'Show your pass to the door team — they can look you up by the reference below.',
+    es: 'Enseña tu pase en puerta — pueden buscarte con la referencia de abajo.',
+  },
+  'help.reference': { en: 'Booking reference', es: 'Referencia de la reserva' },
+  'help.describe': { en: 'What happened?', es: '¿Qué ha pasado?' },
+  'help.failed': {
+    en: 'That didn’t send. Check your connection and try again.',
+    es: 'No se ha enviado. Revisa la conexión e inténtalo de nuevo.',
+  },
+  'help.sentTitle': { en: 'Message sent', es: 'Mensaje enviado' },
+  'help.sentBody': {
+    en: 'We’ve got it. Expect a reply by email within a day.',
+    es: 'Lo hemos recibido. Te responderemos por email en un día.',
+  },
+  'common.close': { en: 'Close', es: 'Cerrar' },
+
+  // Booking detail
+  'bookings.receipt': { en: 'Receipt', es: 'Recibo' },
+  'bookings.serviceFee': { en: 'Service fee', es: 'Gastos de gestión' },
+  'bookings.included': { en: 'Included', es: 'Incluidos' },
+  'bookings.totalPaid': { en: 'Total paid', es: 'Total pagado' },
+  'bookings.where': { en: 'Where', es: 'Dónde' },
+  'bookings.manage': { en: 'Manage', es: 'Gestionar' },
+  'bookings.shareTicket': { en: 'Share ticket', es: 'Compartir entrada' },
+  'bookings.factGuestlist': { en: 'Guestlist', es: 'Lista' },
+
+  // Bookings list — group invites
+  'bookings.invited': { en: 'Invited', es: 'Invitación' },
+  'bookings.invitedRespond': { en: 'Tap to respond', es: 'Toca para responder' },
+  'bookings.aNightOut': { en: 'A night out', es: 'Una noche fuera' },
+
+  // Club detail
+  'detail.fuocoScore': { en: 'Fuoco score', es: 'Puntuación Fuoco' },
+  'detail.seeAll': { en: 'See all %d', es: 'Ver los %d' },
+  'detail.showLess': { en: 'Show less', es: 'Ver menos' },
+
+  // Featured DJ box + player
+  'dj.sheetLabel': { en: 'Resident', es: 'Residente' },
+  'dj.residencyHere': { en: 'Residency here', es: 'Residencia aquí' },
+  'dj.upcoming': { en: 'Upcoming', es: 'Próximas fechas' },
+  'dj.noDates': { en: 'No dates announced', es: 'Sin fechas anunciadas' },
+  'dj.comingSoonShort': { en: 'Date coming soon', es: 'Fecha por confirmar' },
+  'dj.cityComingSoon': { en: '%@ · date coming soon', es: '%@ · fecha por confirmar' },
+  'dj.guestOnlyNote': {
+    en: 'Create a free account to see full dates and join guestlists.',
+    es: 'Crea una cuenta gratis para ver todas las fechas y unirte a las listas.',
+  },
+  'dj.joinGuestlist': { en: 'Join the guestlist', es: 'Únete a la lista' },
+  'dj.soundcloudPreview': { en: 'Preview', es: 'Vista previa' },
+  'dj.previewUnavailable': { en: 'Preview unavailable', es: 'Vista previa no disponible' },
+  'dj.loadingTrack': { en: 'Loading…', es: 'Cargando…' },
+
+  // Scraped-event sheet on a club page (distinct from our own `events.*`)
+  'event.label': { en: 'Event', es: 'Evento' },
+  'event.entry': { en: 'Door', es: 'Puerta' },
+  'event.capacity': { en: 'Capacity', es: 'Aforo' },
+  'event.interestedCount': { en: '%@ interested', es: '%@ interesados' },
+  'event.lineup': { en: 'Line-up', es: 'Cartel' },
+  'event.noLineup': { en: 'No line-up listed', es: 'Sin cartel publicado' },
+  'event.headliner': { en: 'Headlining', es: 'Cabeza de cartel' },
+  'event.venue': { en: 'Venue', es: 'Local' },
+
+  // Misc
+  'explore.shelfCount': { en: '%d venues', es: '%d locales' },
+  'auth.phoneOptional': { en: 'Phone · optional', es: 'Teléfono · opcional' },
+  'gate.keepBrowsing': { en: 'Browsing stays free', es: 'Explorar es siempre gratis' },
+  'rumbalist.guestsNoApp': { en: 'Guests without the app', es: 'Invitados sin la app' },
+  'rumbalist.guestsNoAppNote': {
+    en: 'They’ll get a link to join your list.',
+    es: 'Recibirán un enlace para unirse a tu lista.',
+  },
+  'settings.lang.ca': { en: 'Català', es: 'Català' },
+  'settings.lang.fr': { en: 'Français', es: 'Français' },
+  'settings.theme': { en: 'Appearance', es: 'Apariencia' },
+  'settings.theme.system': { en: 'System', es: 'Sistema' },
+  'settings.theme.light': { en: 'Light', es: 'Claro' },
+  'settings.theme.dark': { en: 'Dark', es: 'Oscuro' },
+
   'plan.tonight': { en: 'Tonight', es: 'Esta noche' },
   'plan.tomorrow': { en: 'Tomorrow', es: 'Mañana' },
   'plan.next': { en: 'Next', es: 'Próximo' },

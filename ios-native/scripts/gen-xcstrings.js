@@ -759,21 +759,42 @@ if (missing.length) {
   console.error(`es.ts is missing ${missing.length} keys: ${missing.slice(0, 5).join(', ')}…`)
 }
 
+// Catalan and French. The app OFFERS both in Settings and `LocaleStore.resolve`
+// checks Catalan FIRST during device detection — so before these existed, a
+// Barcelona phone set to Catalan resolved to `ca`, found no bundle, and fell
+// all the way back to English. They live in their own file rather than beside
+// en/es because they are a flat key→string map maintained as a unit, and
+// folding them into NATIVE_KEYS would quadruple the width of every entry.
+const EXTRA = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'translations-ca-fr.json'), 'utf8'),
+)
+
+// Fall back to Spanish rather than English for both: a Catalan or French
+// speaker in Barcelona is far likelier to read Spanish than English, so an
+// untranslated key degrades to the nearer language.
+const pick = (lang, key, fallback) => EXTRA[key]?.[lang] ?? fallback
+
 const strings = {}
-for (const key of Object.keys(en)) {
+const put = (key, enVal, esVal) => {
   strings[key] = {
     localizations: {
-      en: { stringUnit: { state: 'translated', value: en[key] } },
-      es: { stringUnit: { state: 'translated', value: es[key] ?? en[key] } },
+      en: { stringUnit: { state: 'translated', value: enVal } },
+      es: { stringUnit: { state: 'translated', value: esVal } },
+      ca: { stringUnit: { state: 'translated', value: pick('ca', key, esVal) } },
+      fr: { stringUnit: { state: 'translated', value: pick('fr', key, esVal) } },
     },
   }
 }
-for (const [key, vals] of Object.entries(NATIVE_KEYS)) {
-  strings[key] = {
-    localizations: {
-      en: { stringUnit: { state: 'translated', value: vals.en } },
-      es: { stringUnit: { state: 'translated', value: vals.es } },
-    },
+
+for (const key of Object.keys(en)) put(key, en[key], es[key] ?? en[key])
+for (const [key, vals] of Object.entries(NATIVE_KEYS)) put(key, vals.en, vals.es)
+
+// Loud, because a missing translation is silent at runtime — it just renders
+// the fallback language and nobody notices.
+for (const lang of ['ca', 'fr']) {
+  const gaps = Object.keys(strings).filter((k) => !EXTRA[k]?.[lang])
+  if (gaps.length) {
+    console.error(`${lang}: ${gaps.length} keys untranslated (falling back to es): ${gaps.slice(0, 6).join(', ')}…`)
   }
 }
 

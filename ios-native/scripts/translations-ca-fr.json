@@ -1,0 +1,2606 @@
+{
+ "auth.back": {
+  "ca": "Enrere",
+  "fr": "Retour"
+ },
+ "auth.continueApple": {
+  "ca": "Continua amb Apple",
+  "fr": "Continuer avec Apple"
+ },
+ "auth.continueGoogle": {
+  "ca": "Continua amb Google",
+  "fr": "Continuer avec Google"
+ },
+ "auth.email": {
+  "ca": "Correu electrònic",
+  "fr": "E-mail"
+ },
+ "auth.help": {
+  "ca": "Ajuda",
+  "fr": "Aide"
+ },
+ "auth.hide": {
+  "ca": "AMAGA",
+  "fr": "MASQUER"
+ },
+ "auth.hideLower": {
+  "ca": "Amaga",
+  "fr": "Masquer"
+ },
+ "auth.orContinueWith": {
+  "ca": "o continua amb",
+  "fr": "ou continuer avec"
+ },
+ "auth.password": {
+  "ca": "Contrasenya",
+  "fr": "Mot de passe"
+ },
+ "auth.phoneOptional": {
+  "ca": "Telèfon · opcional",
+  "fr": "Téléphone · facultatif"
+ },
+ "auth.pleaseWait": {
+  "ca": "Un moment…",
+  "fr": "Un instant…"
+ },
+ "auth.privacy": {
+  "ca": "Privacitat",
+  "fr": "Confidentialité"
+ },
+ "auth.show": {
+  "ca": "MOSTRA",
+  "fr": "AFFICHER"
+ },
+ "auth.showLower": {
+  "ca": "Mostra",
+  "fr": "Afficher"
+ },
+ "auth.terms": {
+  "ca": "Termes",
+  "fr": "Conditions"
+ },
+ "book.applePayUnavailable": {
+  "ca": "Apple Pay no està configurat en aquest dispositiu",
+  "fr": "Apple Pay n'est pas configuré sur cet appareil"
+ },
+ "book.confirmed": {
+  "ca": "Reserva confirmada — el teu QR és a Entrades",
+  "fr": "Réservation confirmée — votre QR est dans Billets"
+ },
+ "book.cta": {
+  "ca": "Reserva la teva nit",
+  "fr": "Réservez votre soirée"
+ },
+ "book.discount": {
+  "ca": "Descompte de membresia",
+  "fr": "Réduction abonnement"
+ },
+ "book.entry": {
+  "ca": "Entrada · %@",
+  "fr": "Entrée · %@"
+ },
+ "book.groupCreated": {
+  "ca": "Grup creat — codi d'invitació %@. El trobaràs a Entrades.",
+  "fr": "Groupe créé — code d'invitation %@. À retrouver dans Billets."
+ },
+ "book.partySize": {
+  "ca": "Nombre de persones",
+  "fr": "Nombre de personnes"
+ },
+ "book.planWithFriends": {
+  "ca": "Millor, organitza-ho amb amics",
+  "fr": "Organiser plutôt avec des amis"
+ },
+ "book.subtotal": {
+  "ca": "Subtotal",
+  "fr": "Sous-total"
+ },
+ "book.total": {
+  "ca": "Total",
+  "fr": "Total"
+ },
+ "bookings.aNightOut": {
+  "ca": "Una nit fora",
+  "fr": "Une soirée"
+ },
+ "bookings.atDoor": {
+  "ca": "Ensenya això a la porta",
+  "fr": "Présentez ceci à l'entrée"
+ },
+ "bookings.cancelBooking": {
+  "ca": "Cancel·la la reserva",
+  "fr": "Annuler la réservation"
+ },
+ "bookings.cancelQuestion": {
+  "ca": "Cancel·lar aquesta reserva?",
+  "fr": "Annuler cette réservation ?"
+ },
+ "bookings.cancelled": {
+  "ca": "Reserva cancel·lada.",
+  "fr": "Réservation annulée."
+ },
+ "bookings.detailTitle": {
+  "ca": "Reserva",
+  "fr": "Réservation"
+ },
+ "bookings.empty": {
+  "ca": "Encara no has reservat res",
+  "fr": "Aucune réservation pour l'instant"
+ },
+ "bookings.factArrival": {
+  "ca": "Arribada",
+  "fr": "Arrivée"
+ },
+ "bookings.factDate": {
+  "ca": "Data",
+  "fr": "Date"
+ },
+ "bookings.factDoors": {
+  "ca": "Portes",
+  "fr": "Ouverture"
+ },
+ "bookings.factGuestlist": {
+  "ca": "Llista",
+  "fr": "Liste"
+ },
+ "bookings.factGuests": {
+  "ca": "Convidats",
+  "fr": "Invités"
+ },
+ "bookings.factStatus": {
+  "ca": "Estat",
+  "fr": "Statut"
+ },
+ "bookings.factTicket": {
+  "ca": "Entrada",
+  "fr": "Billet"
+ },
+ "bookings.general": {
+  "ca": "Entrada general",
+  "fr": "Entrée générale"
+ },
+ "bookings.groupTag": {
+  "ca": "Grup",
+  "fr": "Groupe"
+ },
+ "bookings.guestList": {
+  "ca": "Llista de convidats",
+  "fr": "Liste d'invités"
+ },
+ "bookings.guestlistTag": {
+  "ca": "LLISTA",
+  "fr": "LISTE"
+ },
+ "bookings.hidePast": {
+  "ca": "Amaga les passades",
+  "fr": "Masquer les passées"
+ },
+ "bookings.included": {
+  "ca": "Inclosos",
+  "fr": "Inclus"
+ },
+ "bookings.invited": {
+  "ca": "Convidat",
+  "fr": "Invitation"
+ },
+ "bookings.invitedRespond": {
+  "ca": "Toca per respondre",
+  "fr": "Appuyez pour répondre"
+ },
+ "bookings.keep": {
+  "ca": "Mantén la reserva",
+  "fr": "Conserver la réservation"
+ },
+ "bookings.manage": {
+  "ca": "Gestiona",
+  "fr": "Gérer"
+ },
+ "bookings.nightlife": {
+  "ca": "Vida nocturna · Barcelona",
+  "fr": "Vie nocturne · Barcelone"
+ },
+ "bookings.noUpcoming": {
+  "ca": "Cap reserva pròxima",
+  "fr": "Aucune réservation à venir"
+ },
+ "bookings.noUpcomingPast": {
+  "ca": "Res a la vista — mira les teves reserves passades a sota.",
+  "fr": "Rien à venir — consultez vos réservations passées ci-dessous."
+ },
+ "bookings.noUpcomingSub": {
+  "ca": "Quan reservis una nit, apareixerà aquí.",
+  "fr": "Quand vous réserverez une soirée, elle apparaîtra ici."
+ },
+ "bookings.partyOf": {
+  "ca": "Grup de %d",
+  "fr": "Groupe de %d"
+ },
+ "bookings.past": {
+  "ca": "Passades",
+  "fr": "Passées"
+ },
+ "bookings.receipt": {
+  "ca": "Rebut",
+  "fr": "Reçu"
+ },
+ "bookings.refund": {
+  "ca": "Cancel·lada — reemborsament de %@ € en camí",
+  "fr": "Annulée — remboursement de %@ € en cours"
+ },
+ "bookings.seeWhosGoing": {
+  "ca": "Mira qui hi va",
+  "fr": "Voir qui vient"
+ },
+ "bookings.serviceFee": {
+  "ca": "Despeses de gestió",
+  "fr": "Frais de service"
+ },
+ "bookings.shareTicket": {
+  "ca": "Comparteix l'entrada",
+  "fr": "Partager le billet"
+ },
+ "bookings.showPast": {
+  "ca": "Mostra les passades",
+  "fr": "Afficher les passées"
+ },
+ "bookings.showQR": {
+  "ca": "Mostra el QR",
+  "fr": "Afficher le QR"
+ },
+ "bookings.statusCancelled": {
+  "ca": "Cancel·lada",
+  "fr": "Annulée"
+ },
+ "bookings.statusCheckedIn": {
+  "ca": "Registrat",
+  "fr": "Enregistré"
+ },
+ "bookings.statusConfirmed": {
+  "ca": "Confirmada",
+  "fr": "Confirmée"
+ },
+ "bookings.statusPending": {
+  "ca": "Pendent",
+  "fr": "En attente"
+ },
+ "bookings.tickets": {
+  "ca": "%d × entrades",
+  "fr": "%d × billets"
+ },
+ "bookings.tonight": {
+  "ca": "Aquesta nit",
+  "fr": "Ce soir"
+ },
+ "bookings.tonightBadge": {
+  "ca": "Aquesta nit",
+  "fr": "Ce soir"
+ },
+ "bookings.totalPaid": {
+  "ca": "Total pagat",
+  "fr": "Total payé"
+ },
+ "bookings.upcoming": {
+  "ca": "Pròximes",
+  "fr": "À venir"
+ },
+ "bookings.vip": {
+  "ca": "Taula VIP",
+  "fr": "Table VIP"
+ },
+ "bookings.where": {
+  "ca": "On",
+  "fr": "Où"
+ },
+ "bookings.yesCancel": {
+  "ca": "Sí, cancel·la",
+  "fr": "Oui, annuler"
+ },
+ "chip.all": {
+  "ca": "Tot",
+  "fr": "Tout"
+ },
+ "chip.cocktails": {
+  "ca": "Còctels",
+  "fr": "Cocktails"
+ },
+ "chip.dancing": {
+  "ca": "Ball",
+  "fr": "Danse"
+ },
+ "chip.free": {
+  "ca": "Gratis",
+  "fr": "Gratuit"
+ },
+ "chip.house": {
+  "ca": "House",
+  "fr": "House"
+ },
+ "chip.latin": {
+  "ca": "Llatina",
+  "fr": "Latino"
+ },
+ "chip.live": {
+  "ca": "Música en directe",
+  "fr": "Musique live"
+ },
+ "chip.rooftop": {
+  "ca": "Terrat",
+  "fr": "Rooftop"
+ },
+ "chip.techno": {
+  "ca": "Techno",
+  "fr": "Techno"
+ },
+ "common.cancel": {
+  "ca": "Cancel·la",
+  "fr": "Annuler"
+ },
+ "common.close": {
+  "ca": "Tanca",
+  "fr": "Fermer"
+ },
+ "common.done": {
+  "ca": "Fet",
+  "fr": "Terminé"
+ },
+ "common.error": {
+  "ca": "Alguna cosa ha fallat",
+  "fr": "Une erreur est survenue"
+ },
+ "common.loading": {
+  "ca": "Carregant…",
+  "fr": "Chargement…"
+ },
+ "common.retry": {
+  "ca": "Torna-ho a provar",
+  "fr": "Réessayer"
+ },
+ "completeProfile.birthdayLabel": {
+  "ca": "Aniversari · 18+",
+  "fr": "Date de naissance · 18+"
+ },
+ "completeProfile.emailError": {
+  "ca": "Introdueix el teu correu.",
+  "fr": "Veuillez saisir votre e-mail."
+ },
+ "completeProfile.enter": {
+  "ca": "Entra a Club Fuoco",
+  "fr": "Entrer dans Club Fuoco"
+ },
+ "completeProfile.nameError": {
+  "ca": "Introdueix el teu nom.",
+  "fr": "Veuillez saisir votre nom."
+ },
+ "completeProfile.phoneError": {
+  "ca": "Introdueix el teu número de telèfon.",
+  "fr": "Veuillez saisir votre numéro de téléphone."
+ },
+ "completeProfile.saving": {
+  "ca": "Desant…",
+  "fr": "Enregistrement…"
+ },
+ "completeProfile.subtitle": {
+  "ca": "Perdona — no hem rebut tot el que necessitem del teu inici de sessió. Omple les últimes dades i ja estàs dins.",
+  "fr": "Désolé — nous n'avons pas tout reçu lors de votre connexion. Complétez ces derniers détails et c'est bon."
+ },
+ "completeProfile.title": {
+  "ca": "Gairebé",
+  "fr": "Presque"
+ },
+ "completeProfile.titleEm": {
+  "ca": "hi som",
+  "fr": "terminé"
+ },
+ "detail.about": {
+  "ca": "Sobre el local",
+  "fr": "À propos"
+ },
+ "detail.capacity": {
+  "ca": "%d %% d'aforament",
+  "fr": "%d %% de capacité"
+ },
+ "detail.closed": {
+  "ca": "Tancat",
+  "fr": "Fermé"
+ },
+ "detail.closedNow": {
+  "ca": "Tancat ara",
+  "fr": "Fermé actuellement"
+ },
+ "detail.door": {
+  "ca": "Porta",
+  "fr": "Entrée"
+ },
+ "detail.entry": {
+  "ca": "Entrada",
+  "fr": "Entrée"
+ },
+ "detail.free": {
+  "ca": "Gratis",
+  "fr": "Gratuit"
+ },
+ "detail.fuocoScore": {
+  "ca": "Puntuació Fuoco",
+  "fr": "Score Fuoco"
+ },
+ "detail.hours": {
+  "ca": "Horari",
+  "fr": "Horaires"
+ },
+ "detail.interestedCount": {
+  "ca": "%d interessats",
+  "fr": "%d intéressés"
+ },
+ "detail.liveNow": {
+  "ca": "En directe",
+  "fr": "En direct"
+ },
+ "detail.liveVibe": {
+  "ca": "Ambient en directe",
+  "fr": "Ambiance en direct"
+ },
+ "detail.notFound": {
+  "ca": "Club no trobat.",
+  "fr": "Club introuvable."
+ },
+ "detail.onGoogle": {
+  "ca": "a Google",
+  "fr": "sur Google"
+ },
+ "detail.open": {
+  "ca": "Obert",
+  "fr": "Ouvert"
+ },
+ "detail.openMaps": {
+  "ca": "Obre a Mapes",
+  "fr": "Ouvrir dans Plans"
+ },
+ "detail.openNow": {
+  "ca": "Obert ara",
+  "fr": "Ouvert maintenant"
+ },
+ "detail.openingHours": {
+  "ca": "Horari d'obertura",
+  "fr": "Horaires d'ouverture"
+ },
+ "detail.photos": {
+  "ca": "Fotos",
+  "fr": "Photos"
+ },
+ "detail.pitch": {
+  "ca": "La proposta",
+  "fr": "Le pitch"
+ },
+ "detail.presentedBy": {
+  "ca": "Presentat per %@",
+  "fr": "Présenté par %@"
+ },
+ "detail.queue": {
+  "ca": "~%d min de cua",
+  "fr": "~%d min d'attente"
+ },
+ "detail.ratingLabel": {
+  "ca": "Valoració",
+  "fr": "Note"
+ },
+ "detail.reviews": {
+  "ca": "%d ressenyes",
+  "fr": "%d avis"
+ },
+ "detail.reviewsLabel": {
+  "ca": "Ressenyes",
+  "fr": "Avis"
+ },
+ "detail.seeAll": {
+  "ca": "Veure'ls tots (%d)",
+  "fr": "Voir les %d"
+ },
+ "detail.seeHours": {
+  "ca": "Veure l'horari",
+  "fr": "Voir les horaires"
+ },
+ "detail.showLess": {
+  "ca": "Veure'n menys",
+  "fr": "Voir moins"
+ },
+ "detail.statusLabel": {
+  "ca": "Estat",
+  "fr": "Statut"
+ },
+ "detail.ticketsOnRA": {
+  "ca": "Entrades a Resident Advisor",
+  "fr": "Billets sur Resident Advisor"
+ },
+ "detail.upcomingEvents": {
+  "ca": "Pròxims esdeveniments",
+  "fr": "Prochains événements"
+ },
+ "detail.vipFrom": {
+  "ca": "Taula VIP des de",
+  "fr": "Table VIP à partir de"
+ },
+ "detail.whatsOn": {
+  "ca": "Què s'hi fa",
+  "fr": "À l'affiche"
+ },
+ "dj.cityComingSoon": {
+  "ca": "%@ · data per confirmar",
+  "fr": "%@ · date à confirmer"
+ },
+ "dj.comingSoonShort": {
+  "ca": "Data per confirmar",
+  "fr": "Date à confirmer"
+ },
+ "dj.guestOnlyNote": {
+  "ca": "Crea un compte gratuït per veure totes les dates i unir-te a les llistes.",
+  "fr": "Créez un compte gratuit pour voir toutes les dates et rejoindre les listes."
+ },
+ "dj.joinGuestlist": {
+  "ca": "Uneix-te a la llista",
+  "fr": "Rejoindre la liste"
+ },
+ "dj.loadingTrack": {
+  "ca": "Carregant…",
+  "fr": "Chargement…"
+ },
+ "dj.noDates": {
+  "ca": "Sense dates anunciades",
+  "fr": "Aucune date annoncée"
+ },
+ "dj.previewUnavailable": {
+  "ca": "Vista prèvia no disponible",
+  "fr": "Aperçu indisponible"
+ },
+ "dj.residencyHere": {
+  "ca": "Residència aquí",
+  "fr": "Résidence ici"
+ },
+ "dj.sheetLabel": {
+  "ca": "Resident",
+  "fr": "Résident"
+ },
+ "dj.soundcloudPreview": {
+  "ca": "Vista prèvia",
+  "fr": "Aperçu"
+ },
+ "dj.upcoming": {
+  "ca": "Pròximes dates",
+  "fr": "Prochaines dates"
+ },
+ "event.capacity": {
+  "ca": "Aforament",
+  "fr": "Capacité"
+ },
+ "event.entry": {
+  "ca": "Porta",
+  "fr": "Entrée"
+ },
+ "event.headliner": {
+  "ca": "Cap de cartell",
+  "fr": "Tête d'affiche"
+ },
+ "event.interestedCount": {
+  "ca": "%@ interessats",
+  "fr": "%@ intéressés"
+ },
+ "event.label": {
+  "ca": "Esdeveniment",
+  "fr": "Événement"
+ },
+ "event.lineup": {
+  "ca": "Cartell",
+  "fr": "Programmation"
+ },
+ "event.noLineup": {
+  "ca": "Sense cartell publicat",
+  "fr": "Programmation non communiquée"
+ },
+ "event.venue": {
+  "ca": "Local",
+  "fr": "Lieu"
+ },
+ "events.about": {
+  "ca": "Sobre la nit",
+  "fr": "À propos"
+ },
+ "events.cancelConfirm": {
+  "ca": "Deixa la meva plaça",
+  "fr": "Renoncer à ma place"
+ },
+ "events.cancelRsvp": {
+  "ca": "Cancel·la",
+  "fr": "Annuler"
+ },
+ "events.cancelTitle": {
+  "ca": "Deixar la teva plaça?",
+  "fr": "Renoncer à votre place ?"
+ },
+ "events.details": {
+  "ca": "Detalls",
+  "fr": "Détails"
+ },
+ "events.emptyBody": {
+  "ca": "Ara mateix no hi ha cap nit programada. Torna aviat — o explora locals a Explora.",
+  "fr": "Aucune soirée programmée pour le moment. Revenez bientôt — ou explorez les lieux dans Explorer."
+ },
+ "events.emptyTitle": {
+  "ca": "Encara no hi ha res",
+  "fr": "Rien pour l'instant"
+ },
+ "events.entry": {
+  "ca": "Entrada",
+  "fr": "Entrée"
+ },
+ "events.entryNote": {
+  "ca": "Només places reservades — sense venda a la porta",
+  "fr": "Places réservées uniquement — pas de vente à l'entrée"
+ },
+ "events.free": {
+  "ca": "Entrada gratuïta",
+  "fr": "Entrée libre"
+ },
+ "events.fullNote": {
+  "ca": "Aforament %d — reserves tancades",
+  "fr": "Capacité %d — réservations closes"
+ },
+ "events.fullTitle": {
+  "ca": "Aquesta nit està plena",
+  "fr": "Cette soirée est complète"
+ },
+ "events.holdingSpot": {
+  "ca": "Guardant la teva plaça",
+  "fr": "Nous gardons votre place"
+ },
+ "events.hostedBy": {
+  "ca": "Organitzen",
+  "fr": "Organisé par"
+ },
+ "events.joinNote": {
+  "ca": "Compte gratuït · un segon",
+  "fr": "Compte gratuit · en un instant"
+ },
+ "events.joinToReserve": {
+  "ca": "Uneix-t'hi per reservar",
+  "fr": "Rejoignez-nous pour réserver"
+ },
+ "events.kicker": {
+  "ca": "Nits de Club Fuoco",
+  "fr": "Les nuits Club Fuoco"
+ },
+ "events.later": {
+  "ca": "Més endavant",
+  "fr": "Plus tard"
+ },
+ "events.lineup": {
+  "ca": "Cartell",
+  "fr": "Programmation"
+ },
+ "events.loadError": {
+  "ca": "No s'han pogut carregar els esdeveniments",
+  "fr": "Impossible de charger les événements"
+ },
+ "events.more": {
+  "ca": "Més nits",
+  "fr": "Plus de soirées"
+ },
+ "events.noLineup": {
+  "ca": "Cartell per confirmar. Els noms apareixeran aquí.",
+  "fr": "Programmation à confirmer. Les noms apparaîtront ici."
+ },
+ "events.onTonight": {
+  "ca": "Aquesta nit",
+  "fr": "Ce soir"
+ },
+ "events.oursTag": {
+  "ca": "Nostre",
+  "fr": "Chez nous"
+ },
+ "events.pickTag": {
+  "ca": "La nostra tria",
+  "fr": "Notre sélection"
+ },
+ "events.reserve": {
+  "ca": "Reserva una plaça",
+  "fr": "Réserver une place"
+ },
+ "events.reserveHint": {
+  "ca": "Entrada gratuïta — el teu pase apareix a Entrades.",
+  "fr": "Entrée libre — votre pass apparaît dans Billets."
+ },
+ "events.reserved": {
+  "ca": "Ets a la llista",
+  "fr": "Vous êtes sur la liste"
+ },
+ "events.reservedHint": {
+  "ca": "Troba el teu pase a Entrades.",
+  "fr": "Retrouvez votre pass dans Billets."
+ },
+ "events.reserving": {
+  "ca": "Reservant…",
+  "fr": "Réservation…"
+ },
+ "events.room": {
+  "ca": "Sala",
+  "fr": "Salle"
+ },
+ "events.roomHolds": {
+  "ca": "Aforament %d",
+  "fr": "Capacité %d"
+ },
+ "events.roomOf": {
+  "ca": "Aforament %d",
+  "fr": "Capacité %d"
+ },
+ "events.thisWeek": {
+  "ca": "Aquesta setmana",
+  "fr": "Cette semaine"
+ },
+ "events.tonight": {
+  "ca": "Aquesta nit",
+  "fr": "Ce soir"
+ },
+ "events.tonightTag": {
+  "ca": "Aquesta nit",
+  "fr": "Ce soir"
+ },
+ "events.viewPass": {
+  "ca": "Veure el pase",
+  "fr": "Voir le pass"
+ },
+ "events.when": {
+  "ca": "Quan",
+  "fr": "Quand"
+ },
+ "events.where": {
+  "ca": "On",
+  "fr": "Où"
+ },
+ "explore.city": {
+  "ca": "Barcelona",
+  "fr": "Barcelone"
+ },
+ "explore.eventsArrow": {
+  "ca": "%d esdeveniments →",
+  "fr": "%d événements →"
+ },
+ "explore.featured": {
+  "ca": "Destacat",
+  "fr": "À l'affiche"
+ },
+ "explore.featuredTonight": {
+  "ca": "Destacat aquesta nit",
+  "fr": "À l'affiche ce soir"
+ },
+ "explore.loadError": {
+  "ca": "No s'han pogut carregar els clubs propers",
+  "fr": "Impossible de charger les clubs à proximité"
+ },
+ "explore.noResults": {
+  "ca": "Cap club per a «%@»",
+  "fr": "Aucun club pour « %@ »"
+ },
+ "explore.noSaved": {
+  "ca": "Encara no has desat cap club",
+  "fr": "Aucun club enregistré"
+ },
+ "explore.noneNearby": {
+  "ca": "No hi ha clubs a prop",
+  "fr": "Aucun club à proximité"
+ },
+ "explore.nothingSaved": {
+  "ca": "Encara no hi ha res desat",
+  "fr": "Rien d'enregistré pour l'instant"
+ },
+ "explore.open": {
+  "ca": "Obert",
+  "fr": "Ouvert"
+ },
+ "explore.points": {
+  "ca": "Punts",
+  "fr": "Points"
+ },
+ "explore.savedHint": {
+  "ca": "Toca el marcador de qualsevol club per desar-lo aquí",
+  "fr": "Appuyez sur le marque-page d'un club pour l'enregistrer ici"
+ },
+ "explore.savedMany": {
+  "ca": "%d clubs desats",
+  "fr": "%d clubs enregistrés"
+ },
+ "explore.savedOne": {
+  "ca": "1 club desat",
+  "fr": "1 club enregistré"
+ },
+ "explore.savedTitle": {
+  "ca": "I miei locali",
+  "fr": "I miei locali"
+ },
+ "explore.searchPlaceholder": {
+  "ca": "Busca clubs, barris…",
+  "fr": "Rechercher clubs, quartiers…"
+ },
+ "explore.seeAll": {
+  "ca": "Veure-ho tot",
+  "fr": "Tout voir"
+ },
+ "explore.shelfCount": {
+  "ca": "%d locals",
+  "fr": "%d lieux"
+ },
+ "explore.subtitle": {
+  "ca": "Barcelona · Nit seleccionada",
+  "fr": "Barcelone · Nuit sélectionnée"
+ },
+ "explore.tonightPrefix": {
+  "ca": "Aquesta nit:",
+  "fr": "Ce soir :"
+ },
+ "explore.venuesArrow": {
+  "ca": "%d locals →",
+  "fr": "%d lieux →"
+ },
+ "explore.viewClub": {
+  "ca": "Veure el club",
+  "fr": "Voir le club"
+ },
+ "fiamme.activitySection": {
+  "ca": "N° 05 · Activitat",
+  "fr": "N° 05 · Activité"
+ },
+ "fiamme.available": {
+  "ca": "%@ Fiamme disponibles",
+  "fr": "%@ Fiamme disponibles"
+ },
+ "fiamme.balanceSection": {
+  "ca": "N° 01 · Saldo",
+  "fr": "N° 01 · Saldo"
+ },
+ "fiamme.earn1": {
+  "ca": "Ressenya verificada",
+  "fr": "Avis vérifié"
+ },
+ "fiamme.earn1.desc": {
+  "ca": "Després de la reserva, escriu una nota breu.",
+  "fr": "Après votre réservation, écrivez un court avis."
+ },
+ "fiamme.earn2": {
+  "ca": "Primer al local",
+  "fr": "Premier sur le lieu"
+ },
+ "fiamme.earn2.desc": {
+  "ca": "Sigues el primer a ressenyar un club partner.",
+  "fr": "Soyez le premier à noter un club partenaire."
+ },
+ "fiamme.earn3": {
+  "ca": "Ratxa setmanal",
+  "fr": "Série hebdomadaire"
+ },
+ "fiamme.earn3.desc": {
+  "ca": "Ressenya cada setmana, quatre setmanes seguides.",
+  "fr": "Notez chaque semaine, quatre semaines d'affilée."
+ },
+ "fiamme.earnSection": {
+  "ca": "N° 04 · Com guanyar-ne",
+  "fr": "N° 04 · Comment en gagner"
+ },
+ "fiamme.expires": {
+  "ca": "Vàlid 24 h · un sol ús",
+  "fr": "Valable 24 h · usage unique"
+ },
+ "fiamme.insufficient": {
+  "ca": "No tens prou Fiamme",
+  "fr": "Fiamme insuffisantes"
+ },
+ "fiamme.noActivity": {
+  "ca": "Encara no hi ha activitat",
+  "fr": "Aucune activité pour l'instant"
+ },
+ "fiamme.redeem": {
+  "ca": "Bescanvia",
+  "fr": "Échanger"
+ },
+ "fiamme.redeemQuestion": {
+  "ca": "Bescanviar %@ per %d Fiamme?",
+  "fr": "Échanger %@ contre %d Fiamme ?"
+ },
+ "fiamme.reward.bottle_deposit": {
+  "ca": "Fiança d'ampolla",
+  "fr": "Acompte bouteille"
+ },
+ "fiamme.reward.bottle_deposit.desc": {
+  "ca": "A compte del servei d'ampolla",
+  "fr": "À valoir sur le service bouteille"
+ },
+ "fiamme.reward.comp_drink": {
+  "ca": "Copa convidada",
+  "fr": "Consommation offerte"
+ },
+ "fiamme.reward.comp_drink.desc": {
+  "ca": "Còctel de la casa, a qualsevol partner",
+  "fr": "Cocktail maison, chez tout partenaire"
+ },
+ "fiamme.reward.free_cover": {
+  "ca": "Entrada gratuïta",
+  "fr": "Entrée offerte"
+ },
+ "fiamme.reward.free_cover.desc": {
+  "ca": "Fins a 30 € d'entrada exempts",
+  "fr": "Jusqu'à 30 € d'entrée offerts"
+ },
+ "fiamme.reward.skip_line": {
+  "ca": "Salta't la cua",
+  "fr": "Coupe-file"
+ },
+ "fiamme.reward.skip_line.desc": {
+  "ca": "Passa davant, qualsevol nit",
+  "fr": "Passez devant, tous les soirs"
+ },
+ "fiamme.rewardsSection": {
+  "ca": "N° 03 · Rewards",
+  "fr": "N° 03 · Rewards"
+ },
+ "fiamme.showCode": {
+  "ca": "Ensenya aquest codi al local",
+  "fr": "Présentez ce code au lieu"
+ },
+ "fiamme.tier.conoscitore": {
+  "ca": "Coneixedor",
+  "fr": "Connaisseur"
+ },
+ "fiamme.tier.nuovo": {
+  "ca": "Nouvingut",
+  "fr": "Nouveau venu"
+ },
+ "fiamme.tier.regolare": {
+  "ca": "Habitual",
+  "fr": "Habitué"
+ },
+ "fiamme.tier.tastemaker": {
+  "ca": "Prescriptor",
+  "fr": "Prescripteur"
+ },
+ "fiamme.tierSection": {
+  "ca": "N° 02 · Tier",
+  "fr": "N° 02 · Tier"
+ },
+ "forgot.codeError": {
+  "ca": "Aquest codi no és correcte o ha caducat.",
+  "fr": "Ce code est incorrect ou a expiré."
+ },
+ "forgot.codeLabel": {
+  "ca": "Codi de verificació",
+  "fr": "Code de vérification"
+ },
+ "forgot.codeSub": {
+  "ca": "Hem enviat un codi a %@. Introdueix-lo a sota.",
+  "fr": "Nous avons envoyé un code à %@. Saisissez-le ci-dessous."
+ },
+ "forgot.emailSub": {
+  "ca": "Introdueix el teu correu i t'enviarem un codi de 8 dígits.",
+  "fr": "Saisissez votre e-mail et nous vous enverrons un code à 8 chiffres."
+ },
+ "forgot.kicker": {
+  "ca": "Recuperar accés",
+  "fr": "Récupérer l'accès"
+ },
+ "forgot.newPassword": {
+  "ca": "Contrasenya nova",
+  "fr": "Nouveau mot de passe"
+ },
+ "forgot.passwordSub": {
+  "ca": "Tria una contrasenya nova. Mínim 8 caràcters.",
+  "fr": "Choisissez un nouveau mot de passe. 8 caractères minimum."
+ },
+ "forgot.resend": {
+  "ca": "Reenvia el codi",
+  "fr": "Renvoyer le code"
+ },
+ "forgot.resendIn": {
+  "ca": "Reenvia en %ds",
+  "fr": "Renvoyer dans %ds"
+ },
+ "forgot.sendCode": {
+  "ca": "Envia el codi",
+  "fr": "Envoyer le code"
+ },
+ "forgot.setPassword": {
+  "ca": "Desa la contrasenya",
+  "fr": "Enregistrer le mot de passe"
+ },
+ "forgot.title": {
+  "ca": "Has oblidat la",
+  "fr": "Mot de passe"
+ },
+ "forgot.titleEm": {
+  "ca": "contrasenya?",
+  "fr": "oublié ?"
+ },
+ "forgot.verify": {
+  "ca": "Verifica el codi",
+  "fr": "Vérifier le code"
+ },
+ "forgot.working": {
+  "ca": "Un moment…",
+  "fr": "Un instant…"
+ },
+ "friends.accept": {
+  "ca": "Accepta",
+  "fr": "Accepter"
+ },
+ "friends.add": {
+  "ca": "Afegeix",
+  "fr": "Ajouter"
+ },
+ "friends.addFriend": {
+  "ca": "Afegeix un amic",
+  "fr": "Ajouter un ami"
+ },
+ "friends.added": {
+  "ca": "Afegit",
+  "fr": "Ajouté"
+ },
+ "friends.decline": {
+  "ca": "Rebutja",
+  "fr": "Refuser"
+ },
+ "friends.empty": {
+  "ca": "Encara no tens amics — busca a dalt per afegir gent amb qui surts.",
+  "fr": "Aucun ami pour l'instant — cherchez ci-dessus pour ajouter vos compagnons de sortie."
+ },
+ "friends.friends": {
+  "ca": "Amics",
+  "fr": "Amis"
+ },
+ "friends.noneFound": {
+  "ca": "No s'ha trobat ningú per «%@»",
+  "fr": "Personne trouvé pour « %@ »"
+ },
+ "friends.pending": {
+  "ca": "Pendent",
+  "fr": "En attente"
+ },
+ "friends.requested": {
+  "ca": "Sol·licitat",
+  "fr": "Demandé"
+ },
+ "friends.requests": {
+  "ca": "Sol·licituds",
+  "fr": "Demandes"
+ },
+ "friends.searchPlaceholder": {
+  "ca": "Busca per nom o correu",
+  "fr": "Rechercher par nom ou e-mail"
+ },
+ "friends.searching": {
+  "ca": "Buscant…",
+  "fr": "Recherche…"
+ },
+ "friends.sent": {
+  "ca": "Enviades",
+  "fr": "Envoyées"
+ },
+ "friends.title": {
+  "ca": "Amics",
+  "fr": "Amis"
+ },
+ "friends.yourFriends": {
+  "ca": "Els teus amics",
+  "fr": "Vos amis"
+ },
+ "gate.keepBrowsing": {
+  "ca": "Explorar sempre és gratis",
+  "fr": "Explorer reste toujours gratuit"
+ },
+ "gate.title": {
+  "ca": "Crea un compte per continuar",
+  "fr": "Créez un compte pour continuer"
+ },
+ "groupChat.empty": {
+  "ca": "Encara no hi ha missatges — digues hola 👋",
+  "fr": "Aucun message — dites bonjour 👋"
+ },
+ "groupChat.open": {
+  "ca": "Xat del grup",
+  "fr": "Discussion de groupe"
+ },
+ "groupChat.placeholder": {
+  "ca": "Escriu al grup…",
+  "fr": "Écrire au groupe…"
+ },
+ "groupChat.subtitle": {
+  "ca": "Organitzeu la trobada, hores, si arribeu tard",
+  "fr": "Organisez le rendez-vous, les horaires, les retards"
+ },
+ "groups.addToCalendar": {
+  "ca": "Afegeix al calendari",
+  "fr": "Ajouter au calendrier"
+ },
+ "groups.calendarAdded": {
+  "ca": "Afegit al teu calendari",
+  "fr": "Ajouté à votre calendrier"
+ },
+ "groups.calendarError": {
+  "ca": "No s'ha pogut afegir al calendari",
+  "fr": "Impossible d'ajouter au calendrier"
+ },
+ "groups.calendarNotes": {
+  "ca": "La teva nit de grup de Club Fuoco. Ensenya el pase a la porta.",
+  "fr": "Votre soirée de groupe Club Fuoco. Présentez votre pass à l'entrée."
+ },
+ "groups.calendarTitle": {
+  "ca": "Nit a %@",
+  "fr": "Soirée à %@"
+ },
+ "groups.cancelConfirm": {
+  "ca": "Anul·lar aquesta nit per a tothom?",
+  "fr": "Annuler cette soirée pour tout le monde ?"
+ },
+ "groups.cancelNight": {
+  "ca": "Anul·la aquesta nit",
+  "fr": "Annuler cette soirée"
+ },
+ "groups.declined": {
+  "ca": "Rebutjat",
+  "fr": "Décliné"
+ },
+ "groups.everyoneResponded": {
+  "ca": "Tothom ha respost",
+  "fr": "Tout le monde a répondu"
+ },
+ "groups.going": {
+  "ca": "%d hi van",
+  "fr": "%d participants"
+ },
+ "groups.invite": {
+  "ca": "Convida",
+  "fr": "Inviter"
+ },
+ "groups.inviteFriends": {
+  "ca": "Convida amics",
+  "fr": "Inviter des amis"
+ },
+ "groups.invited": {
+  "ca": "Convidat",
+  "fr": "Invité"
+ },
+ "groups.join": {
+  "ca": "Uneix-t'hi",
+  "fr": "Rejoindre"
+ },
+ "groups.joinFor": {
+  "ca": "Uneix-t'hi · %@",
+  "fr": "Rejoindre · %@"
+ },
+ "groups.maybe": {
+  "ca": "Potser",
+  "fr": "Peut-être"
+ },
+ "groups.notFound": {
+  "ca": "Grup no trobat",
+  "fr": "Groupe introuvable"
+ },
+ "groups.organizer": {
+  "ca": "Organitzador",
+  "fr": "Organisateur"
+ },
+ "groups.paid": {
+  "ca": "Pagat",
+  "fr": "Payé"
+ },
+ "groups.paymentNeeded": {
+  "ca": "Les places de pagament necessiten pagament dins l'app — arriba més endavant en aquesta fase. De moment, fes servir l'enllaç d'invitació al web.",
+  "fr": "Les places payantes nécessitent le paiement dans l'app — prévu plus tard dans cette phase. Utilisez le lien d'invitation sur le web en attendant."
+ },
+ "groups.remind": {
+  "ca": "Recorda-ho a tothom",
+  "fr": "Relancer tout le monde"
+ },
+ "groups.reminded": {
+  "ca": "%d recordats",
+  "fr": "%d relancés"
+ },
+ "groups.share": {
+  "ca": "Comparteix la invitació",
+  "fr": "Partager l'invitation"
+ },
+ "groups.shareText": {
+  "ca": "Vine a %@ el %@ — uneix-te al meu grup a Club Fuoco",
+  "fr": "Viens à %@ le %@ — rejoins mon groupe sur Club Fuoco"
+ },
+ "groups.statusCancelled": {
+  "ca": "Cancel·lat",
+  "fr": "Annulé"
+ },
+ "groups.statusClosed": {
+  "ca": "Tancat",
+  "fr": "Fermé"
+ },
+ "groups.statusOpen": {
+  "ca": "Obert",
+  "fr": "Ouvert"
+ },
+ "groups.strip": {
+  "ca": "Nits de grup",
+  "fr": "Soirées de groupe"
+ },
+ "groups.yourPass": {
+  "ca": "El teu pase",
+  "fr": "Votre pass"
+ },
+ "groups.yourSpot": {
+  "ca": "La teva plaça",
+  "fr": "Votre place"
+ },
+ "help.describe": {
+  "ca": "Què ha passat?",
+  "fr": "Que s'est-il passé ?"
+ },
+ "help.failed": {
+  "ca": "No s'ha enviat. Revisa la connexió i torna-ho a provar.",
+  "fr": "L'envoi a échoué. Vérifiez votre connexion et réessayez."
+ },
+ "help.reference": {
+  "ca": "Referència de la reserva",
+  "fr": "Référence de réservation"
+ },
+ "help.sentBody": {
+  "ca": "Ho hem rebut. Et respondrem per correu en un dia.",
+  "fr": "Bien reçu. Vous recevrez une réponse par e-mail sous 24 heures."
+ },
+ "help.sentTitle": {
+  "ca": "Missatge enviat",
+  "fr": "Message envoyé"
+ },
+ "help.subtitle": {
+  "ca": "Explica'ns què passa amb aquesta reserva i et respondrem per correu.",
+  "fr": "Dites-nous ce qui ne va pas avec cette réservation et nous vous répondrons par e-mail."
+ },
+ "help.title": {
+  "ca": "Ajuda",
+  "fr": "Aide"
+ },
+ "help.urgent": {
+  "ca": "Ets a la porta ara mateix?",
+  "fr": "Vous êtes à l'entrée ?"
+ },
+ "help.urgentBody": {
+  "ca": "Ensenya el teu pase a l'equip de porta — et poden buscar amb la referència de sota.",
+  "fr": "Montrez votre pass à l'équipe d'entrée — ils peuvent vous retrouver avec la référence ci-dessous."
+ },
+ "location.body": {
+  "ca": "La nit de la teva reserva dibuixem un cercle petit al voltant del local. Quan hi arribes, el teu pase s'actualitza — i res més. Sense rastreig en segon pla, sense historial de mapa, res entre nits.",
+  "fr": "Le soir de votre réservation, nous traçons un petit cercle autour du lieu. À votre arrivée, votre pass se met à jour — et rien d'autre. Aucun suivi en arrière-plan, aucun historique de carte, rien entre les soirées."
+ },
+ "location.enable": {
+  "ca": "Activa el registre d'arribada",
+  "fr": "Activer l'enregistrement à l'arrivée"
+ },
+ "location.nearby.body": {
+  "ca": "Activa la ubicació i et mostrarem els clubs més propers aquesta nit, ordenats per la distància des d'on ets. Només s'usa amb l'app oberta — mai en segon pla.",
+  "fr": "Activez la localisation et nous vous montrerons les clubs les plus proches ce soir, triés par distance depuis votre position. Utilisée uniquement quand l'app est ouverte — jamais en arrière-plan."
+ },
+ "location.nearby.enable": {
+  "ca": "Mostra clubs a prop meu",
+  "fr": "Afficher les clubs près de moi"
+ },
+ "location.nearby.tip": {
+  "ca": "Quan iOS ho demani, toca **Permet mentre s'usa l'app**.",
+  "fr": "Quand iOS vous le demande, appuyez sur **Autoriser lorsque l'app est active**."
+ },
+ "location.nearby.title": {
+  "ca": "Troba els millors clubs a prop teu",
+  "fr": "Trouvez les meilleurs clubs près de vous"
+ },
+ "location.notNow": {
+  "ca": "Ara no",
+  "fr": "Pas maintenant"
+ },
+ "location.openSettings": {
+  "ca": "Obre els Ajustos",
+  "fr": "Ouvrir les Réglages"
+ },
+ "location.settingsBody": {
+  "ca": "iOS no ha mostrat el segon diàleg. Canvia la Ubicació a Sempre tu mateix:",
+  "fr": "iOS n'a pas affiché la seconde demande. Réglez vous-même la Localisation sur Toujours :"
+ },
+ "location.settingsStep1": {
+  "ca": "Toca **Obre els Ajustos** a sota",
+  "fr": "Appuyez sur **Ouvrir les Réglages** ci-dessous"
+ },
+ "location.settingsStep2": {
+  "ca": "Toca **Localització**",
+  "fr": "Appuyez sur **Position**"
+ },
+ "location.settingsStep3": {
+  "ca": "Tria **Sempre**",
+  "fr": "Choisissez **Toujours**"
+ },
+ "location.settingsTitle": {
+  "ca": "Gairebé — un toc més",
+  "fr": "Presque — encore un geste"
+ },
+ "location.step1": {
+  "ca": "Toca **Permet mentre s'usa l'app**",
+  "fr": "Appuyez sur **Autoriser lorsque l'app est active**"
+ },
+ "location.step2": {
+  "ca": "Després toca **Canvia a Permet sempre**",
+  "fr": "Puis appuyez sur **Toujours autoriser**"
+ },
+ "location.stepsHeader": {
+  "ca": "iOS mostrarà dos diàlegs:",
+  "fr": "iOS affichera deux demandes :"
+ },
+ "location.title": {
+  "ca": "Registra't automàticament",
+  "fr": "Enregistrement automatique"
+ },
+ "login.createOne": {
+  "ca": "Crea'n un →",
+  "fr": "Créer un compte →"
+ },
+ "login.forgotPassword": {
+  "ca": "Has oblidat la contrasenya?",
+  "fr": "Mot de passe oublié ?"
+ },
+ "login.noAccount": {
+  "ca": "No tens compte?",
+  "fr": "Pas de compte ?"
+ },
+ "login.signIn": {
+  "ca": "Inicia sessió",
+  "fr": "Se connecter"
+ },
+ "login.signingIn": {
+  "ca": "Iniciant sessió…",
+  "fr": "Connexion…"
+ },
+ "login.subtitle": {
+  "ca": "Inicia sessió i troba la sala d'aquesta nit.",
+  "fr": "Connectez-vous pour trouver la salle de ce soir."
+ },
+ "login.welcome": {
+  "ca": "Benvingut",
+  "fr": "Bon retour"
+ },
+ "login.welcomeBack": {
+  "ca": "de nou",
+  "fr": "parmi nous"
+ },
+ "membership.active": {
+  "ca": "Membresia activa: %@",
+  "fr": "Abonnement actif : %@"
+ },
+ "membership.current": {
+  "ca": "Pla actual",
+  "fr": "Formule actuelle"
+ },
+ "membership.manage": {
+  "ca": "Gestiona la subscripció",
+  "fr": "Gérer l'abonnement"
+ },
+ "membership.noRestore": {
+  "ca": "No hi ha compres per restaurar",
+  "fr": "Aucun achat à restaurer"
+ },
+ "membership.perMonth": {
+  "ca": "/mes",
+  "fr": "/mois"
+ },
+ "membership.restore": {
+  "ca": "Restaura les compres",
+  "fr": "Restaurer les achats"
+ },
+ "membership.subscribe": {
+  "ca": "Subscriu-t'hi",
+  "fr": "S'abonner"
+ },
+ "membership.unavailable": {
+  "ca": "Les subscripcions no estan disponibles ara mateix. Torna-ho a provar més tard.",
+  "fr": "Les abonnements sont indisponibles pour le moment. Réessayez plus tard."
+ },
+ "membership.verifying": {
+  "ca": "Verificant la compra…",
+  "fr": "Vérification de l'achat…"
+ },
+ "nav.dashboard": {
+  "ca": "Tauler",
+  "fr": "Tableau de bord"
+ },
+ "nav.events": {
+  "ca": "Esdeveniments",
+  "fr": "Événements"
+ },
+ "nav.explore": {
+  "ca": "Explora",
+  "fr": "Explorer"
+ },
+ "nav.gigs": {
+  "ca": "Bolos",
+  "fr": "Dates"
+ },
+ "nav.lists": {
+  "ca": "Llistes",
+  "fr": "Listes"
+ },
+ "nav.openings": {
+  "ca": "Obertures",
+  "fr": "Ouvertures"
+ },
+ "nav.profile": {
+  "ca": "Perfil",
+  "fr": "Profil"
+ },
+ "nav.tickets": {
+  "ca": "Entrades",
+  "fr": "Billets"
+ },
+ "nav.you": {
+  "ca": "Tu",
+  "fr": "Vous"
+ },
+ "notif.concierge.desc": {
+  "ca": "Del teu amfitrió Fuoco",
+  "fr": "De votre hôte Fuoco"
+ },
+ "notif.concierge.label": {
+  "ca": "Missatges del conserge",
+  "fr": "Messages du concierge"
+ },
+ "notif.curator.desc": {
+  "ca": "Un esdeveniment triat cada setmana",
+  "fr": "Un événement sélectionné chaque semaine"
+ },
+ "notif.curator.label": {
+  "ca": "Tria del curador",
+  "fr": "Sélection du curateur"
+ },
+ "notif.guestlist.desc": {
+  "ca": "Quan un amic t'hi apunta",
+  "fr": "Quand un ami vous inscrit"
+ },
+ "notif.guestlist.label": {
+  "ca": "Llista a punt",
+  "fr": "Liste prête"
+ },
+ "notif.openings.desc": {
+  "ca": "Una nota breu abans que obrin portes",
+  "fr": "Un mot avant l'ouverture des portes"
+ },
+ "notif.openings.label": {
+  "ca": "Obertures d'aquesta nit",
+  "fr": "Ouvertures de ce soir"
+ },
+ "notifications.empty": {
+  "ca": "Encara no hi ha notificacions",
+  "fr": "Aucune notification"
+ },
+ "notifications.title": {
+  "ca": "Notificacions",
+  "fr": "Notifications"
+ },
+ "otp.body": {
+  "ca": "Hem enviat un codi de 8 dígits a %@. Introdueix-lo a sota per confirmar el correu.",
+  "fr": "Nous avons envoyé un code à 8 chiffres à %@. Saisissez-le ci-dessous pour confirmer votre e-mail."
+ },
+ "otp.resend": {
+  "ca": "No t'ha arribat? Reenvia el codi",
+  "fr": "Pas reçu ? Renvoyer le code"
+ },
+ "otp.resent": {
+  "ca": "Codi reenviat ✓ — reenvia de nou",
+  "fr": "Code renvoyé ✓ — renvoyer à nouveau"
+ },
+ "otp.title": {
+  "ca": "Revisa el teu",
+  "fr": "Consultez votre"
+ },
+ "otp.titleEm": {
+  "ca": "correu",
+  "fr": "boîte mail"
+ },
+ "otp.verify": {
+  "ca": "Verifica el correu",
+  "fr": "Vérifier l'e-mail"
+ },
+ "otp.verifying": {
+  "ca": "Verificant…",
+  "fr": "Vérification…"
+ },
+ "perk.black.1": {
+  "ca": "Entrada VIP gratuïta a tots els clubs partner",
+  "fr": "Entrée VIP offerte dans tous les clubs partenaires"
+ },
+ "perk.black.2": {
+  "ca": "30 % de descompte en totes les reserves als clubs partner",
+  "fr": "30 % de réduction sur toutes les réservations dans les clubs partenaires"
+ },
+ "perk.black.3": {
+  "ca": "Accés gratuït a la llista (il·limitat)",
+  "fr": "Accès gratuit à la liste (illimité)"
+ },
+ "perk.black.4": {
+  "ca": "Conserge dedicat 24/7",
+  "fr": "Concierge dédié 24h/24, 7j/7"
+ },
+ "perk.black.5": {
+  "ca": "Afterhours i esdeveniments privats només amb invitació",
+  "fr": "Afters et événements privés sur invitation"
+ },
+ "perk.black.6": {
+  "ca": "Accés anticipat a cada nou club partner",
+  "fr": "Accès anticipé à chaque nouveau club partenaire"
+ },
+ "perk.gold.1": {
+  "ca": "Entrada prioritària als clubs partner",
+  "fr": "Entrée prioritaire dans les clubs partenaires"
+ },
+ "perk.gold.2": {
+  "ca": "15 % de descompte en reserves als clubs partner",
+  "fr": "15 % de réduction sur les réservations dans les clubs partenaires"
+ },
+ "perk.gold.3": {
+  "ca": "Pase de convidat mensual (x1)",
+  "fr": "Pass invité mensuel (x1)"
+ },
+ "perk.gold.4": {
+  "ca": "Accés anticipat als anuncis d'esdeveniments",
+  "fr": "Accès anticipé aux annonces d'événements"
+ },
+ "perk.sapphire.1": {
+  "ca": "25 % de descompte en reserves als clubs partner",
+  "fr": "25 % de réduction sur les réservations dans les clubs partenaires"
+ },
+ "perk.sapphire.2": {
+  "ca": "Accés gratuït a la llista (fins a 4×/mes)",
+  "fr": "Accès gratuit à la liste (jusqu'à 4×/mois)"
+ },
+ "perk.sapphire.3": {
+  "ca": "Conserge personal per WhatsApp",
+  "fr": "Concierge personnel via WhatsApp"
+ },
+ "perk.sapphire.4": {
+  "ca": "Afterhours només amb invitació",
+  "fr": "Afters sur invitation uniquement"
+ },
+ "plan.day": {
+  "ca": "Dia",
+  "fr": "Jour"
+ },
+ "plan.done": {
+  "ca": "Fet",
+  "fr": "Terminé"
+ },
+ "plan.goingOut": {
+  "ca": "Quan surts?",
+  "fr": "Vous sortez quand ?"
+ },
+ "plan.next": {
+  "ca": "Pròxim",
+  "fr": "Prochain"
+ },
+ "plan.selectDate": {
+  "ca": "Tria la data",
+  "fr": "Choisir la date"
+ },
+ "plan.tomorrow": {
+  "ca": "Demà",
+  "fr": "Demain"
+ },
+ "plan.tonight": {
+  "ca": "Aquesta nit",
+  "fr": "Ce soir"
+ },
+ "profile.accountSection": {
+  "ca": "N° 02 · Il tuo account",
+  "fr": "N° 02 · Il tuo account"
+ },
+ "profile.accountType": {
+  "ca": "Tipus de compte",
+  "fr": "Type de compte"
+ },
+ "profile.bookingsCount": {
+  "ca": "%d reserves",
+  "fr": "%d réservations"
+ },
+ "profile.bookingsCountOne": {
+  "ca": "%d reserva",
+  "fr": "%d réservation"
+ },
+ "profile.footerCompany": {
+  "ca": "FUOCO · UNA EMPRESA DE NIT",
+  "fr": "FUOCO · UNE MAISON DE NUIT"
+ },
+ "profile.footerQuote": {
+  "ca": "«La notte ci appartiene.»",
+  "fr": "« La notte ci appartiene. »"
+ },
+ "profile.friends": {
+  "ca": "Amics",
+  "fr": "Amis"
+ },
+ "profile.header": {
+  "ca": "CLUB FUOCO · COMPTE",
+  "fr": "CLUB FUOCO · COMPTE"
+ },
+ "profile.help": {
+  "ca": "Ajuda i suport",
+  "fr": "Aide et assistance"
+ },
+ "profile.helpSub": {
+  "ca": "Preguntes freqüents · contacta amb el conserge",
+  "fr": "FAQ · contacter le concierge"
+ },
+ "profile.legal": {
+  "ca": "Normes de la casa i privacitat",
+  "fr": "Règles de la maison et confidentialité"
+ },
+ "profile.legalSub": {
+  "ca": "Termes · privacitat · RGPD",
+  "fr": "Conditions · confidentialité · RGPD"
+ },
+ "profile.member": {
+  "ca": "Membre",
+  "fr": "Membre"
+ },
+ "profile.membership": {
+  "ca": "Membresia",
+  "fr": "Abonnement"
+ },
+ "profile.myBookings": {
+  "ca": "Les meves reserves",
+  "fr": "Mes réservations"
+ },
+ "profile.prefsSection": {
+  "ca": "N° 03 · Preferenze",
+  "fr": "N° 03 · Preferenze"
+ },
+ "profile.privacy": {
+  "ca": "Política de privacitat",
+  "fr": "Politique de confidentialité"
+ },
+ "profile.privacySub": {
+  "ca": "Com tractem les teves dades · drets RGPD",
+  "fr": "Comment nous traitons vos données · droits RGPD"
+ },
+ "profile.savedClubs": {
+  "ca": "Clubs desats",
+  "fr": "Clubs enregistrés"
+ },
+ "profile.savedCount": {
+  "ca": "%d desats",
+  "fr": "%d enregistrés"
+ },
+ "profile.settingsRow": {
+  "ca": "Ajustos",
+  "fr": "Réglages"
+ },
+ "profile.settingsSub": {
+  "ca": "Notificacions · privacitat · idioma",
+  "fr": "Notifications · confidentialité · langue"
+ },
+ "profile.socio": {
+  "ca": "SOCIO",
+  "fr": "SOCIO"
+ },
+ "profile.statFriends": {
+  "ca": "Amics",
+  "fr": "Amis"
+ },
+ "profile.statNights": {
+  "ca": "Nits",
+  "fr": "Soirées"
+ },
+ "profile.statSaved": {
+  "ca": "Desats",
+  "fr": "Enregistrés"
+ },
+ "profile.terms": {
+  "ca": "Termes d'ús",
+  "fr": "Conditions d'utilisation"
+ },
+ "profile.termsSub": {
+  "ca": "Normes de la casa · membresies · responsabilitat",
+  "fr": "Règles de la maison · abonnements · responsabilité"
+ },
+ "rumba.dressCode": {
+  "ca": "Codi de vestimenta: %@",
+  "fr": "Code vestimentaire : %@"
+ },
+ "rumba.joinList": {
+  "ca": "Uneix-te a la llista",
+  "fr": "Rejoindre la liste"
+ },
+ "rumba.onList": {
+  "ca": "Ets a la llista",
+  "fr": "Vous êtes sur la liste"
+ },
+ "rumba.plusOnes": {
+  "ca": "Acompanyants",
+  "fr": "Accompagnants"
+ },
+ "rumba.spotsLeft": {
+  "ca": "Queden %d places",
+  "fr": "%d places restantes"
+ },
+ "rumba.waitlist": {
+  "ca": "Llista d'espera",
+  "fr": "Liste d'attente"
+ },
+ "rumba.yourName": {
+  "ca": "El teu nom",
+  "fr": "Votre nom"
+ },
+ "rumbalist.address": {
+  "ca": "Adreça",
+  "fr": "Adresse"
+ },
+ "rumbalist.atDoor": {
+  "ca": "Ensenya això a la porta",
+  "fr": "Présentez ceci à l'entrée"
+ },
+ "rumbalist.book": {
+  "ca": "Reserva →",
+  "fr": "Réserver →"
+ },
+ "rumbalist.bookVenue": {
+  "ca": "Reserva aquest local",
+  "fr": "Réserver ce lieu"
+ },
+ "rumbalist.bringCrew": {
+  "ca": "Porta la teva colla",
+  "fr": "Venez accompagné"
+ },
+ "rumbalist.bringCrewNote": {
+  "ca": "Convida amics a la llista — tothom entra per la porta.",
+  "fr": "Invitez vos amis sur la liste — tout le monde est à l'entrée."
+ },
+ "rumbalist.confirmationNote": {
+  "ca": "La confirmació arriba a la pestanya Entrades a l'instant.",
+  "fr": "La confirmation arrive instantanément dans l'onglet Billets."
+ },
+ "rumbalist.date": {
+  "ca": "Data",
+  "fr": "Date"
+ },
+ "rumbalist.dressCode": {
+  "ca": "Codi de vestimenta",
+  "fr": "Code vestimentaire"
+ },
+ "rumbalist.free": {
+  "ca": "Gratis",
+  "fr": "Gratuit"
+ },
+ "rumbalist.freeFooter": {
+  "ca": "Ja ets a la llista de la porta. L'entrada arriba a la pestanya Entrades.",
+  "fr": "Vous êtes sur la liste d'entrée. Le billet arrive dans l'onglet Billets."
+ },
+ "rumbalist.freeGuestlist": {
+  "ca": "Uneix-te a la llista gratuïta",
+  "fr": "Rejoindre la liste gratuite"
+ },
+ "rumbalist.guestsNoApp": {
+  "ca": "Convidats sense l'app",
+  "fr": "Invités sans l'app"
+ },
+ "rumbalist.guestsNoAppNote": {
+  "ca": "Rebran un enllaç per unir-se a la teva llista.",
+  "fr": "Ils recevront un lien pour rejoindre votre liste."
+ },
+ "rumbalist.join": {
+  "ca": "Uneix-t'hi →",
+  "fr": "Rejoindre →"
+ },
+ "rumbalist.joinGuestlistAt": {
+  "ca": "Uneix-te a la llista de",
+  "fr": "Rejoindre la liste de"
+ },
+ "rumbalist.offer": {
+  "ca": "Oferta",
+  "fr": "Offre"
+ },
+ "rumbalist.onDoorList": {
+  "ca": "Ets a la llista de la porta",
+  "fr": "Vous êtes sur la liste d'entrée"
+ },
+ "rumbalist.openingApplePay": {
+  "ca": "Obrint Apple Pay…",
+  "fr": "Ouverture d'Apple Pay…"
+ },
+ "rumbalist.operator": {
+  "ca": "Operador",
+  "fr": "Opérateur"
+ },
+ "rumbalist.optionsFor": {
+  "ca": "Opcions per a %@",
+  "fr": "Options pour %@"
+ },
+ "rumbalist.pay": {
+  "ca": "Paga",
+  "fr": "Payer"
+ },
+ "rumbalist.payClubFuoco": {
+  "ca": "Paga a Club Fuoco",
+  "fr": "Payer Club Fuoco"
+ },
+ "rumbalist.payTo": {
+  "ca": "Pagar a",
+  "fr": "Payer à"
+ },
+ "rumbalist.reference": {
+  "ca": "Referència",
+  "fr": "Référence"
+ },
+ "rumbalist.savedToTickets": {
+  "ca": "Desat a la pestanya Entrades — el trobaràs allà sempre.",
+  "fr": "Enregistré dans l'onglet Billets — vous le retrouverez à tout moment."
+ },
+ "rumbalist.splitFriends": {
+  "ca": "Comparteix-ho amb amics",
+  "fr": "Partager avec des amis"
+ },
+ "rumbalist.splitFriendsNote": {
+  "ca": "Per defecte pagues tu la taula; tria qui hi posa part.",
+  "fr": "Par défaut, vous réglez la table ; choisissez qui participe."
+ },
+ "rumbalist.tableBooked": {
+  "ca": "La teva taula està reservada",
+  "fr": "Votre table est réservée"
+ },
+ "rumbalist.time": {
+  "ca": "Hora",
+  "fr": "Heure"
+ },
+ "rumbalist.titleFree": {
+  "ca": "Llista gratuïta",
+  "fr": "Liste gratuite"
+ },
+ "rumbalist.titleVip": {
+  "ca": "Taula VIP",
+  "fr": "Table VIP"
+ },
+ "rumbalist.tonightOptions": {
+  "ca": "Opcions d'aquesta nit",
+  "fr": "Les options de ce soir"
+ },
+ "rumbalist.tonightWith": {
+  "ca": "Aquesta nit amb",
+  "fr": "Ce soir avec"
+ },
+ "rumbalist.total": {
+  "ca": "Total",
+  "fr": "Total"
+ },
+ "rumbalist.valid": {
+  "ca": "Vàlid",
+  "fr": "Valable"
+ },
+ "rumbalist.validNight": {
+  "ca": "Només %@",
+  "fr": "%@ uniquement"
+ },
+ "rumbalist.validNote": {
+  "ca": "Vàlid només aquesta nit, mentre el local segueixi acceptant la llista.",
+  "fr": "Valable uniquement ce soir, tant que le lieu accepte encore la liste."
+ },
+ "rumbalist.venue": {
+  "ca": "Local",
+  "fr": "Lieu"
+ },
+ "rumbalist.via": {
+  "ca": "via",
+  "fr": "via"
+ },
+ "rumbalist.vipFooter": {
+  "ca": "La teva taula està reservada. Confirmació a la pestanya Entrades.",
+  "fr": "Votre table est réservée. Confirmation dans l'onglet Billets."
+ },
+ "rumbalist.with": {
+  "ca": "amb",
+  "fr": "avec"
+ },
+ "rumbalist.worksUntil": {
+  "ca": "Vàlid fins a les %@",
+  "fr": "Valable jusqu'à %@"
+ },
+ "settings.account": {
+  "ca": "Compte",
+  "fr": "Compte"
+ },
+ "settings.accountActions": {
+  "ca": "Accions del compte",
+  "fr": "Actions du compte"
+ },
+ "settings.arrivalCheckIn": {
+  "ca": "Registre d'arribada",
+  "fr": "Enregistrement à l'arrivée"
+ },
+ "settings.arrivalFooter": {
+  "ca": "Posa la Ubicació en «Sempre» per registrar-te automàticament la nit d'una reserva. Només escoltem al local i només aquella nit.",
+  "fr": "Réglez la Localisation sur « Toujours » pour être enregistré automatiquement le soir d'une réservation. Nous n'écoutons qu'au lieu, et seulement ce soir-là."
+ },
+ "settings.arrivalManualOnly": {
+  "ca": "Només manual",
+  "fr": "Manuel uniquement"
+ },
+ "settings.arrivalNotSet": {
+  "ca": "Sense definir",
+  "fr": "Non défini"
+ },
+ "settings.arrivalOff": {
+  "ca": "Desactivat",
+  "fr": "Désactivé"
+ },
+ "settings.arrivalOn": {
+  "ca": "Activat — automàtic",
+  "fr": "Activé — automatique"
+ },
+ "settings.arrivalStatus": {
+  "ca": "Estat",
+  "fr": "État"
+ },
+ "settings.birthday": {
+  "ca": "Aniversari",
+  "fr": "Date de naissance"
+ },
+ "settings.cancelSubNote": {
+  "ca": "Obre els ajustos de subscripció d'Apple. La membresia es manté activa fins al final del període de facturació actual.",
+  "fr": "Ouvre les réglages d'abonnement Apple. Votre abonnement reste actif jusqu'à la fin de la période de facturation en cours."
+ },
+ "settings.cancelSubscription": {
+  "ca": "Cancel·la la subscripció",
+  "fr": "Résilier l'abonnement"
+ },
+ "settings.deleteAccount": {
+  "ca": "Elimina el compte",
+  "fr": "Supprimer le compte"
+ },
+ "settings.deleteQuestion": {
+  "ca": "Eliminar el compte?",
+  "fr": "Supprimer le compte ?"
+ },
+ "settings.deleteWarning": {
+  "ca": "S'esborraran totes les teves ressenyes, Fiamme i l'historial de membresia. No es pot desfer.",
+  "fr": "Tous vos avis, vos Fiamme et votre historique d'abonnement seront effacés. Cette action est irréversible."
+ },
+ "settings.deleting": {
+  "ca": "Eliminant…",
+  "fr": "Suppression…"
+ },
+ "settings.discard": {
+  "ca": "Descarta",
+  "fr": "Abandonner"
+ },
+ "settings.drinksILike": {
+  "ca": "Begudes que m'agraden",
+  "fr": "Boissons que j'aime"
+ },
+ "settings.email": {
+  "ca": "Correu electrònic",
+  "fr": "E-mail"
+ },
+ "settings.fullName": {
+  "ca": "Nom complet",
+  "fr": "Nom complet"
+ },
+ "settings.gender": {
+  "ca": "Gènere",
+  "fr": "Genre"
+ },
+ "settings.infoNote": {
+  "ca": "Personal, Compte i Preferències necessiten Desa. Les notificacions es desen a l'instant.",
+  "fr": "Personnel, Compte et Préférences nécessitent Enregistrer. Les notifications sont enregistrées instantanément."
+ },
+ "settings.keepAccount": {
+  "ca": "Conserva el compte",
+  "fr": "Conserver le compte"
+ },
+ "settings.lang.ca": {
+  "ca": "Català",
+  "fr": "Català"
+ },
+ "settings.lang.device": {
+  "ca": "Fes servir l'idioma del dispositiu",
+  "fr": "Utiliser la langue de l'appareil"
+ },
+ "settings.lang.en": {
+  "ca": "English",
+  "fr": "English"
+ },
+ "settings.lang.es": {
+  "ca": "Español",
+  "fr": "Español"
+ },
+ "settings.lang.fr": {
+  "ca": "Français",
+  "fr": "Français"
+ },
+ "settings.language": {
+  "ca": "Idioma",
+  "fr": "Langue"
+ },
+ "settings.musicILike": {
+  "ca": "Música que m'agrada",
+  "fr": "Musique que j'aime"
+ },
+ "settings.myVibe": {
+  "ca": "El meu rotllo",
+  "fr": "Mon ambiance"
+ },
+ "settings.nightlifePrefs": {
+  "ca": "Preferències nocturnes",
+  "fr": "Préférences de sortie"
+ },
+ "settings.noLimit": {
+  "ca": "Sense límit",
+  "fr": "Sans limite"
+ },
+ "settings.noneYet": {
+  "ca": "Encara cap",
+  "fr": "Aucune pour l'instant"
+ },
+ "settings.notifications": {
+  "ca": "Notificacions",
+  "fr": "Notifications"
+ },
+ "settings.notificationsFooter": {
+  "ca": "Les notificacions push es gestionen als Ajustos d'iOS.",
+  "fr": "Les notifications push se gèrent dans les Réglages iOS."
+ },
+ "settings.openIOSSettings": {
+  "ca": "Obre els Ajustos d'iOS",
+  "fr": "Ouvrir les Réglages iOS"
+ },
+ "settings.perNight": {
+  "ca": "per nit",
+  "fr": "par soirée"
+ },
+ "settings.permanent": {
+  "ca": "Això és permanent",
+  "fr": "Cette action est définitive"
+ },
+ "settings.personal": {
+  "ca": "Personal",
+  "fr": "Personnel"
+ },
+ "settings.phone": {
+  "ca": "Telèfon",
+  "fr": "Téléphone"
+ },
+ "settings.save": {
+  "ca": "Desa",
+  "fr": "Enregistrer"
+ },
+ "settings.saved": {
+  "ca": "DESAT",
+  "fr": "ENREGISTRÉ"
+ },
+ "settings.signOut": {
+  "ca": "Tanca la sessió",
+  "fr": "Se déconnecter"
+ },
+ "settings.subtitle": {
+  "ca": "Dades personals, preferències i el que t'enviem.",
+  "fr": "Informations personnelles, préférences et ce que nous vous envoyons."
+ },
+ "settings.theme": {
+  "ca": "Aparença",
+  "fr": "Apparence"
+ },
+ "settings.theme.dark": {
+  "ca": "Fosc",
+  "fr": "Sombre"
+ },
+ "settings.theme.light": {
+  "ca": "Clar",
+  "fr": "Clair"
+ },
+ "settings.theme.system": {
+  "ca": "Sistema",
+  "fr": "Système"
+ },
+ "settings.typicalBudget": {
+  "ca": "Pressupost habitual",
+  "fr": "Budget habituel"
+ },
+ "settings.unsavedChanges": {
+  "ca": "Canvis sense desar",
+  "fr": "Modifications non enregistrées"
+ },
+ "settings.upgradeToAlways": {
+  "ca": "Canvia a Sempre",
+  "fr": "Passer à Toujours"
+ },
+ "settings.verify": {
+  "ca": "Verifica",
+  "fr": "Vérifier"
+ },
+ "settings.vipMode": {
+  "ca": "Sense límit — mode vip",
+  "fr": "Sans limite — mode vip"
+ },
+ "settings.yesDelete": {
+  "ca": "Sí, elimina'l",
+  "fr": "Oui, supprimer"
+ },
+ "settings.yourAccount": {
+  "ca": "El teu compte",
+  "fr": "Votre compte"
+ },
+ "shelf.bars.sub": {
+  "ca": "Per començar o per tota la nit",
+  "fr": "Pour l'apéro ou toute la nuit"
+ },
+ "shelf.bars.title": {
+  "ca": "Bars i lounges",
+  "fr": "Bars et lounges"
+ },
+ "shelf.born.sub": {
+  "ca": "Bars amb estil, públic encara millor",
+  "fr": "Bars stylés, public encore plus stylé"
+ },
+ "shelf.born.title": {
+  "ca": "El Born i Sant Pere",
+  "fr": "El Born et Sant Pere"
+ },
+ "shelf.clubs.sub": {
+  "ca": "Pistes de ball tota la nit",
+  "fr": "De vraies pistes toute la nuit"
+ },
+ "shelf.clubs.title": {
+  "ca": "Clubs i discoteques",
+  "fr": "Clubs et discothèques"
+ },
+ "shelf.cocktail.sub": {
+  "ca": "Copes d'autor, bartenders seriosos",
+  "fr": "Cocktails d'auteur, vrais barmen"
+ },
+ "shelf.cocktail.title": {
+  "ca": "Coctelerias",
+  "fr": "Bars à cocktails"
+ },
+ "shelf.date_night.sub": {
+  "ca": "Impressiona des de la primera copa",
+  "fr": "Impressionnez dès le premier verre"
+ },
+ "shelf.date_night.title": {
+  "ca": "Nit de cita",
+  "fr": "Soirée en tête-à-tête"
+ },
+ "shelf.eixample.sub": {
+  "ca": "El Gayxample i més enllà",
+  "fr": "Le Gayxample et au-delà"
+ },
+ "shelf.eixample.title": {
+  "ca": "L'Eixample",
+  "fr": "L'Eixample"
+ },
+ "shelf.featured.sub": {
+  "ca": "Triats per a tu",
+  "fr": "Sélectionnés pour vous"
+ },
+ "shelf.featured.title": {
+  "ca": "Destacats aquesta nit",
+  "fr": "À l'affiche ce soir"
+ },
+ "shelf.first_timer.sub": {
+  "ca": "Comença per aquests",
+  "fr": "Commencez par ceux-ci"
+ },
+ "shelf.first_timer.title": {
+  "ca": "Primer cop a Barcelona?",
+  "fr": "Première fois à Barcelone ?"
+ },
+ "shelf.gems.sub": {
+  "ca": "Discrets, però valen molt la pena",
+  "fr": "Discrets, et pourtant incontournables"
+ },
+ "shelf.gems.title": {
+  "ca": "Joies amagades",
+  "fr": "Pépites cachées"
+ },
+ "shelf.gothic.sub": {
+  "ca": "Carrers antics, energia fins l'alba",
+  "fr": "Ruelles anciennes, énergie jusqu'à l'aube"
+ },
+ "shelf.gothic.title": {
+  "ca": "Barri Gòtic",
+  "fr": "Quartier gothique"
+ },
+ "shelf.gracia.sub": {
+  "ca": "Bars de barri, molta personalitat",
+  "fr": "Bars de quartier, sacré caractère"
+ },
+ "shelf.gracia.title": {
+  "ca": "Gràcia",
+  "fr": "Gràcia"
+ },
+ "shelf.hero.sub": {
+  "ca": "Llistes gratuïtes i taules VIP",
+  "fr": "Listes gratuites et tables VIP"
+ },
+ "shelf.hero.title": {
+  "ca": "Aquesta nit",
+  "fr": "Ce soir"
+ },
+ "shelf.house.sub": {
+  "ca": "Per als fidels del 4/4",
+  "fr": "Pour les fidèles du 4/4"
+ },
+ "shelf.house.title": {
+  "ca": "Música house",
+  "fr": "Musique house"
+ },
+ "shelf.icons.sub": {
+  "ca": "Llegendaris — tothom els coneix",
+  "fr": "Légendaires — tout le monde les connaît"
+ },
+ "shelf.icons.title": {
+  "ca": "Icones de Barcelona",
+  "fr": "Les icônes de Barcelone"
+ },
+ "shelf.latin.sub": {
+  "ca": "Salsa, merengue, reggaeton",
+  "fr": "Salsa, merengue, reggaeton"
+ },
+ "shelf.latin.title": {
+  "ca": "Nits llatines",
+  "fr": "Soirées latines"
+ },
+ "shelf.live_music.sub": {
+  "ca": "Instruments de veritat, emoció de veritat",
+  "fr": "De vrais instruments, de vraies émotions"
+ },
+ "shelf.live_music.title": {
+  "ca": "Sales de música en directe",
+  "fr": "Salles de concert"
+ },
+ "shelf.local_fav.sub": {
+  "ca": "On van realment els barcelonins",
+  "fr": "Là où sortent vraiment les Barcelonais"
+ },
+ "shelf.local_fav.title": {
+  "ca": "Favorits locals",
+  "fr": "Les préférés des locaux"
+ },
+ "shelf.luxury.sub": {
+  "ca": "Vesteix per impressionar",
+  "fr": "Habillez-vous pour impressionner"
+ },
+ "shelf.luxury.title": {
+  "ca": "Alta gamma i exclusius",
+  "fr": "Haut de gamme et exclusifs"
+ },
+ "shelf.most_popular.sub": {
+  "ca": "Tothom en parla",
+  "fr": "Tout le monde en parle"
+ },
+ "shelf.most_popular.title": {
+  "ca": "Els més populars ara",
+  "fr": "Les plus populaires en ce moment"
+ },
+ "shelf.partner.sub": {
+  "ca": "Locals partner oficials",
+  "fr": "Lieux partenaires officiels"
+ },
+ "shelf.partner.title": {
+  "ca": "Partners de Club Fuoco",
+  "fr": "Partenaires Club Fuoco"
+ },
+ "shelf.pre_drinks.sub": {
+  "ca": "Comença la nit com toca",
+  "fr": "Commencez la nuit comme il faut"
+ },
+ "shelf.pre_drinks.title": {
+  "ca": "Per començar la nit",
+  "fr": "Pour lancer la soirée"
+ },
+ "shelf.rooftop.sub": {
+  "ca": "Els llums de la ciutat des de dalt",
+  "fr": "Les lumières de la ville vues d'en haut"
+ },
+ "shelf.rooftop.title": {
+  "ca": "Terrats",
+  "fr": "Terrasses sur les toits"
+ },
+ "shelf.rumbas.sub": {
+  "ca": "Esdeveniments amb llista exclusiva",
+  "fr": "Événements sur liste exclusive"
+ },
+ "shelf.rumbas.title": {
+  "ca": "Llistes d'aquesta nit",
+  "fr": "Les listes de ce soir"
+ },
+ "shelf.techno.sub": {
+  "ca": "On el baix no s'atura mai",
+  "fr": "Là où la basse ne s'arrête jamais"
+ },
+ "shelf.techno.title": {
+  "ca": "Techno i sales fosques",
+  "fr": "Techno et salles sombres"
+ },
+ "shelf.top_rated.sub": {
+  "ca": "El públic ha parlat",
+  "fr": "Le public a parlé"
+ },
+ "shelf.top_rated.title": {
+  "ca": "Millor valorats",
+  "fr": "Les mieux notés"
+ },
+ "shelf.value.sub": {
+  "ca": "Gran nit, compte petit",
+  "fr": "Grande soirée, petite addition"
+ },
+ "shelf.value.title": {
+  "ca": "Millor relació qualitat-preu",
+  "fr": "Meilleur rapport qualité-prix"
+ },
+ "signup.account": {
+  "ca": "Compte",
+  "fr": "Compte"
+ },
+ "signup.alreadyMember": {
+  "ca": "Ja ets membre?",
+  "fr": "Déjà membre ?"
+ },
+ "signup.and": {
+  "ca": "i",
+  "fr": "et"
+ },
+ "signup.areYouArtist": {
+  "ca": "Ets artista o representes un club?",
+  "fr": "Êtes-vous artiste, ou représentez-vous un club ?"
+ },
+ "signup.birthday": {
+  "ca": "aniversari?",
+  "fr": "date de naissance ?"
+ },
+ "signup.birthdaySubtitle": {
+  "ca": "Desbloqueja ofertes exclusives i sorpreses la teva nit.",
+  "fr": "Débloquez des offres exclusives et des surprises pour votre soirée."
+ },
+ "signup.change": {
+  "ca": "Canvia",
+  "fr": "Modifier"
+ },
+ "signup.chooseMembership": {
+  "ca": "Tria la teva",
+  "fr": "Choisissez votre"
+ },
+ "signup.clubArtistNotOpen": {
+  "ca": "Els comptes de club i d'artista encara no estan oberts — arriben ben aviat. De moment, continua com a convidat i explora la ciutat.",
+  "fr": "Les comptes club et artiste ne sont pas encore ouverts — ces fonctionnalités arrivent bientôt. Pour l'instant, continuez en invité et explorez la ville."
+ },
+ "signup.comingSoon": {
+  "ca": "Ben aviat",
+  "fr": "Bientôt disponible"
+ },
+ "signup.continue": {
+  "ca": "Continua",
+  "fr": "Continuer"
+ },
+ "signup.createAccount": {
+  "ca": "Crear compte",
+  "fr": "Créer un compte"
+ },
+ "signup.day": {
+  "ca": "Dia",
+  "fr": "Jour"
+ },
+ "signup.detailsSubtitle": {
+  "ca": "Un nom real a la porta · un correu real per a la llista.",
+  "fr": "Un vrai nom à l'entrée · un vrai e-mail pour la liste."
+ },
+ "signup.emailTakenError": {
+  "ca": "Aquest correu ja està registrat. Prova d'iniciar sessió.",
+  "fr": "Cet e-mail est déjà enregistré. Essayez de vous connecter."
+ },
+ "signup.firstName": {
+  "ca": "Nom",
+  "fr": "Prénom"
+ },
+ "signup.gender.female": {
+  "ca": "Dona",
+  "fr": "Femme"
+ },
+ "signup.gender.male": {
+  "ca": "Home",
+  "fr": "Homme"
+ },
+ "signup.gender.prefer_not_to_say": {
+  "ca": "Prefereixo no dir-ho",
+  "fr": "Je préfère ne pas répondre"
+ },
+ "signup.genderError": {
+  "ca": "Tria'n una per continuar.",
+  "fr": "Choisissez une option pour continuer."
+ },
+ "signup.genderLabel": {
+  "ca": "Gènere",
+  "fr": "Genre"
+ },
+ "signup.howWillYouUse": {
+  "ca": "Com faràs servir Club Fuoco?",
+  "fr": "Comment allez-vous utiliser Club Fuoco ?"
+ },
+ "signup.justNightsOut": {
+  "ca": "← Només vinc a sortir de nit",
+  "fr": "← Je viens juste pour sortir"
+ },
+ "signup.lastName": {
+  "ca": "Cognoms",
+  "fr": "Nom"
+ },
+ "signup.membership": {
+  "ca": "membresia",
+  "fr": "abonnement"
+ },
+ "signup.membershipSubtitle": {
+  "ca": "Comença gratis, millora després · cancel·la quan vulguis.",
+  "fr": "Commencez gratuitement, évoluez plus tard · annulable à tout moment."
+ },
+ "signup.month": {
+  "ca": "Mes",
+  "fr": "Mois"
+ },
+ "signup.orOtherSide": {
+  "ca": "o, si ets a l'altra banda",
+  "fr": "ou, si vous êtes de l'autre côté"
+ },
+ "signup.passwordHint": {
+  "ca": "8+ caràcters · un número · un símbol",
+  "fr": "8+ caractères · un chiffre · un symbole"
+ },
+ "signup.phoneError": {
+  "ca": "Introdueix el teu número de telèfon.",
+  "fr": "Veuillez saisir votre numéro de téléphone."
+ },
+ "signup.phoneTakenError": {
+  "ca": "Aquest telèfon ja està vinculat a un altre compte.",
+  "fr": "Ce numéro est déjà lié à un autre compte."
+ },
+ "signup.pickWhatFits": {
+  "ca": "Tria el que t'encaixi — ho pots canviar més endavant.",
+  "fr": "Choisissez ce qui vous convient — modifiable plus tard."
+ },
+ "signup.privacyPolicy": {
+  "ca": "Política de privacitat",
+  "fr": "Politique de confidentialité"
+ },
+ "signup.recommended": {
+  "ca": "Recomanat · La majoria",
+  "fr": "Recommandé · La plupart"
+ },
+ "signup.selected": {
+  "ca": "Seleccionat",
+  "fr": "Sélectionné"
+ },
+ "signup.signInArrow": {
+  "ca": "Inicia sessió →",
+  "fr": "Se connecter →"
+ },
+ "signup.skipForNow": {
+  "ca": "Ara no",
+  "fr": "Passer pour l'instant"
+ },
+ "signup.startForFree": {
+  "ca": "Comença gratis",
+  "fr": "Commencer gratuitement"
+ },
+ "signup.startFreeUpgrade": {
+  "ca": "Comença gratis, millora després",
+  "fr": "Commencez gratuitement, évoluez plus tard"
+ },
+ "signup.stepLabel": {
+  "ca": "Pas %@ / 03",
+  "fr": "Étape %@ / 03"
+ },
+ "signup.tagBook": {
+  "ca": "Reserva entrada",
+  "fr": "Réserver l'entrée"
+ },
+ "signup.tagDiscover": {
+  "ca": "Descobreix clubs",
+  "fr": "Découvrir des clubs"
+ },
+ "signup.tagSave": {
+  "ca": "Desa esdeveniments",
+  "fr": "Enregistrer des événements"
+ },
+ "signup.tapHere": {
+  "ca": "Toca aquí",
+  "fr": "Appuyez ici"
+ },
+ "signup.termsOfUse": {
+  "ca": "Termes d'ús",
+  "fr": "Conditions d'utilisation"
+ },
+ "signup.tosError": {
+  "ca": "Accepta els Termes d'ús i la Política de privacitat per continuar.",
+  "fr": "Veuillez accepter les Conditions d'utilisation et la Politique de confidentialité pour continuer."
+ },
+ "signup.tosPrefix": {
+  "ca": "He llegit i accepto els",
+  "fr": "J'ai lu et j'accepte les"
+ },
+ "signup.trySigningIn": {
+  "ca": "Prova d'iniciar sessió.",
+  "fr": "Essayez de vous connecter."
+ },
+ "signup.underage": {
+  "ca": "Has de tenir 18 anys o més per fer servir Club Fuoco.",
+  "fr": "Vous devez avoir 18 ans ou plus pour utiliser Club Fuoco."
+ },
+ "signup.whensBirthday": {
+  "ca": "Quan és el teu",
+  "fr": "Quelle est votre"
+ },
+ "signup.whichAreYou": {
+  "ca": "Què ets?",
+  "fr": "Vous êtes ?"
+ },
+ "signup.year": {
+  "ca": "Any",
+  "fr": "Année"
+ },
+ "signup.yourDetails": {
+  "ca": "Les teves",
+  "fr": "Vos"
+ },
+ "signup.yourDetailsEm": {
+  "ca": "dades",
+  "fr": "informations"
+ },
+ "splash.continueGuest": {
+  "ca": "Continua com a convidat",
+  "fr": "Continuer en invité"
+ },
+ "splash.createAccount": {
+  "ca": "Crear compte",
+  "fr": "Créer un compte"
+ },
+ "splash.guestNote": {
+  "ca": "Explora-ho tot sense compte. Només comparteixes dades quan reserves.",
+  "fr": "Explorez tout sans compte. Vous ne partagez vos données qu'au moment de réserver."
+ },
+ "splash.opening": {
+  "ca": "Obrint…",
+  "fr": "Ouverture…"
+ },
+ "splash.signIn": {
+  "ca": "Inicia sessió",
+  "fr": "Se connecter"
+ },
+ "splash.tagline": {
+  "ca": "On la nit comença abans que hi arribis.",
+  "fr": "Là où la nuit commence avant votre arrivée."
+ },
+ "splash.termsNote": {
+  "ca": "En continuar, acceptes els termes i la privacitat",
+  "fr": "En continuant, vous acceptez les conditions et la confidentialité"
+ },
+ "time.daysAgo": {
+  "ca": "fa %dd",
+  "fr": "il y a %dj"
+ },
+ "time.hrsAgo": {
+  "ca": "fa %dh",
+  "fr": "il y a %dh"
+ },
+ "time.justNow": {
+  "ca": "ara mateix",
+  "fr": "à l'instant"
+ },
+ "time.minsAgo": {
+  "ca": "fa %dm",
+  "fr": "il y a %dmin"
+ },
+ "wallet.add": {
+  "ca": "Afegeix a Apple Wallet",
+  "fr": "Ajouter à Apple Wallet"
+ },
+ "wallet.error": {
+  "ca": "No s'ha pogut carregar el pase",
+  "fr": "Impossible de charger le pass"
+ }
+}

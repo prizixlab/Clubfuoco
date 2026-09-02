@@ -188,6 +188,7 @@ const NATIVE_KEYS = {
   'events.passUnavailable': { en: 'Your pass will appear in Tickets shortly.', es: 'Tu pase aparecerá en Entradas en breve.' },
   'events.cancelRsvp': { en: 'Cancel', es: 'Cancelar' },
   'events.cancelTitle': { en: 'Give up your spot?', es: '¿Dejar tu plaza?' },
+  'events.cancelBody': { en: 'Your pass will be cancelled and the spot goes back to the room.', es: 'Tu pase se cancelará y la plaza vuelve a estar disponible.' },
   'events.cancelConfirm': { en: 'Give up my spot', es: 'Dejar mi plaza' },
   'events.onTonight': { en: 'On tonight', es: 'Esta noche' },
   'events.about': { en: 'About', es: 'Sobre la noche' },

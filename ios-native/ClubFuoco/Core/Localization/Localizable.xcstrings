@@ -6442,6 +6442,34 @@
         }
       }
     },
+    "events.cancelBody": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your pass will be cancelled and the spot goes back to the room."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu pase se cancelará y la plaza vuelve a estar disponible."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El teu pase es cancel·larà i la plaça tornarà a estar disponible."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre pass sera annulé et la place remise à disposition."
+          }
+        }
+      }
+    },
     "events.cancelConfirm": {
       "localizations": {
         "en": {

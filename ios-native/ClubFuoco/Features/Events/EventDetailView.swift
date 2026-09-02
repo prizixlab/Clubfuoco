@@ -77,15 +77,21 @@ struct EventDetailView: View {
                     .presentationDetents([.large])
             }
         }
-        .confirmationDialog(
+        // An alert, not a confirmationDialog or a popover. Both of those
+        // anchor to whatever presented them, and from a control docked at the
+        // bottom of the screen they surface as a tailed bubble sitting over the
+        // tab bar. An alert is always a centred modal and cannot be
+        // mispositioned.
+        .alert(
             locale.t("events.cancelTitle"),
-            isPresented: $showCancelConfirm,
-            titleVisibility: .visible
+            isPresented: $showCancelConfirm
         ) {
             Button(locale.t("events.cancelConfirm"), role: .destructive) {
                 Task { await cancel() }
             }
             Button(locale.t("common.cancel"), role: .cancel) {}
+        } message: {
+            Text(locale.t("events.cancelBody"))
         }
         .task { await loadState() }
     }

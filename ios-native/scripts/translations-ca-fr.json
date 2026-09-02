@@ -631,6 +631,10 @@
   "ca": "Sobre la nit",
   "fr": "À propos"
  },
+ "events.cancelBody": {
+  "ca": "El teu pase es cancel·larà i la plaça tornarà a estar disponible.",
+  "fr": "Votre pass sera annulé et la place remise à disposition."
+ },
  "events.cancelConfirm": {
   "ca": "Deixa la meva plaça",
   "fr": "Renoncer à ma place"

@@ -31,6 +31,13 @@ struct EventDetailView: View {
     @State private var bookingId: String?
     @State private var scanToken: String?
     @State private var reference: String?
+    /// The line-up resolved against the DJ catalogue, so a credit can open the
+    /// artist's page. Keyed by RA artist id, with a name fallback for legacy
+    /// credits that carry no id — the same two-step ClubDetailView uses, since
+    /// two DJs can share a name but not an id.
+    @State private var djById: [String: FeaturedDJ] = [:]
+    @State private var djByName: [String: FeaturedDJ] = [:]
+    @State private var activeDJ: FeaturedDJ?
     /// How far the flow has scrolled, for the collapsing bar.
     @State private var scrollY: CGFloat = 0
 
@@ -93,7 +100,13 @@ struct EventDetailView: View {
         } message: {
             Text(locale.t("events.cancelBody"))
         }
-        .task { await loadState() }
+        .sheet(item: $activeDJ) { artist in
+            FeaturedDJSheet(dj: artist, autoplay: false, bookable: false, onBook: nil)
+        }
+        .task {
+            await loadState()
+            await loadDJs()
+        }
     }
 
     // ── Scroll tracking ───────────────────────────────────────────────────────
@@ -305,18 +318,37 @@ struct EventDetailView: View {
     private var lineupList: some View {
         VStack(spacing: 0) {
             ForEach(Array(event.credits.enumerated()), id: \.element.key) { i, credit in
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text(String(format: "%02d", i + 1))
-                        .font(.cfMono(10)).kerning(0.6)
-                        .foregroundStyle(i == 0 ? Explore.accent : Explore.ink3)
-                        .frame(width: 24, alignment: .leading)
-                    Text(credit.name)
-                        .font(.cfDisplay(i == 0 ? 21 : 17, weight: i == 0 ? .bold : .semibold))
-                        .foregroundStyle(Explore.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
+                let artist = dj(for: credit)
+                Button {
+                    guard let artist else { return }
+                    Haptics.tap()
+                    activeDJ = artist
+                } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(String(format: "%02d", i + 1))
+                            .font(.cfMono(10)).kerning(0.6)
+                            .foregroundStyle(i == 0 ? Explore.accent : Explore.ink3)
+                            .frame(width: 24, alignment: .leading)
+                        Text(credit.name)
+                            .font(.cfDisplay(i == 0 ? 21 : 17, weight: i == 0 ? .bold : .semibold))
+                            .foregroundStyle(Explore.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                        // Only the resolvable ones get a chevron. A credit with
+                        // no catalogue row still renders — it just has nowhere
+                        // to go, and promising a page that does not exist is
+                        // worse than a plain name.
+                        if artist != nil {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Explore.ink3)
+                        }
+                    }
+                    .padding(.vertical, 11)
+                    .contentShape(.rect)
                 }
-                .padding(.vertical, 11)
+                .buttonStyle(.plain)
+                .disabled(artist == nil)
                 .overlay(alignment: .bottom) {
                     Rectangle().fill(Explore.line).frame(height: 1)
                 }
@@ -567,6 +599,26 @@ struct EventDetailView: View {
         let bookingId: String?
         let scanToken: String?
         let reference: String?
+    }
+
+    /// Resolve the billed credits against the `djs` catalogue. Ids are looked
+    /// up exactly; only credits WITHOUT one fall back to a name match, which is
+    /// ambiguous. Failure is silent — an unresolved credit simply is not
+    /// tappable, and the page still reads.
+    private func loadDJs() async {
+        let credits = event.credits
+        guard !credits.isEmpty else { return }
+        let ids = Array(Set(credits.compactMap(\.id)))
+        let names = Array(Set(credits.filter { $0.id == nil }.map(\.name)))
+        async let byId = (try? auth.queries.djsByIds(ids)) ?? []
+        async let byName = (try? auth.queries.djsByNames(names)) ?? []
+        djById = (await byId).reduce(into: [:]) { $0[$1.raArtistId] = $1 }
+        djByName = (await byName).reduce(into: [:]) { $0[$1.name] = $1 }
+    }
+
+    private func dj(for credit: LineupCredit) -> FeaturedDJ? {
+        if let id = credit.id, let hit = djById[id] { return hit }
+        return djByName[credit.name]
     }
 
     private func loadState() async {

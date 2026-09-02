@@ -959,13 +959,33 @@ final class BookingsViewModel {
         return live.first?.id
     }
 
+    /// Night ids the user already holds a BOOKING for.
+    ///
+    /// A feed reservation writes two rows on purpose — a booking (the guest's
+    /// record) and a promoter_guests row (the door's list) — and the guest row
+    /// comes back from /api/promoter-invites/mine as an invite. Both would land
+    /// on Tickets, so the same night appeared twice: once as a full ticket and
+    /// once as a bare guest-list strip. The booking is the richer of the two,
+    /// so the invite is the one that gives way.
+    private var bookedNightIDs: Set<String> {
+        guard let data else { return [] }
+        return Set(data.bookings
+            .filter { $0.status != "cancelled" }
+            .compactMap { $0.event?.id?.lowercased() })
+    }
+
+    private func unbooked(_ list: [InviteSummary]) -> [InviteSummary] {
+        let booked = bookedNightIDs
+        return list.filter { !booked.contains($0.allocation.night.id.uuidString.lowercased()) }
+    }
+
     var tonight: [Item] {
         guard let data else { return [] }
         let today = todayString
         return data.bookings.filter { $0.bookingDate == today && $0.status != "cancelled" }.map(Item.booking)
             + data.guestSignups.filter { $0.guestList?.eventDate == today && $0.checkedIn != true && $0.status != "cancelled" }.map(Item.signup)
             + data.ticketOrders.filter { $0.eventDate == today && $0.status != "payment_failed" }.map(Item.ticket)
-            + invites.filter { $0.nightDate == today && $0.checkedInAt == nil }.map(Item.invite)
+            + unbooked(invites).filter { $0.nightDate == today && $0.checkedInAt == nil }.map(Item.invite)
     }
 
     var upcoming: [Item] {
@@ -974,7 +994,7 @@ final class BookingsViewModel {
         return data.bookings.filter { $0.bookingDate > today && $0.status != "cancelled" }.map(Item.booking)
             + data.guestSignups.filter { ($0.guestList?.eventDate ?? "") > today && $0.checkedIn != true && $0.status != "cancelled" }.map(Item.signup)
             + data.ticketOrders.filter { $0.status != "payment_failed" && ($0.eventDate == nil || $0.eventDate! > today) }.map(Item.ticket)
-            + invites.filter { $0.nightDate > today && $0.checkedInAt == nil }.map(Item.invite)
+            + unbooked(invites).filter { $0.nightDate > today && $0.checkedInAt == nil }.map(Item.invite)
     }
 
     var past: [Item] {

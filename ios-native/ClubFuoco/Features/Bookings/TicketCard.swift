@@ -337,9 +337,13 @@ struct TicketCard: View {
                     .foregroundStyle(Explore.ink3)
                     .padding(.bottom, 5)
                 if let reference = booking.qrCodeToken {
-                    Text(reference.prefix(13).uppercased())
-                        .font(.cfMono(12)).kerning(0.6)
+                    // Never truncated — see the note in ReservedSheet. Wraps
+                    // instead, because the code is the thing support asks for.
+                    Text(reference.uppercased())
+                        .font(.cfMono(10.5)).kerning(0.4)
                         .foregroundStyle(Explore.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
                 }
                 Text(doorNote)
                     .font(.cfSans(12))

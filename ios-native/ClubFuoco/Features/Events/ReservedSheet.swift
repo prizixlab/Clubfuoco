@@ -10,10 +10,14 @@ import SwiftUI
 struct ReservedSheet: View {
     let event: FeedEvent
     let bookingId: String
-    /// The 128-bit door secret (`bookings.scan_token`). The CF- reference is a
-    /// label and does NOT scan, so without this there is no working pass.
+    /// The 128-bit door secret (`bookings.scan_token`). The reference below is
+    /// a label and does NOT scan, so without this there is no working pass.
     let scanToken: String?
-    /// The CF-XXXXXXXX display reference. Safe to show; never encoded in the QR.
+    /// `bookings.qr_code_token` — the guest-facing booking reference, a full
+    /// UUID (the column is DB-defaulted to `gen_random_uuid()`, despite the
+    /// "CF-XXXXXXXX" shape the Booking model's comment describes). Shown whole:
+    /// it is what door staff and support look a guest up by, so a shortened
+    /// one is not a tidier label, it is a code that does not match anything.
     let reference: String?
 
     @Environment(LocaleStore.self) private var locale
@@ -85,9 +89,15 @@ struct ReservedSheet: View {
                     .font(.cfSans(12))
                     .foregroundStyle(Theme.onQRSurface.opacity(0.7))
                 if let reference {
-                    Text(reference.prefix(13).uppercased())
-                        .font(.cfMono(11)).kerning(1.2)
-                        .foregroundStyle(Theme.onQRSurface.opacity(0.5))
+                    // The WHOLE reference. It is what door staff and support
+                    // look a guest up by, so a truncated one is not a shorter
+                    // label — it is the wrong code.
+                    Text(reference.uppercased())
+                        .font(.cfMono(11)).kerning(0.8)
+                        .foregroundStyle(Theme.onQRSurface.opacity(0.55))
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
                 }
             }
             .padding(20)

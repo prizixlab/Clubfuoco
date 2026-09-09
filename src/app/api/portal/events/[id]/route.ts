@@ -21,6 +21,32 @@ type Body = {
   lineup?: { id?: string | null; name?: string }[]
   /** Replaces the whole host list, in order. */
   hosts?: { id?: string | null; name?: string }[]
+  /** Replaces the whole route, in order. `[]` turns a route back into an
+   *  ordinary single-venue night. */
+  stops?: unknown[]
+}
+
+/// "23:30:00" or "23:30" → "23:30".
+function clock(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const m = raw.match(/^(\d{2}):(\d{2})/)
+  return m ? `${m[1]}:${m[2]}` : null
+}
+
+/// Normalise the route — mirrors the one in ../route.ts.
+function route(raw: unknown): { club_id: string | null; name: string; start: string | null; end: string | null; note: string | null }[] {
+  if (!Array.isArray(raw)) return []
+  const clean = (raw as Record<string, unknown>[])
+    .filter(s => s && typeof s.name === 'string' && s.name.trim() !== '')
+    .map(s => ({
+      club_id: typeof s.club_id === 'string' && s.club_id ? s.club_id : null,
+      name: (s.name as string).trim().slice(0, 120),
+      start: clock(s.start),
+      end: clock(s.end),
+      note: typeof s.note === 'string' && s.note.trim() !== '' ? s.note.trim().slice(0, 140) : null,
+    }))
+    .slice(0, 6)
+  return clean.length >= 2 ? clean : []
 }
 
 /// Normalise a jsonb [{id, name}] payload — used by both `lineup` and `hosts`.
@@ -70,13 +96,37 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (body.lineup !== undefined) patch.lineup = credits(body.lineup).slice(0, 20)
   if (body.hosts !== undefined) patch.hosts = credits(body.hosts).slice(0, 10)
 
+  // Editing the route re-derives the three columns that hang off it, in the
+  // same direction as the create path: the night belongs to where it starts,
+  // and its span runs from the first stop's start to the last one's end.
+  // Writing `stops` without re-deriving would leave the card saying 23:00 at
+  // Opium while the route says 22:00 at the beach club.
+  if (body.stops !== undefined) {
+    const stops = route(body.stops)
+    if ((body.stops as unknown[]).length > 0 && stops.length === 0) {
+      return err('A route needs at least two stops, each with a name', 400)
+    }
+    patch.stops = stops
+    if (stops.length > 0) {
+      const first = stops[0]
+      const last = stops[stops.length - 1]
+      patch.club_id = first.club_id
+      patch.location_name = first.club_id ? null : first.name
+      patch.open_time = first.start
+      patch.close_time = last.end
+    }
+    // Clearing a route deliberately leaves club_id/open_time/close_time alone:
+    // they are now the only record of where the night is, and blanking them
+    // would strand the event with no venue at all.
+  }
+
   if (Object.keys(patch).length === 0) return err('Nothing to change', 400)
 
   const { data, error } = await sb
     .from('promoter_nights')
     .update(patch)
     .eq('id', id)
-    .select('id, pinned_at, pin_rank, pin_note, is_published, lineup, hosts')
+    .select('id, pinned_at, pin_rank, pin_note, is_published, lineup, hosts, stops, club_id, open_time, close_time')
     .single()
 
   if (error) return err(error.message, 500)

@@ -49,8 +49,8 @@ final class ExploreViewModel {
 
     /// OUR events — promoter nights and house nights, already gated and ordered
     /// by the server (editorial pin, then paid promotion, then soonest). They
-    /// sit above the venue shelves in the feed rather than in a tab of their
-    /// own. Empty on failure: the venue feed must still render.
+    /// sit at the top of the feed rather than in a tab of their own. Empty on
+    /// failure: the venue feed must still render.
     private(set) var feedEvents: [FeedEvent] = []
 
     /// The pinned event takes the top of the feed — the tier-1 hero spot the

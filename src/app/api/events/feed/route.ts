@@ -20,6 +20,19 @@ import { ok, err } from '@/lib/utils'
 // this route restates neither. If the ordering is ever wrong, it is wrong in
 // one place.
 
+/** One leg of a night that moves — "22:00 Bastión Beach Club, then 00:00 Opium".
+ *  `club_id` is set when the stop is one of our venues, which is what lets the
+ *  card link through to that club's page; free-text stops just render. */
+export interface EventStop {
+  club_id: string | null
+  name: string
+  /** Bare clocks, "HH:MM", same convention as open_time. An `end` earlier than
+   *  its `start` is the next morning. */
+  start: string | null
+  end: string | null
+  note: string | null
+}
+
 export interface FeedEvent {
   id: string
   title: string | null
@@ -41,6 +54,9 @@ export interface FeedEvent {
   /** Who RUNS the night — partner_brands id where we have one, else free text.
    *  Distinct from `lineup`, which is who plays it. */
   hosts: { id: string | null; name: string }[]
+  /** An ordered route across venues, when the night moves. Empty for the
+   *  ordinary single-venue case, which is most of them. */
+  stops: EventStop[]
   total_capacity: number
   price_cents: number
   currency: string
@@ -74,6 +90,33 @@ function credits(raw: unknown): { id: string | null; name: string }[] {
     .map(c => ({ id: c.id ?? null, name: c.name as string }))
 }
 
+/// Normalise the `stops` jsonb into a route. A stop with no name is dropped
+/// rather than rendered blank, and a route that ends up with fewer than two
+/// legs collapses to none — a one-stop "route" is just an ordinary night, and
+/// the timeline on the client would be a single pointless dot.
+function route(raw: unknown): EventStop[] {
+  if (!Array.isArray(raw)) return []
+  const clean = (raw as Record<string, unknown>[])
+    .filter(s => s && typeof s.name === 'string' && s.name.trim() !== '')
+    .map(s => ({
+      club_id: typeof s.club_id === 'string' ? s.club_id : null,
+      name: (s.name as string).trim(),
+      start: clock(s.start),
+      end: clock(s.end),
+      note: typeof s.note === 'string' && s.note.trim() !== '' ? s.note.trim() : null,
+    }))
+  return clean.length >= 2 ? clean : []
+}
+
+/// "23:30:00" and "23:30" both arrive here — the column stores bare clocks but
+/// the portal's <input type="time"> submits the short form. Trimmed rather than
+/// parsed: there is no date, so there is no instant to convert.
+function clock(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const m = raw.match(/^(\d{2}):(\d{2})/)
+  return m ? `${m[1]}:${m[2]}` : null
+}
+
 export async function GET() {
   const sb = await createServiceClient()
 
@@ -82,7 +125,7 @@ export async function GET() {
     .select(
       'id, title, night_date, open_time, close_time, description, club_id, ' +
       'location_name, address, lat, lng, photo_urls, total_capacity, ' +
-      'price_cents, currency, is_pinned, featured, is_house, lineup, hosts',
+      'price_cents, currency, is_pinned, featured, is_house, lineup, hosts, stops',
     )
     .limit(100)
 
@@ -94,7 +137,16 @@ export async function GET() {
   // embedding needs a foreign key to follow and a view carries none, so
   // `club:clubs(name)` on v_events_feed does not resolve. Batching also keeps
   // this off the N+1 path a per-row lookup would create.
-  const clubIds = [...new Set(list.map(r => r.club_id).filter((v): v is string => typeof v === 'string'))]
+  // Stop venues go into the SAME batch as the event venues. A route's legs are
+  // clubs too, and their names deserve the same canonical treatment — the
+  // free-text name written on a stop is whatever the operator typed.
+  const routes = new Map<string, EventStop[]>()
+  for (const r of list) routes.set(r.id as string, route(r.stops))
+
+  const clubIds = [...new Set([
+    ...list.map(r => r.club_id),
+    ...[...routes.values()].flat().map(s => s.club_id),
+  ].filter((v): v is string => typeof v === 'string'))]
 
   const clubs = new Map<string, { name: string; cover: string | null }>()
   if (clubIds.length > 0) {
@@ -113,6 +165,12 @@ export async function GET() {
   const events: FeedEvent[] = list.map(r => {
     const club = typeof r.club_id === 'string' ? clubs.get(r.club_id) : undefined
     const photos = (r.photo_urls as string[]) ?? []
+    // Prefer the club's canonical name over what was typed on the stop, for
+    // the same reason venue_name does below.
+    const stops = (routes.get(r.id as string) ?? []).map(s => ({
+      ...s,
+      name: (s.club_id ? clubs.get(s.club_id)?.name : null) ?? s.name,
+    }))
     return {
       id: r.id as string,
       title: (r.title as string) ?? null,
@@ -137,6 +195,7 @@ export async function GET() {
       // non-array here would break decoding on the client.
       lineup: credits(r.lineup),
       hosts: credits(r.hosts),
+      stops,
       total_capacity: r.total_capacity as number,
       price_cents: r.price_cents as number,
       currency: r.currency as string,

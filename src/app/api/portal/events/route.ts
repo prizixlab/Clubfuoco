@@ -36,6 +36,8 @@ export interface PortalEvent {
   photo_urls: string[]
   lineup: { id: string | null; name: string }[]
   hosts: { id: string | null; name: string }[]
+  /** An ordered route across venues. Empty = an ordinary single-venue night. */
+  stops: EventStop[]
   /** Guest-visible right now — the same predicate v_events_feed applies. */
   live: boolean
 }
@@ -47,6 +49,42 @@ function todayMadrid(): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date())
+}
+
+/** One leg of a night that moves. See supabase/migrations/20260908_event_stops.sql. */
+export interface EventStop {
+  club_id: string | null
+  name: string
+  start: string | null
+  end: string | null
+  note: string | null
+}
+
+/// "23:30:00" or "23:30" → "23:30". <input type="time"> submits the short form,
+/// the column stores the long one. Trimmed, not parsed: a bare clock has no
+/// date, so there is no instant to convert.
+function clock(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const m = raw.match(/^(\d{2}):(\d{2})/)
+  return m ? `${m[1]}:${m[2]}` : null
+}
+
+/// Normalise the route. Nameless stops are dropped, and anything shorter than
+/// two legs collapses to none — matching the DB constraint, so a bad payload is
+/// refused legibly here instead of arriving as a check violation.
+function route(raw: unknown): EventStop[] {
+  if (!Array.isArray(raw)) return []
+  const clean = (raw as Record<string, unknown>[])
+    .filter(s => s && typeof s.name === 'string' && s.name.trim() !== '')
+    .map(s => ({
+      club_id: typeof s.club_id === 'string' && s.club_id ? s.club_id : null,
+      name: (s.name as string).trim().slice(0, 120),
+      start: clock(s.start),
+      end: clock(s.end),
+      note: typeof s.note === 'string' && s.note.trim() !== '' ? s.note.trim().slice(0, 140) : null,
+    }))
+    .slice(0, 6)
+  return clean.length >= 2 ? clean : []
 }
 
 /// Normalise a jsonb [{id, name}] column — used by both `lineup` and `hosts`.
@@ -66,7 +104,7 @@ function clubName(row: unknown): string | null {
 const SELECT =
   'id, title, night_date, club_id, location_name, is_published, visibility, ' +
   'review_status, featured, is_house, pinned_at, pin_rank, pin_note, ' +
-  'total_capacity, price_cents, photo_urls, lineup, hosts, club:clubs(name)'
+  'total_capacity, price_cents, photo_urls, lineup, hosts, stops, club:clubs(name)'
 
 // GET /api/portal/events?scope=upcoming|past
 export async function GET(req: Request) {
@@ -107,6 +145,7 @@ export async function GET(req: Request) {
       photo_urls: (row.photo_urls as string[]) ?? [],
       lineup: credits(row.lineup),
       hosts: credits(row.hosts),
+      stops: route(row.stops),
       live:
         (row.is_published as boolean) &&
         row.review_status === 'approved' &&
@@ -143,11 +182,37 @@ export async function POST(req: Request) {
   const capacity = Number(body.total_capacity ?? 100)
   if (!Number.isInteger(capacity) || capacity < 1) return err('Capacity must be a positive whole number', 400)
 
+  // A route: 22:00 at the beach club, then 00:00 to 05:00 at the club proper.
+  // Empty for the ordinary single-venue night, which is most of them.
+  const stops = route(body.stops)
+  if (Array.isArray(body.stops) && (body.stops as unknown[]).length > 0 && stops.length === 0) {
+    return err('A route needs at least two stops, each with a name', 400)
+  }
+
   // A house event is placed EITHER at one of our venues or at a free-text
   // address. Requiring one of the two stops an event that nobody can find.
-  const clubId = body.club_id ? String(body.club_id) : null
-  const locationName = String(body.location_name ?? '').trim() || null
+  //
+  // On a route these three are DERIVED, never taken from the form: the night
+  // belongs to where it starts. bookings.club_id is singular and NOT NULL, and
+  // the pass, the Wallet styling, the arrival geofence and the survey all hang
+  // off it — pointing it at the first stop, where the guest actually turns up
+  // and gets scanned, is what lets the whole reservation path stay untouched.
+  // The span (first start → last end) then reads as the true length of the
+  // night everywhere open_time/close_time are already shown.
+  const first = stops[0]
+  const last = stops[stops.length - 1]
+
+  const clubId = stops.length > 0
+    ? first.club_id
+    : (body.club_id ? String(body.club_id) : null)
+  const locationName = stops.length > 0
+    ? (first.club_id ? null : first.name)
+    : (String(body.location_name ?? '').trim() || null)
+
   if (!clubId && !locationName) return err('Pick a venue, or give the location a name', 400)
+
+  const openTime = stops.length > 0 ? first.start : (body.open_time ? String(body.open_time) : null)
+  const closeTime = stops.length > 0 ? last.end : (body.close_time ? String(body.close_time) : null)
 
   const photos = Array.isArray(body.photo_urls)
     ? (body.photo_urls as unknown[]).map(String).filter(Boolean)
@@ -171,8 +236,9 @@ export async function POST(req: Request) {
       location_name: locationName,
       address: String(body.address ?? '').trim() || null,
       description: String(body.description ?? '').trim() || null,
-      open_time: body.open_time ? String(body.open_time) : null,
-      close_time: body.close_time ? String(body.close_time) : null,
+      open_time: openTime,
+      close_time: closeTime,
+      stops,
       total_capacity: capacity,
       max_plus_ones: body.max_plus_ones == null ? null : Number(body.max_plus_ones),
       photo_urls: photos,

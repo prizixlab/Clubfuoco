@@ -17,6 +17,7 @@ struct EventDetailView: View {
     @Environment(\.api) private var api
     @Environment(AuthStore.self) private var auth
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.pushPlace) private var pushPlace
 
     /// The dock's five states, exactly as the artboard's state sheet lists them.
     private enum ReserveState { case ready, working, reserved, full, signedOut }
@@ -38,6 +39,10 @@ struct EventDetailView: View {
     @State private var djById: [String: FeaturedDJ] = [:]
     @State private var djByName: [String: FeaturedDJ] = [:]
     @State private var activeDJ: FeaturedDJ?
+    /// Route stops resolved to real venues, keyed by club id, so a stop can
+    /// open that club's page. A stop with no club row still renders — it just
+    /// has nowhere to go, same rule as an unresolvable line-up credit.
+    @State private var stopPlaces: [String: Place] = [:]
     /// How far the flow has scrolled, for the collapsing bar.
     @State private var scrollY: CGFloat = 0
 
@@ -106,6 +111,7 @@ struct EventDetailView: View {
         .task {
             await loadState()
             await loadDJs()
+            await loadStops()
         }
     }
 
@@ -219,6 +225,13 @@ struct EventDetailView: View {
                 hostsRow.padding(.top, 16)
             }
 
+            // The schedule outranks the billing on a night that moves: the
+            // first thing you need is where to be and when, and only then who
+            // is playing. Absent entirely on an ordinary single-venue night.
+            if event.isRoute {
+                section(locale.t("events.schedule")) { routeTimeline }
+            }
+
             section(locale.t("events.lineup")) {
                 if event.credits.isEmpty {
                     Text(locale.t("events.noLineup"))
@@ -259,7 +272,10 @@ struct EventDetailView: View {
     /// Venue · Free entry · Room of N — the facts that decide whether to read on.
     private var subLine: some View {
         let parts = [
-            event.venueName,
+            // The whole route on a night that moves — `venueName` is only where
+            // it starts, and printing that alone claims the night happens in
+            // one place.
+            event.placeLine,
             event.isFree ? locale.t("events.free") : nil,
             event.totalCapacity.map { String(format: locale.t("events.roomOf"), $0) },
         ].compactMap { $0 }
@@ -357,10 +373,95 @@ struct EventDetailView: View {
         .padding(.top, 6)
     }
 
+    /// The route as a timeline: a dot per stop joined by a rail, the time
+    /// alongside, and the venue tappable when it is one of ours.
+    ///
+    /// A list of "22:00 Bastión / 00:00 Opium" rows would carry the same facts,
+    /// but the rail is what says these are legs of ONE night in order rather
+    /// than two events someone has to choose between.
+    private var routeTimeline: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(event.route.enumerated()), id: \.element.id) { i, stop in
+                let place = stop.clubId.flatMap { stopPlaces[$0.lowercased()] }
+                let isLast = i == event.route.count - 1
+
+                Button {
+                    guard let place else { return }
+                    Haptics.tap()
+                    pushPlace(place)
+                } label: {
+                    HStack(alignment: .top, spacing: 14) {
+                        VStack(spacing: 0) {
+                            Circle()
+                                .fill(i == 0 ? Explore.accent : Explore.bg)
+                                .frame(width: 11, height: 11)
+                                .overlay {
+                                    Circle().stroke(
+                                        i == 0 ? Explore.accent : Explore.lineStrong,
+                                        lineWidth: 1.5
+                                    )
+                                }
+                            if !isLast {
+                                // Flexible, so the rail stretches to whatever
+                                // height the stop's text needs and always meets
+                                // the next dot.
+                                Rectangle()
+                                    .fill(Explore.line)
+                                    .frame(width: 1)
+                                    .frame(maxHeight: .infinity)
+                            }
+                        }
+                        .padding(.top, 4)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            if let time = stop.timeLabel {
+                                Text(time)
+                                    .font(.cfMono(10.5)).kerning(1.2)
+                                    .foregroundStyle(i == 0 ? Explore.accent : Explore.ink2)
+                            }
+                            Text(stop.name)
+                                .font(.cfDisplay(17, weight: .semibold))
+                                .foregroundStyle(Explore.ink)
+                                .fixedSize(horizontal: false, vertical: true)
+                            if let note = stop.note {
+                                Text(note)
+                                    .font(.cfSans(12.5))
+                                    .foregroundStyle(Explore.ink2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        // Inside the row, not around it, so the rail spans the
+                        // gap between stops instead of stopping short of it.
+                        .padding(.bottom, isLast ? 0 : 20)
+
+                        Spacer(minLength: 0)
+
+                        if place != nil {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Explore.ink3)
+                                .padding(.top, 2)
+                        }
+                    }
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .disabled(place == nil)
+            }
+        }
+        .padding(.top, 10)
+    }
+
     private var detailRows: some View {
         VStack(spacing: 0) {
             Rectangle().fill(Explore.line).frame(height: 1)
-            if let venue = event.venueName {
+            if event.isRoute {
+                // The timeline above already gives times and notes per stop, so
+                // this row just states the shape of the night.
+                detailRow(locale.t("events.where"),
+                          String(format: locale.t("events.stopCount"), event.route.count),
+                          sub: event.routeLine)
+            } else if let venue = event.venueName {
                 detailRow(locale.t("events.where"), venue, sub: event.address)
             }
             detailRow(locale.t("events.when"),
@@ -614,6 +715,16 @@ struct EventDetailView: View {
         async let byName = (try? auth.queries.djsByNames(names)) ?? []
         djById = (await byId).reduce(into: [:]) { $0[$1.raArtistId] = $1 }
         djByName = (await byName).reduce(into: [:]) { $0[$1.name] = $1 }
+    }
+
+    /// Resolve the route's venues so a stop can open that club's page. One
+    /// batched query, not one per stop, and a failure just leaves the rows
+    /// untappable rather than emptying the timeline.
+    private func loadStops() async {
+        let ids = Array(Set(event.route.compactMap(\.clubId)))
+        guard !ids.isEmpty else { return }
+        let places = (try? await auth.queries.clubsByIds(ids)) ?? []
+        stopPlaces = places.reduce(into: [:]) { $0[$1.placeId.lowercased()] = $1 }
     }
 
     private func dj(for credit: LineupCredit) -> FeaturedDJ? {

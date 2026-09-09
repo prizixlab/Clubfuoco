@@ -11,6 +11,37 @@ import Foundation
 ///
 /// Everything past `nightDate` is optional so a column drifting out of the
 /// payload degrades one line of a card rather than failing the whole decode.
+/// One leg of a night that moves — "22:00 Bastión Beach Club, then 00:00 Opium".
+///
+/// A route is stored on the night itself (`promoter_nights.stops`) rather than
+/// as separate events, so the guest reserves once and carries one pass. See
+/// supabase/migrations/20260908_event_stops.sql.
+struct EventStop: Decodable, Sendable, Hashable, Identifiable {
+    /// Set when the stop is one of our venues, which is what lets the row open
+    /// that club's page. Null for a free-text location.
+    let clubId: String?
+    let name: String
+    /// Bare clocks, "HH:MM". An `end` earlier than its `start` is the next
+    /// morning — the same convention `openTime`/`closeTime` already use.
+    let start: String?
+    let end: String?
+    let note: String?
+
+    /// Stable within one route: the same venue can appear twice (a night that
+    /// returns to the first room), so the name alone is not an identity.
+    var id: String { "\(name)|\(start ?? "")|\(end ?? "")" }
+
+    /// "22:00 – 00:00", or whichever half exists.
+    var timeLabel: String? {
+        switch (start, end) {
+        case let (s?, e?): return "\(s) – \(e)"
+        case let (s?, nil): return s
+        case let (nil, e?): return e
+        default: return nil
+        }
+    }
+}
+
 struct FeedEvent: Decodable, Sendable, Identifiable, Hashable {
     let id: String
     let title: String?
@@ -34,6 +65,9 @@ struct FeedEvent: Decodable, Sendable, Identifiable, Hashable {
     /// Separate from `lineup`: a brand can host a night it does not play, and a
     /// resident can play a night another collective is hosting.
     let hosts: [LineupCredit]?
+    /// The route, when the night moves between venues. Empty or absent for an
+    /// ordinary single-venue night, which is most of them.
+    let stops: [EventStop]?
     let totalCapacity: Int?
     let priceCents: Int?
     let currency: String?
@@ -50,6 +84,26 @@ struct FeedEvent: Decodable, Sendable, Identifiable, Hashable {
     var house: Bool { isHouse ?? false }
 
     var displayTitle: String { title ?? venueName ?? "Event" }
+
+    // ── Route ─────────────────────────────────────────────────────────────────
+
+    /// The stops, guaranteed to be a real route or nothing. The server already
+    /// collapses a one-stop list, but this repeats the rule rather than
+    /// trusting it: a single dot is not a schedule, and the card would render
+    /// one as though the night moved.
+    var route: [EventStop] { (stops?.count ?? 0) >= 2 ? stops! : [] }
+
+    var isRoute: Bool { !route.isEmpty }
+
+    /// "Bastión Beach Club → Opium". This replaces the venue name wherever a
+    /// card would otherwise print it — `venueName` is only the FIRST stop on a
+    /// route, so showing it alone would say the night happens at one place.
+    var routeLine: String? {
+        isRoute ? route.map(\.name).joined(separator: " → ") : nil
+    }
+
+    /// The venue line for a card: the route when there is one, else the venue.
+    var placeLine: String? { routeLine ?? venueName }
 
     // ── Dates ─────────────────────────────────────────────────────────────────
     // Parsed with a fixed Barcelona calendar rather than the device's. The
@@ -108,7 +162,7 @@ struct FeedEvent: Decodable, Sendable, Identifiable, Hashable {
     /// The meta line under a title: night, time and venue, skipping whatever is
     /// missing so it never renders a stray separator.
     @MainActor func metaLine(locale: LocaleStore) -> String {
-        [dayLabel(locale: locale), timeLabel, venueName]
+        [dayLabel(locale: locale), timeLabel, placeLine]
             .compactMap { $0 }
             .joined(separator: " · ")
     }

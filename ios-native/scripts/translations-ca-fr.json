@@ -759,6 +759,14 @@
   "ca": "Sala",
   "fr": "Salle"
  },
+ "events.schedule": {
+  "ca": "Horari",
+  "fr": "Programme"
+ },
+ "events.stopCount": {
+  "ca": "%d locals, una nit",
+  "fr": "%d lieux, une nuit"
+ },
  "events.roomHolds": {
   "ca": "Aforament %d",
   "fr": "Capacité %d"
@@ -878,6 +886,10 @@
  "explore.viewClub": {
   "ca": "Veure el club",
   "fr": "Voir le club"
+ },
+ "explore.viewEvent": {
+  "ca": "Veure l'esdeveniment",
+  "fr": "Voir l'événement"
  },
  "fiamme.activitySection": {
   "ca": "N° 05 · Activitat",

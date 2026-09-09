@@ -39,6 +39,7 @@ export default function EventsPage() {
   const [creating, setCreating] = useState(false)
   const [editingLineup, setEditingLineup] = useState<PortalEvent | null>(null)
   const [editingHosts, setEditingHosts] = useState<PortalEvent | null>(null)
+  const [editingRoute, setEditingRoute] = useState<PortalEvent | null>(null)
 
   const load = useCallback(() => {
     setEvents(null)
@@ -124,7 +125,8 @@ export default function EventsPage() {
           <Row key={ev.id} ev={ev} busy={busy === ev.id}
                onPatch={b => patch(ev.id, b)} onDelete={() => remove(ev)}
                onEditLineup={() => setEditingLineup(ev)}
-               onEditHosts={() => setEditingHosts(ev)} />
+               onEditHosts={() => setEditingHosts(ev)}
+               onEditRoute={() => setEditingRoute(ev)} />
         ))}
       </div>
 
@@ -148,17 +150,26 @@ export default function EventsPage() {
                        setEditingLineup(null)
                      }} />
       )}
+
+      {editingRoute && (
+        <RouteModal ev={editingRoute} clubs={clubs} onClose={() => setEditingRoute(null)}
+                    onSave={async next => {
+                      await patch(editingRoute.id, { stops: next })
+                      setEditingRoute(null)
+                    }} />
+      )}
     </div>
   )
 }
 
-function Row({ ev, busy, onPatch, onDelete, onEditLineup, onEditHosts }: {
+function Row({ ev, busy, onPatch, onDelete, onEditLineup, onEditHosts, onEditRoute }: {
   ev: PortalEvent
   busy: boolean
   onPatch: (b: Record<string, unknown>) => void
   onDelete: () => void
   onEditLineup: () => void
   onEditHosts: () => void
+  onEditRoute: () => void
 }) {
   const isPinned = !!ev.pinned_at
   return (
@@ -180,7 +191,11 @@ function Row({ ev, busy, onPatch, onDelete, onEditLineup, onEditHosts }: {
           {ev.title ?? <span style={{ color: C.faint }}>Untitled</span>}
         </div>
         <div style={{ fontFamily: font, fontSize: 12.5, color: C.dim }}>
-          {ev.club_name ?? ev.location_name ?? 'No venue set'}
+          {/* On a route the venue column is only the FIRST stop, so showing it
+              alone would misdescribe the night as happening at one place. */}
+          {ev.stops.length > 0
+            ? routeLine(ev.stops)
+            : (ev.club_name ?? ev.location_name ?? 'No venue set')}
           {' · '}{ev.total_capacity} cap
         </div>
         {ev.hosts.length > 0 && (
@@ -238,6 +253,9 @@ function Row({ ev, busy, onPatch, onDelete, onEditLineup, onEditHosts }: {
         </Btn>
         <Btn small kind="ghost" disabled={busy} onClick={onEditHosts}>
           Hosts
+        </Btn>
+        <Btn small kind="ghost" disabled={busy} onClick={onEditRoute}>
+          {ev.stops.length > 0 ? `Route (${ev.stops.length})` : 'Route'}
         </Btn>
         <Btn small kind="ghost" disabled={busy}
              onClick={() => onPatch({ is_published: !ev.is_published })}>
@@ -390,6 +408,115 @@ function LineupPicker({ value, onChange, source = 'djs', label = 'Line-up' }: {
   )
 }
 
+type Stop = { club_id: string | null; name: string; start: string | null; end: string | null; note: string | null }
+
+/** "22:00 → 05:00 · Bastión Beach Club → Opium" */
+function routeLine(stops: Stop[]): string {
+  return stops.map(s => s.name).join(' → ')
+}
+
+// Route editor: one night, several venues, in order.
+//
+// The beach-strip night is the case this exists for — 22:00 at the beach club,
+// then 00:00 to 05:00 at the club proper. Modelled as one event rather than
+// two, so the guest reserves once, gets one pass, and is counted once.
+//
+// Order is the route, so stops move up and down; the API replaces the whole
+// list. Two stops minimum, matching the DB constraint — a one-stop route is
+// just an ordinary night.
+function RoutePicker({ value, onChange, clubs }: {
+  value: Stop[]
+  onChange: (next: Stop[]) => void
+  clubs: ClubOption[]
+}) {
+  const blank: Stop = { club_id: null, name: '', start: null, end: null, note: null }
+
+  function set(i: number, patch: Partial<Stop>) {
+    onChange(value.map((s, n) => (n === i ? { ...s, ...patch } : s)))
+  }
+  function move(from: number, to: number) {
+    if (to < 0 || to >= value.length) return
+    const next = [...value]
+    const [row] = next.splice(from, 1)
+    next.splice(to, 0, row)
+    onChange(next)
+  }
+
+  if (value.length === 0) {
+    return (
+      <Field label="Route" hint="For a night that moves — a beach club first, then the club proper. One event, one reservation, one pass.">
+        <Btn small kind="ghost" onClick={() => onChange([{ ...blank }, { ...blank }])}>
+          Add a route
+        </Btn>
+      </Field>
+    )
+  }
+
+  return (
+    <Field label="Route" hint="Doors and closing are taken from the first stop’s start and the last stop’s end — don’t set them separately.">
+      <div style={{ display: 'grid', gap: 10 }}>
+        {value.map((stop, i) => (
+          <div key={i} style={{
+            border: `1px solid ${C.line}`, borderRadius: 8, padding: '12px 12px 10px',
+            display: 'grid', gap: 8,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ ...caps, fontSize: 10, color: C.gold, minWidth: 44 }}>Stop {i + 1}</span>
+              <select
+                value={stop.club_id ?? ''}
+                onChange={e => {
+                  const id = e.target.value || null
+                  // Selecting one of our venues also fills the display name, so
+                  // a stop is never saved as an id with a blank label.
+                  set(i, { club_id: id, name: id ? (clubs.find(c => c.id === id)?.name ?? stop.name) : stop.name })
+                }}
+                className="cfp-input"
+                style={{ ...inputStyle, flex: 1, padding: '7px 9px', fontSize: 12.5 }}
+              >
+                <option value="">— Not one of our venues —</option>
+                {clubs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <Btn small kind="ghost" onClick={() => move(i, i - 1)} disabled={i === 0}>↑</Btn>
+              <Btn small kind="ghost" onClick={() => move(i, i + 1)} disabled={i === value.length - 1}>↓</Btn>
+              <Btn small kind="ghost" onClick={() => onChange(value.filter((_, n) => n !== i))}>✕</Btn>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8 }}>
+              <TextInput
+                value={stop.name}
+                onChange={e => set(i, { name: e.target.value })}
+                placeholder="Bastión Beach Club"
+                disabled={!!stop.club_id}
+              />
+              <TextInput type="time" value={stop.start ?? ''} onChange={e => set(i, { start: e.target.value || null })} />
+              <TextInput type="time" value={stop.end ?? ''} onChange={e => set(i, { end: e.target.value || null })} />
+            </div>
+
+            <TextInput
+              value={stop.note ?? ''}
+              onChange={e => set(i, { note: e.target.value || null })}
+              placeholder="What happens here — “Sunset set & dinner”"
+            />
+          </div>
+        ))}
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Btn small kind="ghost" disabled={value.length >= 6}
+               onClick={() => onChange([...value, { ...blank }])}>
+            + Add stop
+          </Btn>
+          <Btn small kind="ghost" onClick={() => onChange([])}>Clear route</Btn>
+          <span style={{ fontFamily: font, fontSize: 12, color: C.faint, marginLeft: 'auto' }}>
+            {value.filter(s => s.name.trim()).length < 2
+              ? 'A route needs at least two named stops'
+              : routeLine(value.filter(s => s.name.trim()))}
+          </span>
+        </div>
+      </div>
+    </Field>
+  )
+}
+
 function CreateModal({ clubs, onClose, onDone }: {
   clubs: ClubOption[]; onClose: () => void; onDone: () => void
 }) {
@@ -404,8 +531,13 @@ function CreateModal({ clubs, onClose, onDone }: {
   const [closeTime, setCloseTime] = useState('')
   const [lineup, setLineup] = useState<Credit[]>([])
   const [hosts, setHosts] = useState<Credit[]>([])
+  const [stops, setStops] = useState<Stop[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // A route owns the venue and the times, so the single-venue fields come off
+  // the form entirely rather than sitting there being ignored on submit.
+  const isRoute = stops.length > 0
 
   async function submit() {
     setSaving(true); setError(null)
@@ -421,6 +553,7 @@ function CreateModal({ clubs, onClose, onDone }: {
           total_capacity: Number(capacity),
           lineup,
           hosts,
+          stops,
           open_time: openTime || null,
           close_time: closeTime || null,
         }),
@@ -454,29 +587,35 @@ function CreateModal({ clubs, onClose, onDone }: {
         </Field>
       </div>
 
-      <Field label="Venue" hint="Pick one of our venues, or leave blank and name the location below.">
-        <select value={clubId} onChange={e => setClubId(e.target.value)}
-                className="cfp-input" style={{ ...inputStyle }}>
-          <option value="">— No venue —</option>
-          {clubs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </Field>
-
-      {!clubId && (
+      {!isRoute && (
         <>
-          <Field label="Location name">
-            <TextInput value={locationName} onChange={e => setLocationName(e.target.value)} placeholder="Rooftop, Poblenou" />
+          <Field label="Venue" hint="Pick one of our venues, or leave blank and name the location below.">
+            <select value={clubId} onChange={e => setClubId(e.target.value)}
+                    className="cfp-input" style={{ ...inputStyle }}>
+              <option value="">— No venue —</option>
+              {clubs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
           </Field>
-          <Field label="Address">
-            <TextInput value={address} onChange={e => setAddress(e.target.value)} />
-          </Field>
+
+          {!clubId && (
+            <>
+              <Field label="Location name">
+                <TextInput value={locationName} onChange={e => setLocationName(e.target.value)} placeholder="Rooftop, Poblenou" />
+              </Field>
+              <Field label="Address">
+                <TextInput value={address} onChange={e => setAddress(e.target.value)} />
+              </Field>
+            </>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <Field label="Doors"><TextInput type="time" value={openTime} onChange={e => setOpenTime(e.target.value)} /></Field>
+            <Field label="Closes"><TextInput type="time" value={closeTime} onChange={e => setCloseTime(e.target.value)} /></Field>
+          </div>
         </>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Field label="Doors"><TextInput type="time" value={openTime} onChange={e => setOpenTime(e.target.value)} /></Field>
-        <Field label="Closes"><TextInput type="time" value={closeTime} onChange={e => setCloseTime(e.target.value)} /></Field>
-      </div>
+      <RoutePicker value={stops} onChange={setStops} clubs={clubs} />
 
       <LineupPicker value={hosts} onChange={setHosts} source="brands"
                     label="Hosted by" />
@@ -517,6 +656,40 @@ function LineupModal({ ev, onClose, onSave }: {
         <Btn kind="primary" disabled={saving}
              onClick={async () => { setSaving(true); await onSave(lineup) }}>
           {saving ? 'Saving…' : 'Save line-up'}
+        </Btn>
+      </div>
+    </Modal>
+  )
+}
+
+/// Turn an existing night into a route, or edit the one it has. Saving
+/// re-derives the venue and the door times from the first and last stop — see
+/// the note in the PATCH route — so the card can never say 23:00 at Opium while
+/// the route starts at 22:00 on the beach.
+function RouteModal({ ev, clubs, onClose, onSave }: {
+  ev: PortalEvent; clubs: ClubOption[]; onClose: () => void; onSave: (next: Stop[]) => Promise<void>
+}) {
+  const [stops, setStops] = useState<Stop[]>(ev.stops)
+  const [saving, setSaving] = useState(false)
+
+  const named = stops.filter(s => s.name.trim())
+  const valid = stops.length === 0 || named.length >= 2
+
+  return (
+    <Modal title={`Route — ${ev.title ?? 'Untitled'}`} onClose={onClose} width={600}>
+      <RoutePicker value={stops} onChange={setStops} clubs={clubs} />
+      {stops.length > 0 && (
+        <p style={{ margin: '4px 0 12px', fontSize: 12.5, color: C.faint, fontFamily: font, lineHeight: 1.55 }}>
+          Saving moves the event to <strong>{named[0]?.name || 'the first stop'}</strong> and sets its
+          hours to {named[0]?.start ?? '—'}&ndash;{named[named.length - 1]?.end ?? '—'}. Guests still
+          reserve once and carry one pass; the door scans them at the first stop.
+        </p>
+      )}
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+        <Btn kind="ghost" onClick={onClose}>Cancel</Btn>
+        <Btn kind="primary" disabled={saving || !valid}
+             onClick={async () => { setSaving(true); await onSave(stops) }}>
+          {saving ? 'Saving…' : 'Save route'}
         </Btn>
       </div>
     </Modal>

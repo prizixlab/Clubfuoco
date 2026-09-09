@@ -20,14 +20,9 @@ private struct ScrollTouchFix: UIViewRepresentable {
     func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
-/// The explore feed, drawn to the "Event Cards - App Front" design: location
-/// line + icon buttons, search pill, the When planner wheel, filter chips, then
-/// the shelf feed of a featured hero over horizontal category rails.
-///
-/// Colour comes from `Explore` rather than `Theme`, and adapts: the artboard's
-/// dark values in dark, the same design system's light palette in light. Data
-/// is unchanged — `ExploreViewModel` and `ShelfBuilder` are exactly as they
-/// were, and cards still push the venue detail route.
+/// Native port of the explore feed: header with wordmark + search/saved
+/// toggles, WhenPlanner, filter chips, and the shelf feed. Cards navigate to
+/// the venue detail screen via NavigationLink(value: Place).
 struct ExploreView: View {
     @Environment(\.api) private var api
     @Environment(AuthStore.self) private var auth
@@ -41,17 +36,6 @@ struct ExploreView: View {
     @State private var debugDetailPlace: Place?
     @State private var debugDetailRumba: Rumba?
     #endif
-
-    /// Club ids running a live offer on the planned night. This is the only
-    /// thing that earns a card the design's accented `offer` frame; every
-    /// other card is plain. Either way the card taps through to the venue.
-    /// Keys in `offersByClub` are lowercased, which is
-    /// also how `Place.placeId` is stored.
-    private var offerClubIds: Set<String> {
-        Set(model.offersByClub.compactMap { clubId, offers in
-            offers.contains { $0.liveOn(plan.date) } ? clubId : nil
-        })
-    }
 
     /// First-launch ask: WhenInUse so we can show clubs closest to the user.
     /// Skips guests (no booking story yet) and anyone who already decided.
@@ -74,22 +58,22 @@ struct ExploreView: View {
         VStack(spacing: 0) {
             // Pinned top bar — stays in place while the feed scrolls beneath it.
             VStack(alignment: .leading, spacing: 0) {
-                topbar
-                    .padding(.init(top: 16, leading: Explore.gutter,
-                                   bottom: 10, trailing: Explore.gutter))
+                header
+                    .padding(.init(top: 8, leading: 20, bottom: model.showSearch ? 16 : 14, trailing: 20))
 
                 if model.showSearch {
                     searchField
-                        .padding(.init(top: 0, leading: Explore.gutter,
-                                       bottom: 12, trailing: Explore.gutter))
+                        .padding(.init(top: 0, leading: 20, bottom: 16, trailing: 20))
                 }
             }
-            .background(Explore.bg)
-            // Hairline so the feed scrolls away beneath the fixed header,
-            // reading as a separate layer rather than part of the card list.
+            .background(Theme.cream)
+            // Hairline + soft shadow so the When planner (and feed) scroll away
+            // beneath the fixed header, reading as a separate layer rather than
+            // part of the card list.
             .overlay(alignment: .bottom) {
-                Rectangle().fill(Explore.line).frame(height: 1)
+                Rectangle().fill(Theme.hairline).frame(height: 1)
             }
+            .shadow(color: Theme.ink.opacity(0.06), radius: 8, y: 4)
             .zIndex(1)
 
             ScrollView {
@@ -109,21 +93,14 @@ struct ExploreView: View {
                         }
                     }
                 }
-                .padding(.top, 8)
-                .padding(.bottom, 28)
+                .padding(.top, 16)
                 .background(ScrollTouchFix())
             }
             .refreshable {
                 await model.load(planDate: plan.date) { locale.t($0) }
             }
         }
-        .background(Explore.bg)
-        // NO colorScheme override here. `.environment` flows down the whole
-        // subtree, and `navigationDestination` content is part of it — forcing
-        // `.dark` on this view also forced it on ClubDetailView,
-        // RumbaDetailView and ShelfListView. Explore is the launch tab, so
-        // that removed light mode from most of the app. The palette adapts on
-        // its own; the appearance is the device's to decide.
+        .background(Theme.cream)
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(for: Place.self) { place in
             ClubDetailView(place: place)
@@ -191,32 +168,24 @@ struct ExploreView: View {
         }
     }
 
-    // ── Top bar (.topbar) ─────────────────────────────────────────────────────
+    // ── Header ────────────────────────────────────────────────────────────────
 
-    /// Location line + controls. The design replaces the old "fuoco." wordmark
-    /// with a live location/night line, which doubles as a readout of what the
-    /// When planner below is set to.
-    private var topbar: some View {
+    private var header: some View {
         HStack(alignment: .center) {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(Explore.accent)
-                    .frame(width: 6, height: 6)
-                    // `.dotc` — the gold dot carries a soft 3px halo.
-                    .overlay(Circle().stroke(Explore.accentSoft, lineWidth: 3))
-                Text(locale.t("explore.city"))
-                    .font(.cfSans(13, weight: .semibold))
-                    .foregroundStyle(Explore.ink)
-                Text("· \(plan.nightPhrase(locale: locale))")
-                    .font(.cfSans(13))
-                    .foregroundStyle(Explore.ink2)
-                    .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("fuoco.")
+                    .font(.cfSerif(28, italic: true))
+                    .foregroundStyle(Theme.ink)
+                Text(locale.t("explore.subtitle"))
+                    .font(.cfSans(10))
+                    .kerning(0.8)
+                    .foregroundStyle(Theme.fadedSand)
             }
 
-            Spacer(minLength: 8)
+            Spacer()
 
             HStack(spacing: 8) {
-                iconButton(
+                roundButton(
                     icon: model.showSearch ? "xmark" : "magnifyingglass",
                     active: model.showSearch
                 ) {
@@ -227,16 +196,15 @@ struct ExploreView: View {
                     FiammeView()
                 } label: {
                     Text(locale.t("explore.points").uppercased())
-                        .font(.cfMono(10, weight: .medium))
-                        .kerning(0.8)
-                        .foregroundStyle(Explore.ink2)
-                        .padding(.horizontal, 12)
-                        .frame(height: 34)
-                        .background(Explore.surface2, in: .capsule)
-                        .overlay(Capsule().stroke(Explore.line, lineWidth: 1))
+                        .font(.cfSans(11, weight: .semibold))
+                        .kerning(0.5)
+                        .foregroundStyle(Theme.stone)
+                        .padding(.horizontal, 13)
+                        .frame(height: 36)
+                        .background(Theme.ink.opacity(0.05), in: .capsule)
                 }
 
-                iconButton(
+                roundButton(
                     icon: model.showSaved ? "bookmark.fill" : "bookmark",
                     active: model.showSaved
                 ) {
@@ -246,55 +214,45 @@ struct ExploreView: View {
         }
     }
 
-    /// `.icon-btn` — 34pt circle, surface-2 fill, hairline ring. Active flips
-    /// to the gold fill the chips use, so "search on" and "chip on" read the
-    /// same way.
-    private func iconButton(icon: String, active: Bool, action: @escaping () -> Void) -> some View {
+    private func roundButton(icon: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundStyle(active ? Explore.onAccent : Explore.ink2)
-                .frame(width: 34, height: 34)
-                .background(active ? Explore.accent : Explore.surface2, in: .circle)
-                .overlay(Circle().stroke(active ? .clear : Explore.line, lineWidth: 1))
+                .font(.system(size: 15))
+                .foregroundStyle(active ? Theme.cream : Theme.stone)
+                .frame(width: 36, height: 36)
+                .background(active ? Theme.ink : Theme.ink.opacity(0.05), in: .circle)
         }
     }
 
-    /// `.search` — a pill, not the cream feed's rounded rect.
     private var searchField: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 14))
-                .foregroundStyle(Explore.ink3)
-            TextField(
-                "",
-                text: Bindable(model).search,
-                prompt: Text(locale.t("explore.searchPlaceholder"))
-                    .font(.cfSans(13.5))
-                    .foregroundStyle(Explore.ink3)
-            )
-            .font(.cfSans(13.5))
-            .foregroundStyle(Explore.ink)
-            .tint(Explore.accent)
-            .autocorrectionDisabled()
-            .submitLabel(.search)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(Theme.stone)
+            TextField(locale.t("explore.searchPlaceholder"), text: Bindable(model).search)
+                .font(.cfSans(16))
+                .foregroundStyle(Theme.ink)
+                .tint(Theme.ember)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
             if !model.search.isEmpty {
                 Button {
                     Haptics.tap()
                     withAnimation(.easeOut(duration: 0.15)) { model.search = "" }
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 15))
-                        .foregroundStyle(Explore.ink3)
+                        .font(.system(size: 16))
+                        .foregroundStyle(Theme.sand)
                 }
                 .buttonStyle(.plain)
                 .transition(.opacity.combined(with: .scale))
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-        .background(Explore.surface, in: .capsule)
-        .overlay(Capsule().stroke(Explore.line, lineWidth: 1))
+        .padding(.horizontal, 16)
+        .frame(height: 50)
+        .background(Theme.surface, in: .rect(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.ink.opacity(0.06), lineWidth: 1))
+        .shadow(color: Theme.ink.opacity(0.06), radius: 12, y: 4)
     }
 
     // ── Feed ──────────────────────────────────────────────────────────────────
@@ -303,49 +261,19 @@ struct ExploreView: View {
         let shelves = model.shelves
 
         return VStack(alignment: .leading, spacing: 0) {
-            // The day wheel. It sits directly under the header, above the
-            // chips, because `plan.date` is the input the whole feed ranks on:
-            // ShelfBuilder tiers venues by whether an offer is live on the
-            // planned night, and the featured section header prints it.
             WhenPlannerView()
-                .padding(.top, 10)
+                .padding(.bottom, 16)
 
-            filterChips
-                .padding(.top, 14)
+            // ── Tier 1: our events ────────────────────────────────────────────
+            // Above every venue shelf. This is the slot the portal's pin
+            // control chooses, and an event outranks a venue here by design: a
+            // venue is somewhere you could go, an event is something that is
+            // actually happening. Absent entirely when we have nothing on, so
+            // the feed opens on the venue shelves exactly as it does today.
+            eventsSection
 
-            // ── Tier 1: the pinned event ─────────────────────────────────────
-            // The very top of the feed, above every venue shelf. This is the
-            // slot the portal's pin control chooses, and an event outranks a
-            // venue here by design: a venue is somewhere you could go, an
-            // event is something that is actually happening.
-            if let hero = model.heroEvent {
-                NavigationLink(value: hero) {
-                    EventHeroCard(event: hero)
-                        .padding(.horizontal, Explore.gutter)
-                        .padding(.top, 20)
-                }
-                .buttonStyle(.plain)
-            }
-
-            if !model.railEvents.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    SectionHead(
-                        subtitle: locale.t("events.kicker"),
-                        title: locale.t("events.more")
-                    ) { EmptyView() }
-
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(alignment: .top, spacing: 12) {
-                            ForEach(model.railEvents) { event in
-                                NavigationLink(value: event) { EventCard(event: event) }
-                                    .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.horizontal, Explore.gutter)
-                        .padding(.bottom, 6)
-                    }
-                }
-                .padding(.top, 22)
+            if let first = shelves.first, first.featured {
+                ShelfRowView(shelf: first, index: 0, saved: model.saved, onSave: save)
             }
 
             // Guest-list events strip — HIDDEN. We have no booking agreements
@@ -358,52 +286,47 @@ struct ExploreView: View {
                 rumbaShelf
             }
 
+            // Filter chips
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(ShelfBuilder.filterChips, id: \.id) { chip in
+                        let active = model.activeFilter == chip.id
+                        Button {
+                            model.activeFilter = chip.id
+                            model.rebuildShelves(planDate: plan.date) { locale.t($0) }
+                            Haptics.tap()
+                        } label: {
+                            Text(locale.t(chip.labelKey))
+                                .font(.cfSans(13, weight: active ? .semibold : .regular))
+                                .foregroundStyle(active ? Theme.cream : Theme.stone)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 7)
+                                .background(active ? Theme.ink : Theme.ink.opacity(0.05), in: .capsule)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+            .padding(.bottom, 16)
+
             if shelves.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "location.magnifyingglass")
                         .font(.system(size: 40))
-                        .foregroundStyle(Explore.ink3.opacity(0.5))
+                        .foregroundStyle(Theme.fadedSand.opacity(0.4))
                     Text(locale.t("explore.noneNearby"))
                         .font(.cfSans(14))
-                        .foregroundStyle(Explore.ink2)
+                        .foregroundStyle(Theme.fadedSand)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 48)
             } else {
-                ForEach(shelves) { shelf in
-                    ShelfRowView(
-                        shelf: shelf,
-                        saved: model.saved,
-                        offerClubIds: offerClubIds,
-                        onSave: save
-                    )
-                }
-            }
-        }
-    }
-
-    /// `.filterbar` — gold when active, surface-2 with a hairline otherwise.
-    private var filterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(ShelfBuilder.filterChips, id: \.id) { chip in
-                    let active = model.activeFilter == chip.id
-                    Button {
-                        model.activeFilter = chip.id
-                        model.rebuildShelves(planDate: plan.date) { locale.t($0) }
-                        Haptics.tap()
-                    } label: {
-                        Text(locale.t(chip.labelKey))
-                            .font(.cfSans(12.5, weight: active ? .semibold : .medium))
-                            .foregroundStyle(active ? Explore.onAccent : Explore.ink2)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(active ? Explore.accent : Explore.surface2, in: .capsule)
-                            .overlay(Capsule().stroke(active ? .clear : Explore.line, lineWidth: 1))
+                ForEach(Array(shelves.enumerated()), id: \.element.id) { i, shelf in
+                    if !(i == 0 && shelf.featured) {
+                        ShelfRowView(shelf: shelf, index: i, saved: model.saved, onSave: save)
                     }
                 }
             }
-            .padding(.horizontal, Explore.gutter)
         }
     }
 
@@ -413,16 +336,73 @@ struct ExploreView: View {
         }
     }
 
+    // ── Our events ────────────────────────────────────────────────────────────
+
+    /// The pinned event as a hero card, then everything else as a rail. Both
+    /// use the feed's own card shapes (see EventCards.swift) rather than a
+    /// separate event styling.
+    @ViewBuilder
+    private var eventsSection: some View {
+        if let hero = model.heroEvent {
+            VStack(alignment: .leading, spacing: 0) {
+                NavigationLink(value: hero) {
+                    EventHeroCard(event: hero)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 20)
+
+                if !model.railEvents.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(locale.t("events.kicker").uppercased())
+                                .font(.cfSans(9))
+                                .kerning(1.3)
+                                .foregroundStyle(Theme.fadedSand)
+                            Text(locale.t("events.more"))
+                                .font(.cfSans(18, weight: .medium))
+                                .foregroundStyle(Theme.ink)
+                        }
+                        .padding(.horizontal, 20)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(alignment: .top, spacing: 12) {
+                                ForEach(model.railEvents) { event in
+                                    NavigationLink(value: event) {
+                                        EventCard(event: event)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                        }
+                    }
+                    .padding(.top, 26)
+                }
+            }
+            .padding(.bottom, 28)
+        }
+    }
+
     // ── Rumbas strip ──────────────────────────────────────────────────────────
 
     private var rumbaShelf: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionHead(subtitle: locale.t("shelf.rumbas.sub"),
-                        title: locale.t("shelf.rumbas.title")) {
-                Text(String(format: locale.t("explore.eventsArrow"), model.rumbas.count))
-                    .font(.cfSans(12.5, weight: .semibold))
-                    .foregroundStyle(Explore.accent)
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(locale.t("shelf.rumbas.sub").uppercased())
+                    .font(.cfSans(9))
+                    .kerning(1.3)
+                    .foregroundStyle(Theme.fadedSand)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(locale.t("shelf.rumbas.title"))
+                        .font(.cfSans(18, weight: .medium))
+                        .foregroundStyle(Theme.ink)
+                    Spacer()
+                    Text(String(format: locale.t("explore.eventsArrow"), model.rumbas.count))
+                        .font(.cfSans(12))
+                        .foregroundStyle(Theme.accent)
+                }
             }
+            .padding(.horizontal, 20)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
@@ -433,52 +413,42 @@ struct ExploreView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, Explore.gutter)
+                .padding(.horizontal, 20)
             }
         }
-        .padding(.top, 22)
+        .padding(.bottom, 24)
     }
 
     private func rumbaCard(_ rumba: Rumba) -> some View {
         ZStack(alignment: .bottomLeading) {
-            Explore.photoPlaceholder
+            Color(hex: 0x1A1410)
                 .overlay {
                     if let url = rumba.coverImage.flatMap(URL.init(string:)) {
-                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Explore.photoPlaceholder }
+                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color(hex: 0x1A1410) }
                     }
                 }
-                .overlay { GrainOverlay() }
-                .overlay(
-                    LinearGradient(colors: [.black.opacity(0.75), .clear],
-                                   startPoint: .bottom, endPoint: .top)
-                )
                 .frame(width: 220, height: 130)
                 .clipped()
+                .overlay(
+                    LinearGradient(colors: [.black.opacity(0.75), .clear], startPoint: .bottom, endPoint: .top)
+                )
 
-            // Over a photo — fixed light ink, never the adaptive pair.
-            VStack(alignment: .leading, spacing: 2) {
-                Text("RUMBA")
-                    .font(.cfMono(9))
-                    .kerning(1.2)
-                    .foregroundStyle(Explore.onPhoto)
+            VStack(alignment: .leading, spacing: 1) {
+                Kicker("RUMBA", color: Theme.flame, size: 8)
                 Text(rumba.title)
-                    .font(.cfDisplay(14))
-                    .foregroundStyle(Explore.onPhoto)
+                    .font(.cfSans(13, weight: .semibold))
+                    .foregroundStyle(.white)
                     .lineLimit(1)
                 Text([rumba.venueName, String(format: locale.t("rumba.spotsLeft"), rumba.spotsLeft)]
                     .compactMap { $0 }.joined(separator: " · "))
                     .font(.cfSans(10))
-                    .foregroundStyle(Explore.onPhotoDim)
+                    .foregroundStyle(.white.opacity(0.6))
                     .lineLimit(1)
             }
             .padding(10)
         }
         .frame(width: 220, height: 130)
-        .clipShape(.rect(cornerRadius: Explore.rThumb))
-        .overlay(
-            RoundedRectangle(cornerRadius: Explore.rThumb)
-                .stroke(Explore.lineStrong, lineWidth: 1)
-        )
+        .clipShape(.rect(cornerRadius: 12))
     }
 
     // ── Search results ────────────────────────────────────────────────────────
@@ -488,56 +458,52 @@ struct ExploreView: View {
             if model.searchResults.isEmpty {
                 Text(String(format: locale.t("explore.noResults"), model.search))
                     .font(.cfSans(13))
-                    .foregroundStyle(Explore.ink2)
+                    .foregroundStyle(Theme.fadedSand)
                     .padding(.vertical, 32)
             } else {
                 ForEach(model.searchResults) { place in
                     NavigationLink(value: place) {
                         HStack(spacing: 12) {
-                            Explore.photoPlaceholder
+                            Theme.imagePlaceholder
                                 .overlay {
                                     if let url = place.coverPhoto.flatMap(URL.init(string:)) {
-                                        CachedAsyncImage(url: url, targetWidth: FeedImage.thumbWidth) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Explore.photoPlaceholder }
+                                        CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Theme.imagePlaceholder }
                                     }
                                 }
                                 .frame(width: 52, height: 52)
                                 .clipShape(.rect(cornerRadius: 10))
 
-                            VStack(alignment: .leading, spacing: 3) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(place.name)
-                                    .font(.cfDisplay(14))
-                                    .foregroundStyle(Explore.ink)
+                                    .font(.cfSans(14, weight: .semibold))
+                                    .foregroundStyle(Theme.ink)
                                     .lineLimit(1)
-                                Text(place.neighborhood ?? place.address)
-                                    .font(.cfSans(11.5))
-                                    .foregroundStyle(Explore.ink2)
+                                Text(place.address)
+                                    .font(.cfSans(12))
+                                    .foregroundStyle(Theme.fadedSand)
                                     .lineLimit(1)
                             }
                             Spacer()
                             if place.isOpen == true {
                                 Text(locale.t("explore.open").uppercased())
-                                    .font(.cfMono(9))
+                                    .font(.cfSans(8, weight: .semibold))
                                     .kerning(1)
-                                    .foregroundStyle(Explore.ember)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(.black.opacity(0.5), in: .capsule)
-                                    .overlay(Capsule().stroke(Explore.ember.opacity(0.5), lineWidth: 1))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2)
+                                    .background(Theme.success, in: .capsule)
                             }
                         }
                         .padding(12)
-                        .background(Explore.surface, in: .rect(cornerRadius: Explore.rCard))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Explore.rCard)
-                                .stroke(Explore.lineStrong, lineWidth: 1)
-                        )
+                        .background(Theme.surface, in: .rect(cornerRadius: 12))
+                        .shadow(color: Color(hex: 0x221E1A).opacity(0.05), radius: 6, y: 3)
                     }
                     .buttonStyle(.plain)
                 }
             }
         }
-        .padding(.horizontal, Explore.gutter)
-        .padding(.top, 14)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
     }
 
     // ── Saved view ────────────────────────────────────────────────────────────
@@ -545,69 +511,108 @@ struct ExploreView: View {
     private var savedView: some View {
         let savedPlaces = model.savedPlaces
         return VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(locale.t("explore.savedTitle"))
-                    .font(.cfDisplay(30, weight: .bold))
-                    .foregroundStyle(Explore.ink)
+                    .font(.cfSerif(44, italic: true))
+                    .foregroundStyle(Theme.ink)
                 Text(savedPlaces.isEmpty
                      ? locale.t("explore.noSaved")
                      : savedPlaces.count == 1
                         ? locale.t("explore.savedOne")
                         : String(format: locale.t("explore.savedMany"), savedPlaces.count))
-                    .font(.cfMono(10.5))
-                    .kerning(0.8)
-                    .foregroundStyle(Explore.ink3)
+                    .font(.cfSans(13))
+                    .foregroundStyle(Theme.fadedSand)
             }
-            .padding(.init(top: 16, leading: Explore.gutter, bottom: 20, trailing: Explore.gutter))
+            .padding(.init(top: 4, leading: 20, bottom: 20, trailing: 20))
 
             if savedPlaces.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "bookmark")
-                        .font(.system(size: 40))
-                        .foregroundStyle(Explore.ink3.opacity(0.5))
+                        .font(.system(size: 42))
+                        .foregroundStyle(Theme.fadedSand.opacity(0.3))
                         .padding(.bottom, 8)
                     Text(locale.t("explore.nothingSaved"))
                         .font(.cfSans(14))
-                        .foregroundStyle(Explore.ink2)
+                        .foregroundStyle(Theme.fadedSand)
                     Text(locale.t("explore.savedHint"))
                         .font(.cfSans(12))
-                        .foregroundStyle(Explore.ink3)
-                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Theme.fadedSand.opacity(0.7))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, 32)
                 .padding(.vertical, 48)
             } else {
-                VStack(spacing: 12) {
+                VStack(spacing: 16) {
                     ForEach(savedPlaces) { place in
-                        EventRow(
-                            place: place,
-                            hasOffer: offerClubIds.contains(place.placeId),
-                            isSaved: true
-                        ) { save(place) }
+                        savedCard(place)
                     }
                 }
-                .padding(.horizontal, Explore.gutter)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
         }
+    }
+
+    private func savedCard(_ place: Place) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topTrailing) {
+                CardPhotoLarge(url: place.coverPhoto)
+                Button {
+                    save(place)
+                } label: {
+                    Image(systemName: "bookmark.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.white)
+                        .frame(width: 32, height: 32)
+                        .background(.black.opacity(0.45), in: .circle)
+                }
+                .padding(12)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(place.name)
+                    .font(.cfSerif(30))
+                    .foregroundStyle(Theme.ink)
+                Text(place.address)
+                    .font(.cfSans(13))
+                    .foregroundStyle(Theme.fadedSand)
+
+                NavigationLink(value: place) {
+                    HStack(spacing: 8) {
+                        Text(locale.t("explore.viewClub"))
+                            .font(.cfSans(13, weight: .semibold))
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 46)
+                    .background(Theme.ink, in: .rect(cornerRadius: 12))
+                    .foregroundStyle(Theme.cream)
+                }
+                .padding(.top, 10)
+            }
+            .padding(.init(top: 18, leading: 20, bottom: 20, trailing: 20))
+        }
+        .background(Theme.surface)
+        .clipShape(.rect(cornerRadius: Theme.radiusCard))
+        .shadow(color: Color(hex: 0x221E1A).opacity(0.08), radius: 14, y: 10)
     }
 
     // ── Loading / error ───────────────────────────────────────────────────────
 
     private var skeleton: some View {
-        VStack(alignment: .leading, spacing: 26) {
-            // Featured card — visible structure inside (tag + two title lines)
+        VStack(alignment: .leading, spacing: 28) {
+            // Hero card — visible structure inside (kicker + two title lines)
             // so a slow venue image load doesn't look like a giant empty box.
             ZStack(alignment: .bottomLeading) {
-                ShimmerBlock(corner: Explore.rFeatured).frame(height: 300)
+                ShimmerBlock(corner: 16).frame(height: 220)
                 VStack(alignment: .leading, spacing: 10) {
-                    ShimmerBlock(corner: 4).frame(width: 120, height: 11)
-                    ShimmerBlock(corner: 4).frame(width: 200, height: 26)
-                    ShimmerBlock(corner: 4).frame(width: 150, height: 14)
+                    ShimmerBlock(corner: 4).frame(width: 80, height: 10)
+                    ShimmerBlock(corner: 4).frame(width: 220, height: 22)
+                    ShimmerBlock(corner: 4).frame(width: 160, height: 18)
                 }
-                .padding(18)
+                .padding(16)
             }
-            // Rails — horizontal ScrollView (like the loaded feed) so the
+            // Shelves — horizontal ScrollView (like the loaded feed) so the
             // fixed-width cards clip at the screen edge instead of widening
             // the whole skeleton past it.
             ForEach(0..<2, id: \.self) { _ in
@@ -616,7 +621,7 @@ struct ExploreView: View {
                     ScrollView(.horizontal) {
                         HStack(spacing: 12) {
                             ForEach(0..<3, id: \.self) { _ in
-                                ShimmerBlock(corner: Explore.rFeed).frame(width: 164, height: 220)
+                                ShimmerBlock(corner: 14).frame(width: 160, height: 200)
                             }
                         }
                     }
@@ -624,31 +629,41 @@ struct ExploreView: View {
                 }
             }
         }
-        .padding(.horizontal, Explore.gutter)
-        .padding(.top, 14)
+        .padding(.horizontal, 20)
     }
 
     private func errorBanner(_ message: String) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.circle")
-                .foregroundStyle(Explore.ember)
+                .foregroundStyle(Theme.wine)
             Text(locale.t("explore.loadError"))
                 .font(.cfSans(13))
-                .foregroundStyle(Explore.ink2)
+                .foregroundStyle(Theme.stone)
             Spacer()
             Button(locale.t("common.retry")) {
                 Task { await model.load(planDate: plan.date) { locale.t($0) } }
             }
-            .font(.cfSans(13, weight: .semibold))
-            .foregroundStyle(Explore.accent)
+            .font(.cfSans(13, weight: .medium))
+            .foregroundStyle(Theme.wine)
         }
         .padding(14)
-        .background(Explore.surface, in: .rect(cornerRadius: Explore.rCard))
-        .overlay(
-            RoundedRectangle(cornerRadius: Explore.rCard)
-                .stroke(Explore.ember.opacity(0.35), lineWidth: 1)
-        )
-        .padding(.horizontal, Explore.gutter)
-        .padding(.top, 14)
+        .background(Theme.surface, in: .rect(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.wine.opacity(0.2)))
+        .padding(.horizontal, 20)
+    }
+}
+
+private struct CardPhotoLarge: View {
+    let url: String?
+
+    var body: some View {
+        Theme.imagePlaceholder
+            .overlay {
+                if let url, let parsed = URL(string: url) {
+                    CachedAsyncImage(url: parsed) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Theme.imagePlaceholder }
+                }
+            }
+            .frame(height: 200)
+            .clipped()
     }
 }

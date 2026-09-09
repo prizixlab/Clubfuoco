@@ -86,6 +86,14 @@ struct ProfileView: View {
             await auth.refreshProfile()
             await model.load(api: api, queries: auth.queries)
         }
+        // Coming back from Friends after accepting or declining, the badge is
+        // stale — `.task` does not re-run for a view that was only covered by a
+        // pushed destination. Guarded on the first load having happened, so this
+        // is a refresh and not a duplicate of it.
+        .onAppear {
+            guard model.friendCount != nil else { return }
+            Task { await model.refreshFriends(api: api) }
+        }
         .onChange(of: avatarItem) {
             guard let item = avatarItem else { return }
             avatarItem = nil
@@ -361,7 +369,11 @@ struct ProfileView: View {
             } label: {
                 menuRow(n: "03", icon: "person.2.fill",
                         label: locale.t("profile.friends"),
-                        sub: model.friendsSub ?? "—")
+                        // With requests waiting, the subtitle says what is
+                        // waiting rather than repeating the friend count the
+                        // badge already sits beside.
+                        sub: friendsSub,
+                        badge: model.pendingRequests)
             }
 
             Rectangle().fill(Theme.ink.opacity(0.16)).frame(height: 1)
@@ -429,7 +441,22 @@ struct ProfileView: View {
         Rectangle().fill(Theme.hairline).frame(height: 1)
     }
 
-    private func menuRow(n: String, icon: String, label: String, sub: String) -> some View {
+    /// "12 friends", or "3 waiting to be answered" when requests are pending.
+    private var friendsSub: String {
+        let pending = model.pendingRequests
+        if pending > 0 {
+            return String(format: locale.t(pending == 1 ? "profile.friendRequestsOne"
+                                                        : "profile.friendRequests"), pending)
+        }
+        guard let count = model.friendCount else { return "—" }
+        return String(format: locale.t(count == 1 ? "profile.friendsCountOne"
+                                                  : "profile.friendsCount"), count)
+    }
+
+    /// `badge` is a count of things waiting on the user. 0 renders nothing —
+    /// an empty badge is worse than no badge, because it still pulls the eye.
+    private func menuRow(n: String, icon: String, label: String, sub: String,
+                         badge: Int = 0) -> some View {
         HStack(spacing: 12) {
             Kicker(n, color: Theme.fadedSand, size: 9)
                 .frame(width: 18, alignment: .leading)
@@ -447,6 +474,20 @@ struct ProfileView: View {
                     .foregroundStyle(Theme.fadedSand)
             }
             Spacer()
+            if badge > 0 {
+                // Trailing edge, ahead of the arrow — where iOS puts a count on
+                // a settings row, so it reads as "N waiting" without a legend.
+                // A capsule rather than a circle so three digits still fit.
+                Text(badge > 99 ? "99+" : "\(badge)")
+                    .font(.cfSans(11.5, weight: .semibold))
+                    .foregroundStyle(Theme.cream)
+                    .monospacedDigit()
+                    .padding(.horizontal, 7)
+                    .frame(minWidth: 21, minHeight: 21)
+                    .background(Theme.wine, in: .capsule)
+                    // Spoken as "3 pending requests", not as a bare numeral.
+                    .accessibilityLabel(friendsSub)
+            }
             Image(systemName: "arrow.right")
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.fadedSand)
@@ -469,7 +510,10 @@ final class ProfileViewModel {
     private(set) var bookingsTotal: Int?
     private(set) var savedCount: Int?
     private(set) var friendCount: Int?
-    private(set) var friendsSub: String?
+    /// Friend requests waiting on THIS user — the incoming half only. Outgoing
+    /// requests are not something they can act on, so badging them would send
+    /// people to a screen with nothing to do.
+    private(set) var pendingRequests: Int = 0
 
     func load(api: APIClient, queries: Queries) async {
         // Bookings via PostgREST (the REST route is cookie-only — see Queries).
@@ -486,10 +530,15 @@ final class ProfileViewModel {
         savedCount = await favorites?.count
         if let friends = await friendsData {
             friendCount = friends.friends.count
-            friendsSub = friends.incoming.isEmpty
-                ? "\(friends.friends.count)"
-                : "\(friends.friends.count) · \(friends.incoming.count) ⏳"
+            pendingRequests = friends.incoming.count
         }
+    }
+
+    /// Just the friends half of `load`, for coming back from the Friends screen.
+    func refreshFriends(api: APIClient) async {
+        guard let friends: FriendsData = try? await api.get("/api/friends") else { return }
+        friendCount = friends.friends.count
+        pendingRequests = friends.incoming.count
     }
 }
 
@@ -515,6 +564,28 @@ private struct AvatarCropView: View {
     private let minScale: CGFloat = 1
     private let maxScale: CGFloat = 6
 
+    /// Shown when the crop cannot be produced. Previously this path fired a
+    /// haptic and nothing else, so "Use" looked like a dead button.
+    @State private var failed = false
+
+    /// The window's own top and bottom insets.
+    ///
+    /// The editor deliberately ignores the ambient safe area (it is a black
+    /// full-bleed surface, and the dimming should reach the screen edges), and
+    /// then pays the inset back HERE, exactly once. Relying on the ambient
+    /// inset is what put Cancel and Use underneath the clock and the battery:
+    /// unreadable, and a 44pt tap target overlapping system furniture.
+    ///
+    /// The fallbacks are the notch-era defaults, used only if there is no
+    /// window to ask — a case that cannot happen while this view is on screen.
+    private static var insets: (top: CGFloat, bottom: CGFloat) {
+        let window = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow }
+        return (window?.safeAreaInsets.top ?? 47, window?.safeAreaInsets.bottom ?? 34)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -530,6 +601,7 @@ private struct AvatarCropView: View {
                         onConfirm(jpeg)
                     } else {
                         Haptics.error()
+                        failed = true
                     }
                 } label: {
                     Text("Use").font(.cfSans(15, weight: .semibold))
@@ -538,6 +610,15 @@ private struct AvatarCropView: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
+            .padding(.top, Self.insets.top)
+
+            if failed {
+                Text("Could not prepare that photo. Try another one.")
+                    .font(.cfSans(12.5))
+                    .foregroundStyle(Theme.flame)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 8)
+            }
 
             Spacer()
 
@@ -587,10 +668,14 @@ private struct AvatarCropView: View {
             Text("Drag to reposition · pinch to zoom")
                 .font(.cfSans(13))
                 .foregroundStyle(.white.opacity(0.55))
-                .padding(.bottom, 32)
+                .padding(.bottom, 20 + Self.insets.bottom)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.ignoresSafeArea())
+        .background(Color.black)
+        // Ignored on purpose, and paid back explicitly on the bar and the hint
+        // above — see `insets`. The whole surface is black and the dim mask
+        // should reach the screen edges, but the CONTROLS must not.
+        .ignoresSafeArea()
     }
 
     /// The photo scaled to fill the crop square, then transformed by the
@@ -613,6 +698,51 @@ private struct AvatarCropView: View {
         let renderer = ImageRenderer(content: content)
         renderer.proposedSize = ProposedViewSize(width: cropSide, height: cropSide)
         renderer.scale = 512 / cropSide
-        return renderer.uiImage?.jpegData(compressionQuality: 0.8)
+        if let data = renderer.uiImage?.jpegData(compressionQuality: 0.8) { return data }
+
+        // ImageRenderer returns nil rather than throwing, and when it does the
+        // only symptom was a haptic — "Use" behaved like a dead button with
+        // nothing on screen to explain it. Draw the same transform straight
+        // into a bitmap instead of round-tripping through SwiftUI.
+        return drawCrop()
+    }
+
+    /// The preview's transform, reproduced with Core Graphics.
+    ///
+    /// `imageLayer` fills the crop square (`scaledToFill` into `cropSide`),
+    /// scales about that square's centre, then translates — so the drawn image
+    /// is `size * fit * scale`, centred, shifted by `offset`, with every
+    /// measurement carried from crop points into the 512px output by `k`.
+    /// Anything the user panned past the edge lands outside the canvas and
+    /// stays black, which is what the circle shows there too.
+    private func drawCrop() -> Data? {
+        let w = image.size.width, h = image.size.height
+        guard w > 0, h > 0 else { return nil }
+
+        let fit = max(cropSide / w, cropSide / h)   // scaledToFill
+        let total = fit * scale
+        guard total > 0 else { return nil }
+
+        let out: CGFloat = 512
+        let k = out / cropSide
+
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        format.opaque = true
+
+        let bitmap = UIGraphicsImageRenderer(
+            size: CGSize(width: out, height: out), format: format
+        ).image { ctx in
+            UIColor.black.setFill()
+            ctx.fill(CGRect(origin: .zero, size: CGSize(width: out, height: out)))
+            let drawW = w * total * k
+            let drawH = h * total * k
+            image.draw(in: CGRect(
+                x: out / 2 - drawW / 2 + offset.width * k,
+                y: out / 2 - drawH / 2 + offset.height * k,
+                width: drawW, height: drawH
+            ))
+        }
+        return bitmap.jpegData(compressionQuality: 0.8)
     }
 }

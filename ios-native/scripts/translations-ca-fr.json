@@ -1667,6 +1667,22 @@
   "ca": "Amics",
   "fr": "Amis"
  },
+ "profile.friendsCount": {
+  "ca": "%d amics",
+  "fr": "%d amis"
+ },
+ "profile.friendsCountOne": {
+  "ca": "%d amic",
+  "fr": "%d ami"
+ },
+ "profile.friendRequests": {
+  "ca": "%d esperant resposta",
+  "fr": "%d en attente de réponse"
+ },
+ "profile.friendRequestsOne": {
+  "ca": "%d esperant resposta",
+  "fr": "%d en attente de réponse"
+ },
  "profile.header": {
   "ca": "CLUB FUOCO · COMPTE",
   "fr": "CLUB FUOCO · COMPTE"

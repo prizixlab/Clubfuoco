@@ -195,8 +195,9 @@ struct FriendsView: View {
                 .font(.cfSerif(19))
                 .foregroundStyle(Theme.ink)
                 .lineLimit(1)
+                .truncationMode(.tail)
 
-            Spacer()
+            Spacer(minLength: 8)
             trailing()
         }
         .padding(.vertical, 10)
@@ -210,6 +211,15 @@ struct FriendsView: View {
             Text(title)
                 .font(.cfSans(12, weight: .semibold))
                 .foregroundStyle(filled ? Theme.cream : Theme.stone)
+                // Incompressible. Without this the label is the cheapest thing
+                // in the row for SwiftUI to shrink — wrapping costs it nothing,
+                // while truncating the name beside it loses information — so a
+                // long name squeezed these into "Acce/pt" and "Decli/ne".
+                // Fixed-size pills make the NAME yield instead, which is the
+                // right trade: a clipped name still reads, a broken verb does
+                // not.
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
                 .background(filled ? Theme.ink : .clear, in: .capsule)
@@ -231,6 +241,10 @@ struct FriendsView: View {
             }
             Text(text)
                 .font(.cfSans(11, weight: .semibold))
+                // Same reason as actionButton: "Pending" / "Requested" sit
+                // beside a name that can be long, and must not break in half.
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
         .foregroundStyle(Theme.fadedSand)
         .padding(.horizontal, 12)

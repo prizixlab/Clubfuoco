@@ -117,6 +117,100 @@ function clock(raw: unknown): string | null {
   return m ? `${m[1]}:${m[2]}` : null
 }
 
+/// Today in Barcelona. The venues are here, so a listing still running at
+/// 01:00 local is today's — the same rule the view applies to our own nights.
+function todayMadrid(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date())
+}
+
+/// Featured scraped listings, in FeedEvent shape.
+///
+/// A scraped RA row is not one of our nights: nobody can join it, and we do
+/// not own the guest list. It reaches the app ONLY when the portal has
+/// featured it — the desk is the whole gate — and it lands here rather than in
+/// a parallel feed so the client needs no second model and the card and detail
+/// page are the ones it already has. Detail is read-only for every event
+/// today, so nothing about it promises a reservation we cannot honour.
+///
+/// The id is namespaced `ra:<ra_event_id>` so it can never collide with a
+/// promoter_nights uuid.
+async function featuredScraped(
+  sb: Awaited<ReturnType<typeof createServiceClient>>,
+  today: string,
+): Promise<FeedEvent[]> {
+  const { data: slots, error } = await sb
+    .from('featured_slots')
+    .select('ra_event_id')
+    .not('ra_event_id', 'is', null)
+  if (error || !slots || slots.length === 0) return []
+
+  const ids = slots.map(s => s.ra_event_id as string)
+  const { data: rows } = await sb
+    .from('events')
+    .select('ra_event_id, title, date, start_time, end_time, venue_name, club_id, ' +
+            'image, description, lineup, artists, promoters, venue_capacity')
+    .in('ra_event_id', ids)
+    .gte('date', today)
+  if (!rows || rows.length === 0) return []
+
+  // The multi-line select string defeats the generated row types, same as the
+  // view read above — one cast here rather than a fight per field.
+  const list = rows as unknown as Record<string, unknown>[]
+
+  const clubIds = [...new Set(list.map(r => r.club_id).filter((v): v is string => typeof v === 'string'))]
+  const clubs = new Map<string, string>()
+  if (clubIds.length > 0) {
+    const { data: cs } = await sb.from('clubs').select('id, name').in('id', clubIds)
+    for (const c of cs ?? []) clubs.set(c.id as string, c.name as string)
+  }
+
+  /// RA stores full timestamps; the app's event card wants a bare clock.
+  const hhmm = (ts: unknown): string | null => {
+    if (typeof ts !== 'string') return null
+    const m = ts.match(/T(\d{2}):(\d{2})/)
+    return m ? `${m[1]}:${m[2]}` : null
+  }
+
+  return list.map(row => {
+    const image = typeof row.image === 'string' && row.image ? row.image : null
+    const lineup = credits(row.lineup)
+    const artists = Array.isArray(row.artists) ? (row.artists as unknown[]) : []
+    const promoters = Array.isArray(row.promoters) ? (row.promoters as unknown[]) : []
+    const clubId = typeof row.club_id === 'string' ? row.club_id : null
+    const cap = Number(String(row.venue_capacity ?? '').replace(/[^0-9]/g, ''))
+    return {
+      id: `ra:${row.ra_event_id as string}`,
+      title: (row.title as string) ?? null,
+      night_date: row.date as string,
+      open_time: hhmm(row.start_time),
+      close_time: hhmm(row.end_time),
+      description: (row.description as string) ?? null,
+      venue_name: (clubId ? clubs.get(clubId) : null) ?? (row.venue_name as string) ?? null,
+      club_id: clubId,
+      address: null, lat: null, lng: null,
+      image,
+      photo_urls: image ? [image] : [],
+      lineup: lineup.length > 0
+        ? lineup
+        : artists.filter((a): a is string => typeof a === 'string' && a.trim() !== '')
+            .map(name => ({ id: null, name })),
+      hosts: promoters
+        .filter((p): p is string => typeof p === 'string' && p.trim() !== '')
+        .map(name => ({ id: null, name })),
+      stops: [],
+      total_capacity: Number.isFinite(cap) && cap > 0 ? cap : 0,
+      price_cents: 0,
+      currency: 'EUR',
+      // Its place on the shelf comes from the slot it sits in, not from these.
+      is_pinned: false,
+      featured: false,
+      is_house: false,
+    }
+  })
+}
+
 export async function GET() {
   const sb = await createServiceClient()
 
@@ -205,7 +299,12 @@ export async function GET() {
     }
   })
 
+  // Featured scraped listings ride along at the end. The view's ordering is
+  // about OUR nights; where a scraped one sits on the shelf is decided by its
+  // featured slot, which the client applies.
+  const scraped = await featuredScraped(sb, todayMadrid())
+
   // Uncached, matching /api/partner: a pin taken down has to disappear on the
   // next load, not when a CDN entry lapses. Clients cache locally instead.
-  return ok({ events })
+  return ok({ events: [...events, ...scraped] })
 }

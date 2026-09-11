@@ -216,8 +216,8 @@ function Tier({ n, blurb, slots, busy, onAdd, onMove, onRemove, onNudge }: {
               </div>
 
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <Badge color={s.kind === 'event' ? C.gold : C.green}>
-                  {s.kind === 'event' ? 'Event' : 'Venue'}
+                <Badge color={s.kind === 'venue' ? C.green : s.kind === 'scraped' ? C.faint : C.gold}>
+                  {s.kind === 'venue' ? 'Venue' : s.kind === 'scraped' ? 'Scraped' : 'Event'}
                 </Badge>
                 {n === 1 && i === 0 && <Badge color={C.goldHi}>Live hero</Badge>}
                 {!s.live && <Badge color={C.danger}>Not showable</Badge>}
@@ -246,7 +246,7 @@ function PickerModal({ tier, candidates, onClose, onPick }: {
   onPick: (c: FeaturedCandidate) => void
 }) {
   const [q, setQ] = useState('')
-  const [kind, setKind] = useState<'all' | 'event' | 'venue'>('all')
+  const [kind, setKind] = useState<'all' | 'event' | 'scraped' | 'venue'>('all')
 
   // Every venue is eligible, and there are ~1,760 of them. Filtering is over
   // the WHOLE pool so search always reaches the tail; only the rendering is
@@ -266,11 +266,11 @@ function PickerModal({ tier, candidates, onClose, onPick }: {
   }, [candidates, q, kind])
 
   return (
-    <Modal title={`Add to tier ${tier}`} onClose={onClose}>
+    <Modal title={`Add to tier ${tier}`} onClose={onClose} width={660}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        {(['all', 'event', 'venue'] as const).map(k => (
+        {(['all', 'event', 'scraped', 'venue'] as const).map(k => (
           <Btn key={k} small kind={kind === k ? 'primary' : 'ghost'} onClick={() => setKind(k)}>
-            {k === 'all' ? 'Everything' : k === 'event' ? 'Events' : 'Venues'}
+            {k === 'all' ? 'Everything' : k === 'event' ? 'Ours' : k === 'scraped' ? 'Scraped' : 'Venues'}
           </Btn>
         ))}
       </div>
@@ -286,7 +286,7 @@ function PickerModal({ tier, candidates, onClose, onPick }: {
           : total > CAP ? `${total} matches · showing the first ${CAP}, keep typing to narrow`
           : `${total} match${total === 1 ? '' : 'es'}`}
       </p>
-      <div style={{ display: 'grid', gap: 6, maxHeight: 380, overflowY: 'auto' }}>
+      <div style={{ display: 'grid', gap: 6, maxHeight: '58vh', overflowY: 'auto', overscrollBehavior: 'contain' }}>
         {list.length === 0 && (
           <p style={{ margin: 0, color: C.faint, fontFamily: font, fontSize: 13 }}>Nothing matches.</p>
         )}
@@ -303,11 +303,20 @@ function PickerModal({ tier, candidates, onClose, onPick }: {
               display: 'flex', alignItems: 'center', gap: 10,
             }}
           >
-            <span style={{ ...caps, fontSize: 9, color: c.kind === 'event' ? C.gold : C.green, width: 44 }}>
-              {c.kind === 'event' ? 'Event' : 'Venue'}
+            <span style={{
+              ...caps, fontSize: 9, width: 52, flexShrink: 0,
+              color: c.kind === 'venue' ? C.green : c.kind === 'scraped' ? C.faint : C.gold,
+            }}>
+              {c.kind === 'venue' ? 'Venue' : c.kind === 'scraped' ? 'RA' : 'Ours'}
             </span>
-            <span style={{ flex: 1 }}>{c.title}</span>
-            <span style={{ fontFamily: mono, fontSize: 11, color: C.faint }}>
+            <span style={{
+              flex: 1, minWidth: 0, overflow: 'hidden',
+              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>{c.title}</span>
+            <span style={{
+              fontFamily: mono, fontSize: 11, color: C.faint, flexShrink: 0,
+              maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
               {c.taken ? 'featured' : [fmtDate(c.night_date), c.subtitle].filter(Boolean).join(' · ')}
             </span>
           </button>

@@ -16,12 +16,17 @@ import { ok, err } from '@/lib/utils'
 // from, because the desk is useless without the pool and two round trips to
 // draw one page is silly.
 
+/** What a slot can point at. `scraped` is an RA listing from public.events —
+ *  featurable because a featured one is served through /api/events/feed in
+ *  FeedEvent shape, so it opens the ordinary (read-only) event page. */
+export type FeaturedKind = 'event' | 'venue' | 'scraped'
+
 export interface FeaturedSlot {
   id: string
   tier: 1 | 2
   rank: number
   note: string | null
-  kind: 'event' | 'venue'
+  kind: FeaturedKind
   /** The featured thing's own id — a night id or a club id. */
   target_id: string
   title: string
@@ -35,7 +40,7 @@ export interface FeaturedSlot {
 }
 
 export interface FeaturedCandidate {
-  kind: 'event' | 'venue'
+  kind: FeaturedKind
   id: string
   title: string
   subtitle: string | null
@@ -63,7 +68,8 @@ function usableCover(url: string | null): string | null {
 
 interface SlotRow {
   id: string; tier: number; rank: number; note: string | null
-  night_id: string | null; club_id: string | null; created_at: string
+  night_id: string | null; club_id: string | null; ra_event_id: string | null
+  created_at: string
 }
 
 export async function GET() {
@@ -74,7 +80,7 @@ export async function GET() {
 
   const { data: slotData, error: slotErr } = await sb
     .from('featured_slots')
-    .select('id, tier, rank, note, night_id, club_id, created_at')
+    .select('id, tier, rank, note, night_id, club_id, ra_event_id, created_at')
     .order('tier', { ascending: true })
     .order('rank', { ascending: true })
     .order('created_at', { ascending: true })
@@ -124,6 +130,16 @@ export async function GET() {
     }
   }
 
+  const raIds = slots.map(s => s.ra_event_id).filter((v): v is string => !!v)
+  const scraped = new Map<string, Record<string, unknown>>()
+  if (raIds.length > 0) {
+    const { data } = await sb
+      .from('events')
+      .select('ra_event_id, title, date, venue_name, image')
+      .in('ra_event_id', raIds)
+    for (const r of data ?? []) scraped.set(r.ra_event_id as string, r as Record<string, unknown>)
+  }
+
   const out: FeaturedSlot[] = []
   for (const s of slots) {
     if (s.night_id) {
@@ -152,6 +168,20 @@ export async function GET() {
         title: c.name, subtitle: c.area, image: c.cover,
         night_date: null, live: true,
       })
+    } else if (s.ra_event_id) {
+      const r = scraped.get(s.ra_event_id)
+      // The scraper rewrites public.events wholesale, so a listing can vanish
+      // between runs. The slot stays but stops resolving — shown as dead
+      // rather than dropped, so it can be cleared from the desk on purpose.
+      out.push({
+        id: s.id, tier: s.tier === 1 ? 1 : 2, rank: s.rank, note: s.note,
+        kind: 'scraped', target_id: s.ra_event_id,
+        title: (r?.title as string) ?? 'Listing no longer in the scrape',
+        subtitle: (r?.venue_name as string) ?? null,
+        image: (r?.image as string) ?? null,
+        night_date: (r?.date as string) ?? null,
+        live: !!r && (r.date as string) >= today,
+      })
     }
   }
 
@@ -159,11 +189,8 @@ export async function GET() {
   return ok({ today, slots: out, candidates: await pool(sb, today, taken) })
 }
 
-/// What can be put in a slot: every upcoming night of ours, and every venue.
-///
-/// Scraped RA listings are deliberately absent — they have no consumer detail
-/// page, so featuring one would put a card at the top of the feed that opens
-/// nothing.
+/// What can be put in a slot: every upcoming night of ours, every upcoming
+/// scraped listing, and every venue — the whole of what we know is on.
 async function pool(
   sb: Awaited<ReturnType<typeof createServiceClient>>,
   today: string,
@@ -196,6 +223,31 @@ async function pool(
       night_date: (n.night_date as string) ?? null,
       taken: taken.has(`event:${id}`),
     })
+  }
+
+  // Scraped listings — the bulk of what is actually on in the city. Paged for
+  // the same reason the venues are: there are a few hundred upcoming and the
+  // response ceiling is 1000.
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb
+      .from('events')
+      .select('ra_event_id, title, date, venue_name')
+      .gte('date', today)
+      .order('date', { ascending: true })
+      .order('ra_event_id', { ascending: true })
+      .range(from, from + 999)
+    if (error || !data || data.length === 0) break
+    for (const r of data) {
+      const id = r.ra_event_id as string
+      out.push({
+        kind: 'scraped', id,
+        title: (r.title as string) ?? 'Untitled listing',
+        subtitle: (r.venue_name as string) ?? null,
+        night_date: (r.date as string) ?? null,
+        taken: taken.has(`scraped:${id}`),
+      })
+    }
+    if (data.length < 1000) break
   }
 
   // EVERY venue is eligible, so every venue has to arrive here.
@@ -248,7 +300,9 @@ export async function POST(request: NextRequest) {
   const kind = body.kind
   const id = typeof body.id === 'string' ? body.id : ''
   const tier = Number(body.tier)
-  if (kind !== 'event' && kind !== 'venue') return err('kind must be event or venue')
+  if (kind !== 'event' && kind !== 'venue' && kind !== 'scraped') {
+    return err('kind must be event, venue or scraped')
+  }
   if (!id) return err('id is required')
   if (tier !== 1 && tier !== 2) return err('tier must be 1 or 2')
 
@@ -269,11 +323,16 @@ export async function POST(request: NextRequest) {
     note: typeof body.note === 'string' && body.note.trim() !== '' ? body.note.trim() : null,
     night_id: kind === 'event' ? id : null,
     club_id: kind === 'venue' ? id : null,
+    ra_event_id: kind === 'scraped' ? id : null,
   }
 
   const { error } = await sb.from('featured_slots').insert(row)
   if (error) {
-    if (/duplicate key|featured_slots_(night|club)_uniq/i.test(error.message)) {
+    if (/ra_event_id|featured_slot_one_target/i.test(error.message)) {
+      return err('Featuring a scraped listing needs a schema change that has not been ' +
+                 'applied yet — run supabase/migrations/20260911_featured_scraped.sql.', 503)
+    }
+    if (/duplicate key|featured_slots_(night|club|ra)_uniq/i.test(error.message)) {
       return err('That is already featured — move it between tiers instead of adding it twice.')
     }
     if (/featured_slots|does not exist|relation|schema cache/i.test(error.message)) {

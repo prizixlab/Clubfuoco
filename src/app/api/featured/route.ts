@@ -39,7 +39,7 @@ export async function GET() {
 
   const { data, error } = await sb
     .from('featured_slots')
-    .select('tier, rank, night_id, club_id, created_at')
+    .select('tier, rank, night_id, club_id, ra_event_id, created_at')
     .order('tier', { ascending: true })
     .order('rank', { ascending: true })
     .order('created_at', { ascending: true })
@@ -49,7 +49,9 @@ export async function GET() {
   // never be the reason the feed fails to render.
   if (error || !data) return ok({ tier1: [], tier2: [] })
 
-  const rows = data as { tier: number; night_id: string | null; club_id: string | null }[]
+  const rows = data as {
+    tier: number; night_id: string | null; club_id: string | null; ra_event_id: string | null
+  }[]
 
   // A featured night still has to pass the guest gate. Featuring something
   // does not publish it, and a night that has passed or been unpublished must
@@ -81,6 +83,9 @@ export async function GET() {
             : null
         }
         if (r.club_id) return { kind: 'venue' as const, id: r.club_id.toLowerCase() }
+        // A featured scraped listing is served through /api/events/feed under
+        // this same `ra:` id, so the client resolves it like any other event.
+        if (r.ra_event_id) return { kind: 'event' as const, id: `ra:${r.ra_event_id}` }
         return null
       })
       .filter((v): v is FeaturedRef => v !== null)

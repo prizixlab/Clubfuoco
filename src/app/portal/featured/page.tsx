@@ -248,9 +248,13 @@ function PickerModal({ tier, candidates, onClose, onPick }: {
   const [q, setQ] = useState('')
   const [kind, setKind] = useState<'all' | 'event' | 'venue'>('all')
 
-  const list = useMemo(() => {
+  // Every venue is eligible, and there are ~1,760 of them. Filtering is over
+  // the WHOLE pool so search always reaches the tail; only the rendering is
+  // capped, and the count below says when it is.
+  const CAP = 200
+  const { list, total } = useMemo(() => {
     const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
-    return candidates
+    const all = candidates
       .filter(c => kind === 'all' || c.kind === kind)
       .filter(c => {
         if (terms.length === 0) return true
@@ -258,7 +262,7 @@ function PickerModal({ tier, candidates, onClose, onPick }: {
           .filter(Boolean).join(' ').toLowerCase()
         return terms.every(t => hay.includes(t))
       })
-      .slice(0, 60)
+    return { list: all.slice(0, CAP), total: all.length }
   }, [candidates, q, kind])
 
   return (
@@ -274,9 +278,14 @@ function PickerModal({ tier, candidates, onClose, onPick }: {
         autoFocus
         value={q}
         onChange={e => setQ(e.target.value)}
-        placeholder="Search events and venues…"
-        style={{ marginBottom: 12 }}
+        placeholder={`Search ${candidates.length} events and venues…`}
+        style={{ marginBottom: 8 }}
       />
+      <p style={{ margin: '0 0 10px', fontFamily: mono, fontSize: 11, color: C.faint }}>
+        {total === 0 ? 'no matches'
+          : total > CAP ? `${total} matches · showing the first ${CAP}, keep typing to narrow`
+          : `${total} match${total === 1 ? '' : 'es'}`}
+      </p>
       <div style={{ display: 'grid', gap: 6, maxHeight: 380, overflowY: 'auto' }}>
         {list.length === 0 && (
           <p style={{ margin: 0, color: C.faint, fontFamily: font, fontSize: 13 }}>Nothing matches.</p>

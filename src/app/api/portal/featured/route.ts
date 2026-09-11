@@ -198,16 +198,31 @@ async function pool(
     })
   }
 
-  // Partner venues lead the list — they are the ones we would actually
-  // promote — but every club stays pickable.
-  const { data: clubs } = await sb
-    .from('clubs')
-    .select('id, name, neighborhood, address, is_partner')
-    .order('is_partner', { ascending: false })
-    .order('name', { ascending: true })
-    .limit(400)
+  // EVERY venue is eligible, so every venue has to arrive here.
+  //
+  // Two things conspire against that and both have bitten: PostgREST caps a
+  // response at 1000 rows however large a limit is asked for, and there are
+  // ~1,760 clubs. A single select returns 57% of the table and looks complete.
+  // So: page until exhausted, with `id` as a tiebreaker because the sort keys
+  // are not unique and an unstable sort drops or repeats rows across pages.
+  const clubs: Record<string, unknown>[] = []
+  const PAGE = 1000
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb
+      .from('clubs')
+      .select('id, name, neighborhood, address, is_partner')
+      // Partner venues lead — they are the ones we would actually promote —
+      // but the list runs all the way to the end.
+      .order('is_partner', { ascending: false })
+      .order('name', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error || !data || data.length === 0) break
+    clubs.push(...(data as Record<string, unknown>[]))
+    if (data.length < PAGE) break
+  }
 
-  for (const c of clubs ?? []) {
+  for (const c of clubs) {
     const id = c.id as string
     out.push({
       kind: 'venue', id,

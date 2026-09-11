@@ -7,6 +7,13 @@ type SB = Awaited<ReturnType<typeof createServiceClient>>
 // of the migration behaves exactly like the feature being off.
 
 export const AUTO_APPROVE = 'auto_approve_submissions'
+/**
+ * Grant promoter app access the moment an application is filed, with no
+ * review. Deliberately SEPARATE from AUTO_APPROVE: that one waves through what
+ * an already-trusted promoter publishes, this one decides who becomes a
+ * promoter at all — a much bigger door to leave open.
+ */
+export const AUTO_APPROVE_PROMOTERS = 'auto_approve_promoters'
 /** Operator-chosen order of the portal roster: an array of PromoterRow ids. */
 export const ROSTER_ORDER = 'portal_roster_order'
 

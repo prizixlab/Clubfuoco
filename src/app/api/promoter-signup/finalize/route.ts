@@ -1,4 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { logAudit } from '@/lib/portal-audit'
+import { autoApprovePromotersOn, grantPromoterAccess } from '@/lib/promoter-approval'
 import { ok, err } from '@/lib/utils'
 
 /**
@@ -7,6 +9,11 @@ import { ok, err } from '@/lib/utils'
  * generates an Instagram verification code, and files the application for
  * manual review (status 'pending'). The promoter stays locked until an admin
  * confirms the DM'd code + 5k followers and sets is_promoter = true.
+ *
+ * ...unless the portal's "auto-approve new promoters" toggle is on, in which
+ * case the application is granted here and the account walks straight into the
+ * app. The IG code is still minted and returned either way: the operator can
+ * verify the handle after the fact, and the app's copy still asks for the DM.
  */
 function genCode(): string {
   // 6-char human-friendly code, no ambiguous chars.
@@ -41,7 +48,7 @@ export async function POST(req: Request) {
     .maybeSingle()
   const code = existing?.ig_code ?? genCode()
 
-  await sb.from('promoter_applications').upsert({
+  const { data: app } = await sb.from('promoter_applications').upsert({
     user_id: user.id,
     instagram,
     clubs: clubs || null,
@@ -50,6 +57,24 @@ export async function POST(req: Request) {
     ig_verified: false,
     status: 'pending',
   }, { onConflict: 'user_id' })
+    .select('id')
+    .maybeSingle()
 
-  return ok({ igCode: code })
+  // Auto-approve, when the operator has left that door open. A failure here is
+  // NOT a signup failure: the application is already filed, so we fall back to
+  // the normal pending queue rather than making the applicant retry.
+  let approved = false
+  if (app?.id && await autoApprovePromotersOn(sb)) {
+    try {
+      await grantPromoterAccess(sb, { id: app.id as string, user_id: user.id }, { markIgVerified: false })
+      approved = true
+      await logAudit(sb, {
+        action: 'promoter.auto_approve',
+        summary: `Auto-approved promoter @${instagram} on signup`,
+        target_type: 'promoter', target_id: user.id,
+      })
+    } catch { /* stays pending for manual review */ }
+  }
+
+  return ok({ igCode: code, approved })
 }

@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
-import { provisionBrandForUser } from '@/lib/offer-auth'
-import { getBrandByOwner } from '@/lib/partner'
+import { grantPromoterAccess } from '@/lib/promoter-approval'
 import { logAudit } from '@/lib/portal-audit'
 import { ok, err } from '@/lib/utils'
 
@@ -103,19 +102,6 @@ export async function POST(
   const a = app as { user_id: string; instagram: string | null; status: string }
 
   const grant = decision === 'approve'
-  const appStatus = grant ? 'approved' : 'rejected'
-
-  const { error: appErr } = await sb
-    .from('promoter_applications')
-    .update({ status: appStatus, reviewed_at: new Date().toISOString(), ...(grant ? { ig_verified: true } : {}) })
-    .eq('id', id)
-  if (appErr) return err(appErr.message, 500)
-
-  const { error: userErr } = await sb
-    .from('users')
-    .update({ is_promoter: grant })
-    .eq('id', a.user_id)
-  if (userErr) return err(userErr.message, 500)
 
   // Approval provisions the promoter's brand (their list) right away — a
   // promoter and their brand are one entity, so there's no "approved but no
@@ -123,13 +109,25 @@ export async function POST(
   // Revoke pulls app access only: the brand + its offers stay independent.
   let brandCreated = false
   if (grant) {
+    // Same path auto-approve takes, with the IG check stamped: a human is
+    // deciding here, and the UI warns them when it isn't verified.
     try {
-      const before = await getBrandByOwner(sb, a.user_id)
-      await provisionBrandForUser(sb, a.user_id)
-      brandCreated = !before
+      ;({ brandCreated } = await grantPromoterAccess(sb, { id, user_id: a.user_id }, { markIgVerified: true }))
     } catch (e) {
-      return err(e instanceof Error ? e.message : 'Could not provision brand', 500)
+      return err(e instanceof Error ? e.message : 'Could not grant access', 500)
     }
+  } else {
+    const { error: appErr } = await sb
+      .from('promoter_applications')
+      .update({ status: 'rejected', reviewed_at: new Date().toISOString() })
+      .eq('id', id)
+    if (appErr) return err(appErr.message, 500)
+
+    const { error: userErr } = await sb
+      .from('users')
+      .update({ is_promoter: false })
+      .eq('id', a.user_id)
+    if (userErr) return err(userErr.message, 500)
   }
 
   const verb = decision === 'approve' ? 'Approved' : decision === 'revoke' ? 'Revoked access for' : 'Rejected'

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { BrandRow } from '@/lib/partner'
 import type { PromoterRow } from '@/app/api/portal/promoters/route'
-import { Btn, ErrorLine, StatTile, api, C, caps, font, serif } from './_ui'
+import { Btn, Card, ErrorLine, StatTile, api, C, caps, font, serif } from './_ui'
 import { PromoterCard, PendingPromoterCard, usePromoterActions } from './_promoter-card'
 
 // Promoters — one roster. A promoter and their "list" are the same thing: a
@@ -26,13 +26,44 @@ export default function PromotersPage() {
   const dragIdRef = useRef<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [savingOrder, setSavingOrder] = useState(false)
+  // null = not loaded yet, so the switch can't be flipped before we know which
+  // way it is currently set.
+  const [autoApprove, setAutoApprove] = useState<boolean | null>(null)
+  const [autoBusy, setAutoBusy] = useState(false)
 
   const load = useCallback(() => {
     api<{ pending: PromoterRow[]; roster: PromoterRow[] }>('/api/portal/promoters')
       .then(r => { setPending(r.pending); setRoster(r.roster) })
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load'))
+    api<{ auto_approve_promoters: boolean }>('/api/portal/settings')
+      .then(s => setAutoApprove(s.auto_approve_promoters))
+      .catch(() => setAutoApprove(false))
   }, [])
   useEffect(load, [load])
+
+  async function toggleAuto() {
+    if (autoApprove === null) return
+    const next = !autoApprove
+    const waiting = pending?.length ?? 0
+    if (next && !confirm(
+      'Turn ON auto-approve for new promoters?\n\nEveryone who signs up gets promoter access '
+      + 'immediately — no Instagram check, no review'
+      + (waiting ? `, and the ${waiting} application${waiting === 1 ? '' : 's'} waiting now ${waiting === 1 ? 'is' : 'are'} approved too.` : '.')
+    )) return
+    setAutoBusy(true); setError(null)
+    try {
+      const r = await api<{ auto_approve_promoters: boolean }>(
+        '/api/portal/settings',
+        { method: 'PUT', body: JSON.stringify({ auto_approve_promoters: next }) },
+      )
+      setAutoApprove(r.auto_approve_promoters)
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not change the setting')
+    } finally {
+      setAutoBusy(false)
+    }
+  }
 
   const actions = usePromoterActions(load)
 
@@ -90,6 +121,39 @@ export default function PromotersPage() {
           <StatTile label="Live offers" value={liveOffers} />
         </div>
       )}
+
+      {/* Auto-approve new promoters. Governs the queue right below it: with
+          this on, nobody lands there — signups walk straight into the app. */}
+      <Card style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: 0, fontFamily: font, fontSize: 14, fontWeight: 600, color: C.text }}>
+            Auto-approve new promoters
+          </p>
+          <p style={{ margin: '3px 0 0', fontSize: 12.5, color: C.dim, fontFamily: font, lineHeight: 1.5 }}>
+            {autoApprove
+              ? 'ON — everyone who signs up gets app access immediately, with their list provisioned. Instagram handles stay unverified until you check them.'
+              : 'OFF — you verify the Instagram handle and grant access one by one.'}
+          </p>
+        </div>
+        <button
+          role="switch"
+          aria-checked={!!autoApprove}
+          aria-label="Auto-approve new promoters"
+          onClick={toggleAuto}
+          disabled={autoApprove === null || autoBusy}
+          style={{
+            width: 52, height: 30, flexShrink: 0, borderRadius: 999, position: 'relative', cursor: 'pointer',
+            border: 'none', padding: 0, transition: 'background 0.18s',
+            background: autoApprove ? C.gold : 'rgba(255,255,255,0.14)',
+            opacity: autoApprove === null || autoBusy ? 0.5 : 1,
+          }}
+        >
+          <span style={{
+            position: 'absolute', top: 3, left: autoApprove ? 25 : 3, width: 24, height: 24, borderRadius: '50%',
+            background: autoApprove ? '#141416' : '#F5F5F7', transition: 'left 0.18s',
+          }} />
+        </button>
+      </Card>
 
       <ErrorLine error={error || actions.error} />
       {!pending && !error && <p style={{ color: C.dim, fontFamily: font, fontSize: 14 }}>Loading…</p>}

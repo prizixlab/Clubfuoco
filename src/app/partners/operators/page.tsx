@@ -5,6 +5,7 @@ export default function OperatorsPage() {
   return (
     <PartnerSubpage
       eyebrow="For Operators"
+      eyebrowNote="promoters"
       headline="For the people who run Barcelona nights."
       lede="Promoters and table operators who own these nights: manage guest lists and VIP tables in one place, reach guests who actually show, and settle in one feed."
       deal={[

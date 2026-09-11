@@ -18,10 +18,13 @@ export interface PartnerSubpageProps {
   howItWorks: Array<{ title: string; body: string }>      // exactly 3
   pullQuote:  string
   audience:   'Venue' | 'Ticketing platform' | 'Operator / promoter'
+  /** Small gloss printed beside the eyebrow — "Operators" is our word for
+   *  promoters, and the label alone doesn't tell a promoter that. */
+  eyebrowNote?: string
 }
 
 export default function PartnerSubpage({
-  eyebrow, headline, lede, deal, howItWorks, pullQuote, audience,
+  eyebrow, headline, lede, deal, howItWorks, pullQuote, audience, eyebrowNote,
 }: PartnerSubpageProps) {
   const [sending, setSending] = useState(false)
   const [msg,     setMsg]     = useState<string | null>(null)
@@ -63,14 +66,20 @@ export default function PartnerSubpage({
         <p className="breadcrumb">
           <a href="/partners">For Partners</a>
           <span className="sep">→</span>
-          <span className="here">{eyebrow}</span>
+          <span className="here">
+            {eyebrow}
+            {eyebrowNote && <span className="alias">{eyebrowNote}</span>}
+          </span>
         </p>
       </div>
 
       <header className="page-hero left" style={{ paddingTop: 'clamp(36px, 6vh, 64px)' }}>
         <div className="page-glow" aria-hidden="true" />
         <div className="wrap">
-          <p className="eyebrow">{eyebrow}</p>
+          <p className="eyebrow">
+            {eyebrow}
+            {eyebrowNote && <span className="alias">{eyebrowNote}</span>}
+          </p>
           <h1><span className="gold">{headline}</span></h1>
           <p className="lead">{lede}</p>
           <span className="scroll-cue" aria-hidden="true">↓</span>

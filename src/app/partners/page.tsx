@@ -135,9 +135,11 @@ export default function PartnersLanding() {
                       <line x1="15" y1="28" x2="28" y2="28" />
                     </svg>
                   </span>
-                  <span className="peyebrow">Operators</span>
+                  <span className="peyebrow">
+                    Operators<span className="alias">promoters</span>
+                  </span>
                 </div>
-                <h3>For Operators</h3>
+                <h3>For Operators<span className="alias">promoters</span></h3>
               </div>
               <div className="pside">
                 <p>

@@ -330,11 +330,34 @@ struct PosterCard: View {
 
 // ── Shelf row ─────────────────────────────────────────────────────────────────
 
+/// One slot in the featured shelf's scroller: a venue or one of our events.
+/// The two live in the same row because the featured box answers "what is on
+/// tonight", and an event is as much an answer to that as a venue is.
+enum FeaturedItem: Identifiable, Hashable {
+    case place(Place)
+    case event(FeedEvent)
+
+    var id: String {
+        switch self {
+        case .place(let p): return "p:\(p.placeId)"
+        case .event(let e): return "e:\(e.id)"
+        }
+    }
+}
+
 struct ShelfRowView: View {
     let shelf: Shelf
     let index: Int
     let saved: Set<String>
     let onSave: (Place) -> Void
+    /// Events to weave into this shelf, pinned ones first. Only ever non-empty
+    /// for the featured shelf — the keyword shelves stay pure venue rows.
+    var events: [FeedEvent] = []
+    /// Tier 1 from /portal/featured: what takes the big card. Nil falls back to
+    /// the lead venue.
+    var featuredHero: FeaturedItem? = nil
+    /// Tier 2 from /portal/featured: what leads the line under the hero.
+    var featuredRow: [FeaturedItem] = []
     @Environment(LocaleStore.self) private var locale
     @Environment(PlanStore.self) private var plan
 
@@ -386,13 +409,33 @@ struct ShelfRowView: View {
             }
             .padding(.horizontal, hPad)
 
-            if shelf.featured, let lead = shelf.places.first {
-                HeroCard(place: lead, isSaved: saved.contains(lead.placeId)) { onSave(lead) }
-                    .padding(.horizontal, hPad)
-
-                if shelf.places.count > 1 {
-                    cardScroller(Array(shelf.places.dropFirst()), landscape: false)
+            if shelf.featured {
+                // ── Tier 1: the big card ──────────────────────────────────────
+                // The portal's choice wins outright, event or venue. With
+                // nothing featured this falls back to the lead venue, which is
+                // what the shelf did before the desk existed.
+                switch featuredHero {
+                case .event(let ev):
+                    NavigationLink(value: ev) { EventHeroCard(event: ev) }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, hPad)
+                case .place(let place):
+                    HeroCard(place: place, isSaved: saved.contains(place.placeId)) { onSave(place) }
+                        .padding(.horizontal, hPad)
+                case nil:
+                    if let lead = shelf.places.first {
+                        HeroCard(place: lead, isSaved: saved.contains(lead.placeId)) { onSave(lead) }
+                            .padding(.horizontal, hPad)
+                    }
                 }
+
+                // ── Tier 2: the line under it ─────────────────────────────────
+                // Featured picks lead, in the order the desk set. The automatic
+                // mix (the night's venues with the events woven through) fills
+                // in behind them, so choosing three things doesn't cut the row
+                // down to three cards. Whatever is already above is dropped.
+                let items = tierTwo()
+                if !items.isEmpty { mixedScroller(items) }
             } else {
                 cardScroller(shelf.places, landscape: index % 2 != 0)
             }
@@ -418,6 +461,61 @@ struct ShelfRowView: View {
         // Extra gap below the featured container so the next shelf header
         // ("FOR THE 4/4 FAITHFUL" etc.) doesn't visually press into the box.
         .padding(.bottom, isRumba ? 40 : 32)
+    }
+
+    /// The line under the hero: the desk's tier-2 picks in their chosen order,
+    /// then the automatic mix behind them, with anything already shown above
+    /// dropped. Featuring three things must not cut the row down to three.
+    private func tierTwo() -> [FeaturedItem] {
+        let automatic = mixed(
+            places: featuredHero == nil ? Array(shelf.places.dropFirst()) : shelf.places,
+            events: events)
+        var seen = Set([featuredHero?.id].compactMap { $0 })
+        var items: [FeaturedItem] = []
+        for item in featuredRow + automatic where seen.insert(item.id).inserted {
+            items.append(item)
+        }
+        return items
+    }
+
+    /// Weave the events through the venues rather than parking them in a block
+    /// at one end — a run of event cards followed by a run of venue cards is
+    /// two shelves wearing one header, which is what this replaced.
+    ///
+    /// An event leads each pair, so with the handful of events we usually have
+    /// they land early in the scroll while venues still carry the row.
+    private func mixed(places: [Place], events: [FeedEvent]) -> [FeaturedItem] {
+        guard !events.isEmpty else { return places.map(FeaturedItem.place) }
+        var out: [FeaturedItem] = []
+        var e = events.makeIterator()
+        var p = places.makeIterator()
+        var nextEvent = e.next()
+        var nextPlace = p.next()
+        while nextEvent != nil || nextPlace != nil {
+            if let ev = nextEvent { out.append(.event(ev)); nextEvent = e.next() }
+            // Two venues per event: the box is still mostly a venue shelf.
+            for _ in 0..<2 {
+                if let pl = nextPlace { out.append(.place(pl)); nextPlace = p.next() }
+            }
+        }
+        return out
+    }
+
+    private func mixedScroller(_ items: [FeaturedItem]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 12) {
+                ForEach(items) { item in
+                    switch item {
+                    case .place(let place):
+                        PosterCard(place: place, isSaved: saved.contains(place.placeId)) { onSave(place) }
+                    case .event(let event):
+                        NavigationLink(value: event) { EventCard(event: event) }
+                            .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(.horizontal, hPad)
+        }
     }
 
     private func cardScroller(_ places: [Place], landscape: Bool) -> some View {

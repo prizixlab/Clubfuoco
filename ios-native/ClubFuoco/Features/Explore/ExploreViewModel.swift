@@ -6,6 +6,21 @@ import Observation
 /// the shelf-building pipeline. Geolocation is Phase 2 — Barcelona center is
 /// the web fallback and the dominant real-world case.
 /// Envelope of GET /api/events/feed.
+/// One entry on the editorial featured shelf (/api/featured). A reference, not
+/// a copy: the id resolves against data the feed already holds — a night in
+/// `feedEvents`, or a venue in `places` (whose `placeId` IS the lowercased
+/// club id). That keeps a featured card byte-identical to the same card
+/// unfeatured, because it IS the same card.
+struct FeaturedRef: Decodable, Sendable, Hashable {
+    let kind: String        // "event" | "venue"
+    let id: String
+}
+
+struct FeaturedPayload: Decodable, Sendable {
+    let tier1: [FeaturedRef]
+    let tier2: [FeaturedRef]
+}
+
 struct EventsPayload: Decodable, Sendable {
     let events: [FeedEvent]
 }
@@ -53,14 +68,50 @@ final class ExploreViewModel {
     /// failure: the venue feed must still render.
     private(set) var feedEvents: [FeedEvent] = []
 
-    /// The pinned event takes the top of the feed — the tier-1 hero spot the
-    /// portal's pin control is choosing. Falls back to the soonest event when
-    /// nothing is pinned, so the slot is filled whenever there is anything at
-    /// all to put in it.
-    var heroEvent: FeedEvent? { feedEvents.first { $0.pinned } ?? feedEvents.first }
+    /// The editorial featured shelf from /portal/featured. Empty when nothing
+    /// is featured or the request failed, which is what makes the automatic
+    /// shelf below the fallback rather than a competing path.
+    private(set) var featured = FeaturedPayload(tier1: [], tier2: [])
 
-    /// Everything else, for the rail under the hero.
-    var railEvents: [FeedEvent] { feedEvents.filter { $0.id != heroEvent?.id } }
+    /// Tier 1, resolved: the big card. The FIRST ref that resolves wins, so a
+    /// standby below it covers the night the top one has passed. Nil when
+    /// nothing is featured or nothing resolves — the venue hero then leads, as
+    /// it did before there was a desk.
+    var featuredHero: FeaturedItem? {
+        featured.tier1.lazy.compactMap(resolve).first
+    }
+
+    /// Tier 2, resolved and in order: what leads the line under the hero.
+    var featuredRow: [FeaturedItem] { featured.tier2.compactMap(resolve) }
+
+    /// A ref becomes a card only if the thing it points at is actually here.
+    /// A venue outside the loaded radius, or a night that has dropped out of
+    /// the events feed, resolves to nil and is skipped rather than rendering
+    /// an empty card.
+    private func resolve(_ ref: FeaturedRef) -> FeaturedItem? {
+        switch ref.kind {
+        case "event":
+            return feedEvents.first { $0.id == ref.id }.map(FeaturedItem.event)
+        case "venue":
+            return places.first { $0.placeId.lowercased() == ref.id }.map(FeaturedItem.place)
+        default:
+            return nil
+        }
+    }
+
+    /// The one event promoted to the big card at the head of the featured box,
+    /// in place of the venue that would otherwise lead it.
+    ///
+    /// ONLY a pinned event takes that slot. Pinning is the portal's editorial
+    /// call — the difference between "highlight this" and "this is just on" —
+    /// so an unpinned event mixes in with the venues instead of displacing
+    /// one. The old behaviour fell back to the soonest event, which meant the
+    /// feed always led with an event whether or not anyone had chosen it.
+    var leadEvent: FeedEvent? { feedEvents.first { $0.pinned } }
+
+    /// The events that mix into the featured shelf alongside the venues —
+    /// everything except whichever one is leading it.
+    var mixedEvents: [FeedEvent] { feedEvents.filter { $0.id != leadEvent?.id } }
 
     // Personalisation inputs (nil for guests / on error → unpersonalised feed).
     private(set) var userPrefs: UserPreferences?
@@ -130,6 +181,9 @@ final class ExploreViewModel {
         async let upcoming = (try? queries.upcomingEvents()) ?? []
         // Our own events. Public route, so guests get them too.
         async let ourEvents: EventsPayload? = try? await api.get("/api/events/feed")
+        // What the portal has chosen to feature. Public and failure-tolerant:
+        // nil simply means the automatic shelf stands.
+        async let featuredReq: FeaturedPayload? = try? await api.get("/api/featured")
         async let djClubs = (try? queries.djClubIds()) ?? []
         async let prefs = try? queries.userPreferences()
         // Survey profile comes from the API route — the derivation lives once,
@@ -175,6 +229,7 @@ final class ExploreViewModel {
         offersByClub = await liveOffers ?? [:]
         events = await upcoming
         feedEvents = await ourEvents?.events ?? []
+        featured = await featuredReq ?? FeaturedPayload(tier1: [], tier2: [])
         djClubIds = await djClubs
         userPrefs = await prefs ?? nil
         surveyPrefs = await survey ?? nil

@@ -264,16 +264,21 @@ struct ExploreView: View {
             WhenPlannerView()
                 .padding(.bottom, 16)
 
-            // ── Tier 1: our events ────────────────────────────────────────────
-            // Above every venue shelf. This is the slot the portal's pin
-            // control chooses, and an event outranks a venue here by design: a
-            // venue is somewhere you could go, an event is something that is
-            // actually happening. Absent entirely when we have nothing on, so
-            // the feed opens on the venue shelves exactly as it does today.
-            eventsSection
-
+            // ── Featured, venues and events together ──────────────────────────
+            // Events used to sit in their own block ABOVE this box, which put
+            // them in front of the featured venues rather than among them.
+            // They are now inside it, woven through the same scroller, while
+            // the hero card stays the venue's. One section, one header.
             if let first = shelves.first, first.featured {
-                ShelfRowView(shelf: first, index: 0, saved: model.saved, onSave: save)
+                ShelfRowView(shelf: first, index: 0, saved: model.saved, onSave: save,
+                             events: model.feedEvents,
+                             featuredHero: model.featuredHero,
+                             featuredRow: model.featuredRow)
+            } else {
+                // No featured venues tonight (nothing tier-0 on the planned
+                // date). The events still have to go somewhere, so they get the
+                // box to themselves rather than vanishing with it.
+                eventsOnlySection
             }
 
             // Guest-list events strip — HIDDEN. We have no booking agreements
@@ -336,22 +341,23 @@ struct ExploreView: View {
         }
     }
 
-    // ── Our events ────────────────────────────────────────────────────────────
+    // ── Our events, with no featured shelf to sit inside ──────────────────────
 
-    /// The pinned event as a hero card, then everything else as a rail. Both
-    /// use the feed's own card shapes (see EventCards.swift) rather than a
-    /// separate event styling.
+    /// The fallback for a night with no tier-0 venues: the events carry the
+    /// section alone. Normally they are mixed into the featured box by
+    /// ShelfRowView and this never renders.
     @ViewBuilder
-    private var eventsSection: some View {
-        if let hero = model.heroEvent {
+    private var eventsOnlySection: some View {
+        if !model.feedEvents.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                NavigationLink(value: hero) {
-                    EventHeroCard(event: hero)
+                if let lead = model.leadEvent {
+                    NavigationLink(value: lead) { EventHeroCard(event: lead) }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 20)
                 }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 20)
 
-                if !model.railEvents.isEmpty {
+                let rest = model.mixedEvents
+                if !rest.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(locale.t("events.kicker").uppercased())
@@ -366,7 +372,7 @@ struct ExploreView: View {
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(alignment: .top, spacing: 12) {
-                                ForEach(model.railEvents) { event in
+                                ForEach(rest) { event in
                                     NavigationLink(value: event) {
                                         EventCard(event: event)
                                     }
@@ -376,7 +382,7 @@ struct ExploreView: View {
                             .padding(.horizontal, 20)
                         }
                     }
-                    .padding(.top, 26)
+                    .padding(.top, model.leadEvent == nil ? 0 : 26)
                 }
             }
             .padding(.bottom, 28)

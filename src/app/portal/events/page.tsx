@@ -30,8 +30,11 @@ function fmtDate(d: string): string {
   })
 }
 
+type SourceFilter = 'all' | 'ours' | 'scraped'
+
 export default function EventsPage() {
   const [scope, setScope] = useState<'upcoming' | 'past'>('upcoming')
+  const [source, setSource] = useState<SourceFilter>('all')
   const [events, setEvents] = useState<PortalEvent[] | null>(null)
   const [clubs, setClubs] = useState<ClubOption[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -77,6 +80,9 @@ export default function EventsPage() {
   const pinned = (events ?? []).filter(e => e.pinned_at)
   const live = (events ?? []).filter(e => e.live)
   const house = (events ?? []).filter(e => e.is_house)
+  const ours = (events ?? []).filter(e => e.source === 'ours')
+  const scraped = (events ?? []).filter(e => e.source === 'scraped')
+  const shown = source === 'all' ? (events ?? []) : source === 'ours' ? ours : scraped
 
   return (
     <div style={{ maxWidth: 1040, margin: '0 auto', padding: '0 24px 64px' }}>
@@ -96,14 +102,27 @@ export default function EventsPage() {
         <StatTile label="Live now" value={events ? live.length : '—'} />
         <StatTile label="Pinned" value={events ? pinned.length : '—'} />
         <StatTile label="Ours" value={events ? house.length : '—'} />
+        <StatTile label="Scraped" value={events ? scraped.length : '—'} />
       </div>
 
       <ErrorLine error={error} />
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
         {(['upcoming', 'past'] as const).map(s => (
           <Btn key={s} small kind={scope === s ? 'primary' : 'ghost'} onClick={() => setScope(s)}>
             {s === 'upcoming' ? 'Upcoming' : 'Past'}
+          </Btn>
+        ))}
+        {/* Ours is a handful, the scrape is hundreds — without this split the
+            four nights we actually run are lost in the listing. */}
+        <span style={{ width: 1, height: 20, background: C.line, margin: '0 4px' }} />
+        {([
+          ['all', `All${events ? ` ${events.length}` : ''}`],
+          ['ours', `Ours${events ? ` ${ours.length}` : ''}`],
+          ['scraped', `Scraped${events ? ` ${scraped.length}` : ''}`],
+        ] as const).map(([key, label]) => (
+          <Btn key={key} small kind={source === key ? 'primary' : 'ghost'} onClick={() => setSource(key)}>
+            {label}
           </Btn>
         ))}
       </div>
@@ -121,7 +140,7 @@ export default function EventsPage() {
       )}
 
       <div style={{ display: 'grid', gap: 12 }}>
-        {(events ?? []).map(ev => (
+        {shown.map(ev => (
           <Row key={ev.id} ev={ev} busy={busy === ev.id}
                onPatch={b => patch(ev.id, b)} onDelete={() => remove(ev)}
                onEditLineup={() => setEditingLineup(ev)}
@@ -172,12 +191,16 @@ function Row({ ev, busy, onPatch, onDelete, onEditLineup, onEditHosts, onEditRou
   onEditRoute: () => void
 }) {
   const isPinned = !!ev.pinned_at
+  const isScraped = ev.source === 'scraped'
   return (
     <div style={{
       background: C.card,
       // A pinned row is outlined in ember so the top of the feed is visible at
       // a glance rather than needing the badges read.
       border: `1px solid ${isPinned ? C.gold : C.line}`,
+      // Scraped rows are the bulk of the list and none of them are ours — held
+      // back so the eye lands on the nights we actually run.
+      opacity: isScraped ? 0.78 : 1,
       borderRadius: 8, padding: '16px 18px',
       display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
     }}>
@@ -196,7 +219,10 @@ function Row({ ev, busy, onPatch, onDelete, onEditLineup, onEditHosts, onEditRou
           {ev.stops.length > 0
             ? routeLine(ev.stops)
             : (ev.club_name ?? ev.location_name ?? 'No venue set')}
-          {' · '}{ev.total_capacity} cap
+          {/* RA rarely prints a capacity, so "0 cap" would be a lie on most
+              scraped rows — the door price is what it does give us. */}
+          {ev.total_capacity > 0 && <>{' · '}{ev.total_capacity} cap</>}
+          {ev.cost_label && <>{' · '}{ev.cost_label}</>}
         </div>
         {ev.hosts.length > 0 && (
           <div style={{ fontFamily: font, fontSize: 12, color: C.dim, marginTop: 5 }}>
@@ -219,7 +245,11 @@ function Row({ ev, busy, onPatch, onDelete, onEditLineup, onEditHosts, onEditRou
         {isPinned && <Badge>Pinned{ev.pin_rank != null ? ` #${ev.pin_rank}` : ''}</Badge>}
         {ev.featured && <Badge color={C.goldHi}>Paid</Badge>}
         {ev.is_house && <Badge color={C.green}>Ours</Badge>}
-        {!ev.live && (
+        {isScraped && <Badge color={C.faint}>RA</Badge>}
+        {/* Whether the scrape tied this listing to one of our venues. An
+            unmatched one is at a venue we don't carry. */}
+        {isScraped && !ev.club_id && <Badge color={C.faint}>Unmatched venue</Badge>}
+        {!isScraped && !ev.live && (
           <Badge color={C.danger}>
             {!ev.is_published ? 'Unpublished'
               : ev.review_status !== 'approved' ? ev.review_status
@@ -229,6 +259,24 @@ function Row({ ev, busy, onPatch, onDelete, onEditLineup, onEditHosts, onEditRou
         )}
       </div>
 
+      {/* A scraped listing is someone else's event on someone else's site. We
+          can look at it, not pin, edit or unpublish it — none of those columns
+          exist behind an RA row. The link out is the only action it has. */}
+      {isScraped ? (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {ev.attending != null && ev.attending > 0 && (
+            <span style={{ fontFamily: mono, fontSize: 11, color: C.faint }}>
+              {ev.attending} going
+            </span>
+          )}
+          {ev.ra_url && (
+            <a href={ev.ra_url} target="_blank" rel="noopener noreferrer"
+               style={{ ...caps, fontSize: 10, color: C.gold, textDecoration: 'none', letterSpacing: '0.12em' }}>
+              Open on RA ↗
+            </a>
+          )}
+        </div>
+      ) : (
       <div style={{ display: 'flex', gap: 8 }}>
         <Btn small kind={isPinned ? 'ghost' : 'primary'} disabled={busy}
              onClick={() => onPatch({ pinned: !isPinned })}>
@@ -265,6 +313,7 @@ function Row({ ev, busy, onPatch, onDelete, onEditLineup, onEditHosts, onEditRou
           <Btn small kind="danger" disabled={busy} onClick={onDelete}>Delete</Btn>
         )}
       </div>
+      )}
     </div>
   )
 }

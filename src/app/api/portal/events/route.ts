@@ -17,7 +17,23 @@ import { ok, err } from '@/lib/utils'
 // `v_events_feed` and is applied by /api/events, not here.
 
 export interface PortalEvent {
+  /** `promoter_nights.id` for ours; `ra:<ra_event_id>` for a scraped row, so
+   *  the two id spaces can never collide and a write aimed at a scraped id
+   *  misses promoter_nights instead of hitting the wrong night. */
   id: string
+  /** Where the row came from. Scraped rows are READ-ONLY here: they have no
+   *  pin, review or publish columns behind them. */
+  source: 'ours' | 'scraped'
+  /** Scraped only — the Resident Advisor listing, so a row can be opened. */
+  ra_url: string | null
+  /** Scraped only — RA's own flyer. */
+  image: string | null
+  /** Scraped only — RA's interest counter, the one signal of size we get. */
+  attending: number | null
+  /** Scraped only — how confidently the scrape matched one of our clubs. */
+  club_match: string | null
+  /** Scraped only — free-text door price as RA prints it. */
+  cost_label: string | null
   title: string | null
   night_date: string
   club_id: string | null
@@ -127,6 +143,12 @@ export async function GET(req: Request) {
     const row = r as unknown as Record<string, unknown>
     return {
       id: row.id as string,
+      source: 'ours' as const,
+      ra_url: null,
+      image: null,
+      attending: null,
+      club_match: null,
+      cost_label: null,
       title: (row.title as string) ?? null,
       night_date: row.night_date as string,
       club_id: (row.club_id as string) ?? null,
@@ -154,7 +176,125 @@ export async function GET(req: Request) {
     }
   })
 
-  return ok({ today, scope, events: rows })
+  // ── Scraped listings ──────────────────────────────────────────────────────
+  // `public.events` is the RA scrape: ~1,400 rows, a few hundred of them still
+  // upcoming, none of which the promoter_nights query above can see. They are
+  // the bulk of what is actually happening in the city, so the desk shows them
+  // beside our own — read-only, because there is no pin, review or publish
+  // column behind a scraped row.
+  //
+  // A failure here degrades to "just our nights" rather than taking the page
+  // down: the scrape is a feed we don't control, and the desk still has a job
+  // without it.
+  const scraped = await listScraped(sb, scope, today)
+
+  const events = [...rows, ...scraped].sort((a, b) =>
+    scope === 'past'
+      ? b.night_date.localeCompare(a.night_date)
+      : a.night_date.localeCompare(b.night_date))
+
+  return ok({ today, scope, events })
+}
+
+/** RA rows carry a free-text capacity ("150", "", null). Anything unparseable
+ *  is 0, which the desk renders as "no capacity" rather than a wrong number. */
+function capacity(raw: unknown): number {
+  const n = Number(String(raw ?? '').replace(/[^0-9]/g, ''))
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+
+/** RA's door price is free text and often junk — a bare "€" with no number is
+ *  common. Anything without a digit is dropped rather than rendered as a price
+ *  that says nothing; "Free" is the one wordy value worth keeping. */
+function cost(raw: unknown): string | null {
+  const s = typeof raw === 'string' ? raw.trim() : ''
+  if (s === '') return null
+  if (/free/i.test(s)) return 'Free'
+  return /\d/.test(s) ? s : null
+}
+
+/** The scrape's own `lineup` jsonb where it has one, else the flat `artists`
+ *  string array, so a row that predates the lineup column still shows a bill. */
+function scrapedLineup(row: Record<string, unknown>): { id: string | null; name: string }[] {
+  const lineup = credits(row.lineup)
+  if (lineup.length > 0) return lineup
+  const artists = Array.isArray(row.artists) ? (row.artists as unknown[]) : []
+  return artists
+    .filter((a): a is string => typeof a === 'string' && a.trim() !== '')
+    .map(name => ({ id: null, name }))
+}
+
+async function listScraped(
+  sb: Awaited<ReturnType<typeof createServiceClient>>,
+  scope: 'upcoming' | 'past',
+  today: string,
+): Promise<PortalEvent[]> {
+  let q = sb.from('events').select(
+    'ra_event_id, title, date, start_time, end_time, venue_name, club_id, club_match, ' +
+    'promoters, artists, lineup, attending, cost, ra_url, image, description, venue_capacity',
+  )
+  q = scope === 'past'
+    ? q.lt('date', today).order('date', { ascending: false }).limit(120)
+    // Every upcoming one. "All the events" is the point of the page, and the
+    // scrape holds a few hundred — a 200-row cap would silently hide the tail.
+    : q.gte('date', today).order('date', { ascending: true }).limit(1000)
+
+  const { data, error } = await q
+  if (error) return []
+
+  const list = (data ?? []) as unknown as Record<string, unknown>[]
+
+  // Club names in one batched query. `events.club_id` carries no foreign key to
+  // clubs, so PostgREST cannot embed `club:clubs(name)` here the way the
+  // promoter_nights select does.
+  const clubIds = [...new Set(list.map(r => r.club_id).filter((v): v is string => typeof v === 'string'))]
+  const names = new Map<string, string>()
+  if (clubIds.length > 0) {
+    const { data: clubs } = await sb.from('clubs').select('id, name').in('id', clubIds)
+    for (const c of clubs ?? []) names.set(c.id as string, c.name as string)
+  }
+
+  return list.map(row => {
+    const clubId = typeof row.club_id === 'string' ? row.club_id : null
+    const image = typeof row.image === 'string' && row.image ? row.image : null
+    const promoters = Array.isArray(row.promoters) ? (row.promoters as unknown[]) : []
+    return {
+      id: `ra:${row.ra_event_id as string}`,
+      source: 'scraped' as const,
+      ra_url: (row.ra_url as string) ?? null,
+      image,
+      attending: typeof row.attending === 'number' ? row.attending : null,
+      club_match: (row.club_match as string) ?? null,
+      cost_label: cost(row.cost),
+      title: (row.title as string) ?? null,
+      night_date: row.date as string,
+      club_id: clubId,
+      // The matched club's canonical name wins over RA's spelling of it.
+      club_name: clubId ? names.get(clubId) ?? null : null,
+      location_name: (row.venue_name as string) ?? null,
+      // A scraped listing is public by definition and has nothing to review or
+      // publish — these read as "already out there", which is what it is.
+      is_published: true,
+      visibility: 'public',
+      review_status: 'approved',
+      featured: false,
+      is_house: false,
+      pinned_at: null,
+      pin_rank: null,
+      pin_note: null,
+      total_capacity: capacity(row.venue_capacity),
+      price_cents: 0,
+      photo_urls: image ? [image] : [],
+      lineup: scrapedLineup(row),
+      // RA's promoters are who runs the night — the same role as `hosts`, but
+      // free text: these names are not partner_brands, so they carry no id.
+      hosts: promoters
+        .filter((p): p is string => typeof p === 'string' && p.trim() !== '')
+        .map(name => ({ id: null, name })),
+      stops: [],
+      live: (row.date as string) >= today,
+    }
+  })
 }
 
 // POST /api/portal/events — publish a house event.

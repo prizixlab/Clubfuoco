@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PortalEvent } from '@/app/api/portal/events/route'
 import type { DJOption } from '@/app/api/portal/djs/route'
 import {
@@ -30,11 +30,54 @@ function fmtDate(d: string): string {
   })
 }
 
+/// Everything about one event, flattened into one lowercase string to match
+/// against: title, venue (ours and RA's spelling of it), every stop on a
+/// route, hosts, the line-up, the pin note, the door price — and the date in
+/// every form somebody might type it.
+///
+/// The date is the reason this is a string rather than a field-by-field
+/// compare. "2026-09-11", "fri 11 sep", "11 september 2026" and "september"
+/// are all the same night to the person searching, so all of them go in.
+function haystack(ev: PortalEvent): string {
+  const parts: (string | null | undefined)[] = [
+    ev.title,
+    ev.club_name,
+    ev.location_name,
+    ...ev.stops.map(s => s.name),
+    ...ev.hosts.map(h => h.name),
+    ...ev.lineup.map(c => c.name),
+    ev.pin_note,
+    ev.cost_label,
+    ev.source === 'scraped' ? 'ra scraped' : 'ours',
+    ev.is_house ? 'house ours' : null,
+    ev.featured ? 'paid featured' : null,
+    ev.pinned_at ? 'pinned' : null,
+    ev.night_date,
+    fmtDate(ev.night_date),
+  ]
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ev.night_date)
+  if (m) {
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    parts.push(
+      d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+      d.toLocaleDateString('en-US', { month: 'long' }),
+    )
+  }
+  return parts.filter(Boolean).join(' ').toLowerCase()
+}
+
+/// Every term must appear somewhere in the row, so "opium saturday" narrows
+/// rather than widening — the way a person expects two words to behave.
+function matches(hay: string, terms: string[]): boolean {
+  return terms.every(t => hay.includes(t))
+}
+
 type SourceFilter = 'all' | 'ours' | 'scraped'
 
 export default function EventsPage() {
   const [scope, setScope] = useState<'upcoming' | 'past'>('upcoming')
   const [source, setSource] = useState<SourceFilter>('all')
+  const [query, setQuery] = useState('')
   const [events, setEvents] = useState<PortalEvent[] | null>(null)
   const [clubs, setClubs] = useState<ClubOption[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -82,7 +125,21 @@ export default function EventsPage() {
   const house = (events ?? []).filter(e => e.is_house)
   const ours = (events ?? []).filter(e => e.source === 'ours')
   const scraped = (events ?? []).filter(e => e.source === 'scraped')
-  const shown = source === 'all' ? (events ?? []) : source === 'ours' ? ours : scraped
+  const bySource = source === 'all' ? (events ?? []) : source === 'ours' ? ours : scraped
+
+  // Search runs over the whole loaded scope, client-side: the rows are already
+  // here, so filtering as you type costs nothing and beats a round trip per
+  // keystroke. Re-indexed only when the event list itself changes.
+  const index = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const e of events ?? []) m.set(e.id, haystack(e))
+    return m
+  }, [events])
+
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  const shown = terms.length === 0
+    ? bySource
+    : bySource.filter(e => matches(index.get(e.id) ?? '', terms))
 
   return (
     <div style={{ maxWidth: 1040, margin: '0 auto', padding: '0 24px 64px' }}>
@@ -107,6 +164,41 @@ export default function EventsPage() {
 
       <ErrorLine error={error} />
 
+      {/* One box over everything on the row: title, venue, host, line-up, the
+          door price, and the date in whatever form you'd type it. */}
+      <div style={{ position: 'relative', marginBottom: 12 }}>
+        <TextInput
+          type="search"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search name, club, host, DJ, date…"
+          aria-label="Search events"
+          style={{ padding: '12px 96px 12px 14px' }}
+        />
+        <div style={{
+          position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+          display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'none',
+        }}>
+          {terms.length > 0 && (
+            <span style={{ fontFamily: mono, fontSize: 11, color: C.faint }}>
+              {shown.length}
+            </span>
+          )}
+          {query !== '' && (
+            <button
+              onClick={() => setQuery('')}
+              aria-label="Clear search"
+              style={{
+                pointerEvents: 'auto', background: 'none', border: 'none', cursor: 'pointer',
+                color: C.dim, fontSize: 15, lineHeight: 1, padding: 4, fontFamily: font,
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      </div>
+
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
         {(['upcoming', 'past'] as const).map(s => (
           <Btn key={s} small kind={scope === s ? 'primary' : 'ghost'} onClick={() => setScope(s)}>
@@ -128,6 +220,23 @@ export default function EventsPage() {
       </div>
 
       {events === null && <p style={{ color: C.faint, fontFamily: font, fontSize: 13.5 }}>Loading…</p>}
+
+      {/* A search that finds nothing is a different answer from an empty desk,
+          and says which of the two filters is hiding the rows. */}
+      {events !== null && events.length > 0 && shown.length === 0 && (
+        <Card>
+          <p style={{ margin: 0, color: C.dim, fontFamily: font, fontSize: 14, lineHeight: 1.6 }}>
+            Nothing matches <strong style={{ color: C.text }}>{query}</strong>
+            {source !== 'all' && <> in <strong style={{ color: C.text }}>{source}</strong></>}.
+            {' '}
+            <button onClick={() => { setQuery(''); setSource('all') }} style={{
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+              color: C.gold, fontFamily: font, fontSize: 14, textDecoration: 'underline',
+            }}>Clear the filters</button>
+            {' '}or try the {scope === 'upcoming' ? 'past' : 'upcoming'} scope.
+          </p>
+        </Card>
+      )}
 
       {events !== null && events.length === 0 && (
         <Card>

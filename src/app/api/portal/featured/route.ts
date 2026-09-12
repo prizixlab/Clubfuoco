@@ -19,7 +19,12 @@ import { ok, err } from '@/lib/utils'
 /** What a slot can point at. `scraped` is an RA listing from public.events —
  *  featurable because a featured one is served through /api/events/feed in
  *  FeedEvent shape, so it opens the ordinary (read-only) event page. */
-export type FeaturedKind = 'event' | 'venue' | 'scraped'
+export type FeaturedKind = 'event' | 'venue' | 'scraped' | 'auto'
+
+/** The two rankings the app already had, now nameable and chooseable.
+ *  'organic' ranks on fit and quality and earns us nothing; 'revenue' ranks on
+ *  what pays — paid promotion, live offers, VIP tables. */
+export type AutoMode = 'organic' | 'revenue'
 
 export interface FeaturedSlot {
   id: string
@@ -27,7 +32,7 @@ export interface FeaturedSlot {
   rank: number
   note: string | null
   kind: FeaturedKind
-  /** The featured thing's own id — a night id or a club id. */
+  /** The featured thing's own id — a night, club or RA id; the mode for a rule. */
   target_id: string
   title: string
   /** Venue name for an event; neighbourhood/address for a venue. */
@@ -69,6 +74,7 @@ function usableCover(url: string | null): string | null {
 interface SlotRow {
   id: string; tier: number; rank: number; note: string | null
   night_id: string | null; club_id: string | null; ra_event_id: string | null
+  auto_mode: string | null
   created_at: string
 }
 
@@ -80,7 +86,7 @@ export async function GET() {
 
   const { data: slotData, error: slotErr } = await sb
     .from('featured_slots')
-    .select('id, tier, rank, note, night_id, club_id, ra_event_id, created_at')
+    .select('id, tier, rank, note, night_id, club_id, ra_event_id, auto_mode, created_at')
     .order('tier', { ascending: true })
     .order('rank', { ascending: true })
     .order('created_at', { ascending: true })
@@ -168,6 +174,17 @@ export async function GET() {
         title: c.name, subtitle: c.area, image: c.cover,
         night_date: null, live: true,
       })
+    } else if (s.auto_mode) {
+      const revenue = s.auto_mode === 'revenue'
+      out.push({
+        id: s.id, tier: s.tier === 1 ? 1 : 2, rank: s.rank, note: s.note,
+        kind: 'auto', target_id: s.auto_mode,
+        title: revenue ? 'Algorithmic — revenue first' : 'Algorithmic — best night out',
+        subtitle: revenue
+          ? 'Paid promotion, then live offers and VIP tables. We earn from these.'
+          : 'Ranked on fit, rating and real programming. We earn nothing from these.',
+        image: null, night_date: null, live: true,
+      })
     } else if (s.ra_event_id) {
       const r = scraped.get(s.ra_event_id)
       // The scraper rewrites public.events wholesale, so a listing can vanish
@@ -196,7 +213,23 @@ async function pool(
   today: string,
   taken: Set<string>,
 ): Promise<FeaturedCandidate[]> {
-  const out: FeaturedCandidate[] = []
+  // The two rules lead the pool. They are what the shelf does when nothing is
+  // hand-picked, so offering them first makes that visible and choosable
+  // rather than implicit.
+  const out: FeaturedCandidate[] = [
+    {
+      kind: 'auto', id: 'organic',
+      title: 'Algorithmic — best night out',
+      subtitle: 'Ranked on fit, rating and real programming. We earn nothing from these.',
+      night_date: null, taken: taken.has('auto:organic'),
+    },
+    {
+      kind: 'auto', id: 'revenue',
+      title: 'Algorithmic — revenue first',
+      subtitle: 'Paid promotion, then live offers and VIP tables. We earn from these.',
+      night_date: null, taken: taken.has('auto:revenue'),
+    },
+  ]
 
   const { data: nights } = await sb
     .from('promoter_nights')
@@ -300,8 +333,11 @@ export async function POST(request: NextRequest) {
   const kind = body.kind
   const id = typeof body.id === 'string' ? body.id : ''
   const tier = Number(body.tier)
-  if (kind !== 'event' && kind !== 'venue' && kind !== 'scraped') {
-    return err('kind must be event, venue or scraped')
+  if (kind !== 'event' && kind !== 'venue' && kind !== 'scraped' && kind !== 'auto') {
+    return err('kind must be event, venue, scraped or auto')
+  }
+  if (kind === 'auto' && id !== 'organic' && id !== 'revenue') {
+    return err('an algorithmic slot is either organic or revenue')
   }
   if (!id) return err('id is required')
   if (tier !== 1 && tier !== 2) return err('tier must be 1 or 2')
@@ -324,15 +360,20 @@ export async function POST(request: NextRequest) {
     night_id: kind === 'event' ? id : null,
     club_id: kind === 'venue' ? id : null,
     ra_event_id: kind === 'scraped' ? id : null,
+    auto_mode: kind === 'auto' ? id : null,
   }
 
   const { error } = await sb.from('featured_slots').insert(row)
   if (error) {
+    if (/auto_mode/i.test(error.message)) {
+      return err('Algorithmic slots need a schema change that has not been applied yet — ' +
+                 'run supabase/migrations/20260912_featured_auto.sql.', 503)
+    }
     if (/ra_event_id|featured_slot_one_target/i.test(error.message)) {
       return err('Featuring a scraped listing needs a schema change that has not been ' +
                  'applied yet — run supabase/migrations/20260911_featured_scraped.sql.', 503)
     }
-    if (/duplicate key|featured_slots_(night|club|ra)_uniq/i.test(error.message)) {
+    if (/duplicate key|featured_slots_(night|club|ra|auto)_uniq/i.test(error.message)) {
       return err('That is already featured — move it between tiers instead of adding it twice.')
     }
     if (/featured_slots|does not exist|relation|schema cache/i.test(error.message)) {

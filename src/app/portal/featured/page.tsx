@@ -216,8 +216,10 @@ function Tier({ n, blurb, slots, busy, onAdd, onMove, onRemove, onNudge }: {
               </div>
 
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <Badge color={s.kind === 'venue' ? C.green : s.kind === 'scraped' ? C.faint : C.gold}>
-                  {s.kind === 'venue' ? 'Venue' : s.kind === 'scraped' ? 'Scraped' : 'Event'}
+                <Badge color={s.kind === 'auto' ? C.goldHi : s.kind === 'venue' ? C.green
+                  : s.kind === 'scraped' ? C.faint : C.gold}>
+                  {s.kind === 'auto' ? 'Algorithmic' : s.kind === 'venue' ? 'Venue'
+                    : s.kind === 'scraped' ? 'Scraped' : 'Event'}
                 </Badge>
                 {n === 1 && i === 0 && <Badge color={C.goldHi}>Live hero</Badge>}
                 {!s.live && <Badge color={C.danger}>Not showable</Badge>}
@@ -246,7 +248,7 @@ function PickerModal({ tier, candidates, onClose, onPick }: {
   onPick: (c: FeaturedCandidate) => void
 }) {
   const [q, setQ] = useState('')
-  const [kind, setKind] = useState<'all' | 'event' | 'scraped' | 'venue'>('all')
+  const [kind, setKind] = useState<'all' | 'auto' | 'event' | 'scraped' | 'venue'>('all')
 
   // Every venue is eligible, and there are ~1,760 of them. Filtering is over
   // the WHOLE pool so search always reaches the tail; only the rendering is
@@ -268,9 +270,10 @@ function PickerModal({ tier, candidates, onClose, onPick }: {
   return (
     <Modal title={`Add to tier ${tier}`} onClose={onClose} width={660}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        {(['all', 'event', 'scraped', 'venue'] as const).map(k => (
+        {(['all', 'auto', 'event', 'scraped', 'venue'] as const).map(k => (
           <Btn key={k} small kind={kind === k ? 'primary' : 'ghost'} onClick={() => setKind(k)}>
-            {k === 'all' ? 'Everything' : k === 'event' ? 'Ours' : k === 'scraped' ? 'Scraped' : 'Venues'}
+            {k === 'all' ? 'Everything' : k === 'auto' ? 'Algorithmic'
+              : k === 'event' ? 'Ours' : k === 'scraped' ? 'Scraped' : 'Venues'}
           </Btn>
         ))}
       </div>
@@ -305,17 +308,21 @@ function PickerModal({ tier, candidates, onClose, onPick }: {
           >
             <span style={{
               ...caps, fontSize: 9, width: 52, flexShrink: 0,
-              color: c.kind === 'venue' ? C.green : c.kind === 'scraped' ? C.faint : C.gold,
+              color: c.kind === 'auto' ? C.goldHi : c.kind === 'venue' ? C.green
+                : c.kind === 'scraped' ? C.faint : C.gold,
             }}>
-              {c.kind === 'venue' ? 'Venue' : c.kind === 'scraped' ? 'RA' : 'Ours'}
+              {c.kind === 'auto' ? 'Rule' : c.kind === 'venue' ? 'Venue'
+                : c.kind === 'scraped' ? 'RA' : 'Ours'}
             </span>
             <span style={{
               flex: 1, minWidth: 0, overflow: 'hidden',
               textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{c.title}</span>
             <span style={{
-              fontFamily: mono, fontSize: 11, color: C.faint, flexShrink: 0,
-              maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              fontFamily: c.kind === 'auto' ? font : mono,
+              fontSize: c.kind === 'auto' ? 12 : 11,
+              color: C.faint, flexShrink: 0,
+              maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {c.taken ? 'featured' : [fmtDate(c.night_date), c.subtitle].filter(Boolean).join(' · ')}
             </span>

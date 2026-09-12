@@ -21,8 +21,12 @@ import { ok } from '@/lib/utils'
 // with no public policy.
 
 export interface FeaturedRef {
-  kind: 'event' | 'venue'
-  /** A promoter_nights id, or a club id lowercased to match Place.placeId. */
+  /** `auto` is a RULE, not a thing: the client fills the slot from its own
+   *  ranking, either ignoring revenue ('organic') or leading with it
+   *  ('revenue'). */
+  kind: 'event' | 'venue' | 'auto'
+  /** A promoter_nights id, a club id lowercased to match Place.placeId, or the
+   *  rule name for an `auto` slot. */
   id: string
 }
 
@@ -39,7 +43,7 @@ export async function GET() {
 
   const { data, error } = await sb
     .from('featured_slots')
-    .select('tier, rank, night_id, club_id, ra_event_id, created_at')
+    .select('tier, rank, night_id, club_id, ra_event_id, auto_mode, created_at')
     .order('tier', { ascending: true })
     .order('rank', { ascending: true })
     .order('created_at', { ascending: true })
@@ -50,7 +54,8 @@ export async function GET() {
   if (error || !data) return ok({ tier1: [], tier2: [] })
 
   const rows = data as {
-    tier: number; night_id: string | null; club_id: string | null; ra_event_id: string | null
+    tier: number; night_id: string | null; club_id: string | null
+    ra_event_id: string | null; auto_mode: string | null
   }[]
 
   // A featured night still has to pass the guest gate. Featuring something
@@ -86,6 +91,7 @@ export async function GET() {
         // A featured scraped listing is served through /api/events/feed under
         // this same `ra:` id, so the client resolves it like any other event.
         if (r.ra_event_id) return { kind: 'event' as const, id: `ra:${r.ra_event_id}` }
+        if (r.auto_mode) return { kind: 'auto' as const, id: r.auto_mode }
         return null
       })
       .filter((v): v is FeaturedRef => v !== null)

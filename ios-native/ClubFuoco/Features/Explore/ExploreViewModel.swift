@@ -12,7 +12,7 @@ import Observation
 /// club id). That keeps a featured card byte-identical to the same card
 /// unfeatured, because it IS the same card.
 struct FeaturedRef: Decodable, Sendable, Hashable {
-    let kind: String        // "event" | "venue"
+    let kind: String        // "event" | "venue" | "auto"
     let id: String
 }
 
@@ -73,30 +73,58 @@ final class ExploreViewModel {
     /// shelf below the fallback rather than a competing path.
     private(set) var featured = FeaturedPayload(tier1: [], tier2: [])
 
-    /// Tier 1, resolved: the big card. The FIRST ref that resolves wins, so a
-    /// standby below it covers the night the top one has passed. Nil when
+    /// Tier 1, resolved: the big card. The FIRST ref that yields anything wins,
+    /// so a standby below it covers the night the top one has passed. Nil when
     /// nothing is featured or nothing resolves — the venue hero then leads, as
     /// it did before there was a desk.
     var featuredHero: FeaturedItem? {
-        featured.tier1.lazy.compactMap(resolve).first
+        featured.tier1.lazy.flatMap { self.expand($0, limit: 1) }.first
     }
 
     /// Tier 2, resolved and in order: what leads the line under the hero.
-    var featuredRow: [FeaturedItem] { featured.tier2.compactMap(resolve) }
+    /// A rule expands to many cards, a named pick to exactly one.
+    var featuredRow: [FeaturedItem] {
+        featured.tier2.flatMap { self.expand($0, limit: 12) }
+    }
 
-    /// A ref becomes a card only if the thing it points at is actually here.
-    /// A venue outside the loaded radius, or a night that has dropped out of
-    /// the events feed, resolves to nil and is skipped rather than rendering
-    /// an empty card.
-    private func resolve(_ ref: FeaturedRef) -> FeaturedItem? {
+    /// A ref becomes cards only if what it points at is actually here. A venue
+    /// outside the loaded radius, or a night that has dropped out of the
+    /// events feed, yields nothing rather than an empty card.
+    ///
+    /// An `auto` ref is a RULE, so it expands to as many cards as the slot can
+    /// use — one in the hero, a rowful underneath.
+    private func expand(_ ref: FeaturedRef, limit: Int) -> [FeaturedItem] {
         switch ref.kind {
         case "event":
-            return feedEvents.first { $0.id == ref.id }.map(FeaturedItem.event)
+            return feedEvents.first { $0.id == ref.id }.map { [FeaturedItem.event($0)] } ?? []
         case "venue":
-            return places.first { $0.placeId.lowercased() == ref.id }.map(FeaturedItem.place)
+            return places.first { $0.placeId.lowercased() == ref.id }.map { [FeaturedItem.place($0)] } ?? []
+        case "auto":
+            let ranked = ref.id == "organic" ? organicPlaces : revenuePlaces
+            return ranked.prefix(limit).map(FeaturedItem.place)
         default:
-            return nil
+            return []
         }
+    }
+
+    /// The 'revenue' rule: exactly what the shelf already ranked — offers and
+    /// paid promotion first (ShelfBuilder's dealRank). Naming it doesn't change
+    /// it; it makes it a choice rather than the only behaviour.
+    var revenuePlaces: [Place] {
+        shelves.first(where: { $0.featured })?.places ?? []
+    }
+
+    /// The 'organic' rule: what we would show if we earned nothing from any of
+    /// it. No offer, paid-feature or billing signal is consulted — only taste
+    /// match, real programming (a booked DJ) and public rating.
+    var organicPlaces: [Place] {
+        places.sorted { organicScore($0) > organicScore($1) }
+    }
+
+    private func organicScore(_ p: Place) -> Double {
+        PersonalizationScore.prefScore(p, prefs: userPrefs, survey: surveyPrefs, taste: tasteProfile)
+            + (djClubIds.contains(p.placeId) ? 40 : 0)
+            + (p.rating ?? 0) * 10
     }
 
     /// The one event promoted to the big card at the head of the featured box,

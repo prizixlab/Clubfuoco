@@ -8,13 +8,14 @@ import {
   api, C, caps, font, inputStyle, mono, serif,
 } from '../_ui'
 
-// The events desk. Two jobs:
+// The events desk: every night we know about, ours and the RA scrape.
 //
-//   PIN — choose what takes the TIER-1 HERO SPOT at the top of Explore, above
-//   every venue shelf. There is no separate Events tab; events live in the one
-//   feed. This is OUR call and is a different column from `featured`, which is
-//   promotion a promoter buys. Both are shown so it stays obvious which is
-//   which: "Pinned" is editorial, "Paid" is billed.
+// It used to own the hero spot too, via a per-event pin. It does not any more —
+// /portal/featured owns what leads Explore, for events and venues alike, so the
+// pin controls are gone from here rather than competing with it. Rows that were
+// pinned before still carry a read-only badge: the flag continues to nudge
+// ordering inside v_events_feed, so hiding it entirely would leave something
+// invisible still acting.
 //
 //   PUBLISH — run an event ourselves. A house event is an ordinary night with
 //   no promoter behind it, so it inherits capacity, guest lists, QR passes and
@@ -120,7 +121,6 @@ export default function EventsPage() {
     } finally { setBusy(null) }
   }
 
-  const pinned = (events ?? []).filter(e => e.pinned_at)
   const live = (events ?? []).filter(e => e.live)
   const house = (events ?? []).filter(e => e.is_house)
   const ours = (events ?? []).filter(e => e.source === 'ours')
@@ -147,9 +147,10 @@ export default function EventsPage() {
         <div>
           <h1 style={{ fontFamily: serif, fontSize: 34, margin: '0 0 6px', color: C.text }}>Events</h1>
           <p style={{ margin: 0, fontSize: 13.5, color: C.dim, fontFamily: font, maxWidth: 620, lineHeight: 1.5 }}>
-            Pinning puts an event in the hero spot at the top of Explore, above every
-            venue shelf. A pin is your choice; &ldquo;Paid&rdquo; is a promoter&rsquo;s
-            purchased promotion. Pins always rank above paid.
+            Every night we know about, ours and scraped. What actually leads Explore
+            is set on <a href="/portal/featured" style={{ color: C.goldHi }}>Featured</a> —
+            this desk is the record of what is on. &ldquo;Paid&rdquo; marks a
+            promoter&rsquo;s purchased promotion.
           </p>
         </div>
         <Btn kind="primary" onClick={() => setCreating(true)}>Publish an event</Btn>
@@ -157,7 +158,6 @@ export default function EventsPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
         <StatTile label="Live now" value={events ? live.length : '—'} />
-        <StatTile label="Pinned" value={events ? pinned.length : '—'} />
         <StatTile label="Ours" value={events ? house.length : '—'} />
         <StatTile label="Scraped" value={events ? scraped.length : '—'} />
       </div>
@@ -351,7 +351,7 @@ function Row({ ev, busy, onPatch, onDelete, onEditLineup, onEditHosts, onEditRou
       </div>
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-        {isPinned && <Badge>Pinned{ev.pin_rank != null ? ` #${ev.pin_rank}` : ''}</Badge>}
+        {isPinned && <Badge color={C.faint}>Old pin{ev.pin_rank != null ? ` #${ev.pin_rank}` : ''}</Badge>}
         {ev.featured && <Badge color={C.goldHi}>Paid</Badge>}
         {ev.is_house && <Badge color={C.green}>Ours</Badge>}
         {isScraped && <Badge color={C.faint}>RA</Badge>}
@@ -387,24 +387,6 @@ function Row({ ev, busy, onPatch, onDelete, onEditLineup, onEditHosts, onEditRou
         </div>
       ) : (
       <div style={{ display: 'flex', gap: 8 }}>
-        <Btn small kind={isPinned ? 'ghost' : 'primary'} disabled={busy}
-             onClick={() => onPatch({ pinned: !isPinned })}>
-          {isPinned ? 'Unpin' : 'Pin'}
-        </Btn>
-        {isPinned && (
-          <input
-            type="number" min={0} placeholder="rank"
-            defaultValue={ev.pin_rank ?? ''}
-            disabled={busy}
-            onBlur={e => {
-              const raw = e.target.value.trim()
-              const next = raw === '' ? null : Number(raw)
-              if (next !== (ev.pin_rank ?? null)) onPatch({ pin_rank: next })
-            }}
-            className="cfp-input"
-            style={{ ...inputStyle, width: 74, padding: '7px 9px', fontSize: 12.5 }}
-          />
-        )}
         <Btn small kind="ghost" disabled={busy} onClick={onEditLineup}>
           {ev.lineup.length > 0 ? 'Line-up' : 'Add DJs'}
         </Btn>

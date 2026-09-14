@@ -102,6 +102,12 @@ final class CreateGuestlistModel: ObservableObject {
     /// What a spot costs, in euros as typed. Empty or 0 = free, which is every
     /// night that exists today.
     @Published var priceText = ""
+    /// The ticket-release ladder. Empty = one flat price, which is every night
+    /// today and most nights ever.
+    @Published var releases: [TicketRelease] = []
+    /// What the night had when the editor opened, so an edit can tell "the
+    /// promoter cleared the ladder" apart from "the ladder never loaded".
+    private var loadedReleases: [TicketRelease] = []
     /// Whether Stripe has actually cleared this promoter to take money. Gates
     /// the field entirely: offering a price box to someone who cannot be paid
     /// produces an event whose first guest fails at the card form.
@@ -244,6 +250,17 @@ final class CreateGuestlistModel: ObservableObject {
                         themeValue: n.theme, translate: n.themeTranslate,
                         photos: n.photoUrls, isFeatured: n.featured,
                         payout: a.payoutPerGuest, visible: a.groupVisible ?? true)
+            // The ladder as it stands. A read failure leaves it empty, which
+            // reads as "flat price" — so it is deliberately NOT saved back
+            // unless the promoter turns releases on again, and saveEdit skips
+            // the write when nothing was loaded and nothing was added.
+            let nightId = n.id
+            Task { @MainActor in
+                if let existing = try? await repo.releases(nightId: nightId), !existing.isEmpty {
+                    self.releases = existing
+                    self.loadedReleases = existing
+                }
+            }
         case .series(let s):
             mode = .recurring
             weekdays = Set(s.weekdays)
@@ -376,6 +393,11 @@ final class CreateGuestlistModel: ObservableObject {
             error = "Add a payment method to feature this event on the home screen."
             return
         }
+        if canCharge && priceCents > 0,
+           let problem = ReleaseRules.problem(with: releases, nightPriceCents: priceCents) {
+            error = problem
+            return
+        }
         submitting = true; error = nil
         let timeFormatter = DateFormatter(); timeFormatter.dateFormat = "HH:mm:ss"
         let openStr = setOpenClose ? timeFormatter.string(from: openTime) : nil
@@ -434,7 +456,8 @@ final class CreateGuestlistModel: ObservableObject {
                     themeTranslate: translateVal, photoUrls: photoURLs,
                     featured: featured, maxPlusOnes: maxPlus,
                     securedScanning: securedScanning,
-                    priceCents: canCharge ? priceCents : 0, promoterId: promoterId)
+                    priceCents: canCharge ? priceCents : 0, promoterId: promoterId,
+                    releases: canCharge && priceCents > 0 ? releases : [])
                 Haptics.success()
                 // If the night came back held (is_published == false), it's
                 // awaiting review → confirm pending. Otherwise (pre-migration)
@@ -478,6 +501,13 @@ final class CreateGuestlistModel: ObservableObject {
         do {
             switch target {
             case .night(let a):
+                // Write the ladder first: if it is refused (a price the payout
+                // guard rejects, say) the night is left as it was rather than
+                // half-edited.
+                if let nightId = a.night?.id, !(releases.isEmpty && loadedReleases.isEmpty) {
+                    try await repo.saveReleases(nightId: nightId,
+                                                canCharge && priceCents > 0 ? releases : [])
+                }
                 let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
                 // Location is locked while editing, so only content fields go
                 // in the patch. Explicit NSNull clears a field server-side.
@@ -978,6 +1008,12 @@ struct CreateGuestlistSheet: View {
                 if model.priceCents > 0 {
                     Text("Charged per person, plus-ones included. Guests who don't pay can still save the event — they just don't get a QR.")
                         .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+
+                    Divider().background(Theme.hairline).padding(.vertical, 4)
+
+                    ReleasesEditor(releases: $model.releases,
+                                   flatPriceCents: model.priceCents,
+                                   nightDate: model.startDate)
                 } else {
                     Text("Leave blank for a free guestlist.")
                         .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)

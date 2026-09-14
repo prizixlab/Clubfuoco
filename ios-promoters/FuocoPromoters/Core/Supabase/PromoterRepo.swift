@@ -859,6 +859,50 @@ final class PromoterRepo: ObservableObject {
     /// Creates one night + self-allocation per date in `dates`.
     /// Returns the first allocation (so the caller can navigate into the
     /// earliest one).
+    // ── Ticket releases ──────────────────────────────────────────────────────
+
+    /// Write a night's ladder: delete what is there, insert what the editor
+    /// holds. Replace rather than diff — a ladder is at most 20 short rows, the
+    /// positions are unique per night so an in-place update would have to dance
+    /// around the constraint, and "what I see is what is stored" is worth more
+    /// here than saving a round trip.
+    ///
+    /// Releases are written AFTER the allocation exists: the RLS policy proves
+    /// ownership through promoter_allocations, so the same insert fails before
+    /// that row is there.
+    func saveReleases(nightId: UUID, _ releases: [TicketRelease]) async throws {
+        try await sb.client
+            .from("night_releases")
+            .delete()
+            .eq("night_id", value: nightId)
+            .execute()
+
+        guard !releases.isEmpty else { return }
+
+        let payload = releases.enumerated().map { i, r in
+            NewRelease(nightId: nightId, position: i + 1,
+                       name: r.name.trimmingCharacters(in: .whitespaces).isEmpty
+                           ? nil : r.name.trimmingCharacters(in: .whitespaces),
+                       priceCents: r.priceCents, endsAt: r.endsAt, quantity: r.quantity)
+        }
+        try await sb.client
+            .from("night_releases")
+            .insert(payload)
+            .execute()
+    }
+
+    /// A night's ladder in sale order, for the edit screen.
+    func releases(nightId: UUID) async throws -> [TicketRelease] {
+        let rows: [ReleaseRow] = try await sb.client
+            .from("night_releases")
+            .select("id, position, name, price_cents, ends_at, quantity")
+            .eq("night_id", value: nightId)
+            .order("position", ascending: true)
+            .execute()
+            .value
+        return rows.map { $0.toRelease() }
+    }
+
     func createSelfGuestlist(
         location: EventLocation, title: String?, dates: [String],
         openTime: String?, closeTime: String?,
@@ -866,7 +910,8 @@ final class PromoterRepo: ObservableObject {
         groupVisible: Bool, autoCheckin: Bool,
         description: String?, theme: String?, themeTranslate: Bool, photoUrls: [String],
         featured: Bool, maxPlusOnes: Int?, securedScanning: Bool = false,
-        priceCents: Int = 0, promoterId: UUID
+        priceCents: Int = 0, promoterId: UUID,
+        releases: [TicketRelease] = []
     ) async throws -> PromoterAllocation {
         let nightPayload = dates.map {
             NewNight(clubId: location.clubId, title: title, nightDate: $0,
@@ -901,6 +946,23 @@ final class PromoterRepo: ObservableObject {
                 .select(Self.allocationSelect(level))
                 .execute()
                 .value
+        }
+
+        // The ladder, applied to every night this created — a promoter setting
+        // up a Friday and a Saturday in one go means the same waves on both.
+        //
+        // Written only AFTER the allocations above: the RLS policy on
+        // night_releases proves ownership through promoter_allocations, so the
+        // identical insert fails if it runs first.
+        //
+        // A failure here must not lose the night. The nights and their invite
+        // links already exist and work at the flat price; a ladder that did not
+        // save is a thing to fix, not a reason to throw away a created event.
+        if !releases.isEmpty {
+            for night in nights {
+                do { try await saveReleases(nightId: night.id, releases) }
+                catch { print("[releases] could not save ladder for \(night.id): \(error)") }
+            }
         }
 
         // Return the earliest by night_date.

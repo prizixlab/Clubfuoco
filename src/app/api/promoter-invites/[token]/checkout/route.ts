@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe'
 import { ok, err } from '@/lib/utils'
 import { payoutAccount, canCharge, syncAccount, feeBpsForVisibility } from '@/lib/connect'
 import { platformFeeCents } from '@/lib/platform-fee'
+import { ladder, livePrice } from '@/lib/releases'
 
 // POST /api/promoter-invites/<token>/checkout   { full_name, plus_ones? }
 //
@@ -64,7 +65,18 @@ export async function POST(
   } | null
   if (!night) return err('Invite not found', 404)
 
-  const unitPrice = night.price_cents ?? 0
+  // A priced night may sell in waves. The price charged is the LIVE release's,
+  // never the column — the column goes stale the moment a wave sells out or its
+  // date passes, because neither of those changes a row for a trigger to catch.
+  const releases = await ladder(sb, night.id)
+  const live = releases.find(r => r.active) ?? null
+  const unitPrice = livePrice(releases, night.price_cents ?? 0)
+
+  // Every wave spent, on a night that does have waves: selling at the flat
+  // price here would charge whatever the last sync happened to leave behind.
+  if (releases.length > 0 && !live) {
+    return err('Tickets for this event have sold out.', 409)
+  }
   // A free night has no business here — the caller should use /claim, and
   // silently creating a €0 Checkout session would be a confusing dead end.
   if (unitPrice <= 0) return err('This event is free — use the normal RSVP.', 409)
@@ -159,6 +171,9 @@ export async function POST(
       referral_id: resolved.referralId,
       payment_status: 'pending',
       amount_cents: amount,
+      // Which wave this spot came out of — this is what makes "sold per
+      // release" a count of real rows rather than a counter that drifts.
+      release_id: live?.id ?? null,
       hold_expires_at: new Date(now + HOLD_MINUTES * 60_000).toISOString(),
     })
     .select('id')

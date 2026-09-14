@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { resolveTokenToAllocation } from '@/lib/promoter-series'
 import { ok, err } from '@/lib/utils'
+import { ladder, livePrice } from '@/lib/releases'
 
 /**
  * Public JSON description of a promoter invite — used by the native iOS
@@ -50,5 +51,19 @@ export async function GET(
 
   // Surface the permanent token to the client so it keeps showing the same
   // link even though the underlying night rolls week to week.
-  return ok({ allocation: { ...alloc, invite_token: resolved.seriesToken ?? alloc.invite_token }, guests })
+  // The price ladder, so the page can say what a ticket costs NOW, what it
+  // becomes, and when — rather than a single number that quietly changes.
+  // Computed, not read off promoter_nights.price_cents: see lib/releases.
+  const night = Array.isArray(alloc.night) ? alloc.night[0] : alloc.night
+  const nightId = (night as { id?: string } | null)?.id
+  const releases = nightId ? await ladder(sb, nightId) : []
+
+  return ok({
+    allocation: { ...alloc, invite_token: resolved.seriesToken ?? alloc.invite_token },
+    guests,
+    releases,
+    // What one head costs right now. The flat price still stands for a night
+    // with no releases, which is most of them.
+    live_price_cents: livePrice(releases, (night as { price_cents?: number } | null)?.price_cents ?? 0),
+  })
 }

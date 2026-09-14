@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { laddersFor, livePrice, type Release } from '@/lib/releases'
 import { ok, err } from '@/lib/utils'
 
 // GET /api/events/feed — the consumer Events tab.
@@ -58,7 +59,12 @@ export interface FeedEvent {
    *  ordinary single-venue case, which is most of them. */
   stops: EventStop[]
   total_capacity: number
+  /** What one head costs RIGHT NOW — the live release's price where a night
+   *  sells in waves, else the flat price. */
   price_cents: number
+  /** The waves, in sale order, each with its state and how many heads it has
+   *  taken. Empty for a flat-priced night. */
+  releases: Release[]
   currency: string
   is_pinned: boolean
   featured: boolean
@@ -202,6 +208,7 @@ async function featuredScraped(
       stops: [],
       total_capacity: Number.isFinite(cap) && cap > 0 ? cap : 0,
       price_cents: 0,
+      releases: [],
       currency: 'EUR',
       // Its place on the shelf comes from the slot it sits in, not from these.
       is_pinned: false,
@@ -256,7 +263,11 @@ export async function GET() {
     }
   }
 
+  // One batched read for every night's ladder, rather than two queries per row.
+  const ladders = await laddersFor(sb, list.map(r => r.id as string))
+
   const events: FeedEvent[] = list.map(r => {
+    const releases = ladders.get(r.id as string) ?? []
     const club = typeof r.club_id === 'string' ? clubs.get(r.club_id) : undefined
     const photos = (r.photo_urls as string[]) ?? []
     // Prefer the club's canonical name over what was typed on the stop, for
@@ -291,7 +302,10 @@ export async function GET() {
       hosts: credits(r.hosts),
       stops,
       total_capacity: r.total_capacity as number,
-      price_cents: r.price_cents as number,
+      // The LIVE price, not the stored one — see lib/releases for why the
+      // column cannot be trusted the moment a wave sells out or its date passes.
+      price_cents: livePrice(releases, r.price_cents as number),
+      releases,
       currency: r.currency as string,
       is_pinned: r.is_pinned as boolean,
       featured: r.featured as boolean,

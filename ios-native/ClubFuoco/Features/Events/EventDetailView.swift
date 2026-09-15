@@ -776,10 +776,73 @@ struct EventDetailView: View {
             }
 
         case .ready:
-            Button { Task { await reserve() } } label: {
-                dockShell(fill: Explore.accent, stroke: nil, text: Explore.onAccent) {
-                    Text(locale.t("events.reserve"))
+            // A ticketed night cannot be "reserved": /api/events/:id/reserve
+            // refuses anything priced, so the RSVP button on a paid event was a
+            // guaranteed error. It buys instead.
+            if event.soldOut {
+                dockShell(fill: Explore.surface2, stroke: Explore.lineStrong, text: Explore.ink3) {
+                    Text("Sold out")
                 }
+            } else if event.isTicketed {
+                Button { Task { await buy() } } label: {
+                    dockShell(fill: Explore.accent, stroke: nil, text: Explore.onAccent) {
+                        Text("Buy · \(priceNow)")
+                    }
+                }
+            } else {
+                Button { Task { await reserve() } } label: {
+                    dockShell(fill: Explore.accent, stroke: nil, text: Explore.onAccent) {
+                        Text(locale.t("events.reserve"))
+                    }
+                }
+            }
+        }
+    }
+
+    /// The name that goes on the door list. The profile's, or the email's local
+    /// part as a last resort — the endpoint requires one, and refusing a sale
+    /// over a missing display name would be absurd.
+    private var buyerName: String {
+        if let n = auth.profile?.fullName?.trimmingCharacters(in: .whitespaces), !n.isEmpty { return n }
+        if let email = auth.user?.email, let local = email.split(separator: "@").first { return String(local) }
+        return "Guest"
+    }
+
+    /// Start a purchase: ask the server for a Stripe Checkout URL and hand the
+    /// buyer to it.
+    ///
+    /// Deliberately the SAME endpoint an invite link uses. That path already
+    /// holds the capacity check, the 15-minute hold, the payout verification
+    /// and the release stamping — a second implementation would drift from it,
+    /// and money is the worst place for two truths.
+    private func buy() async {
+        guard let token = event.inviteToken else { return }
+        guard auth.hasAccount else { showGuestGate = true; return }
+        working = true; errorText = nil
+        defer { working = false }
+        struct Body: Encodable { let fullName: String; let plusOnes: Int }
+        struct Reply: Decodable { let url: String?; let alreadyPaid: Bool? }
+        do {
+            let reply: Reply = try await api.post(
+                "/api/promoter-invites/\(token)/checkout",
+                body: Body(fullName: buyerName, plusOnes: 0))
+            if reply.alreadyPaid == true {
+                await loadState()
+                return
+            }
+            guard let raw = reply.url, let url = URL(string: raw) else {
+                errorText = "Couldn't start checkout. Please try again."
+                return
+            }
+            await UIApplication.shared.open(url)
+        } catch {
+            // The server's message is the useful one here — it is what says
+            // "this event can't take payments yet" when a promoter has not
+            // finished their payout setup.
+            if case let .http(_, message) = error as? APIError ?? .emptyData {
+                errorText = message
+            } else {
+                errorText = "Couldn't start checkout."
             }
         }
     }

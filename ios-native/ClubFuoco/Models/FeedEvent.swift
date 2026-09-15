@@ -76,6 +76,10 @@ struct FeedEvent: Decodable, Sendable, Identifiable, Hashable {
     /// The waves, in sale order. Empty for a flat-priced night, which is most
     /// of them.
     let releases: [TicketRelease]?
+    /// The invite token this night sells through. Nil on a scraped listing, and
+    /// on any night with no allocation behind it — in which case there is
+    /// nothing to buy and the dock must not offer one.
+    let inviteToken: String?
     let currency: String?
     /// Our editorial pin — what we chose to lead with.
     let isPinned: Bool?
@@ -100,6 +104,9 @@ struct FeedEvent: Decodable, Sendable, Identifiable, Hashable {
 
     /// Waves exist and none is live: everything has ended or sold out.
     var soldOut: Bool { !ladder.isEmpty && liveRelease == nil }
+
+    /// Ticketed, and we actually have a way to sell it.
+    var isTicketed: Bool { (priceCents ?? 0) > 0 && inviteToken != nil }
 
     var pinned: Bool { isPinned ?? false }
     var paid: Bool { featured ?? false }

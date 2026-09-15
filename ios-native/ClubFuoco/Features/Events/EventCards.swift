@@ -181,49 +181,60 @@ struct EventCard: View {
     let event: FeedEvent
     @Environment(LocaleStore.self) private var locale
 
+    // Deliberately the same anatomy as PosterCard, the venue card it now sits
+    // beside in the featured shelf: 150pt wide, a 168pt photo, then the title
+    // on the card's own surface underneath. Events and venues are answers to
+    // the same question in that row, so they must not look like two different
+    // kinds of object. Keep the two in step — a change to one card's frame,
+    // radius, shadow or type scale belongs in both.
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            EventPhoto(url: event.image, height: 130, targetWidth: FeedImage.thumbWidth)
-                .overlay(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .black.opacity(0.7), location: 0),
-                            .init(color: .clear, location: 0.55),
-                        ],
-                        startPoint: .bottom, endPoint: .top
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                EventPhoto(url: event.image, height: 168, targetWidth: FeedImage.thumbWidth)
+                    .overlay(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .black.opacity(0.55), location: 0),
+                                .init(color: .clear, location: 0.5),
+                            ],
+                            startPoint: .bottom, endPoint: .top
+                        )
                     )
-                )
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(event.displayTitle)
-                    .font(.cfSans(13, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                // Day and place only. The full meta line carries door times
-                // too, which truncates away at 220pt — the times are on the
-                // event page, one tap down. `placeLine` is the whole route on a
-                // night that moves, not just the venue it starts at.
-                Text([event.dayLabel(locale: locale), event.placeLine]
-                    .compactMap { $0 }.joined(separator: " · "))
-                    .font(.cfSans(10))
-                    .foregroundStyle(.white.opacity(0.6))
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, 10)
-            .padding(.bottom, 8)
-
-            VStack {
                 HStack(alignment: .top) {
                     EventTag(event: event)
                     Spacer()
                 }
-                Spacer()
+                .padding(6)
             }
-            .padding(7)
+            .frame(height: 168)
+
+            VStack(alignment: .leading, spacing: 2) {
+                // Two lines on a reserved 34pt frame, exactly as the venue card
+                // does it, so every card in the row is the same height whatever
+                // the title length.
+                Text(event.displayTitle)
+                    .font(.cfSans(13, weight: .semibold))
+                    .foregroundStyle(Theme.ink)
+                    .lineLimit(2)
+                    .frame(height: 34, alignment: .topLeading)
+                // Day and place only. The full meta line carries door times
+                // too, which truncates away at this width — the times are on
+                // the event page, one tap down. `placeLine` is the whole route
+                // on a night that moves, not just the venue it starts at.
+                Text([event.dayLabel(locale: locale), event.placeLine]
+                    .compactMap { $0 }.joined(separator: " · "))
+                    .font(.cfSans(10))
+                    .foregroundStyle(Theme.fadedSand)
+                    .lineLimit(1)
+            }
+            .padding(.init(top: 8, leading: 10, bottom: 10, trailing: 10))
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(width: 220, height: 130)
+        .frame(width: 150)
+        .background(Theme.surface)
         .clipShape(.rect(cornerRadius: 12))
-        .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 8, y: 4)
+        .shadow(color: Color(hex: 0x221E1A).opacity(0.06), radius: 7, y: 4)
     }
 }
 

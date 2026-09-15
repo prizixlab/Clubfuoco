@@ -65,6 +65,13 @@ export interface FeedEvent {
   /** The waves, in sale order, each with its state and how many heads it has
    *  taken. Empty for a flat-priced night. */
   releases: Release[]
+  /** The night's invite token, which is what the purchase endpoint is keyed by.
+   *
+   *  Safe to publish HERE and only here: this feed is already gated to public,
+   *  approved, published nights, so the token opens exactly what the card
+   *  already shows. Without it the app can render a price it has no way to
+   *  charge — which is the state this fixed. */
+  invite_token: string | null
   currency: string
   is_pinned: boolean
   featured: boolean
@@ -209,6 +216,8 @@ async function featuredScraped(
       total_capacity: Number.isFinite(cap) && cap > 0 ? cap : 0,
       price_cents: 0,
       releases: [],
+      // A scraped listing is not ours to sell.
+      invite_token: null,
       currency: 'EUR',
       // Its place on the shelf comes from the slot it sits in, not from these.
       is_pinned: false,
@@ -266,6 +275,21 @@ export async function GET() {
   // One batched read for every night's ladder, rather than two queries per row.
   const ladders = await laddersFor(sb, list.map(r => r.id as string))
 
+  // Invite tokens in one batch too. A night can have several allocations (one
+  // per promoter sharing the room); the first is the one the card sells from,
+  // which matches what an ordinary shared link does today.
+  const tokens = new Map<string, string>()
+  {
+    const { data: allocs } = await sb
+      .from('promoter_allocations')
+      .select('night_id, invite_token, created_at')
+      .in('night_id', list.map(r => r.id as string))
+      .order('created_at', { ascending: true })
+    for (const a of (allocs ?? []) as { night_id: string; invite_token: string | null }[]) {
+      if (a.invite_token && !tokens.has(a.night_id)) tokens.set(a.night_id, a.invite_token)
+    }
+  }
+
   const events: FeedEvent[] = list.map(r => {
     const releases = ladders.get(r.id as string) ?? []
     const club = typeof r.club_id === 'string' ? clubs.get(r.club_id) : undefined
@@ -306,6 +330,7 @@ export async function GET() {
       // column cannot be trusted the moment a wave sells out or its date passes.
       price_cents: livePrice(releases, r.price_cents as number),
       releases,
+      invite_token: tokens.get(r.id as string) ?? null,
       currency: r.currency as string,
       is_pinned: r.is_pinned as boolean,
       featured: r.featured as boolean,

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Attendance verification only, never continuous tracking. COARSE +
+         FINE are the foreground pair (the "I'm here" tap and the nearby feed);
+         BACKGROUND is the Always-equivalent that lets a geofence wake the app
+         when the user reaches a venue they booked. Android requires the
+         background grant to be requested SEPARATELY, after foreground is
+         already held — the same two-step ladder as iOS WhenInUse -> Always. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- Runtime notification permission, required from API 33. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Morning-after prompts are scheduled at a wall-clock time, which needs
+         an exact alarm on API 31+. USE_EXACT_ALARM is the non-revocable form
+         and is permitted for user-facing scheduled reminders. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Add-to-calendar writes group nights; matches iOS's write-only
+         NSCalendarsWriteOnlyAccessUsageDescription. -->
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+
+    <!-- Google Pay availability check. -->
+    <uses-feature
+        android:name="android.hardware.location"
+        android:required="false" />
+
+    <application
+        android:name=".ClubFuocoApplication"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="false"
+        android:theme="@style/Theme.ClubFuoco"
+        android:enableOnBackInvokedCallback="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.ClubFuoco">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Promoter-invite deep links. The App Links form (autoVerify)
+                 is the equivalent of the iOS associated-domains entry and
+                 needs /.well-known/assetlinks.json served from the domain. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="clubfuoco.com" android:pathPrefix="/i/" />
+                <data android:scheme="https" android:host="clubfuoco.com" android:pathPrefix="/join/" />
+            </intent-filter>
+
+            <!-- Custom scheme fallback: in-app browsers (Instagram, TikTok)
+                 do not honour App Links, exactly as they ignore Universal
+                 Links on iOS. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="clubfuoco" />
+            </intent-filter>
+
+            <!-- OAuth redirect for Supabase hosted sign-in. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.clubfuoco.app" android:host="login-callback" />
+            </intent-filter>
+        </activity>
+
+        <!-- Geofence transitions are delivered here even when the app is dead. -->
+        <receiver
+            android:name=".core.location.GeofenceReceiver"
+            android:exported="false" />
+
+        <!-- Morning-after review prompts. -->
+        <receiver
+            android:name=".core.notifications.MorningAfterReceiver"
+            android:exported="false" />
+
+        <!-- Alarms do not survive a reboot; this re-arms them. -->
+        <receiver
+            android:name=".core.notifications.BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".core.notifications.FuocoMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="com.google.android.gms.wallet.api.enabled"
+            android:value="true" />
+    </application>
+</manifest>

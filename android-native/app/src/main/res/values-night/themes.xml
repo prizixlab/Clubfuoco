@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark counterpart. `cream` inverts to the near-black app background, exactly
+     as Theme.adaptive does on iOS, so the pre-Compose window matches. -->
+<resources>
+    <style name="Theme.ClubFuoco" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/cream</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

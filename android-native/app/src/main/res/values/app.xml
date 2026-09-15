@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hand-maintained resources. Kept SEPARATE from strings.xml, which is
+     generated wholesale by scripts/gen-strings.py and would lose anything
+     added to it by hand. -->
+<resources>
+    <string name="app_name" translatable="false">Club Fuoco</string>
+
+    <!-- Notification channels. User-visible in system settings, so they are
+         translatable even though the app never renders them itself. -->
+    <string name="channel_reminders">Night reminders</string>
+    <string name="channel_reminders_desc">Morning-after check-ins and booking reminders.</string>
+    <string name="channel_social">Friends and groups</string>
+    <string name="channel_social_desc">Friend requests, group invites and RSVPs.</string>
+    <!-- Morning-after attendance prompt. iOS hardcodes this copy in English
+         inside NotificationService; Android does it properly, and these keys
+         should be back-ported into the iOS catalog. -->
+    <string name="review_promptTitle">Did you get in last night?</string>
+    <string name="review_promptBody">Tell us how it went at %s.</string>
+
+    <!-- Featured DJ box labels. iOS hardcodes these in English inside
+         FeaturedDJView; worth back-porting into the catalog. -->
+    <string name="dj_featured">Featured DJ</string>
+    <string name="dj_specialGuest">Special guest</string>
+
+    <!-- ── Promoter invite claim ────────────────────────────────────────────
+         `InviteClaimView.swift` contains 47 English literals and not one
+         catalog lookup — the ONE screen in the iOS app with no localization at
+         all, and the screen most likely to be the first thing a new person ever
+         sees of Club Fuoco. Android does it properly from the start; these keys
+         should be back-ported and the iOS literals replaced with lookups. -->
+    <string name="invite_youreInvited">You\'re invited</string>
+    <string name="invite_reserveYourSpot">Reserve your spot</string>
+    <string name="invite_fullName">Full name</string>
+    <string name="invite_bringPeople">Bring people</string>
+    <string name="invite_addSpot">Add a spot</string>
+    <string name="invite_inviteAFriend">Invite a friend</string>
+    <string name="invite_aFriend">Friend</string>
+    <string name="invite_open">Open</string>
+    <string name="invite_shareOpenSpots">Share link for open spots</string>
+    <string name="invite_addMeToTheList">Add me to the list</string>
+    <string name="invite_joining">Joining…</string>
+    <string name="invite_openingCheckout">Opening checkout…</string>
+    <!-- %1$s is the total price, e.g. "€24". -->
+    <string name="invite_joinFor">Join for %1$s</string>
+    <!-- %1$s is the total price, %2$d the number of people it covers. -->
+    <string name="invite_joinForHeads">Join for %1$s · %2$d people</string>
+    <string name="invite_saveItPayLater">Save it, pay later</string>
+    <string name="invite_savedPayAnyTime">Saved — pay any time before the night</string>
+    <string name="invite_saveHoldsNothing">Saving doesn\'t hold a spot — pay to lock it in.</string>
+    <string name="invite_everyoneWillSeeYou">Everyone will see you on the guest list</string>
+    <string name="invite_notNow">Not now</string>
+    <string name="invite_loadFailed">Couldn\'t load this invite — the link may be expired.</string>
+    <string name="invite_claimFailed">Couldn\'t add you to the list.</string>
+    <string name="invite_checkoutFailed">Couldn\'t open checkout. Try again in a moment.</string>
+    <string name="invite_signInToSave">Sign in to save this event for later.</string>
+
+    <!-- The ticket. -->
+    <string name="invite_youreOnTheList">You\'re on the list</string>
+    <string name="invite_showAtDoor">Show this at the door</string>
+    <string name="invite_keepThisSpot">Keep this spot</string>
+    <string name="invite_keepThisSpotNote">Save it to your phone so it\'s here tomorrow, and in your tickets.</string>
+    <string name="invite_savedToAccount">Saved to your account</string>
+    <string name="invite_attachFailed">Signed in, but couldn\'t attach this spot. Your QR still works — open this link again to pull it up.</string>
+    <string name="invite_myGuests">My guests</string>
+    <!-- %1$s is the person\'s own name, marking their row in their own party. -->
+    <string name="invite_youRow">%1$s (you)</string>
+    <string name="invite_going">Going</string>
+    <string name="invite_invited">Invited</string>
+    <string name="invite_checkedIn">Checked in</string>
+    <string name="invite_openSpot">Open spot</string>
+    <string name="invite_invite">Invite</string>
+    <string name="invite_allSpotsFilled">You\'ve filled every spot the promoter allows.</string>
+    <string name="invite_whosGoing">Who\'s going</string>
+
+    <!-- Friend picker. -->
+    <string name="invite_pickFriend">Pick a friend</string>
+    <string name="invite_searchFriends">Search friends</string>
+    <string name="invite_noFriends">No friends yet</string>
+    <string name="invite_noFriendsNote">Add friends from your profile, then invite them to spots here.</string>
+    <string name="invite_everyoneAdded">Everyone\'s already added</string>
+
+    <!-- ── Morning-after review ─────────────────────────────────────────────
+         `ReviewSurveySheet.swift` is hardcoded English throughout, like the
+         invite screen. Back-port these. -->
+    <string name="bookings_reviews">Reviews</string>
+    <string name="bookings_tellUsHowItWent">Tell us how it went</string>
+    <string name="bookings_noReviews">No reviews waiting</string>
+    <string name="bookings_noReviewsSub">After a night out, we\'ll ask you how it went.</string>
+    <string name="bookings_dismissReview">Dismiss</string>
+
+    <!-- %1$d is the step number, 1-7. -->
+    <string name="review_stepKicker">N° %1$02d · REVIEW</string>
+    <string name="review_theVenue">the venue</string>
+    <string name="review_continue">Continue</string>
+    <string name="review_submit">Submit review</string>
+    <string name="review_saveFailed">Couldn\'t save that. Try again.</string>
+
+    <!-- Each step has a plain first line, an ITALIC second line, and a line of
+         help underneath. Split in three so a translator can break their own
+         sentence where it reads best rather than where English happens to. -->
+    <string name="review_titleDidYouGo">Did you make it</string>
+    <!-- %1$s is the venue name. -->
+    <string name="review_subtitleDidYouGo">to %1$s?</string>
+    <string name="review_helpDidYouGo">Quick check before the review — answer honestly, it only takes a second.</string>
+
+    <string name="review_titleOverall">Overall, how</string>
+    <string name="review_subtitleOverall">was the night?</string>
+    <string name="review_helpOverall">A general feel for the night.</string>
+
+    <string name="review_titleDrinks">What did</string>
+    <string name="review_subtitleDrinks">you drink?</string>
+    <string name="review_helpDrinks">Pick everything you ordered. Helps us learn what each club does well.</string>
+
+    <string name="review_titleDrinkRatings">Rate every</string>
+    <string name="review_subtitleDrinkRatings">drink.</string>
+    <string name="review_helpDrinkRatings">Tap stars for each — that\'s how we figure out which club does which drink best.</string>
+
+    <string name="review_titleMusic">Music + the</string>
+    <string name="review_subtitleMusic">vibe.</string>
+    <string name="review_helpMusic">Tap a vibe rating and the genres you actually heard.</string>
+
+    <string name="review_titleCrowd">And the</string>
+    <string name="review_subtitleCrowd">crowd.</string>
+    <string name="review_helpCrowd">How was the room?</string>
+
+    <string name="review_titleReturn">Would you go</string>
+    <string name="review_subtitleReturn">back?</string>
+    <string name="review_helpReturn">Last one — would you book it again?</string>
+
+    <string name="review_yesIWent">Yes, I went</string>
+    <string name="review_didntGo">I didn\'t go</string>
+    <string name="review_howWasIt">How was it?</string>
+    <string name="review_whatWasPlaying">What was playing?</string>
+    <string name="review_returnYes">Yes — book it again</string>
+    <string name="review_returnMaybe">Maybe — depends on the night</string>
+    <string name="review_returnNo">No</string>
+    <!-- %1$d is how many drinks are picked in that category. -->
+    <string name="review_nSelected">%1$d selected</string>
+    <string name="review_addYourOwn">Add your own…</string>
+    <string name="review_typeAnything">Type anything you like…</string>
+
+    <!-- Drink category labels. The individual drinks and the music genres are
+         deliberately NOT here: they are stored verbatim on the survey row and
+         aggregated across every user, so translating them would split one drink
+         into four. See core/DrinkCategories.kt. -->
+    <string name="drinks_cocktails">Cocktails</string>
+    <string name="drinks_beer">Beer</string>
+    <string name="drinks_wine">Wine</string>
+    <string name="drinks_shots">Shots</string>
+    <string name="drinks_champagne">Champagne</string>
+    <string name="drinks_nonAlcoholic">Non-alcoholic</string>
+    <string name="drinks_other">Other</string>
+
+    <!-- ── Onboarding preferences survey ────────────────────────────────────
+         `SurveyView.swift` mirrors the web /onboarding page, which hardcodes
+         its copy outside the localization table — so iOS hardcodes it too.
+         Third screen in a row where Android is the only localized version. -->
+    <!-- The catalog's `signup_stepLabel` bakes the total into the translation
+         ("Step %s / 03"), so it silently went wrong the moment the wizard grew a
+         fourth step. This is the same label with BOTH numbers as arguments —
+         %1$d is the current step, %2$d the total. Back-port it and the iOS
+         string can stop lying about how long signup is. -->
+    <string name="signup_stepOf">Step %1$d / %2$02d</string>
+
+    <string name="survey_offerTitle">Tell us more</string>
+    <string name="survey_offerItalic">about yourself?</string>
+    <string name="survey_offerSubtitle">A few quick taps and we\'ll tune your nights — music, venues, the works. Or skip straight in.</string>
+    <string name="survey_offerRecommended">Recommended</string>
+    <string name="survey_offerYes">Yes, personalize my nights</string>
+    <string name="survey_offerStart">Start survey</string>
+    <string name="survey_offerNoThanks">No thanks</string>
+    <string name="survey_offerTakeMeIn">Just take me in</string>
+    <string name="survey_offerGoExplore">Go to explore</string>
+
+    <!-- The kickers keep the Italian section names from the web page — they are
+         brand furniture, not copy, and read the same in every language. %1$d is
+         the step number. -->
+    <string name="survey_kickerMusic">N° %1$02d · Musica</string>
+    <string name="survey_kickerVibes">N° %1$02d · Atmosfera</string>
+    <string name="survey_kickerDrinks">N° %1$02d · Bevande</string>
+    <string name="survey_kickerNights">N° %1$02d · Serate</string>
+    <string name="survey_kickerBudget">N° %1$02d · Budget</string>
+    <string name="survey_kickerSquad">N° %1$02d · Compagnia</string>
+    <string name="survey_kickerCrowd">N° %1$02d · Folla</string>
+
+    <string name="survey_titleMusic">What gets you</string>
+    <string name="survey_italicMusic">moving?</string>
+    <string name="survey_subMusic">Pick all the genres you love.</string>
+
+    <string name="survey_titleVibes">What\'s your</string>
+    <string name="survey_italicVibes">vibe?</string>
+    <string name="survey_subVibes">Pick up to 3 that fit you best.</string>
+
+    <string name="survey_titleDrinks">What\'s in your</string>
+    <string name="survey_italicDrinks">glass?</string>
+    <string name="survey_subDrinks">Pick everything you drink.</string>
+
+    <string name="survey_titleNights">When do you come</string>
+    <string name="survey_italicNights">alive?</string>
+    <string name="survey_subNights">Pick every night you go out.</string>
+
+    <string name="survey_titleBudget">What\'s your</string>
+    <string name="survey_italicBudget">limit?</string>
+    <string name="survey_subBudget">How much do you spend on a night out?</string>
+
+    <string name="survey_titleSquad">Who do you roll</string>
+    <string name="survey_italicSquad">with?</string>
+    <string name="survey_subSquad">How big is the crew you go out with.</string>
+
+    <string name="survey_titleCrowd">Who\'s your</string>
+    <string name="survey_italicCrowd">crowd?</string>
+    <string name="survey_subCrowd">The kind of people around you.</string>
+
+    <string name="survey_letsGo">Let\'s go</string>
+    <string name="survey_skipForNow">Skip for now</string>
+    <string name="survey_add">Add</string>
+    <string name="survey_addGenre">Add another genre…</string>
+    <string name="survey_addVibe">Add another vibe…</string>
+    <string name="survey_noLimit">No limit</string>
+    <string name="survey_any">Any</string>
+    <string name="survey_dontCare">I don\'t really care</string>
+
+    <!-- Option labels. The VALUES behind these ("wild", "rooftop", "lgbtq") are
+         stable keys matched against venue tags and never translated; only these
+         labels are. -->
+    <string name="survey_vibeWild">Wild &amp; loud</string>
+    <string name="survey_vibeIntimate">Intimate</string>
+    <string name="survey_vibeUnderground">Underground</string>
+    <string name="survey_vibeUpscale">Upscale</string>
+    <string name="survey_vibeRooftop">Rooftop</string>
+    <string name="survey_vibeBeach">Beachfront</string>
+    <string name="survey_vibeDancing">Dance floor</string>
+    <string name="survey_vibeChill">Chill bar</string>
+
+    <string name="survey_nightMonday">Monday</string>
+    <string name="survey_nightTuesday">Tuesday</string>
+    <string name="survey_nightWednesday">Wednesday</string>
+    <string name="survey_nightThursday">Thursday</string>
+    <string name="survey_nightFriday">Friday</string>
+    <string name="survey_nightSaturday">Saturday</string>
+    <string name="survey_nightSunday">Sunday</string>
+    <string name="survey_nightSpecial">Special occasions</string>
+
+    <string name="survey_crowdMixed">Mixed crowd</string>
+    <string name="survey_crowdLgbtq">LGBTQ+ friendly</string>
+    <string name="survey_crowdLocal">Mostly locals</string>
+    <string name="survey_crowdInternational">International</string>
+    <string name="survey_crowdMature">Mature (25+)</string>
+    <string name="survey_crowdYoung">Young energy</string>
+    <string name="survey_crowdStudents">Students</string>
+    <string name="survey_crowdIndustry">Industry / creatives</string>
+    <string name="survey_crowdTourists">Tourists &amp; travellers</string>
+    <string name="survey_crowdBottle">Bottle service</string>
+
+    <string name="survey_squadSolo">Solo</string>
+    <string name="survey_squadSoloSub">Just me</string>
+    <string name="survey_squadDuo">Duo</string>
+    <string name="survey_squadDuoSub">Me + 1</string>
+    <string name="survey_squadCrew">Crew</string>
+    <string name="survey_squadCrewSub">3 – 5</string>
+    <string name="survey_squadGang">Gang</string>
+    <string name="survey_squadGangSub">6+</string>
+
+    <!-- ── Event page ───────────────────────────────────────────────────────
+         Most of the event copy IS in the catalog (events.*). These are the
+         handful `EventDetailView.swift` still hardcodes in English — the ticket
+         ladder, which landed after the rest of the screen was translated. Worth
+         back-porting with the others. -->
+    <string name="events_tickets">Tickets</string>
+    <string name="events_soldOut">Sold out</string>
+    <!-- %1$s is the price, e.g. "€15". -->
+    <string name="events_buyFor">Buy · %1$s</string>
+    <!-- %1$d is how many tickets are left in the wave on sale. -->
+    <string name="events_ticketsLeft">%1$d left</string>
+    <!-- %1$d is the wave\'s position when the promoter gave it no name. -->
+    <string name="events_releaseN">Release %1$d</string>
+    <!-- The reason to buy now, stated without pressure tactics we cannot stand
+         behind: %1$s is the next price, %2$s the date this wave ends. -->
+    <string name="events_priceFrom">%1$s from %2$s</string>
+    <string name="events_priceWhenGone">%1$s once these run out</string>
+    <string name="events_priceNext">%1$s next</string>
+    <string name="events_reserveFailed">Couldn\'t save that. Try again.</string>
+    <string name="events_checkoutFailed">Couldn\'t start checkout. Try again in a moment.</string>
+
+    <!-- ── Attendance check-in ──────────────────────────────────────────────
+         `AttendanceCheckInCard.swift` is hardcoded English throughout. Same
+         story as the invite screen, the review and the survey — back-port. -->
+    <string name="attend_kicker">Attendance</string>
+    <string name="attend_kickerAfter">After the night</string>
+    <string name="attend_nearby">You\'re nearby?</string>
+    <string name="attend_nearbyNote">Tap once you\'re at the door — we use it to settle with the venue and to help if anything goes wrong.</string>
+    <string name="attend_imHere">I\'m here</string>
+    <string name="attend_checkingIn">Checking you in…</string>
+    <string name="attend_didYouGetIn">Did you get in?</string>
+    <string name="attend_didYouGetInNote">Tell us how it went so we can sort out support if needed.</string>
+    <string name="attend_gotIn">Got in</string>
+    <string name="attend_hadAnIssue">Had an issue</string>
+    <string name="attend_whatHappened">What happened at the door?</string>
+
+    <string name="attend_reasonDenied">Denied at the door</string>
+    <string name="attend_reasonNotOnList">Not on the list</string>
+    <string name="attend_reasonLate">Arrived too late</string>
+    <string name="attend_reasonDressCode">Dress code issue</string>
+    <string name="attend_reasonCapacity">Venue at capacity</string>
+    <string name="attend_reasonDidNotGo">I didn\'t go</string>
+    <string name="attend_reasonOther">Something else</string>
+
+    <string name="attend_confirmedThere">Confirmed — you were there.</string>
+    <string name="attend_checkedInTitle">Checked in.</string>
+    <string name="attend_gotItThanks">Got it — thanks for letting us know.</string>
+    <string name="attend_markedNoShow">Marked as no-show.</string>
+    <string name="attend_lookingInto">We\'re looking into it.</string>
+    <string name="attend_noAction">No action needed.</string>
+    <string name="attend_supportFollowUp">Support will follow up if needed.</string>
+    <string name="attend_noShowWrong">If this is wrong, contact support.</string>
+
+    <string name="attend_checkedIn">Checked in. Have a great night.</string>
+    <string name="attend_noted">Thanks — noted.</string>
+    <string name="attend_sorryToHear">Sorry to hear that. We\'ll follow up.</string>
+    <string name="attend_noLocation">Couldn\'t read your location. Check location is on and try again.</string>
+    <string name="attend_tooFar">You\'re too far from the venue to check in.</string>
+    <string name="attend_notOpenYet">Check-in isn\'t open yet — try closer to arrival time.</string>
+    <string name="attend_noVenueLocation">We don\'t have this venue\'s location yet.</string>
+
+    <!-- ── Saved events ─────────────────────────────────────────────────────
+         Hardcoded English in `SavedEventsSection.swift`. -->
+    <string name="saved_notPaidYet">Saved — not paid yet</string>
+    <!-- %1$s is the price, e.g. "€15". Phrased as the action, not a label. -->
+    <string name="saved_pay">Pay %1$s</string>
+    <string name="saved_join">Join</string>
+
+    <!-- ── Location ladder, Android wording ─────────────────────────────────
+         The catalog's location_* step copy names Apple's buttons ("Allow While
+         Using App", "Change to Always Allow") and says "when iOS asks". Android
+         has different buttons AND a different shape: from API 30 the background
+         grant can only be given in Settings, so there is no second in-app
+         dialog to describe. These replace the step strings only — the titles
+         and bodies are platform-neutral and come from the catalog. -->
+    <string name="location_androidNearbyTip">When Android asks, tap **While using the app**.</string>
+    <string name="location_androidStep1">Tap **While using the app**</string>
+    <string name="location_androidStep2">Then choose **Allow all the time** in Settings</string>
+    <string name="location_androidSettingsBody">Android only lets you turn this on from Settings. It takes three taps.</string>
+    <string name="location_androidSettingsStep1">Tap **Open Settings** below</string>
+    <string name="location_androidSettingsStep2">Tap **Permissions**, then **Location**</string>
+    <string name="location_androidSettingsStep3">Choose **Allow all the time**</string>
+</resources>

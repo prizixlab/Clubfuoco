@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive-icon foregrounds are masked to a shape and parallax-shifted, so
+     the artwork has to sit inside a safe zone or the launcher crops it. The
+     brand mark is a full-bleed square, so it is inset to roughly the standard
+     66% safe area rather than redrawn. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@mipmap/ic_launcher_image"
+    android:inset="17%" />

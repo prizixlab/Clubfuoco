@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the handful of tokens the PLATFORM needs (window background, adaptive
+     icon). The full palette lives in Theme.kt so it stays a single source of
+     truth with the iOS Theme.swift; these are the values that must exist as
+     Android resources because the system reads them before Compose runs. -->
+<resources>
+    <color name="cream">#FFF8F5EE</color>
+    <color name="ink">#FF221E1A</color>
+    <color name="ember">#FFC2562D</color>
+</resources>

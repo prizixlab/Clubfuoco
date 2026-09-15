@@ -179,7 +179,7 @@ struct EventDetailView: View {
     /// "€15 after Fri 20 Feb" / "€15 once these run out" — the reason to buy now,
     /// stated without pressure tactics we cannot stand behind.
     private func nextLine(live: TicketRelease, next: TicketRelease) -> String {
-        if let ends = live.endsAt {
+        if let ends = live.endsAtDate {
             return "\(next.priceText) from \(ends.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))"
         }
         if live.quantity != nil {

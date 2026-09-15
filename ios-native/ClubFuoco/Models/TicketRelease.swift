@@ -11,8 +11,16 @@ struct TicketRelease: Decodable, Hashable, Identifiable {
     let position: Int
     let name: String?
     let priceCents: Int
-    /// When it stops selling. Nil = it runs until the doors open.
-    let endsAt: Date?
+    /// When it stops selling, as the server's ISO timestamp. Nil = it runs
+    /// until the doors open.
+    ///
+    /// Kept as a STRING deliberately. The shared APIClient decoder sets no
+    /// dateDecodingStrategy, so it defaults to .deferredToDate and expects a
+    /// NUMBER — a `Date` here made the whole events payload fail to decode,
+    /// which emptied the feed of every event, not just the priced ones. Parsing
+    /// is done here rather than by changing that decoder, which every other
+    /// model already depends on.
+    let endsAt: String?
     /// Tickets in this wave, in people. Nil = no limit.
     let quantity: Int?
     /// Heads already taken.
@@ -21,6 +29,18 @@ struct TicketRelease: Decodable, Hashable, Identifiable {
     let state: String
 
     var isLive: Bool { state == "live" }
+
+    /// PostgREST sends fractional seconds ("…T09:21:53.185+00:00"); plenty of
+    /// rows won't have them. Try both rather than assume.
+    var endsAtDate: Date? {
+        guard let endsAt else { return nil }
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = withFraction.date(from: endsAt) { return d }
+        let plain = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime]
+        return plain.date(from: endsAt)
+    }
 
     var displayName: String { name?.nilIfEmpty ?? "Release \(position)" }
 
@@ -40,7 +60,7 @@ struct TicketRelease: Decodable, Hashable, Identifiable {
 
     /// When this wave hands over, in the guest's words.
     func switchText(locale: LocaleStore) -> String? {
-        guard let endsAt else { return nil }
+        guard let endsAt = endsAtDate else { return nil }
         let cal = Calendar.current
         if cal.isDateInToday(endsAt) {
             return "until \(endsAt.formatted(date: .omitted, time: .shortened)) tonight"

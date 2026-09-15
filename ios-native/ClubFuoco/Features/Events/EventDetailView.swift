@@ -115,6 +115,114 @@ struct EventDetailView: View {
         }
     }
 
+    // ── Ticket releases ───────────────────────────────────────────────────────
+
+    /// The price now, what it becomes, and the whole ladder underneath.
+    ///
+    /// A flat-priced night renders just the first line — there is no ladder to
+    /// show, and a one-row "ladder" would imply a change that is not coming.
+    @ViewBuilder
+    private var ticketLadder: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                if event.soldOut {
+                    Text("Sold out")
+                        .font(.cfDisplay(26, weight: .bold))
+                        .foregroundStyle(Explore.ink3)
+                } else {
+                    Text(priceNow)
+                        .font(.cfDisplay(26, weight: .bold))
+                        .foregroundStyle(Explore.ink)
+                    if let live = event.liveRelease {
+                        Text(live.displayName)
+                            .font(.cfSans(12, weight: .medium))
+                            .foregroundStyle(Explore.ink3)
+                    }
+                }
+                Spacer()
+                if let left = event.liveRelease?.remainingText {
+                    Text(left)
+                        .font(.cfSans(11, weight: .semibold))
+                        .foregroundStyle(Explore.accent)
+                        .padding(.horizontal, 9).padding(.vertical, 5)
+                        .background(Capsule().fill(Explore.accent.opacity(0.12)))
+                }
+            }
+
+            // The whole point of releases: say plainly that waiting costs more.
+            if let next = event.nextRelease, let live = event.liveRelease {
+                Text(nextLine(live: live, next: next))
+                    .font(.cfSans(13))
+                    .foregroundStyle(Explore.ink2)
+            }
+
+            if event.ladder.count > 1 {
+                VStack(spacing: 0) {
+                    ForEach(event.ladder) { release in
+                        releaseRow(release)
+                        if release.id != event.ladder.last?.id {
+                            Divider().background(Explore.line)
+                        }
+                    }
+                }
+                .padding(.top, 2)
+            }
+        }
+    }
+
+    private var priceNow: String {
+        let cents = event.priceCents ?? 0
+        if cents == 0 { return locale.t("events.free") }
+        return cents % 100 == 0 ? "€\(cents / 100)" : String(format: "€%.2f", Double(cents) / 100)
+    }
+
+    /// "€15 after Fri 20 Feb" / "€15 once these run out" — the reason to buy now,
+    /// stated without pressure tactics we cannot stand behind.
+    private func nextLine(live: TicketRelease, next: TicketRelease) -> String {
+        if let ends = live.endsAt {
+            return "\(next.priceText) from \(ends.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))"
+        }
+        if live.quantity != nil {
+            return "\(next.priceText) once these run out"
+        }
+        return "\(next.priceText) next"
+    }
+
+    private func releaseRow(_ r: TicketRelease) -> some View {
+        HStack(spacing: 12) {
+            // A filled dot for the wave on sale, hollow for one still to come,
+            // nothing for one already spent.
+            Circle()
+                .fill(r.isLive ? Explore.accent : Color.clear)
+                .frame(width: 7, height: 7)
+                .overlay(Circle().stroke(r.state == "upcoming" ? Explore.ink3 : Color.clear, lineWidth: 1))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(r.displayName)
+                    .font(.cfSans(13, weight: r.isLive ? .semibold : .regular))
+                    .foregroundStyle(spent(r) ? Explore.ink3 : Explore.ink)
+                if let when = r.switchText(locale: locale), !spent(r) {
+                    Text(when)
+                        .font(.cfSans(11))
+                        .foregroundStyle(Explore.ink3)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            Text(r.state == "sold_out" ? "Sold out" : r.priceText)
+                .font(.cfSans(13, weight: r.isLive ? .semibold : .regular))
+                .foregroundStyle(spent(r) ? Explore.ink3 : Explore.ink)
+                .strikethrough(r.state == "ended", color: Explore.ink3)
+        }
+        .padding(.vertical, 10)
+        .opacity(spent(r) ? 0.55 : 1)
+    }
+
+    private func spent(_ r: TicketRelease) -> Bool {
+        r.state == "ended" || r.state == "sold_out"
+    }
+
     // ── Scroll tracking ───────────────────────────────────────────────────────
 
     private struct OffsetKey: PreferenceKey {
@@ -223,6 +331,13 @@ struct EventDetailView: View {
 
             if !event.hostCredits.isEmpty {
                 hostsRow.padding(.top, 16)
+            }
+
+            // Price, and where it is going. On a night that sells in waves this
+            // is the only place a guest can see that waiting costs them more —
+            // so it sits above the line-up, not buried under it.
+            if !event.ladder.isEmpty || (event.priceCents ?? 0) > 0 {
+                section("Tickets") { ticketLadder }
             }
 
             // The schedule outranks the billing on a night that moves: the

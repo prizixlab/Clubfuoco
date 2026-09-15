@@ -69,7 +69,13 @@ struct FeedEvent: Decodable, Sendable, Identifiable, Hashable {
     /// ordinary single-venue night, which is most of them.
     let stops: [EventStop]?
     let totalCapacity: Int?
+    /// What one head costs RIGHT NOW. On a night that sells in waves this is
+    /// the LIVE release's price, computed server-side — never a stored column,
+    /// which goes stale the moment a wave sells out or its date passes.
     let priceCents: Int?
+    /// The waves, in sale order. Empty for a flat-priced night, which is most
+    /// of them.
+    let releases: [TicketRelease]?
     let currency: String?
     /// Our editorial pin — what we chose to lead with.
     let isPinned: Bool?
@@ -78,6 +84,22 @@ struct FeedEvent: Decodable, Sendable, Identifiable, Hashable {
     let featured: Bool?
     /// Run by Club Fuoco rather than by a promoter.
     let isHouse: Bool?
+
+    /// The ladder, or nothing. Absent and empty mean the same thing to the UI.
+    var ladder: [TicketRelease] { releases ?? [] }
+
+    /// The wave on sale. Nil on a flat-priced night, and also when every wave
+    /// is spent — which is what "sold out" looks like from here.
+    var liveRelease: TicketRelease? { ladder.first(where: { $0.isLive }) }
+
+    /// The next wave a guest would be pushed into, for "€15 from Friday".
+    var nextRelease: TicketRelease? {
+        guard let live = liveRelease else { return nil }
+        return ladder.first { $0.position > live.position && $0.state != "sold_out" }
+    }
+
+    /// Waves exist and none is live: everything has ended or sold out.
+    var soldOut: Bool { !ladder.isEmpty && liveRelease == nil }
 
     var pinned: Bool { isPinned ?? false }
     var paid: Bool { featured ?? false }

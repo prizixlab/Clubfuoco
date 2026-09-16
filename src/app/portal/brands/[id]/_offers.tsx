@@ -32,10 +32,24 @@ export default function OffersEditor({ brand, onOffersChanged }: {
     api<BrandRow[]>('/api/portal/brands').then(setBrands).catch(() => setBrands([]))
   }, [])
 
+  // Names come off the OFFER rows first and the picker list second. The picker
+  // is active-only by design (you should not be able to hang a new offer on a
+  // switched-off venue), so it cannot name a deactivated one — resolving from
+  // it alone is what printed raw UUIDs as group headers.
   const clubName = useMemo(() => {
-    const m = new Map(clubs.map(c => [c.id, c.name]))
+    const m = new Map<string, string>()
+    for (const c of clubs) m.set(c.id, c.name)
+    for (const o of offers ?? []) if (o.club_name) m.set(o.club_id, o.club_name)
     return (id: string) => m.get(id) ?? id
-  }, [clubs])
+  }, [clubs, offers])
+
+  // Venues switched off in `clubs` while still carrying offers. Drawn from the
+  // offer rows, since a deactivated venue is absent from the picker list.
+  const inactiveClubs = useMemo(() => {
+    const s = new Set<string>()
+    for (const o of offers ?? []) if (!o.club_active) s.add(o.club_id)
+    return s
+  }, [offers])
 
   const byClub = useMemo(() => {
     const m = new Map<string, OfferRow[]>()
@@ -65,6 +79,15 @@ export default function OffersEditor({ brand, onOffersChanged }: {
             <span style={{ color: C.faint, marginLeft: 10, letterSpacing: '0.1em' }}>
               {offers ? `${liveCount} live${inactiveCount ? ` · ${inactiveCount} inactive` : ''}` : '…'}
             </span>
+            {/* "Live" here means "not archived" — it says nothing about whether
+                a guest can see the offer. The supplier kill switch overrides
+                every row at once, and reading "18 live" directly beneath a
+                muted brand is how you end up believing offers are out there. */}
+            {brand.offers_hidden && liveCount > 0 && (
+              <span style={{ color: C.danger, marginLeft: 10, letterSpacing: '0.1em' }}>
+                · none reaching guests
+              </span>
+            )}
           </span>
           {otherBrands.length > 0 && <DuplicateFrom brandId={brand.id} sources={otherBrands} onDone={changed} />}
         </div>
@@ -79,6 +102,7 @@ export default function OffersEditor({ brand, onOffersChanged }: {
         <div style={{ display: 'grid', gap: 14 }}>
           {byClub.map(([clubId, clubOffers]) => (
             <ClubGroup key={clubId} brandId={brand.id} clubId={clubId} name={clubName(clubId)}
+              venueInactive={inactiveClubs.has(clubId)}
               offers={clubOffers} onChanged={changed} />
           ))}
         </div>
@@ -174,8 +198,9 @@ function DuplicateFrom({ brandId, sources, onDone }: {
 }
 
 // ── One club's offers — draggable rows + inline add/edit ────────────────────
-function ClubGroup({ brandId, clubId, name, offers, onChanged }: {
-  brandId: string; clubId: string; name: string; offers: OfferRow[]; onChanged: () => void
+function ClubGroup({ brandId, clubId, name, venueInactive, offers, onChanged }: {
+  brandId: string; clubId: string; name: string; venueInactive?: boolean
+  offers: OfferRow[]; onChanged: () => void
 }) {
   const [adding, setAdding] = useState(offers.length === 0)
   const [dragId, setDragId] = useState<string | null>(null)
@@ -214,6 +239,9 @@ function ClubGroup({ brandId, clubId, name, offers, onChanged }: {
             <path d="M12 2v6m-6 3 6-3 6 3M5 22V11m14 11V11M3 22h18" />
           </svg>
           {name}
+          {/* Deactivating a venue does not touch its offers, so without this
+              the rows below read as live at a room that is switched off. */}
+          {venueInactive && <Badge color={C.danger}>Venue inactive</Badge>}
         </span>
         {!adding && <Btn small onClick={() => setAdding(true)}>Add offer</Btn>}
       </div>

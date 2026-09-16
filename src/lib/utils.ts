@@ -71,3 +71,22 @@ export function resolveBookingDate(requested: unknown): string | null {
   // allow one day of slack on each side to absorb the timezone boundary.
   return diffDays >= -1 && diffDays <= 15 ? requested : null
 }
+
+/**
+ * Split a list of ids into chunks small enough for a PostgREST `.in()` filter.
+ *
+ * `.in()` is a GET query parameter, so every id is spelled out in the URL. A
+ * UUID costs ~37 characters there; a few hundred of them run past what the
+ * proxy in front of Postgres will accept, and the failure is a 414 that reads
+ * like a server fault rather than "your list got long". The feed now carries
+ * every upcoming night, so lists that used to be capped at 100 are unbounded.
+ *
+ * 100 keeps the longest filter near 4KB, well inside every limit in the path.
+ */
+export const ID_CHUNK = 100
+
+export function chunked<T>(ids: T[], size = ID_CHUNK): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < ids.length; i += size) out.push(ids.slice(i, i + size))
+  return out
+}

@@ -1,4 +1,5 @@
 import type { createServiceClient } from '@/lib/supabase/server'
+import { chunked } from '@/lib/utils'
 
 type SB = Awaited<ReturnType<typeof createServiceClient>>
 
@@ -85,22 +86,36 @@ export async function ladder(sb: SB, nightId: string): Promise<Release[]> {
 }
 
 /**
- * Ladders for many nights in two queries, not two per night. The events feed
- * carries up to 100 nights and calling `ladder` per row would be an N+1 on the
- * hot path that renders the app's home screen.
+ * Ladders for many nights in a handful of queries, not two per night. The
+ * events feed carries every upcoming night — hundreds of them — and calling
+ * `ladder` per row would be an N+1 on the hot path that renders the app's
+ * home screen.
  */
 export async function laddersFor(sb: SB, nightIds: string[]): Promise<Map<string, Release[]>> {
   const out = new Map<string, Release[]>()
   if (nightIds.length === 0) return out
 
-  const { data, error } = await sb
+  // Chunked because the feed now carries EVERY upcoming night, not the soonest
+  // 100 — `.in()` spells each id out in the URL, and a few hundred UUIDs there
+  // is a 414 that would read as "this night has no releases" and quietly sell
+  // at the stale flat price.
+  // In parallel, not in sequence. The chunks are independent, and this runs on
+  // the request that renders the app's home screen — four serial round trips
+  // to Postgres is four times the latency for no reason.
+  const pages = await Promise.all(chunked(nightIds).map(ids => sb
     .from('night_releases')
     .select('id, position, name, price_cents, ends_at, quantity, night_id')
-    .in('night_id', nightIds)
-    .order('position', { ascending: true })
-  if (error || !data || data.length === 0) return out
+    .in('night_id', ids)
+    .order('position', { ascending: true })))
 
-  const rows = data as unknown as Row[]
+  const rows: Row[] = []
+  for (const { data, error } of pages) {
+    // A failed read is not an error here — it means "no releases", and the
+    // flat price stands. Bailing out would price every night on a hiccup.
+    if (error) return out
+    if (data) rows.push(...(data as unknown as Row[]))
+  }
+  if (rows.length === 0) return out
   const sold = await soldByRelease(sb, rows.map(r => r.id))
   const now = Date.now()
 
@@ -145,21 +160,26 @@ async function soldByRelease(sb: SB, ids: string[]): Promise<Map<string, number>
   const out = new Map<string, number>()
   if (ids.length === 0) return out
 
-  const { data } = await sb
+  const now = Date.now()
+  // Same reason as the ladder read: one id per release per night, unbounded
+  // once the feed stopped capping at 100. A truncated read here undercounts
+  // what a wave has sold, which is how a sold-out release goes back on sale.
+  const pages = await Promise.all(chunked(ids).map(batch => sb
     .from('promoter_guests')
     .select('release_id, plus_ones, payment_status, hold_expires_at')
-    .in('release_id', ids)
+    .in('release_id', batch)))
 
-  const now = Date.now()
-  for (const g of (data ?? []) as {
-    release_id: string | null; plus_ones: number | null
-    payment_status: string | null; hold_expires_at: string | null
-  }[]) {
-    if (!g.release_id) continue
-    const holdLive = g.payment_status !== 'pending'
-      || (g.hold_expires_at ? new Date(g.hold_expires_at).getTime() > now : false)
-    if (!holdLive) continue
-    out.set(g.release_id, (out.get(g.release_id) ?? 0) + 1 + (g.plus_ones ?? 0))
+  for (const { data } of pages) {
+    for (const g of (data ?? []) as {
+      release_id: string | null; plus_ones: number | null
+      payment_status: string | null; hold_expires_at: string | null
+    }[]) {
+      if (!g.release_id) continue
+      const holdLive = g.payment_status !== 'pending'
+        || (g.hold_expires_at ? new Date(g.hold_expires_at).getTime() > now : false)
+      if (!holdLive) continue
+      out.set(g.release_id, (out.get(g.release_id) ?? 0) + 1 + (g.plus_ones ?? 0))
+    }
   }
   return out
 }

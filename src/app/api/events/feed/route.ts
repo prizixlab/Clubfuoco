@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { laddersFor, livePrice, type Release } from '@/lib/releases'
-import { ok, err } from '@/lib/utils'
+import { ok, err, chunked } from '@/lib/utils'
 
 // GET /api/events/feed — the consumer Events tab.
 //
@@ -230,18 +230,44 @@ async function featuredScraped(
 export async function GET() {
   const sb = await createServiceClient()
 
-  const { data: rows, error } = await sb
-    .from('v_events_feed')
-    .select(
-      'id, title, night_date, open_time, close_time, description, club_id, ' +
-      'location_name, address, lat, lng, photo_urls, total_capacity, ' +
-      'price_cents, currency, is_pinned, featured, is_house, lineup, hosts, stops',
-    )
-    .limit(100)
+  // EVERY upcoming night, not the soonest 100.
+  //
+  // The cap used to be `.limit(100)`. The view is ordered pinned → featured →
+  // soonest, so that was a deterministic slice of the next ten days or so — and
+  // with one promoter running 379 nights through December, it meant the app
+  // could not show anything further out than about a week. A night past the cut
+  // was invisible even when something pointed straight at it: a Featured slot
+  // holds an id, and the card it names has to be in this payload to render.
+  //
+  // Paged rather than given a bigger limit, because PostgREST returns at most
+  // 1000 rows however large a limit is asked for — a `.limit(5000)` would look
+  // like it worked and quietly stop at 1000.
+  //
+  // No `.order()` here on purpose: the view owns the order, and restating it
+  // would silently drop the editorial pin to wherever night_date puts it. Rows
+  // are deduped by id instead, so a row shifting across a page boundary between
+  // requests can't be served twice.
+  const PAGE = 1000
+  const list: Record<string, unknown>[] = []
+  const seen = new Set<string>()
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb
+      .from('v_events_feed')
+      .select(
+        'id, title, night_date, open_time, close_time, description, club_id, ' +
+        'location_name, address, lat, lng, photo_urls, total_capacity, ' +
+        'price_cents, currency, is_pinned, featured, is_house, lineup, hosts, stops',
+      )
+      .range(from, from + PAGE - 1)
 
-  if (error) return err(error.message, 500)
-
-  const list = (rows ?? []) as unknown as Record<string, unknown>[]
+    if (error) return err(error.message, 500)
+    if (!data || data.length === 0) break
+    for (const r of data as unknown as Record<string, unknown>[]) {
+      const id = r.id as string
+      if (!seen.has(id)) { seen.add(id); list.push(r) }
+    }
+    if (data.length < PAGE) break
+  }
 
   // Clubs are fetched in ONE batched query rather than embedded. PostgREST
   // embedding needs a foreign key to follow and a view carries none, so
@@ -259,11 +285,11 @@ export async function GET() {
   ].filter((v): v is string => typeof v === 'string'))]
 
   const clubs = new Map<string, { name: string; cover: string | null }>()
-  if (clubIds.length > 0) {
-    const { data: clubRows } = await sb
-      .from('clubs')
-      .select('id, name, cover_image_url')
-      .in('id', clubIds)
+  const clubPages = await Promise.all(chunked(clubIds).map(ids => sb
+    .from('clubs')
+    .select('id, name, cover_image_url')
+    .in('id', ids)))
+  for (const { data: clubRows } of clubPages) {
     for (const c of clubRows ?? []) {
       clubs.set(c.id as string, {
         name: c.name as string,
@@ -279,12 +305,12 @@ export async function GET() {
   // per promoter sharing the room); the first is the one the card sells from,
   // which matches what an ordinary shared link does today.
   const tokens = new Map<string, string>()
-  {
-    const { data: allocs } = await sb
-      .from('promoter_allocations')
-      .select('night_id, invite_token, created_at')
-      .in('night_id', list.map(r => r.id as string))
-      .order('created_at', { ascending: true })
+  const tokenPages = await Promise.all(chunked(list.map(r => r.id as string)).map(ids => sb
+    .from('promoter_allocations')
+    .select('night_id, invite_token, created_at')
+    .in('night_id', ids)
+    .order('created_at', { ascending: true })))
+  for (const { data: allocs } of tokenPages) {
     for (const a of (allocs ?? []) as { night_id: string; invite_token: string | null }[]) {
       if (a.invite_token && !tokens.has(a.night_id)) tokens.set(a.night_id, a.invite_token)
     }

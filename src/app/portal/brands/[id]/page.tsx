@@ -8,6 +8,7 @@ import {
   api, C, caps, font, mono, serif,
 } from '../../_ui'
 import OffersEditor from './_offers'
+import EventsPanel from './_events'
 
 const LABEL_PRESETS = ['Guestlist by', 'Powered by', 'via']
 
@@ -62,6 +63,11 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
       </div>
 
       <OffersEditor brand={brand} onOffersChanged={load} />
+
+      {/* Events are a separate section, not more offers: an offer is a standing
+          per-venue product, an event is one dated night, and they live in
+          different tables. */}
+      <EventsPanel brand={brand} />
     </>
   )
 }

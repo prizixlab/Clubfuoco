@@ -383,6 +383,35 @@ matters.
 
 ---
 
+### A19. The RELEASE build specifically  ← **built, needs verification**
+
+Everything above can be checked on a debug build. This section cannot: the
+release build shrinks and obfuscates, and the failures that introduces are
+**silent** — no crash, no log, just a feature that quietly does nothing. Run
+through the app once on a release install before any store upload.
+
+```bash
+./gradlew :app:assembleRelease   # unsigned until B3
+```
+
+- [ ] **DJ preview plays.** This is the canary. The SoundCloud widget calls back
+      into the app over a JavaScript bridge that nothing in Kotlin calls, so
+      shrinking is entitled to delete it. If the play button spins forever, the
+      keep rule for `@JavascriptInterface` is broken
+- [ ] Any screen that loads data renders it — a stripped serializer throws
+      `SerializationException` where debug worked fine. Explore, a venue, a
+      pass, and the offer sheet cover the main model families
+- [ ] Google Sign-In completes (the credential types come back from the Play
+      Services process by reflection)
+- [ ] Install from a link with `?invite=<token>` still claims (the referrer
+      client is AIDL, bound by name)
+- [ ] The four languages all still switch — resource shrinking runs in release
+      and locale filtering is on
+- [ ] Deliberately crash something and confirm the stack trace de-obfuscates
+      against `mapping.txt`
+
+---
+
 ## B. External setup blockers
 
 These are accounts and files I cannot create — each one gates a feature.
@@ -406,6 +435,11 @@ No signing config exists yet; `assembleRelease` produces an unsigned APK. Needs 
 keystore created, stored outside the repo, and referenced from a gitignored
 `keystore.properties`. **Losing this keystore is unrecoverable** unless Play App
 Signing is enabled — enable it.
+
+Signing is now the ONLY thing missing from a release build: `assembleRelease`
+succeeds and shrinks the app from 42 MB to 6.9 MB. When you do upload, upload
+`app/build/outputs/mapping/release/mapping.txt` with it, or every crash report
+Play shows you will be in obfuscated names.
 
 ### B4. `assetlinks.json` — **blocks App Links verification**
 Serve `/.well-known/assetlinks.json` from clubfuoco.com with the app's package
@@ -476,14 +510,14 @@ not call it.
   (`survey_*`) and the arrival check-in card (`attend_*`). Four whole screens
   where Android is the only localized build, plus the saved-events strip
   (`saved_*`).
-- **The iOS help sheet shows raw keys, and Android fixes it.**
+- **The iOS help sheet used to show raw keys, and this port is what found it.**
   `BookingHelpSheet.swift` looks up `help.refused`, `help.qrBody`, `help.send`
-  and 11 others; NONE of those exist in the catalog, so iPhone renders the
-  dotted key strings where the copy should be. Android's `help_*` entries in
-  `app.xml` are real copy — adding those keys to the iOS catalog fixes iOS with
-  no Swift change. `EventDetailSheet.swift` has the same problem in miniature:
-  `event.more` / `event.less` are missing too, so that button reads
-  "EVENT.MORE" on iPhone.
+  and 11 others, and `EventDetailSheet.swift` looks up `event.more` /
+  `event.less`; none of the 16 existed in the catalog, so iPhone rendered the
+  dotted key strings where the copy should be. Fixed in the iOS catalog (commit
+  `caeee31`) using the copy written for Android — no Swift change needed. Those
+  keys now come out of `strings.xml` like every other one, so the `help_*`
+  entries were removed from `app.xml`.
 - **The location ladder's step copy is Android's own** (`location_android*`).
   The catalog strings name Apple's buttons and describe a second in-app dialog
   that Android does not have — from API 30 the background grant is a
@@ -496,6 +530,15 @@ not call it.
   not a shortcut.
 - **`resourceConfigurations` → `androidResources.localeFilters`** and no
   `kotlinOptions` block: both are AGP 9 requirements, not preferences.
+- **`RumbaDetailView` is deliberately NOT ported.** It is the guest-list signup
+  screen for the `rumbas` table, and it is unreachable on iOS: `ExploreView`
+  gates its shelf behind a hard-coded `let showGuestLists = false`, with a
+  comment saying there are no booking agreements with those venues and the app
+  must not offer lists it cannot honour. The only remaining entry point is a
+  `#if DEBUG` environment variable for simulator automation. Porting it would
+  ship dead code and a second place to forget to keep the gate closed. If the
+  agreements land and iOS flips that flag, this is roughly a day's work — the
+  models and the `/api/rumbas` endpoint are unchanged.
 
 ---
 
@@ -504,7 +547,7 @@ not call it.
 **Built and compiling** — `./gradlew assembleDebug` and the parity tests both pass.
 
 - Gradle/AGP 9 setup, wrapper, version catalog resolved against real repos
-- **All 661 strings × 4 locales** generated from the iOS String Catalog by
+- **All 683 strings × 4 locales** generated from the iOS String Catalog by
   `scripts/gen-strings.py` (re-run it whenever the iOS catalog changes)
 - Design system: full `Theme.swift` palette port with light/dark pairs, brand
   fonts, `ShimmerBlock`, `FuocoImage`
@@ -546,6 +589,8 @@ not call it.
 - **Supplier lockup** — the offer supplier's mark on every surface their offer
   reaches, plus the "Club Fuoco · via …" operator row that names the merchant
   of record
+- **Release build** — `proguard-rules.pro`, so `assembleRelease` works at all.
+  42 MB debug → 6.9 MB shrunk. See A19 for what only breaks in release.
 - **Parity tests** — `ValidDays` (68 vectors) and `VenueMatch` (41 pairs)
   asserted against JSON generated from the REAL iOS Swift source, so those two
   ports are proven identical rather than eyeballed. See `docs/PORTING.md`.

@@ -60,6 +60,9 @@ import com.clubfuoco.app.core.designsystem.InstrumentSerif
 import com.clubfuoco.app.core.designsystem.Theme
 import com.clubfuoco.app.core.designsystem.clickableUnlessBusy
 import com.clubfuoco.app.core.network.ApiClient
+import com.clubfuoco.app.features.rumbalist.PartnerBrand
+import com.clubfuoco.app.features.rumbalist.SupplierMark
+import com.clubfuoco.app.features.rumbalist.parseHex
 import com.clubfuoco.app.models.Booking
 import java.time.LocalDate
 import java.time.LocalTime
@@ -125,6 +128,11 @@ fun BookingDetailScreen(
             if (!cancelled && token != null) QrCard(token)
 
             StatsStrip(booking)
+
+            // The supplier's credit on the pass itself. Their contract buys
+            // this placement, so it sits in the page body rather than in the
+            // hero's small print — where it can only be a name, not a mark.
+            booking.brand?.let { BrandLockup(it) }
 
             if (!cancelled) {
                 AttendanceCheckInCard(booking, api, onAttendanceChanged)
@@ -215,6 +223,34 @@ fun BookingDetailScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * Supplier lockup carrying the whole page's identity — a big mark in the
+ * brand's accent on a soft tint of it. Rumba renders its signature gloss
+ * wordmark; any other supplier renders its logo in-accent.
+ */
+@Composable
+private fun BrandLockup(brand: PartnerBrand) {
+    val accent = parseHex(brand.color) ?: Theme.ember
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(accent.copy(alpha = 0.08f))
+            .border(1.dp, accent.copy(alpha = 0.28f), RoundedCornerShape(16.dp))
+            .padding(vertical = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            stringResource(R.string.bookings_factGuestlist).uppercase(),
+            fontFamily = GeistMono, fontSize = 9.sp, letterSpacing = 1.6.sp,
+            color = accent.copy(alpha = 0.85f),
+        )
+        SupplierMark(brand, height = 26.dp, tint = accent)
     }
 }
 

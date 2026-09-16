@@ -352,6 +352,37 @@ coverage of the real data, so the four states below are the actual test:
 
 ---
 
+### A18. Supplier lockup  ← **built, needs verification**
+
+This is contractual credit, not decoration — a supplier whose mark is missing
+from a surface their offer appears on has a complaint, so every placement
+matters.
+
+- [ ] Venue page, a supplier offer row: the mark sits after the "·", at text
+      size, in the supplier's own colour — and the row still fits on a narrow
+      phone without the offer title being squeezed out
+- [ ] Offer sheet header: the supplier's mark, not its name in caps. With no
+      supplier the header reads "CLUB FUOCO" as before
+- [ ] Offer sheet details card, top row: "Pay to / Operator — Club Fuoco · via
+      \<mark\>". Club Fuoco must be named first; it is the merchant of record even
+      when the offer came from a supplier
+- [ ] Booking pass: the lockup panel sits under the facts strip, in a soft tint
+      of the supplier's colour, and the hero small print still shows the
+      attribution label
+- [ ] **Rumba specifically**: the bundled wordmark, with a gloss band sweeping
+      left to right on a ~3.4s loop, on the pass and the sheet header. The two
+      small 11dp marks must NOT animate
+- [ ] Any other supplier: its remote logo, repainted in the surrounding text
+      colour so a light-ink logo is not invisible on the light venue page
+- [ ] A supplier with no logo set falls back to its name in the accent colour —
+      never to blank space
+- [ ] Nothing here is hard-coded per supplier: change the colour in the Partner
+      Portal and every mark except Rumba's bundled glyph follows on next launch
+- [ ] Scrolling the pass with the gloss running stays smooth (the sweep runs in
+      its own compositing layer and should not cost frames)
+
+---
+
 ## B. External setup blockers
 
 These are accounts and files I cannot create — each one gates a feature.
@@ -512,6 +543,9 @@ not call it.
 - **Event detail sheet** — tapping an event on a venue page
 - **Booking a night** — type, date, party size, totals, and the group path
   (the card path is blocked on B6 and says so)
+- **Supplier lockup** — the offer supplier's mark on every surface their offer
+  reaches, plus the "Club Fuoco · via …" operator row that names the merchant
+  of record
 - **Parity tests** — `ValidDays` (68 vectors) and `VenueMatch` (41 pairs)
   asserted against JSON generated from the REAL iOS Swift source, so those two
   ports are proven identical rather than eyeballed. See `docs/PORTING.md`.

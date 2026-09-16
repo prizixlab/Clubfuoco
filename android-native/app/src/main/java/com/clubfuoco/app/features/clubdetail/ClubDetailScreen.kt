@@ -65,6 +65,8 @@ import com.clubfuoco.app.features.rumbalist.FuocoScore
 import com.clubfuoco.app.features.rumbalist.OfferSheet
 import com.clubfuoco.app.features.rumbalist.RumbalistOffer
 import com.clubfuoco.app.features.rumbalist.RumbalistOffers
+import com.clubfuoco.app.features.rumbalist.SupplierMark
+import com.clubfuoco.app.features.rumbalist.parseHex
 import com.clubfuoco.app.models.ClubEvent
 import com.clubfuoco.app.models.FeaturedDJ
 import com.clubfuoco.app.models.Hours
@@ -820,11 +822,19 @@ private fun OfferCard(offer: RumbalistOffer, onClick: () -> Unit) {
                 // credits each correctly.
                 offer.brand?.let { brand ->
                     Text(
-                        "· ${brand.name}",
+                        "·",
                         fontFamily = Geist,
                         fontSize = 11.sp,
                         color = fg.copy(alpha = 0.75f),
                         maxLines = 1,
+                    )
+                    // Painted in the supplier's own accent so the mark reads as
+                    // theirs — falls back to ember when the colour is unset.
+                    SupplierMark(
+                        brand,
+                        height = 11.dp,
+                        animated = false,
+                        tint = parseHex(brand.color) ?: Theme.ember,
                     )
                 }
             }

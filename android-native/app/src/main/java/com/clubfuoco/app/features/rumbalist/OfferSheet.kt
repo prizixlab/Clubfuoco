@@ -85,16 +85,30 @@ fun OfferSheet(
     ) {
         Box(Modifier.fillMaxWidth().height(2.dp).background(accent))
 
-        Text(
-            offer.brand?.name?.uppercase() ?: "CLUB FUOCO",
-            fontFamily = Geist,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 15.sp,
-            letterSpacing = 3.sp,
-            color = if (offer.brand != null) accent else sheetText,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
-        )
+        // The supplier's own mark and colour when the offer comes from one,
+        // plain Club Fuoco otherwise. Club Fuoco stays the operator in the
+        // details card either way.
+        Box(
+            Modifier.fillMaxWidth().padding(vertical = 18.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            val brand = offer.brand
+            if (brand != null) {
+                // Painted in the supplier's own accent so the mark reads as
+                // theirs, not as generic white on the sheet.
+                SupplierMark(brand, height = 22.dp, tint = accent)
+            } else {
+                Text(
+                    "CLUB FUOCO",
+                    fontFamily = Geist,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    letterSpacing = 3.sp,
+                    color = sheetText,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
 
         if (confirmation != null) {
             PassStep(
@@ -173,6 +187,35 @@ private fun ReviewStep(
                 .background(Color.White.copy(alpha = 0.05f))
                 .padding(16.dp),
         ) {
+            // Who actually takes the money, named before anything else in the
+            // card. Club Fuoco is the merchant of record even when the offer
+            // came from a supplier, and hiding that behind the supplier's mark
+            // at the top of the sheet would be the wrong way round.
+            DetailRowContent(
+                stringResource(
+                    if (offer.isVip) R.string.rumbalist_payTo else R.string.rumbalist_operator,
+                ),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    Text("Club Fuoco", fontFamily = Geist, fontSize = 13.sp, color = sheetText)
+                    offer.brand?.let { brand ->
+                        Text(
+                            "· ${stringResource(R.string.rumbalist_via)}",
+                            fontFamily = Geist, fontSize = 13.sp,
+                            color = sheetText.copy(alpha = 0.5f),
+                        )
+                        SupplierMark(
+                            brand,
+                            height = 11.dp,
+                            animated = false,
+                            tint = parseHex(brand.color) ?: Theme.ember,
+                        )
+                    }
+                }
+            }
             DetailRow(stringResource(R.string.rumbalist_venue), venueName)
             DetailRow(stringResource(R.string.rumbalist_address), venueAddress, small = true)
             DetailRow(stringResource(R.string.rumbalist_date), formatNight(planDate))
@@ -390,6 +433,27 @@ private fun DetailRow(
     small: Boolean = false,
     mono: Boolean = false,
 ) {
+    DetailRowContent(label, small) {
+        Text(
+            value,
+            fontFamily = if (mono) GeistMono else Geist,
+            fontSize = if (small) 11.sp else 13.sp,
+            color = sheetText.copy(alpha = if (small) 0.7f else 1f),
+            textAlign = TextAlign.End,
+        )
+    }
+}
+
+/**
+ * The same row, but the right-hand side is drawn rather than written — the
+ * operator row puts a supplier lockup there.
+ */
+@Composable
+private fun DetailRowContent(
+    label: String,
+    small: Boolean = false,
+    value: @Composable () -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.Top,
@@ -401,14 +465,7 @@ private fun DetailRow(
             color = sheetText.copy(alpha = 0.45f),
         )
         Spacer(Modifier.weight(1f))
-        Text(
-            value,
-            fontFamily = if (mono) GeistMono else Geist,
-            fontSize = if (small) 11.sp else 13.sp,
-            color = sheetText.copy(alpha = if (small) 0.7f else 1f),
-            textAlign = TextAlign.End,
-            modifier = Modifier.padding(start = 16.dp),
-        )
+        Box(Modifier.padding(start = 16.dp)) { value() }
     }
 }
 

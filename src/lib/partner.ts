@@ -456,17 +456,58 @@ export interface OfferRow extends PartnerOffer {
   club_id:    string
   sort_order: number
   is_active:  boolean   // false = archived: data kept, hidden from the front page
+  /**
+   * The venue's name, carried on the offer itself.
+   *
+   * The editor used to resolve this against the picker's club list, which is
+   * active-only — so an offer on a DEACTIVATED venue had no name to find and
+   * the group header rendered a raw UUID. Resolving it here means the name
+   * survives the venue being switched off, which is exactly when an operator
+   * most needs to know what they are looking at.
+   */
+  club_name:   string | null
+  /** False when the venue has been deactivated in `clubs`, or its row is gone. */
+  club_active: boolean
 }
 
-function toOfferRow(r: Record<string, unknown>): OfferRow {
+function toOfferRow(
+  r: Record<string, unknown>,
+  club?: { name: string; is_active: boolean },
+): OfferRow {
   return {
     ...toOffer(r),
-    id:         r.id as string,
-    brand_id:   r.brand_id as string,
-    club_id:    r.club_id as string,
-    sort_order: Number(r.sort_order ?? 0),
-    is_active:  isActiveOffer(r),
+    id:          r.id as string,
+    brand_id:    r.brand_id as string,
+    club_id:     r.club_id as string,
+    sort_order:  Number(r.sort_order ?? 0),
+    is_active:   isActiveOffer(r),
+    club_name:   club?.name ?? null,
+    // A venue we cannot find is not a live one. Defaulting to true here would
+    // hide the very rows this flag exists to surface.
+    club_active: club?.is_active ?? false,
   }
+}
+
+/**
+ * Venue name + active flag for a set of club ids, in one query.
+ *
+ * Deliberately NOT filtered by is_active: the point is to name venues the
+ * active-only lists leave out. Scoped to ids we already hold, so this never
+ * approaches PostgREST's 1000-row response cap the way a full club list would
+ * (there are 1,700+ clubs and only 433 active).
+ */
+async function clubsFor(
+  sb: SB,
+  ids: string[],
+): Promise<Map<string, { name: string; is_active: boolean }>> {
+  const out = new Map<string, { name: string; is_active: boolean }>()
+  const unique = [...new Set(ids.filter(Boolean))]
+  if (unique.length === 0) return out
+  const { data } = await sb.from('clubs').select('id, name, is_active').in('id', unique)
+  for (const c of (data ?? []) as { id: string; name: string; is_active: boolean }[]) {
+    out.set(c.id, { name: c.name, is_active: c.is_active !== false })
+  }
+  return out
 }
 
 // Portal view — includes archived offers (the whole point is seeing them).
@@ -478,7 +519,9 @@ export async function listBrandOffers(sb: SB, brandId: string): Promise<OfferRow
     .order('club_id', { ascending: true })
     .order('sort_order', { ascending: true })
   if (error) throw new Error(error.message)
-  return (data ?? []).map(toOfferRow)
+  const rows = data ?? []
+  const clubs = await clubsFor(sb, rows.map(r => r.club_id as string))
+  return rows.map(r => toOfferRow(r, clubs.get(r.club_id as string)))
 }
 
 export type OfferInput = PartnerOffer & { club_id: string; sort_order?: number; is_active?: boolean }
@@ -490,7 +533,8 @@ export async function createOffer(sb: SB, brandId: string, input: OfferInput): P
     .select('*')
     .single()
   if (error) throw new Error(error.message)
-  return toOfferRow(data)
+  const clubs = await clubsFor(sb, [data.club_id as string])
+  return toOfferRow(data, clubs.get(data.club_id as string))
 }
 
 export async function updateOffer(
@@ -518,7 +562,11 @@ export async function duplicateOffers(sb: SB, fromBrandId: string, toBrandId: st
   const taken = new Set(existing.map(o => o.club_id))
   const rows = source
     .filter(o => !taken.has(o.club_id))
-    .map(({ id: _id, brand_id: _b, ...rest }) => ({ ...rest, brand_id: toBrandId }))
+    // club_name/club_active are RESOLVED fields, not columns — they ride along
+    // on the read for the editor's benefit and must be stripped before this
+    // row goes back into the table.
+    .map(({ id: _id, brand_id: _b, club_name: _n, club_active: _a, ...rest }) =>
+      ({ ...rest, brand_id: toBrandId }))
   if (!rows.length) return 0
   const { error } = await sb.from('partner_offers').insert(rows)
   if (error) throw new Error(error.message)

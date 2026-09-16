@@ -353,34 +353,8 @@
          email conflict but has never shown one for phone. -->
     <string name="signup_phoneTaken">This phone number is already linked to another account.</string>
 
-    <!-- ── Booking help ─────────────────────────────────────────────────────
-         THE TOPIC ROWS AND SEND BUTTON ARE MISSING FROM THE iOS CATALOG.
-         `BookingHelpSheet.swift` looks up help.refused, help.qrBody, help.send
-         and so on, and none of those 14 keys exist — so on iPhone the help
-         sheet renders literal dotted keys ("help.refusedBody") where the copy
-         should be. Written properly here; adding these keys to the catalog
-         fixes iOS too, with no Swift change needed. -->
-    <string name="help_refused">Turned away at the door</string>
-    <string name="help_refusedBody">You were refused entry even though you were on the list.</string>
-    <string name="help_qr">My code won\'t scan</string>
-    <string name="help_qrBody">The scanner won\'t read it, or the door says it\'s invalid. Read them the reference above.</string>
-    <string name="help_details">Wrong details on my booking</string>
-    <string name="help_detailsBody">The name, date, or number of guests isn\'t right.</string>
-    <string name="help_charge">A problem with the payment</string>
-    <string name="help_chargeBody">You were charged twice, charged the wrong amount, or a refund hasn\'t arrived.</string>
-    <string name="help_queue">Still queueing</string>
-    <string name="help_queueBody">You\'re at the venue but haven\'t been let in, and the doors should be open.</string>
-    <string name="help_other">Something else</string>
-    <string name="help_otherBody">Anything the list above doesn\'t cover.</string>
-    <string name="help_send">Send to support</string>
-    <string name="help_sending">Sending…</string>
+    <!-- Booking help: the note box placeholder only. The topic rows and the
+         send button were missing from the iOS catalog and are now IN it, so
+         they come from the generated strings.xml like everything else. -->
     <string name="help_notePlaceholder">What happened?</string>
-
-    <!-- ── Event detail sheet ───────────────────────────────────────────────
-         `EventDetailSheet.swift` looks up event.more / event.less for its
-         description toggle, and neither key is in the catalog — so on iPhone
-         that button reads "EVENT.MORE". Same fix as the help sheet: add these
-         two keys and iOS is corrected with no Swift change. -->
-    <string name="event_more">Read more</string>
-    <string name="event_less">Show less</string>
 </resources>

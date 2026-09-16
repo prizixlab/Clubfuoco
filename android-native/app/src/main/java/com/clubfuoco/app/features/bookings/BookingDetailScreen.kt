@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -88,6 +89,12 @@ fun BookingDetailScreen(
     val context = LocalContext.current
     val cancelled = booking.status == "cancelled"
     var confirmingCancel by remember { mutableStateOf(false) }
+    var showHelp by remember { mutableStateOf(false) }
+
+    if (showHelp) {
+        BookingHelpSheet(booking, api) { showHelp = false }
+        return
+    }
 
     // Passive confidence, no prompt: only ever piggy-backs on a grant the user
     // already gave, so opening a pass costs nothing and asks nothing.
@@ -103,7 +110,7 @@ fun BookingDetailScreen(
             .background(Theme.cream)
             .verticalScroll(rememberScrollState()),
     ) {
-        Hero(booking, onBack)
+        Hero(booking, onBack) { showHelp = true }
 
         Column(
             Modifier
@@ -214,7 +221,7 @@ fun BookingDetailScreen(
 // ── Hero ─────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun Hero(booking: Booking, onBack: () -> Unit) {
+private fun Hero(booking: Booking, onBack: () -> Unit, onHelp: () -> Unit) {
     val token = booking.doorToken
 
     Box(Modifier.fillMaxWidth().height(340.dp)) {
@@ -258,6 +265,9 @@ private fun Hero(booking: Booking, onBack: () -> Unit) {
                     )
                 }
                 Spacer(Modifier.weight(1f))
+                // A door problem happens away from the app's other surfaces, so
+                // help has to be reachable from the pass itself.
+                CircleButton(Icons.AutoMirrored.Filled.HelpOutline, onHelp)
             }
 
             Spacer(Modifier.weight(1f))

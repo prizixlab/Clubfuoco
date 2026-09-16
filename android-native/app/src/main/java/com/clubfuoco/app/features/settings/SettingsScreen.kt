@@ -45,6 +45,7 @@ import com.clubfuoco.app.core.network.ApiClient
 import com.clubfuoco.app.features.auth.FuocoTextField
 import com.clubfuoco.app.features.auth.GenderPicker
 import com.clubfuoco.app.models.Gender
+import com.clubfuoco.app.core.components.PhoneNumberField
 import com.clubfuoco.app.features.location.LocationMode
 import com.clubfuoco.app.features.location.LocationPermissionSheet
 import com.clubfuoco.app.stores.AuthStore
@@ -126,10 +127,9 @@ fun SettingsScreen(
                 FuocoTextField(fullName, { fullName = it }, Modifier.weight(1f))
             }
             AuthField(stringResource(R.string.settings_phone)) {
-                FuocoTextField(
-                    phone, { phone = it }, Modifier.weight(1f),
-                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone,
-                )
+                // The picker, not a plain field: a number saved without its dial
+                // code is one the door cannot ring.
+                PhoneNumberField(phone, { phone = it }, Modifier.weight(1f))
             }
             Text(
                 stringResource(R.string.settings_gender),

@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.clubfuoco.app.R
+import com.clubfuoco.app.core.components.PhoneNumberField
 import com.clubfuoco.app.core.designsystem.AuthField
 import com.clubfuoco.app.core.designsystem.FormError
 import com.clubfuoco.app.core.designsystem.Geist
@@ -55,11 +56,13 @@ fun ProfileFields(
     var month by remember { mutableStateOf("") }
     var year by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf<Gender?>(null) }
+    var phone by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
     val underageMessage = stringResource(R.string.signup_underage)
     val genderMessage = stringResource(R.string.signup_genderError)
+    val phoneTakenMessage = stringResource(R.string.signup_phoneTaken)
 
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Text(
@@ -99,6 +102,13 @@ fun ProfileFields(
         )
         GenderPicker(selection = gender, onSelect = { gender = it })
 
+        // Optional, but asked for here rather than nowhere: the door and the
+        // payout settlement both look guests up by number, and iOS has always
+        // collected it. Stored WITH its dial code — see PhoneNumberField.
+        AuthField(stringResource(R.string.phone_label)) {
+            PhoneNumberField(phone, { phone = it }, Modifier.weight(1f))
+        }
+
         error?.let { FormError(it) }
 
         PrimaryButton(
@@ -115,10 +125,23 @@ fun ProfileFields(
                     busy = true
                     error = null
                     scope.launch {
+                        // The uniqueness pre-flight AuthStore has always had and
+                        // nothing on Android called. Fails OPEN by design, so a
+                        // flaky network never blocks finishing a profile.
+                        val trimmed = phone.trim()
+                        if (trimmed.isNotEmpty() && auth.phoneIsTaken(trimmed)) {
+                            error = phoneTakenMessage
+                            busy = false
+                            return@launch
+                        }
                         runCatching {
                             auth.updateProfile(
                                 "birthday" to birthday.toString(),
                                 "gender" to gender!!.raw,
+                                // Only sent when given — an empty string would
+                                // overwrite a number saved on another device.
+                                *(if (trimmed.isEmpty()) emptyArray()
+                                  else arrayOf("phone" to trimmed)),
                             )
                         }.onSuccess { onDone() }
                             .onFailure { error = it.message ?: "Could not save" }

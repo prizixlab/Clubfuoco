@@ -282,6 +282,32 @@ without real audio on real hardware.
       or lock-screen playback
 - [ ] SoundCloud does NOT appear in the socials row — the player replaces it
 
+### A15. Phone number & booking help  ← **built, needs verification**
+
+- [ ] Signup and the complete-profile gate both ask for a phone number, with the
+      country picker defaulting to Spain
+- [ ] The picker searches by country name AND by dial code ("+351", "351")
+- [ ] Switching country re-caps the number — a 10-digit US number switched to
+      Norway (8) must lose the tail, not save an impossible number
+- [ ] The saved value carries the dial code ("+34 612345678"). Check the row,
+      not the screen: a number stored without its code is one the door cannot ring
+- [ ] Settings shows an existing number correctly on open. This is the case iOS
+      got wrong twice — the profile arrives from an async fetch AFTER first
+      composition, and a one-shot parse leaves the field blank, which reads as
+      "phone numbers don't save"
+- [ ] A number already on another account is refused with a clear message.
+      **`phoneIsTaken` was never called anywhere on Android before this** — verify
+      it actually fires
+- [ ] It fails OPEN: with the RPC unreachable, signup still completes
+- [ ] The "?" on a pass opens help; the CF- reference is shown ABOVE the topics
+- [ ] The reference shown is `qr_code_token`, NOT the scan token — the door
+      secret must never appear on a screen someone might photograph
+- [ ] Picking a topic reveals the note box; sending posts to /api/support with
+      the topic and booking id attached
+- [ ] Every topic row shows real words. **On iPhone these render as literal
+      dotted keys** ("help.refusedBody") because 14 keys are missing from the
+      catalog — see section C
+
 ---
 
 ## B. External setup blockers
@@ -377,6 +403,12 @@ not call it.
   (`survey_*`) and the arrival check-in card (`attend_*`). Four whole screens
   where Android is the only localized build, plus the saved-events strip
   (`saved_*`).
+- **The iOS help sheet shows raw keys, and Android fixes it.**
+  `BookingHelpSheet.swift` looks up `help.refused`, `help.qrBody`, `help.send`
+  and 11 others; NONE of those exist in the catalog, so iPhone renders the
+  dotted key strings where the copy should be. Android's `help_*` entries in
+  `app.xml` are real copy — adding those keys to the iOS catalog fixes iOS with
+  no Swift change.
 - **The location ladder's step copy is Android's own** (`location_android*`).
   The catalog strings name Apple's buttons and describe a second in-app dialog
   that Android does not have — from API 30 the background grant is a
@@ -430,6 +462,9 @@ not call it.
 - **Location pre-prompts** — nearby (once) and arrival (from Settings)
 - **DJ preview player** — hidden SoundCloud widget, gold controls, waveform
   scrubber
+- **Phone number field** — 201-country picker, dial-code parsing, and the
+  uniqueness pre-flight that Android previously never called
+- **Booking help sheet** — the "?" on a pass, with the reference above the form
 - **Parity tests** — `ValidDays` (68 vectors) and `VenueMatch` (41 pairs)
   asserted against JSON generated from the REAL iOS Swift source, so those two
   ports are proven identical rather than eyeballed. See `docs/PORTING.md`.

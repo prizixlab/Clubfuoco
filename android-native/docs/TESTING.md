@@ -308,6 +308,30 @@ without real audio on real hardware.
       dotted keys** ("help.refusedBody") because 14 keys are missing from the
       catalog — see section C
 
+### A16. Event detail sheet  ← **built, needs verification**
+
+Opened by tapping an event card on a venue page. Built against measured
+coverage of the real data, so the four states below are the actual test:
+
+- [ ] **rich** — flyer, copy, several linked DJs, age, capacity: everything renders
+- [ ] **no lineup** — 29% of events bill nobody. The section must SAY so, not
+      render empty
+- [ ] **floor** — no flyer and no copy: title, time, venue and promoter only, with
+      no gaps where the missing pieces were
+- [ ] **unlinked** — credits that are real names but not DJs we hold: listed,
+      dimmed, not tappable, no chevron
+- [ ] `cost` and `venue_capacity` both lie in the source. A chip appears ONLY for
+      a real number — never "0", "€", "TBC" or prose
+- [ ] A night ending after midnight shows "+1" beside the hours
+- [ ] Description clamps at 5 lines with a read-more; short copy (under 40 chars)
+      shows no section at all
+- [ ] Tapping a lineup row opens the DJ ON TOP of the event — closing the DJ
+      returns to the event, not to the venue page
+- [ ] The whole row is one tap target, including the gap between the name and
+      the chevron
+- [ ] The card body opens the sheet, but a lineup chip on the card still goes
+      straight to that DJ
+
 ---
 
 ## B. External setup blockers
@@ -408,7 +432,9 @@ not call it.
   and 11 others; NONE of those exist in the catalog, so iPhone renders the
   dotted key strings where the copy should be. Android's `help_*` entries in
   `app.xml` are real copy — adding those keys to the iOS catalog fixes iOS with
-  no Swift change.
+  no Swift change. `EventDetailSheet.swift` has the same problem in miniature:
+  `event.more` / `event.less` are missing too, so that button reads
+  "EVENT.MORE" on iPhone.
 - **The location ladder's step copy is Android's own** (`location_android*`).
   The catalog strings name Apple's buttons and describe a second in-app dialog
   that Android does not have — from API 30 the background grant is a
@@ -465,6 +491,7 @@ not call it.
 - **Phone number field** — 201-country picker, dial-code parsing, and the
   uniqueness pre-flight that Android previously never called
 - **Booking help sheet** — the "?" on a pass, with the reference above the form
+- **Event detail sheet** — tapping an event on a venue page
 - **Parity tests** — `ValidDays` (68 vectors) and `VenueMatch` (41 pairs)
   asserted against JSON generated from the REAL iOS Swift source, so those two
   ports are proven identical rather than eyeballed. See `docs/PORTING.md`.

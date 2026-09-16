@@ -375,4 +375,12 @@
     <string name="help_send">Send to support</string>
     <string name="help_sending">Sending…</string>
     <string name="help_notePlaceholder">What happened?</string>
+
+    <!-- ── Event detail sheet ───────────────────────────────────────────────
+         `EventDetailSheet.swift` looks up event.more / event.less for its
+         description toggle, and neither key is in the catalog — so on iPhone
+         that button reads "EVENT.MORE". Same fix as the help sheet: add these
+         two keys and iOS is corrected with no Swift change. -->
+    <string name="event_more">Read more</string>
+    <string name="event_less">Show less</string>
 </resources>

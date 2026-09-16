@@ -61,6 +61,7 @@ fun WhatsOnSection(
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
     onOpenDj: (FeaturedDJ) -> Unit,
+    onOpenEvent: (ClubEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val total = featuredDjs.size + events.size
@@ -87,7 +88,7 @@ fun WhatsOnSection(
                 FeaturedDjBox(dj) { onOpenDj(dj) }
             }
             events.take(eventsShown).forEach { event ->
-                EventBox(event, djFor, onOpenDj)
+                EventBox(event, djFor, onOpenDj) { onOpenEvent(event) }
             }
         }
 
@@ -165,6 +166,7 @@ private fun EventBox(
     event: ClubEvent,
     djFor: (LineupCredit) -> FeaturedDJ?,
     onOpenDj: (FeaturedDJ) -> Unit,
+    onOpen: () -> Unit,
 ) {
     val (weekday, day, month) = event.dateParts
 
@@ -173,7 +175,10 @@ private fun EventBox(
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(Theme.cream)
-            .border(1.dp, Theme.hairline, RoundedCornerShape(14.dp)),
+            .border(1.dp, Theme.hairline, RoundedCornerShape(14.dp))
+            // The card opens the event; the lineup chips inside keep their own
+            // taps and win, so a name still goes straight to that DJ.
+            .clickableUnlessBusy(onClick = onOpen),
     ) {
         event.image?.let { flyer ->
             FuocoImage(flyer, Modifier.fillMaxWidth().height(160.dp), targetWidth = 700.dp)

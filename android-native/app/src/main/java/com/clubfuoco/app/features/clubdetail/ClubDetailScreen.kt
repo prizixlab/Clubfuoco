@@ -99,6 +99,7 @@ fun ClubDetailScreen(
     var djById by remember(place.placeId) { mutableStateOf<Map<String, FeaturedDJ>>(emptyMap()) }
     var whatsOnExpanded by remember { mutableStateOf(false) }
     var activeDj by remember { mutableStateOf<FeaturedDJ?>(null) }
+    var activeEvent by remember { mutableStateOf<ClubEvent?>(null) }
     val uriHandler = LocalUriHandler.current
 
     // Offers actually running on the planned night: the night must fall within
@@ -249,6 +250,7 @@ fun ClubDetailScreen(
                         expanded = whatsOnExpanded,
                         onToggleExpanded = { whatsOnExpanded = !whatsOnExpanded },
                         onOpenDj = { activeDj = it },
+                        onOpenEvent = { activeEvent = it },
                         modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 24.dp),
                     )
                 }
@@ -287,6 +289,21 @@ fun ClubDetailScreen(
             BackHandler { activeDj = null }
         }
 
+        // Layered under the DJ page on purpose: opening an artist from a lineup
+        // should not cost you the event you were reading it on, so closing the
+        // DJ lands back here.
+        if (activeDj == null) {
+            activeEvent?.let { event ->
+                EventDetailSheet(
+                    event = event,
+                    djFor = { credit -> credit.id?.let { djById[it] } },
+                    onOpenDj = { activeDj = it },
+                    onClose = { activeEvent = null },
+                )
+                BackHandler { activeEvent = null }
+            }
+        }
+
         activeOffer?.let { offer ->
             OfferSheet(
                 offer = offer,
@@ -301,7 +318,7 @@ fun ClubDetailScreen(
         }
 
         // Back button floats over the hero.
-        if (activeOffer == null && activeDj == null) Box(
+        if (activeOffer == null && activeDj == null && activeEvent == null) Box(
             Modifier
                 .statusBarsPadding()
                 .padding(start = 16.dp, top = 8.dp)

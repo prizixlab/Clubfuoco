@@ -87,6 +87,37 @@ data class ClubEvent(
                 .format(DateTimeFormatter.ofPattern("HH:mm"))
         }.getOrNull()
 
+    /**
+     * Capacity, only when the column holds a real number.
+     *
+     * `venue_capacity` is free text on the source and carries everything from
+     * "" to "500-1000" to prose. Anything that is not a plain positive integer
+     * is dropped rather than printed — a capacity chip reading "TBC" is worse
+     * than no chip.
+     */
+    val capacityLabel: String?
+        get() = venueCapacity?.trim()?.toIntOrNull()?.takeIf { it > 0 }
+            ?.let { "%,d".format(Locale.getDefault(), it) }
+
+    /**
+     * "23:00 – 06:00", and whether the end lands on the NEXT day.
+     *
+     * The median night here runs six hours and most end between 02:00 and
+     * 08:00, so the end time usually belongs to tomorrow. Rendering it bare
+     * reads as wrong, which is why the caller gets the flag as well as the text.
+     */
+    val timeRange: Pair<String, Boolean>?
+        get() {
+            val zone = ZoneId.of("Europe/Madrid")
+            val start = runCatching { Instant.parse(startTime).atZone(zone) }.getOrNull()
+                ?: return null
+            val pattern = DateTimeFormatter.ofPattern("HH:mm")
+            val end = runCatching { Instant.parse(endTime).atZone(zone) }.getOrNull()
+                ?: return start.format(pattern) to false
+            val crosses = start.toLocalDate() != end.toLocalDate()
+            return "${start.format(pattern)} – ${end.format(pattern)}" to crosses
+        }
+
     /** Day / month / weekday for the date block on the card. */
     val dateParts: Triple<String, String, String>
         get() = runCatching {

@@ -9,9 +9,12 @@ interface Club { id: string; name: string }
 // Offers editor — the brand's per-club offer set, grouped by club. Add a club
 // via the searchable picker, edit/remove offers inline, drag to reorder within
 // a club, or bulk-copy another brand's offers to stand up a new partner fast.
-export default function OffersEditor({ brand, onOffersChanged }: {
+export default function OffersEditor({ brand, onOffersChanged, tabs }: {
   brand: BrandRow
   onOffersChanged: () => void
+  /** Tab strip rendered in place of this card's own title, when the page
+      shares one card between offers and events. */
+  tabs?: React.ReactNode
 }) {
   const [offers, setOffers] = useState<OfferRow[] | null>(null)
   const [clubs, setClubs]   = useState<Club[]>([])
@@ -74,21 +77,19 @@ export default function OffersEditor({ brand, onOffersChanged }: {
     <section style={{ marginTop: 32 }}>
       <Card>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 20 }}>
-          <span style={{ ...caps, color: C.gold, letterSpacing: '0.14em' }}>
-            Offers &amp; venues
-            <span style={{ color: C.faint, marginLeft: 10, letterSpacing: '0.1em' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            {tabs ?? <span style={{ ...caps, color: C.gold, letterSpacing: '0.14em' }}>Offers &amp; venues</span>}
+            <span style={{ ...caps, color: C.faint, letterSpacing: '0.1em' }}>
               {offers ? `${liveCount} live${inactiveCount ? ` · ${inactiveCount} inactive` : ''}` : '…'}
+              {/* "Live" here means "not archived" — it says nothing about
+                  whether a guest can see the offer. The supplier kill switch
+                  overrides every row at once, and reading "18 live" under a
+                  muted brand is how you believe offers are out there. */}
+              {brand.offers_hidden && liveCount > 0 && (
+                <span style={{ color: C.danger, marginLeft: 8 }}>· none reaching guests</span>
+              )}
             </span>
-            {/* "Live" here means "not archived" — it says nothing about whether
-                a guest can see the offer. The supplier kill switch overrides
-                every row at once, and reading "18 live" directly beneath a
-                muted brand is how you end up believing offers are out there. */}
-            {brand.offers_hidden && liveCount > 0 && (
-              <span style={{ color: C.danger, marginLeft: 10, letterSpacing: '0.1em' }}>
-                · none reaching guests
-              </span>
-            )}
-          </span>
+          </div>
           {otherBrands.length > 0 && <DuplicateFrom brandId={brand.id} sources={otherBrands} onDone={changed} />}
         </div>
 

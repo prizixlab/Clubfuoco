@@ -15,7 +15,11 @@ import { Badge, Card, ErrorLine, api, C, caps, font, mono } from '../../_ui'
 // (/portal/events), which owns pinning, publishing and the house-event flow.
 // This answers "what is this promoter actually running?" without duplicating
 // that surface.
-export default function EventsPanel({ brand }: { brand: BrandRow }) {
+export default function EventsPanel({ brand, tabs }: {
+  brand: BrandRow
+  /** Tab strip rendered in place of this card's own title. */
+  tabs?: React.ReactNode
+}) {
   const [events, setEvents] = useState<BrandEvent[] | null>(null)
   const [owner, setOwner] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -50,12 +54,12 @@ export default function EventsPanel({ brand }: { brand: BrandRow }) {
     <section style={{ marginTop: 32 }}>
       <Card>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 18 }}>
-          <span style={{ ...caps, color: C.gold, letterSpacing: '0.14em' }}>
-            Events
-            <span style={{ color: C.faint, marginLeft: 10, letterSpacing: '0.1em' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            {tabs ?? <span style={{ ...caps, color: C.gold, letterSpacing: '0.14em' }}>Events</span>}
+            <span style={{ ...caps, color: C.faint, letterSpacing: '0.1em' }}>
               {events ? `${upcoming.length} upcoming${past.length ? ` · ${past.length} past` : ''}` : '…'}
             </span>
-          </span>
+          </div>
           {past.length > 0 && (
             <div style={{ display: 'inline-flex', gap: 6 }}>
               <Tab active={!showPast} onClick={() => setShowPast(false)}>Upcoming</Tab>

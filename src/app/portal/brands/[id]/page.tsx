@@ -4,7 +4,7 @@ import { use, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { BrandRow } from '@/lib/partner'
 import {
-  ActivateButton, Badge, Btn, Card, ErrorLine, Field, SectionLabel, SupplierCredit, TextInput,
+  ActivateButton, Badge, Btn, Card, ErrorLine, Field, SectionLabel, SectionTabs, SupplierCredit, TextInput,
   api, C, caps, font, mono, serif,
 } from '../../_ui'
 import OffersEditor from './_offers'
@@ -22,6 +22,16 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
   // Unsaved attribution edits, mirrored up from the identity form so the
   // preview is live — the operator sees the credit before committing it.
   const [draft, setDraft] = useState<{ attribution_required: boolean; attribution_label: string | null } | null>(null)
+  // Which of the two panels the shared card is showing.
+  const [section, setSection] = useState<'offers' | 'events'>('offers')
+
+  const sectionTabs = (
+    <SectionTabs
+      active={section}
+      onChange={setSection}
+      tabs={[{ id: 'offers', label: 'Offers & venues' }, { id: 'events', label: 'Events' }]}
+    />
+  )
 
   const load = useCallback(() => {
     api<BrandRow>(`/api/portal/brands/${id}`)
@@ -62,12 +72,13 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
         <PreviewCard brand={draft ? { ...brand, ...draft } : brand} />
       </div>
 
-      <OffersEditor brand={brand} onOffersChanged={load} />
-
-      {/* Events are a separate section, not more offers: an offer is a standing
-          per-venue product, an event is one dated night, and they live in
-          different tables. */}
-      <EventsPanel brand={brand} />
+      {/* One card, two tabs. Offers and events are different things — a
+          standing per-venue product vs one dated night, in different tables —
+          but they answer the same question about a promoter, so they share a
+          place on the page rather than stacking into a scroll. */}
+      {section === 'offers'
+        ? <OffersEditor brand={brand} onOffersChanged={load} tabs={sectionTabs} />
+        : <EventsPanel brand={brand} tabs={sectionTabs} />}
     </>
   )
 }

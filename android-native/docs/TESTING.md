@@ -332,6 +332,24 @@ coverage of the real data, so the four states below are the actual test:
 - [ ] The card body opens the sheet, but a lineup chip on the card still goes
       straight to that DJ
 
+### A17. Booking a night  ← **built, needs verification**
+
+- [ ] The Book CTA appears ONLY on a venue that sells something — a row with no
+      entry price and no table minimum must show nothing
+- [ ] General/VIP toggle appears only where there is a table minimum; a
+      tables-only venue defaults to VIP
+- [ ] Date list covers today through +14, the same window the server enforces
+- [ ] Party size clamps at 1 and 20 from both the buttons and any other route
+- [ ] A free general-entry night says "free guestlist" instead of printing
+      "€0.00" three times
+- [ ] **Plan with friends works end to end** — creates the group, shows the
+      invite code, and the group is in Tickets afterwards
+- [ ] A general-entry group sends `organizerPays: false` (free guestlist, paid at
+      the door); a VIP group sends true. Check the request, not the screen
+- [ ] The card path states Google Pay is not configured rather than offering a
+      button — nothing here should ever produce a payment error
+- [ ] Signed out, the CTA opens the guest gate instead of the sheet
+
 ---
 
 ## B. External setup blockers
@@ -492,6 +510,8 @@ not call it.
   uniqueness pre-flight that Android previously never called
 - **Booking help sheet** — the "?" on a pass, with the reference above the form
 - **Event detail sheet** — tapping an event on a venue page
+- **Booking a night** — type, date, party size, totals, and the group path
+  (the card path is blocked on B6 and says so)
 - **Parity tests** — `ValidDays` (68 vectors) and `VenueMatch` (41 pairs)
   asserted against JSON generated from the REAL iOS Swift source, so those two
   ports are proven identical rather than eyeballed. See `docs/PORTING.md`.
@@ -504,8 +524,12 @@ external accounts and keys in section B.
 
 **Deliberately not functional, and honest about it**
 
-- VIP table payment and paid group joins say Google Pay is not configured rather
-  than showing a button that cannot work (B6).
+- VIP table payment, paid group joins and the pay-now half of booking a night
+  all say Google Pay is not configured rather than showing a button that cannot
+  work (B6). Booking's GROUP path is unaffected and fully works — a general-entry
+  group is a free guestlist settled at the door, so it needs no card at all,
+  which is why it is the primary action on that sheet rather than the fallback
+  it is on iOS.
 - No wallet pass on Android at all (B7), including on the event reserved pass —
   the QR and the calendar are there, the wallet button is not.
 - The event page has no blurred collapsing title bar. iOS fades one in over the

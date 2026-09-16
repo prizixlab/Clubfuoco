@@ -511,7 +511,7 @@ private fun ErrorBanner(onRetry: () -> Unit) {
 private fun WhenPlanner(plan: PlanStore, nightPhrase: String, modifier: Modifier = Modifier) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val options = remember(plan.date, context) {
-        plan.dayOptions(
+        PlanStore.dayOptions(
             java.util.Locale.getDefault(),
             context.getString(R.string.plan_tonight),
             context.getString(R.string.plan_tomorrow),

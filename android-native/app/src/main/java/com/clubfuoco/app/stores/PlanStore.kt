@@ -35,21 +35,6 @@ class PlanStore(context: Context) {
 
     data class DayOption(val value: String, val label: String)
 
-    /** today → +14 days with localised labels. */
-    fun dayOptions(locale: Locale, tonight: String, tomorrow: String): List<DayOption> {
-        val start = LocalDate.now()
-        val fmt = DateTimeFormatter.ofPattern("EEE d MMM", locale)
-        return (0..MAX_DAYS_AHEAD).map { offset ->
-            val day = start.plusDays(offset.toLong())
-            val text = when (offset) {
-                0 -> tonight
-                1 -> tomorrow
-                else -> day.format(fmt)
-            }
-            DayOption(day.toString(), text)
-        }
-    }
-
     /**
      * A natural-language phrase for headlines that read "<phrase> with Rumba":
      * "Tonight" / "Tomorrow" / "Saturday" / "Next Saturday".
@@ -72,6 +57,21 @@ class PlanStore(context: Context) {
         const val STORAGE_KEY = "cf-plan"
         const val MAX_DAYS_AHEAD = 14
         private const val PREFS = "cf.settings"
+
+        /** today → +14 days with localised labels. */
+        fun dayOptions(locale: Locale, tonight: String, tomorrow: String): List<DayOption> {
+            val start = LocalDate.now()
+            val fmt = DateTimeFormatter.ofPattern("EEE d MMM", locale)
+            return (0..MAX_DAYS_AHEAD).map { offset ->
+                val day = start.plusDays(offset.toLong())
+                val text = when (offset) {
+                    0 -> tonight
+                    1 -> tomorrow
+                    else -> day.format(fmt)
+                }
+                DayOption(day.toString(), text)
+            }
+        }
 
         fun today(): String = LocalDate.now().toString()
 

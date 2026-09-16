@@ -76,7 +76,7 @@ fun MainTabs(env: AppEnvironment) {
     Column(Modifier.fillMaxSize().background(Theme.cream)) {
         Box(Modifier.weight(1f)) {
             when (selection) {
-                Tab.EXPLORE -> ExploreTab(env)
+                Tab.EXPLORE -> ExploreTab(env) { selection = Tab.TICKETS }
                 Tab.TICKETS ->
                     if (auth.hasAccount) TicketsTab(env)
                     else GuestGateScreen(GateReason.TICKETS, auth)
@@ -90,7 +90,7 @@ fun MainTabs(env: AppEnvironment) {
 }
 
 @Composable
-private fun ExploreTab(env: AppEnvironment) {
+private fun ExploreTab(env: AppEnvironment, onOpenTickets: () -> Unit) {
     val model: ExploreViewModel = viewModel()
     val context = LocalContext.current
     val auth = env.authStore
@@ -154,6 +154,7 @@ private fun ExploreTab(env: AppEnvironment) {
             nightPhrase = nightPhrase,
             hasAccount = auth.hasAccount,
             onNeedsAccount = { showGate = true },
+            onOpenTickets = { openPlace = null; onOpenTickets() },
             onBack = { openPlace = null },
         )
 

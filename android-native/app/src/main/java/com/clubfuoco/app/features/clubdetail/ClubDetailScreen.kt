@@ -60,6 +60,7 @@ import com.clubfuoco.app.core.designsystem.Theme
 import com.clubfuoco.app.core.designsystem.clickableUnlessBusy
 import com.clubfuoco.app.core.network.ApiClient
 import com.clubfuoco.app.core.supabase.Queries
+import com.clubfuoco.app.features.booking.BookNightSheet
 import com.clubfuoco.app.features.rumbalist.FuocoScore
 import com.clubfuoco.app.features.rumbalist.OfferSheet
 import com.clubfuoco.app.features.rumbalist.RumbalistOffer
@@ -89,6 +90,7 @@ fun ClubDetailScreen(
     nightPhrase: String,
     hasAccount: Boolean,
     onNeedsAccount: () -> Unit,
+    onOpenTickets: () -> Unit,
     onBack: () -> Unit,
 ) {
     var detail by remember(place.placeId) { mutableStateOf<PlaceDetail?>(null) }
@@ -98,6 +100,7 @@ fun ClubDetailScreen(
     var featuredDjs by remember(place.placeId) { mutableStateOf<List<FeaturedDJ>>(emptyList()) }
     var djById by remember(place.placeId) { mutableStateOf<Map<String, FeaturedDJ>>(emptyMap()) }
     var whatsOnExpanded by remember { mutableStateOf(false) }
+    var booking by remember { mutableStateOf(false) }
     var activeDj by remember { mutableStateOf<FeaturedDJ?>(null) }
     var activeEvent by remember { mutableStateOf<ClubEvent?>(null) }
     val uriHandler = LocalUriHandler.current
@@ -133,6 +136,19 @@ fun ClubDetailScreen(
     val entryPrice = detail?.generalEntryPrice ?: place.generalEntryPrice
     val openStatus = detail?.isOpen ?: place.isOpen ?: Hours.computeOpenNow(weekdayHours)
     val ratingResult = FuocoScore.score(place.placeId, detail?.rating ?: place.rating)
+
+    detail?.let { loaded ->
+        if (booking) {
+            BookNightSheet(
+                detail = loaded,
+                api = api,
+                planDate = planDate,
+                onOpenTickets = { booking = false; onOpenTickets() },
+                onClose = { booking = false },
+            )
+            return
+        }
+    }
 
     // Which photo the fullscreen viewer is on, or null when it is closed.
     var viewerIndex by remember { mutableStateOf<Int?>(null) }
@@ -253,6 +269,17 @@ fun ClubDetailScreen(
                         onOpenEvent = { activeEvent = it },
                         modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 24.dp),
                     )
+                }
+
+                // Booking the venue directly, as opposed to a promoter's offer
+                // below. Only when the venue actually sells something — a row
+                // with no price and no table minimum has nothing to book.
+                if (detail != null &&
+                    ((entryPrice ?: 0.0) > 0.0 || (detail?.vipTableMinSpend ?: 0.0) > 0.0)
+                ) {
+                    BookCta(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                        if (!hasAccount) onNeedsAccount() else booking = true
+                    }
                 }
 
                 if (offers.isNotEmpty()) {
@@ -818,6 +845,29 @@ private fun OfferCard(offer: RumbalistOffer, onClick: () -> Unit) {
             fontSize = 11.sp,
             color = fg.copy(alpha = 0.9f),
             maxLines = 1,
+        )
+    }
+}
+
+
+/** The venue's own booking entry point, distinct from a promoter's offer. */
+@Composable
+private fun BookCta(modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Theme.wine)
+            .clickableUnlessBusy(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            stringResource(R.string.book_cta),
+            fontFamily = Geist,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            color = Theme.cream,
         )
     }
 }

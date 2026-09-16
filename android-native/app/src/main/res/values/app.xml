@@ -344,6 +344,15 @@
     <string name="location_androidSettingsStep2">Tap **Permissions**, then **Location**</string>
     <string name="location_androidSettingsStep3">Choose **Allow all the time**</string>
 
+    <!-- ── Booking a night ──────────────────────────────────────────────────
+         The catalog's `book_applePayUnavailable` names Apple Pay, which means
+         nothing here. These are the Android equivalents, plus copy iOS never
+         needed because on iOS the card path actually works. -->
+    <string name="book_googlePayUnavailable">Paying by card isn\'t available yet</string>
+    <string name="book_googlePayNote">Google Pay isn\'t set up on this build. Plan it with friends above and settle at the door, or book from the website.</string>
+    <string name="book_freeEntryNote">Free guestlist — nothing to pay now. Your pass lands in Tickets, and you settle anything extra at the door.</string>
+    <string name="book_groupFailed">Couldn\'t create the group. Try again in a moment.</string>
+
     <!-- ── Phone number field ───────────────────────────────────────────────
          `PhoneNumberField.swift` hardcodes these two. -->
     <string name="phone_country">Country</string>

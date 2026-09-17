@@ -1,61 +1,43 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// import-hypelist.mjs — stand up HypeList as a promoter: their brand + their
-// per-venue club offers.
-//
-// HypeList Barcelona (hypelistbarcelona.com) run free guestlists and VIP tables
-// aimed at tourists, Erasmus students and international groups. Their site was
-// read on 17 Sep 2026.
+// import-hypelist.mjs — HypeList's brand and their per-venue guestlist offers.
 //
 //   node --env-file=.env.local scripts/import-hypelist.mjs           # dry run
-//   node --env-file=.env.local scripts/import-hypelist.mjs --apply   # write
+//   node --env-file=.env.local scripts/import-hypelist.mjs --apply
 //
-// Idempotent: the brand is matched on `key`, each offer on
-// (brand_id, club_id, kind). Re-running updates in place.
+// Idempotent: brand matched on `key`, each offer on (brand_id, club_id, kind).
 //
-// ── HOW THIS DIFFERS FROM BESOLIST, WHICH MATTERS ────────────────────────────
+// ── WHERE THIS DATA COMES FROM ───────────────────────────────────────────────
+// HypeList sell through Fourvenues, the same platform BesoList use. Their
+// marketing site (hypelistbarcelona.com) lists nine venues and no calendar, and
+// its "Choose Your Night" picker is decorative — all seven day tabs render the
+// identical four cards. Their venue pages link out to
+//   site.fourvenues.com/en/hypelist-barcelona@<venue>
+// and the promoter-wide embed at /en/iframe/hypelist-barcelona/events serves
+// their real calendar with no Cloudflare challenge.
 //
-// BesoList sold through Fourvenues, whose public embed exposed a real calendar:
-// 383 dated events with times, from which their residencies were counted. HYPE
-// PUBLISH NOTHING OF THE KIND. Their site is a Framer marketing page: nine
-// venue pages, a tickets page, and a "Choose Your Night" day picker.
+// Harvested 17 Sep 2026: 170 events, 17 Sep – 3 Oct, across 24 venues — not the
+// nine the website advertises. The slug is genuinely scoped: a nonsense slug on
+// the same route renders zero events.
 //
-// THE DAY PICKER IS DECORATIVE. Clicking each of Monday…Sunday was verified to
-// render the identical four cards (Sutton, Opium, Downtown, Pacha, looped) —
-// the tabs are plain divs with no distinct panel behind them. So HypeList's own
-// site cannot tell us which nights they run where, and inventing it would send
-// a guest to a club that is shut.
+// NIGHTS ARE COUNTED, NOT COPIED. An event starting before 06:00 is filed under
+// the PREVIOUS night, which is how a club night works and how the source files
+// it — without that shift every late room reads a day late (Bling Bling's 00:30
+// Thursday party would say Friday). A night counts as a residency only if it
+// recurs; a single sighting in two and a half weeks is a one-off, and promising
+// it would send someone to a shut room. Dropped one-offs are listed per row.
 //
-// WHERE valid_days AND time_window ACTUALLY COME FROM: the BesoList harvest of
-// the SAME ROOMS. A venue's operating nights are a property of the venue, not
-// of whoever fills it — Bling Bling runs Wed–Sat whoever is listing it. Each
-// row below records its source in `_nightsFrom`.
+// Times, minimum ages and genres are HypeList's own, from the same cards.
+// `_window` is the most common start→end PAIR, not the two modes taken
+// separately — NIX runs a 18:00 tardeo and a 00:00 club night, and mixing the
+// modes would have invented "00:00 – 22:30".
 //
-// THREE OF THE NINE VENUES ARE THEREFORE NOT IMPORTED. Jamboree, Shôko and CDLC
-// are not in the BesoList set, have no scraped RA listings to infer from
-// (checked: Jamboree 0, Shôko 0, CDLC 2 past Saturdays), and their
-// clubs.opening_hours are Google's restaurant hours — Shôko "11:00 AM – 6:00 AM
-// daily" is the restaurant, not the club night. They are listed in HELD below,
-// ready to uncomment the moment HypeList tell us their nights.
-//
-// Other decisions:
-//
-//   * dress_code IS HypeList's own, unlike BesoList where we had to fall back
-//     on the house default. Every venue page publishes one.
-//
-//   * music is HypeList's own claim about their own nights, taken from the
-//     venue page's Club Information block and widened where their tickets page
-//     is more specific (Shôko, Downtown).
-//
-//   * MINIMUM AGE AND THE FREE-ENTRY CUT-OFF RIDE IN THE SUBTITLE.
-//     `partner_offers` has no column for either, and both are what a guest
-//     needs to know before turning up. Ages are from the tickets page; Sutton
-//     publishes "+19-23-25" (it varies by night) and is written as such rather
-//     than flattened to one number.
-//
-//   * kind = 'free_guestlist' everywhere. HypeList do sell VIP tables — every
-//     venue page says "VIP Tables: Available" — but publish no prices, and
-//     vip_table rows are refused without one (portal-schemas.ts). That is a
-//     separate import once we have their table inventory.
+// NOT IMPORTED, and why — every one is a refusal to guess:
+//   Nu Bcn, ETNIA, Brisa Open Air   no row in `clubs` at all
+//   DISCOTECA MON MADRID            Madrid. This is a Barcelona app.
+//   ATLANTIC CLUB                   only "Atlantic Sound BCN" is close, and
+//                                   those are not obviously the same room; also
+//                                   no residency (one Wed, one Sat)
+//   Duvet, 4 Latas Club             in `clubs`, but one-offs only — no residency
 // ─────────────────────────────────────────────────────────────────────────────
 import { createClient } from '@supabase/supabase-js'
 
@@ -70,174 +52,151 @@ const APPLY = process.argv.includes('--apply')
 const BRAND = {
   key:   'hypelist',
   name:  'HypeList',
-  // Their own accent, sampled from the site's WhatsApp button. This tints the
-  // promoter's credit/logo only — it is never the app accent, which stays gold.
+  // Their own accent, sampled from the site's WhatsApp button. Tints the
+  // promoter's credit only — never the app accent, which stays gold.
   color: '#814AC8',
   login_email: 'hypelist@clubfuoco.com',
 }
 
-// club_id verified by name against `clubs` on 17 Sep 2026.
-// `_nightsFrom` records where valid_days/time_window came from, because it is
-// NOT HypeList — see the header.
-const OFFERS = [
-  {
-    club_id: 'b3f7747f-d911-490d-a688-d04add6a1c8b', _club: 'Opium Barcelona',
-    valid_days: 'Every night', time_window: '23:30 – 05:00',
-    subtitle: 'Free guestlist · free entry until 01:00 · doors 23:30 · 18+',
-    music: 'Top Hits · Reggaeton · R&B',
-    dress_code: 'Elegant/casual',
-    _nightsFrom: 'BesoList harvest — same room, every night, 23:30–05:00',
-  },
-  {
-    club_id: 'd184f2f1-8db3-4d03-ae11-ad19b650894d', _club: 'Ku (formerly Pacha)',
-    valid_days: 'Every night', time_window: '23:45 – 05:45',
-    subtitle: 'Free guestlist · free entry until 01:00 · doors 23:45 · 18+',
-    music: 'Top Hits · Reggaeton',
-    dress_code: 'Smart casual',
-    // HypeList still market this room as "Pacha Barcelona"; our canonical row
-    // is "Ku (formerly Pacha)" and the app shows the canonical name.
-    _nightsFrom: 'BesoList harvest — same room, every night, 23:45–05:45',
-  },
-  {
-    club_id: '07ce6a58-ceee-48e4-89ce-3c3e6b6ff2b2', _club: 'Bling Bling Barcelona',
-    valid_days: 'Wed, Thu, Fri, Sat', time_window: '00:30 – 05:00',
-    subtitle: 'Free guestlist · doors 00:30',
-    music: 'Top Hits · Reggaeton',
-    dress_code: 'Smart casual',
-    _nightsFrom: 'BesoList harvest — Wed 16, Thu 14, Fri 14, Sat 14',
-  },
-  {
-    club_id: 'e0cf6310-28e5-4117-ad5f-01179f87d8fd', _club: 'Sutton Club Barcelona',
-    valid_days: 'Wed, Thu, Fri, Sat', time_window: '23:45 – 06:00',
-    subtitle: 'Free guestlist · free entry until 01:00 · doors 23:45 · 19+, higher on some nights',
-    music: 'Top Hits · House · Reggaeton',
-    dress_code: 'Elegant',
-    _nightsFrom: 'BesoList harvest — Thu 8, Fri 8, Sat 7, Wed 6',
-  },
-  {
-    club_id: '60d6f94e-26cc-4d24-bacc-8a255e1c7924', _club: 'Downtown Barcelona',
-    valid_days: 'Thu, Fri, Sat', time_window: '23:59 – 06:00',
-    subtitle: 'Free guestlist · free entry until 01:00 · 18+',
-    music: 'Reggaeton · R&B · Top Hits',
-    dress_code: 'Smart casual',
-    _nightsFrom: 'BesoList harvest — Thu, Fri, Sat',
-  },
-  {
-    club_id: '3c3716e0-0361-4a62-b4d2-ec1eb5d00bbb', _club: 'Twenties Barcelona',
-    valid_days: 'Fri, Sat', time_window: '00:00 – 06:00',
-    subtitle: 'Free guestlist · free entry until 01:00 · 18+',
-    music: 'Reggaeton · Top Hits',
-    dress_code: 'Smart casual',
-    _nightsFrom: 'BesoList harvest — Fri, Sat',
-  },
-]
+/** "18+", or "18+, higher on some nights" when the door varies by party. */
+const ageNote = (ages) => {
+  if (!ages.length) return null
+  const min = Math.min(...ages)
+  return ages.length === 1 ? `${min}+` : `${min}+, higher on some nights`
+}
 
-// Advertised by HypeList, deliberately NOT imported: we do not know which
-// nights they run there, and a guestlist promising a night the room is shut is
-// worse than no listing. Uncomment with real nights when HypeList confirm.
-const HELD = [
-  { club_id: 'a83428e5-5c7f-4f55-99e5-3f329f7c3210', club: 'Jamboree',
-    dress_code: 'Casual', music: 'Urban · R&B · Hip Hop',
-    why: 'not in BesoList set; 0 scraped listings; Google hours are the venue bar (16:00–05:00 daily)' },
-  { club_id: 'ddca5d10-9b4f-47c4-81a2-2c36bef77e49', club: 'Shôko',
-    dress_code: 'Smart casual', music: 'Hip-Hop · R&B · Reggaeton · EDM',
-    why: 'not in BesoList set; 0 scraped listings; Google hours (11:00–06:00 daily) are the restaurant' },
-  { club_id: 'd649395c-d3db-4397-b200-42b575d1738a', club: 'CDLC Barcelona (Carpe Diem)',
-    dress_code: 'Smart casual', music: 'Top Hits · House',
-    why: 'not in BesoList set; only 2 scraped listings, both past Saturdays — not a residency' },
+const title = (s) => s.replace(/\b\w/g, c => c.toUpperCase())
+
+// club_id verified against `clubs` on 17 Sep 2026.
+const OFFERS = [
+  { club_id: 'b3f7747f-d911-490d-a688-d04add6a1c8b', _club: 'Opium Barcelona',
+    nights: 'Every night', _window: '23:30 – 05:00', ages: [18], _n: 16,
+    genres: ['hits', 'reggaeton', 'edm', 'house'] },
+  { club_id: 'd184f2f1-8db3-4d03-ae11-ad19b650894d', _club: 'Ku (formerly Pacha)',
+    nights: 'Every night', _window: '23:45 – 05:00', ages: [18], _n: 23,
+    genres: ['reggaeton', 'r&b', 'afrobeat', 'hits'] },
+  { club_id: '2706f18a-76ce-4276-abc0-ba53b7d6894d', _club: 'Bastian Beach',
+    nights: 'Every night', _window: '11:00 – 19:00', ages: [18], _n: 16, genres: [],
+    _note: 'daytime pool club, not a night out', _clubInactive: true },
+  { club_id: '60d6f94e-26cc-4d24-bacc-8a255e1c7924', _club: 'Downtown Barcelona',
+    nights: 'Wed, Thu, Fri, Sat', _window: '23:59 – 05:00', ages: [18], _n: 10,
+    genres: ['reggaeton', 'hits', 'comercial', 'old-school'] },
+  { club_id: '07ce6a58-ceee-48e4-89ce-3c3e6b6ff2b2', _club: 'Bling Bling Barcelona',
+    nights: 'Wed, Thu, Fri, Sat', _window: '00:30 – 05:00', ages: [18, 21, 25], _n: 10,
+    genres: ['hits', 'reggaeton', 'comercial'] },
+  { club_id: 'e0cf6310-28e5-4117-ad5f-01179f87d8fd', _club: 'Sutton Club Barcelona',
+    nights: 'Thu, Fri, Sat', _window: '00:00 – 05:00', ages: [18, 20, 23], _n: 10,
+    genres: ['reggaeton', 'hits', 'pop'], _dropped: 'Wed' },
+  { club_id: '4ad56773-ffc0-4122-9dff-58bb77fb934d', _club: 'El Tardet',
+    nights: 'Thu, Fri, Sat', _window: '19:00 – 00:00', ages: [23], _n: 14, genres: [],
+    _note: 'seafront tardeo, early evening' },
+  { club_id: 'b9bc5258-4349-4f05-af59-6556d961524a', _club: 'Otto Zutz Club',
+    nights: 'Thu, Fri, Sat', _window: '00:00 – 06:00', ages: [18], _n: 8,
+    genres: ['reggaeton', 'hits', 'underground', 'hip-hop'], _dropped: 'Wed' },
+  { club_id: '1a49859c-ebcf-417a-b025-3dd84bcb1d54', _club: 'La Biblio',
+    nights: 'Thu, Fri, Sat', _window: '00:00 – 06:00', ages: [18, 21, 22, 23], _n: 7,
+    genres: ['reggaeton'], _dropped: 'Wed' },
+  { club_id: '277cd0b1-c8c5-4769-bf28-07d03f96d145', _club: 'Boris Club',
+    nights: 'Thu, Fri, Sat', _window: '00:30 – 06:00', ages: [18, 20, 21], _n: 9,
+    genres: ['house'], _dropped: 'Wed' },
+  { club_id: '00e3f149-bd90-4180-83f9-a79ebf71ab8f', _club: 'HYPE Barcelona',
+    nights: 'Thu, Fri', _window: '00:00 – 05:00', ages: [17, 18], _n: 6,
+    genres: ['reggaeton', 'hits'], _dropped: 'Wed', _note: 'their own room' },
+  { club_id: '3c3716e0-0361-4a62-b4d2-ec1eb5d00bbb', _club: 'Twenties Barcelona',
+    nights: 'Fri, Sat', _window: '00:00 – 06:00', ages: [18], _n: 5,
+    genres: ['reggaeton', 'hits', 'house', 'comercial'] },
+  { club_id: 'f710a3a3-c84e-408a-a061-d6791215848a', _club: 'La Fira Casanova',
+    nights: 'Fri, Sat', _window: '23:45 – 05:30', ages: [18], _n: 4,
+    genres: ['reggaeton', 'hits', 'dance', 'comercial'] },
+  { club_id: '5eaaf6ad-c479-4e7e-b735-f3459b319aac', _club: 'La Fira Villarroel',
+    nights: 'Sat', _window: '00:00 – 05:30', ages: [18], _n: 3,
+    genres: ['reggaeton', 'pop', 'disco', 'comercial'], _dropped: 'Fri' },
+  { club_id: 'fb8a09e0-6a79-4023-b990-6a0702d88053', _club: 'La Fira Provença',
+    nights: 'Sat', _window: '18:00 – 03:30', ages: [40], _n: 2, genres: ['disco'],
+    _note: 'over-40s tardeo' },
+  { club_id: 'dbf8342b-e7b8-4f27-97d2-5982bc4a3947', _club: 'Costa Breve',
+    nights: 'Sat', _window: '00:30 – 06:00', ages: [18, 21], _n: 3, genres: [],
+    _dropped: 'Thu' },
+  { club_id: '91ef759c-4b34-4e63-ab2a-ac015dcf76e8', _club: 'NIX BARCELONA',
+    nights: 'Sat', _window: '18:00 – 22:30', ages: [18], _n: 4, genres: [],
+    _dropped: 'Fri', _note: 'the recurring Saturday here is a tardeo' },
 ]
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-// ── Brand ────────────────────────────────────────────────────────────────────
-let brand = (await sb.from('partner_brands').select('*').eq('key', BRAND.key).maybeSingle()).data
+// Every club_id is re-checked against the live table before anything is
+// written. A placeholder or a stale id must fail loudly here rather than create
+// an offer nobody can ever see.
+const ids = OFFERS.map(o => o.club_id)
+const { data: clubRows } = await sb.from('clubs').select('id, name, is_active').in('id', ids)
+const found = new Map((clubRows ?? []).map(c => [c.id, c]))
+const missing = OFFERS.filter(o => !found.has(o.club_id))
+if (missing.length) {
+  console.error('! club_id not found for:')
+  for (const m of missing) console.error(`    ${m._club}  ${m.club_id}`)
+  console.error('  Fix the ids above before running with --apply.')
+  if (APPLY) process.exit(1)
+}
 
+let brand = (await sb.from('partner_brands').select('*').eq('key', BRAND.key).maybeSingle()).data
 if (!brand) {
-  console.log(`brand "${BRAND.name}" (${BRAND.key}) — NOT PRESENT, would create`)
+  console.log(`brand "${BRAND.name}" — NOT PRESENT, would create`)
   if (APPLY) {
-    // is_active:false deliberately. That flag names the single fallback brand
-    // for app versions too old to read per-offer branding; it is NOT an on
-    // switch, and offers go live on their own is_active. See partner.ts.
-    //
-    // offers_hidden:true deliberately too. A brand imported from a website
-    // should not start selling to guests the moment this script runs — every
-    // other supplier on the platform is currently muted, and going live is an
-    // operator decision made in the portal, not a side effect of an import.
     const { data, error } = await sb.from('partner_brands')
       .insert({ ...BRAND, is_active: false, offers_hidden: true })
       .select('*').single()
     if (error) { console.error('! could not create brand:', error.message); process.exit(1) }
     brand = data
-    console.log(`  + created ${brand.id}  (offers_hidden ON — nothing reaches guests yet)`)
+    console.log(`  + created ${brand.id}`)
   }
 } else {
-  console.log(`brand "${brand.name}" (${brand.key}) — present ${brand.id}`)
-  if (brand.offers_hidden) console.log('  · offers_hidden is ON — these offers will NOT reach the app until it is turned off')
+  console.log(`brand "${brand.name}" — present ${brand.id}${brand.offers_hidden ? '  (offers_hidden ON)' : ''}`)
 }
+if (!brand) { console.log('\nDRY RUN — no brand yet.'); process.exit(0) }
 
-if (!brand) {
-  console.log('\nDRY RUN — no brand yet, so offers cannot be resolved. Re-run with --apply.')
-  printPlan()
-  process.exit(0)
-}
-
-// ── Offers ───────────────────────────────────────────────────────────────────
 const existing = (await sb.from('partner_offers').select('*').eq('brand_id', brand.id)).data ?? []
-const keyOf = o => `${o.club_id}|${o.kind}`
-const byKey = new Map(existing.map(o => [keyOf(o), o]))
+const byKey = new Map(existing.map(o => [`${o.club_id}|${o.kind}`, o]))
 
-function rowFor(o, i) {
-  return {
-    brand_id:    brand.id,
-    club_id:     o.club_id,
-    kind:        'free_guestlist',
-    title:       'Free Guestlist',
-    subtitle:    o.subtitle,
-    price_eur:   null,          // free_guestlist rows are refused with a price
-    party_size:  null,
-    time_window: o.time_window,
-    valid_days:  o.valid_days,
-    dress_code:  o.dress_code,  // HypeList's own, not the house default
-    music:       o.music,
-    sort_order:  i,
-    is_active:   true,
-    capacity:    null,          // no limit until HypeList tell us their caps
-  }
+const rowFor = (o, i) => ({
+  brand_id:    brand.id,
+  club_id:     o.club_id,
+  kind:        'free_guestlist',
+  title:       'Free Guestlist',
+  subtitle:    ['Free guestlist', o._note, ageNote(o.ages)].filter(Boolean).join(' · '),
+  price_eur:   null,
+  party_size:  null,
+  time_window: o._window,
+  valid_days:  o.nights,
+  dress_code:  'Smart casual — no sportswear',
+  music:       o.genres.length ? o.genres.map(title).join(' · ') : 'Mixed',
+  sort_order:  i,
+  is_active:   true,
+  capacity:    null,
+})
+
+console.log(`\n${OFFERS.length} offers — nights counted from HypeList's own calendar\n`)
+for (const o of OFFERS) {
+  const c = found.get(o.club_id)
+  const hit = byKey.get(`${o.club_id}|free_guestlist`)
+  console.log(`  ${hit ? '~' : '+'} ${o._club.padEnd(24)} ${o.nights.padEnd(20)} ${o._window.padEnd(15)} ${String(o._n).padStart(2)} ev  ${ageNote(o.ages) ?? ''}`)
+  if (o._dropped) console.log(`      dropped one-off: ${o._dropped}`)
+  if (c && !c.is_active) console.log(`      ! venue is INACTIVE in clubs — the offer will not surface until it is switched on`)
 }
 
-printPlan()
-
-function printPlan() {
-  console.log(`\n${OFFERS.length} offers across ${new Set(OFFERS.map(o => o.club_id)).size} venues\n`)
-  for (const o of OFFERS) {
-    const hit = brand ? byKey.get(`${o.club_id}|free_guestlist`) : null
-    console.log(`  ${hit ? '~' : '+'} ${o._club.padEnd(24)} ${o.valid_days.padEnd(20)} ${o.time_window.padEnd(16)} ${o.dress_code.padEnd(15)} ${o.music}`)
-    console.log(`      nights: ${o._nightsFrom}`)
-  }
-  console.log(`\n${HELD.length} advertised venues HELD BACK — no night data:\n`)
-  for (const h of HELD) console.log(`  · ${h.club.padEnd(28)} ${h.why}`)
-}
-
-if (!APPLY) {
-  console.log('\nDRY RUN — nothing written. Re-run with --apply.')
-  process.exit(0)
-}
+if (!APPLY) { console.log('\nDRY RUN — nothing written. Re-run with --apply.'); process.exit(0) }
 
 let created = 0, updated = 0
 for (const [i, o] of OFFERS.entries()) {
   const row = rowFor(o, i)
-  const hit = byKey.get(keyOf(row))
+  const hit = byKey.get(`${o.club_id}|free_guestlist`)
   if (hit) {
     const { error } = await sb.from('partner_offers').update(row).eq('id', hit.id)
     if (error) { console.error(`  ! ${o._club}: ${error.message}`); continue }
-    console.log(`  ~ ${o._club} updated`)
     updated++
   } else {
-    const { data, error } = await sb.from('partner_offers').insert(row).select('id').single()
+    const { error } = await sb.from('partner_offers').insert(row)
     if (error) { console.error(`  ! ${o._club}: ${error.message}`); continue }
-    console.log(`  + ${o._club} ${data.id}`)
     created++
   }
 }
 console.log(`\ndone — ${created} created, ${updated} updated`)
-console.log('offers_hidden is ON for this brand: nothing reaches guests until you turn it off in the portal.')

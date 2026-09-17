@@ -1,35 +1,51 @@
 # HypeList Barcelona — source notes
 
-Read from https://www.hypelistbarcelona.com on 17 Sep 2026.
+## Where their data actually is
 
-## What the site publishes
+Their marketing site (hypelistbarcelona.com, Framer) lists nine venues and no
+calendar. Its "Choose Your Night" picker looks like it answers which nights
+they run and does not: all seven day tabs render the identical four cards, and
+the tabs are plain divs with no distinct panel behind them.
 
-* **9 venue guestlist pages** (`/<venue>-guestlist-barcelona`), each with a
-  "Club Information" block: dress code, neighbourhood, music, crowd, and
-  whether VIP tables are available.
-* **A tickets page** with minimum ages and, for Downtown and Twenties,
-  "FREE ENTRY UNTIL 1:00 AM".
-* **Their logo** — a bunny in sunglasses under a cocktail umbrella, white
-  line-art inside a rainbow bloom. `hypelist-mark-original.png` is the
-  untouched 842x842 nav asset.
+**Their real data is on Fourvenues**, the same platform BesoList use. The venue
+pages link out to `site.fourvenues.com/en/hypelist-barcelona@<venue>`, and the
+promoter-wide embed serves the whole calendar with no Cloudflare challenge:
 
-## What it does NOT publish
+    https://site.fourvenues.com/en/iframe/hypelist-barcelona/events
 
-* **No events.** There is no calendar anywhere on the site — no dates, no
-  listings, no ticket links to a platform that has them. BesoList's 383 events
-  came from a Fourvenues public embed; HypeList have no equivalent.
-* **No operating nights.** The homepage "Choose Your Night" picker looks like
-  it answers this and does not: clicking each of Monday…Sunday renders the
-  identical four cards (Sutton, Opium, Downtown, Pacha, looped). The day tabs
-  are plain divs with no distinct panel behind them. Verified by reading the
-  DOM for all seven days.
-* **No door times, no capacities, no VIP prices.**
+`site.fourvenues.com` itself sits behind an interactive challenge and was not
+touched. The embed route is scoped: a nonsense slug on it renders zero events.
 
-## Consequences
+## The harvest (17 Sep 2026)
 
-`valid_days` and `time_window` in `scripts/import-hypelist.mjs` come from the
-BesoList harvest of the SAME ROOMS, not from HypeList — a venue's operating
-nights belong to the venue, not to whoever fills it. Each row records this.
+170 events, 17 Sep – 3 Oct, across **24 venues** — not the nine the website
+advertises. Per-venue routes go deeper (Opium alone returns 75 events to 30
+Nov); the promoter-wide route is capped at roughly a fortnight and query
+parameters are rejected.
 
-Three of the nine advertised venues are held back because no source covers
-them: Jamboree, Shôko and CDLC. See `HELD` in the import script.
+Cards carry date, start/end, minimum age and music genres in the wrapping
+anchor's `aria-label` — note it is the ANCHOR, not the `<article>`.
+
+## Deriving nights
+
+* An event starting before 06:00 belongs to the **previous** night. Without
+  that shift every late room reads a day late.
+* A night counts as a residency only if it **recurs**. A single sighting in two
+  and a half weeks is a one-off; promising it sends someone to a shut room.
+* The time window is the most common start→end **pair**, not the two modes
+  taken separately — NIX runs both an 18:00 tardeo and a 00:00 club night.
+
+Cross-check: this puts Bling Bling at Wed–Sat and Downtown at Wed–Sat, matching
+the independent BesoList harvest of the same rooms.
+
+## Not imported
+
+| Venue | Why |
+|---|---|
+| Nu Bcn, ETNIA, Brisa Open Air | no row in `clubs` |
+| Discoteca Mon Madrid | Madrid, not Barcelona |
+| Atlantic Club | only "Atlantic Sound BCN" is close, not clearly the same room; also no residency |
+| Duvet, 4 Latas Club | in `clubs`, but one-offs only |
+
+Bastian Beach IS imported but its `clubs` row is **inactive**, so the offer
+will not surface until the venue is switched on.

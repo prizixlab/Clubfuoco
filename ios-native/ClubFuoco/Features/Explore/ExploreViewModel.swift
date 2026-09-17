@@ -54,6 +54,10 @@ final class ExploreViewModel {
     /// nothing is live: everything drops a tier and the feed still renders.
     private(set) var offersByClub: [String: [RumbalistOffer]] = [:]
 
+    /// The night the feed is currently planned for, mirrored from the last
+    /// rebuild so the revenue rule can ask whether an offer runs THAT night.
+    private(set) var lastPlanDate: String = ""
+
     /// Upcoming ticketed events, used as the secondary commercial signal
     /// (ranked below deals). Empty on failure — the feed still renders.
     private(set) var events: [ExternalEvent] = []
@@ -112,11 +116,45 @@ final class ExploreViewModel {
         }
     }
 
-    /// The 'revenue' rule: exactly what the shelf already ranked — offers and
-    /// paid promotion first (ShelfBuilder's dealRank). Naming it doesn't change
-    /// it; it makes it a choice rather than the only behaviour.
+    /// The 'revenue' rule: every venue we can EARN from, ranked by how directly.
+    ///
+    /// Earning means an offer we supply — a guestlist we get credited for, or a
+    /// VIP table we take a cut of. It is NOT about whether a night sells
+    /// tickets: a free guestlist at a room that pays us is revenue, and a
+    /// ticketed event we earn nothing from is not.
+    ///
+    /// This used to borrow the featured shelf's order, which made the rule
+    /// whatever that shelf happened to contain — a venue with a live VIP table
+    /// could sit outside it and never surface. Ranked over ALL places now, from
+    /// the offers themselves.
+    ///
+    /// The order below is the order we get paid in:
+    ///   0  paid promotion running tonight — the promoter bought this slot
+    ///   1  live VIP table — a sale we take a cut of
+    ///   2  live guestlist — credited heads tonight
+    ///   3  an offer here, just not tonight
+    ///   4  no offer: nothing to earn, taste order only
     var revenuePlaces: [Place] {
-        shelves.first(where: { $0.featured })?.places ?? []
+        places
+            .map { (place: $0, rank: revenueRank($0)) }
+            .sorted {
+                $0.rank == $1.rank
+                    ? organicScore($0.place) > organicScore($1.place)
+                    : $0.rank < $1.rank
+            }
+            .map(\.place)
+    }
+
+    /// Where one venue sits in the revenue order. `lastPlanDate` is the night
+    /// being planned, so "live" means live ON THAT NIGHT rather than today.
+    private func revenueRank(_ p: Place) -> Int {
+        let offers = offersByClub[p.placeId.lowercased()] ?? []
+        guard !offers.isEmpty else { return 4 }
+        let live = offers.filter { $0.liveOn(lastPlanDate) }
+        if live.contains(where: \.featured) { return 0 }
+        if live.contains(where: \.isVip)    { return 1 }
+        if !live.isEmpty                    { return 2 }
+        return 3
     }
 
     /// The 'organic' rule: what we would show if we earned nothing from any of
@@ -292,6 +330,9 @@ final class ExploreViewModel {
     /// Feed scoped to venues open on the planned night, the active chip, and
     /// assembled into shelves (mirrors the page-level pipeline).
     func rebuildShelves(planDate: String, t: (String) -> String) {
+        // Held for the revenue rule, which is a computed property and so has no
+        // plan date passed to it. An offer is live on a NIGHT, not in general.
+        lastPlanDate = planDate
         let nightAll = places.filter { Hours.isOpenOnDate($0.weekdayHours, date: planDate) != false }
         let filtered = ShelfBuilder.filter(nightAll, chip: activeFilter)
         shelves = ShelfBuilder.build(

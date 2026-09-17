@@ -181,7 +181,7 @@ export async function GET() {
         kind: 'auto', target_id: s.auto_mode,
         title: revenue ? 'Algorithmic — revenue first' : 'Algorithmic — best night out',
         subtitle: revenue
-          ? 'Paid promotion, then live offers and VIP tables. We earn from these.'
+          ? 'Any venue with a guestlist or VIP table we earn from — paid promotion first, then live VIP tables, then live guestlists.'
           : 'Ranked on fit, rating and real programming. We earn nothing from these.',
         image: null, night_date: null, live: true,
       })
@@ -226,7 +226,7 @@ async function pool(
     {
       kind: 'auto', id: 'revenue',
       title: 'Algorithmic — revenue first',
-      subtitle: 'Paid promotion, then live offers and VIP tables. We earn from these.',
+      subtitle: 'Any venue with a guestlist or VIP table we earn from — paid promotion first, then live VIP tables, then live guestlists.',
       night_date: null, taken: taken.has('auto:revenue'),
     },
   ]

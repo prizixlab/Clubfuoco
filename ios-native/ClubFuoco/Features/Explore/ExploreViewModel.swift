@@ -68,6 +68,11 @@ final class ExploreViewModel {
     /// failure: the venue feed must still render.
     private(set) var feedEvents: [FeedEvent] = []
 
+    /// Whether our events appear on Explore at all. Off for now — see where
+    /// `feedEvents` is assigned. One flag, deliberately, so putting them back
+    /// is one edit rather than an archaeology exercise.
+    static let showEventsOnExplore = false
+
     /// The editorial featured shelf from /portal/featured. Empty when nothing
     /// is featured or the request failed, which is what makes the automatic
     /// shelf below the fallback rather than a competing path.
@@ -256,7 +261,18 @@ final class ExploreViewModel {
         // everything); the feed must still render, never block on offers.
         offersByClub = await liveOffers ?? [:]
         events = await upcoming
-        feedEvents = await ourEvents?.events ?? []
+        // Events are OFF on Explore for now (17 Sep 2026, operator's call).
+        //
+        // Gated here rather than at each render site because this one array is
+        // what every path reads: the weave under the hero, and expand() when a
+        // featured slot names an event. Emptying it takes events off Explore
+        // completely, including a desk pick that points at one — no card is
+        // left half-wired.
+        //
+        // The request still runs: it is in the same parallel batch as the rest
+        // and its result is what the Events tab and deep links use. Flip this
+        // to put them back; nothing else has to change.
+        feedEvents = Self.showEventsOnExplore ? (await ourEvents?.events ?? []) : []
         featured = await featuredReq ?? FeaturedPayload(tier1: [], tier2: [])
         djClubIds = await djClubs
         userPrefs = await prefs ?? nil

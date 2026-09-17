@@ -49,3 +49,33 @@ the independent BesoList harvest of the same rooms.
 
 Bastian Beach IS imported but its `clubs` row is **inactive**, so the offer
 will not surface until the venue is switched on.
+
+## events.tsv
+
+365 events, 17 Sep – 31 Dec 2026. Columns, tab-separated:
+
+    venue  month  day  weekday  start  end  minAge  genres  title
+
+Built from two passes, deduped: the promoter-wide embed (170 events, covers all
+24 venues but only ~a fortnight) plus per-venue routes
+`/en/iframe/hypelist-barcelona@<slug>/events`, which reach 30 Nov–31 Dec for
+the ten rooms that have one.
+
+**A venue slug that does not exist silently serves the WHOLE promoter
+calendar.** `boris` and `el-tardet-barcelona` both returned all 24 venues'
+events, which would have filed 168 events under one room. Any slug is only
+accepted when every card it returns names the same venue.
+
+Slugs that resolve: opium-barcelona, ku-barcelona, sutton-barcelona,
+downtown-barcelona, twenties-barcelona, bling-bling-bcn, hype-barcelona,
+otto-zutz, la-biblio-bcn, bastian-beach. Boris, El Tardet, the Fira rooms, NIX
+and Costa Breve have none — the promoter-wide window is all there is for them.
+
+## Two date corrections
+
+1. **Night, not calendar day.** An event starting before 06:00 belongs to the
+   previous night. Times keep the real clock.
+2. **The source's month lags at a rollover.** Four cards carry the right day and
+   weekday with the previous month — Sutton's "New Year's Eve 2027" arrives as
+   1 December. The weekday is the check: walk forward through candidate months
+   and take the first whose weekday matches. A row matching none is dropped.

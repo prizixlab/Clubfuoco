@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       id, name, slug, description, address, neighborhood,
       lat, lng, cover_image_url, music_genres,
       general_entry_price, vip_table_min_spend,
+      door_price_min, door_price_max, door_price_weekend_min, door_price_weekend_max,
       instagram_handle, is_featured,
       live_status (
         crowd_percentage, crowd_label, current_dj,

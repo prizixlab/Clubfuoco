@@ -1,7 +1,7 @@
 import SwiftUI
 import Observation
 
-/// Native port of RumbalistBookSheet — the dark booking sheet that opens
+/// Native port of RumbalistBookSheet — the booking sheet that opens
 /// from a venue's supplier offer. Free guestlist joins via
 /// /api/rumbalist/join-guestlist; VIP tables run the Apple Pay flow
 /// (create-vip-intent → confirm on-device → confirm-vip). Ends on a pass
@@ -29,8 +29,26 @@ struct RumbalistOfferSheet: View {
     @State private var calendarMessage: String?
     @State private var plusOnes = 0
 
-    private static let ink = Color(hex: 0x141416)
-    private static let textColor = Color(hex: 0xF5F5F7)
+    // The sheet used to be dark in BOTH appearances — the two colors below were
+    // fixed hex, so a Light-mode user tapping "Join guestlist" fell into a black
+    // sheet nothing else in the app matches. The dark values here are exactly
+    // what shipped, so Dark mode is unchanged; only Light gains a resolution.
+    private static let ink = Color.adaptive(light: 0xF8F5EE, dark: 0x141416)
+    private static let textColor = Color.adaptive(light: 0x221E1A, dark: 0xF5F5F7)
+
+    /// Fills and hairlines that were `.white.opacity(x)` back when the sheet was
+    /// always dark. Lightening a light sheet is invisible, so in Light these
+    /// have to come off the ink instead — same opacity, opposite end.
+    private static func veil(_ opacity: Double) -> Color {
+        Color.adaptive(light: 0x221E1A, lightAlpha: opacity,
+                       dark: 0xFFFFFF, darkAlpha: opacity)
+    }
+
+    /// The confirm button inverts the sheet: a pale slab on the dark sheet, a
+    /// dark slab on the light one. VIP keeps its slightly cooler, brighter fill.
+    private static let ctaFill = Color.adaptive(light: 0x221E1A, dark: 0xF3EEE0)
+    private static let ctaFillVip = Color.adaptive(light: 0x141416, dark: 0xFFFFFF)
+    private static let ctaLabel = Color.adaptive(light: 0xF8F5EE, dark: 0x141416)
 
     /// The supplier behind THIS offer — drives the sheet's branding. Per-offer,
     /// not app-wide: two venues' offers can come from different suppliers, and
@@ -153,7 +171,7 @@ struct RumbalistOfferSheet: View {
                     }
                 }
                 .padding(.init(top: 14, leading: 16, bottom: 14, trailing: 16))
-                .background(.white.opacity(0.05), in: .rect(cornerRadius: 14))
+                .background(Self.veil(0.05), in: .rect(cornerRadius: 14))
                 .padding(.top, 22)
 
                 supplierCredit
@@ -161,7 +179,7 @@ struct RumbalistOfferSheet: View {
                 if let error = model.errorMessage {
                     Text(error)
                         .font(.cfSans(12))
-                        .foregroundStyle(Color(hex: 0xFFB4A2))
+                        .foregroundStyle(Color.adaptive(light: 0x8C2A2A, dark: 0xFFB4A2))
                         .frame(maxWidth: .infinity)
                         .padding(.top, 12)
                 }
@@ -186,10 +204,10 @@ struct RumbalistOfferSheet: View {
                         }
                     }
                     .font(.cfSans(16, weight: .semibold))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(Self.ctaLabel)
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
-                    .background(offer.isVip ? Color.white : Color(hex: 0xF3EEE0), in: .rect(cornerRadius: 12))
+                    .background(offer.isVip ? Self.ctaFillVip : Self.ctaFill, in: .rect(cornerRadius: 12))
                     .opacity(model.busy ? 0.55 : 1)
                 }
                 .disabled(model.busy)
@@ -224,7 +242,11 @@ struct RumbalistOfferSheet: View {
                         .foregroundStyle(Self.textColor)
                         .frame(maxWidth: .infinity)
                         .frame(height: 48)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.18)))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Self.veil(0.18)))
+                        // Outline around empty space: without this, taps land
+                        // only on the icon and the words. Same fault the guest
+                        // gate's "Sign in" button had.
+                        .contentShape(.rect(cornerRadius: 12))
                         .opacity(model.busy ? 0.55 : 1)
                     }
                     .disabled(model.busy)
@@ -266,7 +288,7 @@ struct RumbalistOfferSheet: View {
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(Self.textColor)
                             .frame(width: 34, height: 34)
-                            .overlay(Circle().stroke(.white.opacity(0.18)))
+                            .overlay(Circle().stroke(Self.veil(0.18)))
                     }
                     .disabled(plusOnes == 0)
                     .opacity(plusOnes == 0 ? 0.4 : 1)
@@ -283,7 +305,7 @@ struct RumbalistOfferSheet: View {
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(Self.textColor)
                             .frame(width: 34, height: 34)
-                            .overlay(Circle().stroke(.white.opacity(0.18)))
+                            .overlay(Circle().stroke(Self.veil(0.18)))
                     }
                     .disabled(plusOnes == 9)
                     .opacity(plusOnes == 9 ? 0.4 : 1)
@@ -311,7 +333,7 @@ struct RumbalistOfferSheet: View {
     }
 
     private var divider: some View {
-        Rectangle().fill(.white.opacity(0.08)).frame(height: 1).padding(.vertical, 3)
+        Rectangle().fill(Self.veil(0.08)).frame(height: 1).padding(.vertical, 3)
     }
 
     /// Contractual supplier credit ("Guestlist by Rumba") — data-driven from
@@ -379,7 +401,7 @@ struct RumbalistOfferSheet: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity)
-                    .background(.white.opacity(0.06), in: .rect(cornerRadius: 10))
+                    .background(Self.veil(0.06), in: .rect(cornerRadius: 10))
 
                     if let token = booking.doorToken {
                         VStack(spacing: 10) {
@@ -413,7 +435,7 @@ struct RumbalistOfferSheet: View {
                         }
                     }
                     .padding(.init(top: 14, leading: 16, bottom: 14, trailing: 16))
-                    .background(.white.opacity(0.05), in: .rect(cornerRadius: 14))
+                    .background(Self.veil(0.05), in: .rect(cornerRadius: 14))
 
                     Text(locale.t("rumbalist.validNote"))
                         .font(.cfSans(10))
@@ -445,10 +467,10 @@ struct RumbalistOfferSheet: View {
             } label: {
                 Text(locale.t("common.done"))
                     .font(.cfSans(15, weight: .semibold))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(Self.ctaLabel)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(Color(hex: 0xF3EEE0), in: .rect(cornerRadius: 12))
+                    .background(Self.ctaFill, in: .rect(cornerRadius: 12))
             }
             .padding(.horizontal, 22)
             .padding(.top, 8)
@@ -484,7 +506,7 @@ struct RumbalistOfferSheet: View {
             .foregroundStyle(Self.textColor)
             .frame(maxWidth: .infinity)
             .frame(height: 46)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.18)))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Self.veil(0.18)))
         }
     }
 

@@ -1924,8 +1924,8 @@
   "fr": "Venez accompagné"
  },
  "rumbalist.bringCrewNote": {
-  "ca": "Convida amics a la llista — tothom entra per la porta.",
-  "fr": "Invitez vos amis sur la liste — tout le monde est à l'entrée."
+  "ca": "Per als amics que ja tenen l'app: obre un grup compartit per organitzar la nit junts, i cadascú té el seu propi pas.",
+  "fr": "Pour les amis qui ont déjà l'app : ouvre un groupe partagé pour organiser la soirée ensemble, et chacun a son propre pass."
  },
  "rumbalist.confirmationNote": {
   "ca": "La confirmació arriba a la pestanya Entrades a l'instant.",
@@ -1956,8 +1956,8 @@
   "fr": "Invités sans l'app"
  },
  "rumbalist.guestsNoAppNote": {
-  "ca": "Rebran un enllaç per unir-se a la teva llista.",
-  "fr": "Ils recevront un lien pour rejoindre votre liste."
+  "ca": "Per als amics que no la tenen: se sumen al teu recompte i reben un enllaç per a la porta.",
+  "fr": "Pour les amis qui ne l'ont pas : ils s'ajoutent à votre total et reçoivent un lien pour l'entrée."
  },
  "rumbalist.join": {
   "ca": "Uneix-t'hi →",

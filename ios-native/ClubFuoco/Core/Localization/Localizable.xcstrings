@@ -9975,25 +9975,25 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "They’ll get a link to join your list."
+            "value": "For friends who don’t have it — they’re added to your count and get a link to the door."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recibirán un enlace para unirse a tu lista."
+            "value": "Para los amigos que no la tienen: se suman a tu cuenta y reciben un enlace para la puerta."
           }
         },
         "ca": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rebran un enllaç per unir-se a la teva llista."
+            "value": "Per als amics que no la tenen: se sumen al teu recompte i reben un enllaç per a la porta."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ils recevront un lien pour rejoindre votre liste."
+            "value": "Pour les amis qui ne l'ont pas : ils s'ajoutent à votre total et reçoivent un lien pour l'entrée."
           }
         }
       }
@@ -17059,25 +17059,25 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Invite friends to the guestlist — everyone's on the door."
+            "value": "For friends who already have the app — opens a shared group to plan the night together, and everyone gets their own door pass."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Invita a tus amigos a la lista — todos entran por la puerta."
+            "value": "Para los amigos que ya tienen la app: abre un grupo compartido para organizar la noche juntos, y cada uno tiene su propio pase."
           }
         },
         "ca": {
           "stringUnit": {
             "state": "translated",
-            "value": "Convida amics a la llista — tothom entra per la porta."
+            "value": "Per als amics que ja tenen l'app: obre un grup compartit per organitzar la nit junts, i cadascú té el seu propi pas."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Invitez vos amis sur la liste — tout le monde est à l'entrée."
+            "value": "Pour les amis qui ont déjà l'app : ouvre un groupe partagé pour organiser la soirée ensemble, et chacun a son propre pass."
           }
         }
       }

@@ -405,9 +405,12 @@ const NATIVE_KEYS = {
   'auth.phoneOptional': { en: 'Phone · optional', es: 'Teléfono · opcional' },
   'gate.keepBrowsing': { en: 'Browsing stays free', es: 'Explorar es siempre gratis' },
   'rumbalist.guestsNoApp': { en: 'Guests without the app', es: 'Invitados sin la app' },
+  // The stepper and "Bring your crew" below it are the two ways to arrive with
+  // people, and which one you want depends on whether THEY have the app. Each
+  // note says so plainly, or the pair reads as the same thing twice.
   'rumbalist.guestsNoAppNote': {
-    en: 'They’ll get a link to join your list.',
-    es: 'Recibirán un enlace para unirse a tu lista.',
+    en: 'For friends who don’t have it — they’re added to your count and get a link to the door.',
+    es: 'Para los amigos que no la tienen: se suman a tu cuenta y reciben un enlace para la puerta.',
   },
   'settings.lang.ca': { en: 'Català', es: 'Català' },
   'settings.lang.fr': { en: 'Français', es: 'Français' },
@@ -735,8 +738,8 @@ const NATIVE_KEYS = {
   'rumbalist.atDoor': { en: 'Show this at the door', es: 'Muestra esto en la puerta' },
   'rumbalist.bringCrew': { en: 'Bring your crew', es: 'Trae a tu gente' },
   'rumbalist.bringCrewNote': {
-    en: "Invite friends to the guestlist — everyone's on the door.",
-    es: 'Invita a tus amigos a la lista — todos entran por la puerta.',
+    en: 'For friends who already have the app — opens a shared group to plan the night together, and everyone gets their own door pass.',
+    es: 'Para los amigos que ya tienen la app: abre un grupo compartido para organizar la noche juntos, y cada uno tiene su propio pase.',
   },
   'rumbalist.splitFriends': { en: 'Split with friends', es: 'Divide con amigos' },
   'rumbalist.splitFriendsNote': {

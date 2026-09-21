@@ -14,6 +14,7 @@ struct RootView: View {
             if auth.state == .loading {
                 SplashView()
             } else if auth.state == .signedIn
+                        && !auth.isAnonymous
                         && !auth.onboardingInProgress
                         && !(auth.profile?.isComplete ?? false)
                         // …unless an invite is open. Signing in from a ticket is
@@ -27,6 +28,12 @@ struct RootView: View {
                 // a required field (e.g. gender, added 2026-06-22). Block the
                 // app behind complete-profile until they fill it in. The signup
                 // wizard sets onboardingInProgress=true so it isn't caught here.
+                //
+                // Anonymous sessions are excluded: a guest has no name, email,
+                // birthday or gender by definition, so without that check the
+                // moment `signInAnonymously()` succeeds it yanks a browsing
+                // guest out of the catalogue and into a profile form — the
+                // opposite of what guest mode is for (guideline 5.1.1(v)).
                 NavigationStack { CompleteProfileView() }
             } else if auth.onboardingInProgress || (auth.state == .signedOut && !auth.guestMode) {
                 AuthFlowView()

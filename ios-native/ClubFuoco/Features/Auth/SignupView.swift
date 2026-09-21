@@ -18,7 +18,6 @@ struct SignupView: View {
     }
 
     @State private var step: Step = .details
-    @State private var showRoleChooser = false
 
     // Details
     @State private var firstName = ""
@@ -119,26 +118,6 @@ struct SignupView: View {
 
     private var detailsStep: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if !showRoleChooser {
-                Button {
-                    showRoleChooser = true
-                } label: {
-                    (Text(locale.t("signup.areYouArtist")).bold().foregroundColor(Theme.ink)
-                        + Text(" ")
-                        + Text(locale.t("signup.tapHere")).underline().foregroundColor(Theme.wine))
-                        .font(.cfSans(12.5))
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                        .background(Theme.cream.opacity(0.9), in: .rect(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: 0x2A1F12).opacity(0.18)))
-                }
-                .padding(.bottom, 8)
-            } else {
-                roleChooser
-                    .padding(.bottom, 8)
-            }
-
             Kicker("N° 02 · I tuoi dati")
 
             (Text(locale.t("signup.yourDetails")) + Text(" ") + Text(locale.t("signup.yourDetailsEm")).italic())
@@ -149,6 +128,13 @@ struct SignupView: View {
                 .font(.cfSans(13.5))
                 .foregroundStyle(Theme.stone)
                 .padding(.bottom, 12)
+
+            // Above the form, not below it. Sitting under the password rules,
+            // the TOS checkbox and the Create account button, these were two
+            // screens down — a first-time signup never scrolled far enough to
+            // learn that one tap was an option, and typed the whole form out.
+            OAuthButtonsView(path: $path, divider: .below)
+                .padding(.bottom, 8)
 
             HStack(spacing: 10) {
                 AuthField(label: locale.t("signup.firstName")) {
@@ -257,9 +243,6 @@ struct SignupView: View {
             }
             .padding(.top, 8)
 
-            OAuthButtonsView(path: $path)
-                .padding(.top, 8)
-
             HStack(spacing: 4) {
                 Text(locale.t("signup.alreadyMember"))
                     .font(.cfSans(13))
@@ -279,41 +262,6 @@ struct SignupView: View {
 
     private var errorMentionsEmail: Bool {
         errorMessage?.lowercased().contains("email") ?? false
-    }
-
-    private var roleChooser: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Kicker(locale.t("signup.whichAreYou"))
-            ForEach([("Locale", "Club / Venue"), ("Artista", "DJ / Artist")], id: \.0) { name, sub in
-                HStack {
-                    Text(name)
-                        .font(.cfSerif(20, italic: true))
-                        .foregroundStyle(Theme.ink)
-                    Spacer()
-                    Text(locale.t("signup.comingSoon").uppercased())
-                        .font(.cfMono(8.5))
-                        .kerning(1.2)
-                        .foregroundStyle(Theme.stone)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 3)
-                        .background(Color(hex: 0x2A1F12).opacity(0.07), in: .capsule)
-                }
-                .padding(14)
-                .background(Theme.surface, in: .rect(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: 0x2A1F12).opacity(0.18)))
-                .opacity(0.55)
-                .accessibilityHint(sub)
-            }
-            Text(locale.t("signup.clubArtistNotOpen"))
-                .font(.cfSans(12))
-                .foregroundStyle(Theme.stone)
-            Button {
-                showRoleChooser = false
-            } label: {
-                Kicker(locale.t("signup.justNightsOut"), color: Theme.stone)
-            }
-            .padding(.top, 2)
-        }
     }
 
     private func submitDetails() {

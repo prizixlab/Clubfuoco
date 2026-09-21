@@ -33,6 +33,7 @@ const NATIVE_KEYS = {
 
   // OAuth buttons (web hardcodes these in OAuthButtons.tsx)
   'auth.orContinueWith': { en: 'or continue with', es: 'o continúa con' },
+  'auth.orWithEmail': { en: 'or sign up with email', es: 'o regístrate con email' },
   'auth.continueGoogle': { en: 'Continue with Google', es: 'Continuar con Google' },
   'auth.continueApple': { en: 'Continue with Apple', es: 'Continuar con Apple' },
 
@@ -143,8 +144,73 @@ const NATIVE_KEYS = {
   'settings.openIOSSettings': { en: 'Open iOS Settings', es: 'Abrir Ajustes de iOS' },
   'settings.upgradeToAlways': { en: 'Upgrade to Always', es: 'Cambiar a Siempre' },
 
-  // Guest gating
+  // Guest gating. `gate.title` is the fallback; the per-reason pairs below name
+  // the thing the person actually reached for, so the gate finishes the job
+  // they started instead of asking a stranger for a favour.
   'gate.title': { en: 'Create an account to continue', es: 'Crea una cuenta para continuar' },
+  'gate.saveTitle': { en: 'Keep this venue', es: 'Guarda este local' },
+  'gate.saveBody': {
+    en: 'Saved venues wait for you in your account. Make one and this stays.',
+    es: 'Los locales guardados te esperan en tu cuenta. Crea una y este se queda.',
+  },
+  'gate.guestlistTitle': { en: 'Get on the list', es: 'Entra en la lista' },
+  'gate.guestlistBody': {
+    en: 'A guest list is held in your name, so we need an account to put you on it.',
+    es: 'La lista va a tu nombre, así que necesitamos una cuenta para apuntarte.',
+  },
+  'gate.ticketsTitle': { en: 'Your tickets live here', es: 'Tus entradas viven aquí' },
+  'gate.ticketsBody': {
+    en: 'Every list you join, table you book and ticket you hold lands on this screen.',
+    es: 'Cada lista, mesa y entrada que tengas aparece en esta pantalla.',
+  },
+  'gate.accountTitle': { en: 'Everything in one place', es: 'Todo en un solo sitio' },
+  'gate.accountBody': {
+    en: 'Your profile, your friends and every night you have said yes to.',
+    es: 'Tu perfil, tus amigos y cada noche a la que has dicho que sí.',
+  },
+  'gate.rumbaTitle': { en: 'Join the rumba', es: 'Únete a la rumba' },
+  'gate.rumbaBody': {
+    en: 'A rumba is planned together, so we need a name to put beside your friends.',
+    es: 'Una rumba se organiza entre todos, y hace falta un nombre junto al de tus amigos.',
+  },
+
+
+  // Booking help sheet + event copy. These lived only in the catalog until
+  // 2026-09-21; a regen silently dropped them. Keep them here.
+  'event.more': { en: 'Read more', es: 'Leer más' },
+  'event.less': { en: 'Show less', es: 'Ver menos' },
+  'help.qr': { en: 'My code won’t scan', es: 'Mi código no se lee' },
+  'help.qrBody': {
+    en: 'The scanner won’t read it, or the door says it’s invalid. Read them the reference above.',
+    es: 'El escáner no lo lee, o en puerta dicen que no es válido. Diles la referencia de arriba.',
+  },
+  'help.queue': { en: 'Still queueing', es: 'Todavía en la cola' },
+  'help.queueBody': {
+    en: 'You’re at the venue but haven’t been let in, and the doors should be open.',
+    es: 'Estás en el local pero no te han dejado entrar, y ya debería estar abierto.',
+  },
+  'help.refused': { en: 'Turned away at the door', es: 'No te dejaron entrar' },
+  'help.refusedBody': {
+    en: 'You were refused entry even though you were on the list.',
+    es: 'Te denegaron la entrada aunque estabas en la lista.',
+  },
+  'help.charge': { en: 'A problem with the payment', es: 'Un problema con el pago' },
+  'help.chargeBody': {
+    en: 'You were charged twice, charged the wrong amount, or a refund hasn’t arrived.',
+    es: 'Te han cobrado dos veces, un importe incorrecto, o no ha llegado un reembolso.',
+  },
+  'help.details': { en: 'Wrong details on my booking', es: 'Datos incorrectos en mi reserva' },
+  'help.detailsBody': {
+    en: 'The name, date, or number of guests isn’t right.',
+    es: 'El nombre, la fecha o el número de personas no es correcto.',
+  },
+  'help.other': { en: 'Something else', es: 'Otra cosa' },
+  'help.otherBody': {
+    en: 'Anything the list above doesn’t cover.',
+    es: 'Cualquier cosa que no esté en la lista.',
+  },
+  'help.send': { en: 'Send to support', es: 'Enviar a soporte' },
+  'help.sending': { en: 'Sending…', es: 'Enviando…' },
 
   // Explore chrome (hardcoded EN on web)
   'explore.subtitle': { en: 'Barcelona · Curated nightlife', es: 'Barcelona · Vida nocturna seleccionada' },

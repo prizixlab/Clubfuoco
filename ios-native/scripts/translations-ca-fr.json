@@ -27,6 +27,10 @@
   "ca": "Amaga",
   "fr": "Masquer"
  },
+ "auth.orWithEmail": {
+  "ca": "o registra't amb correu",
+  "fr": "ou inscrivez-vous par e-mail"
+ },
  "auth.orContinueWith": {
   "ca": "o continua amb",
   "fr": "ou continuer avec"
@@ -1135,9 +1139,113 @@
   "ca": "Els teus amics",
   "fr": "Vos amis"
  },
+ "event.more": {
+  "ca": "Llegir-ne més",
+  "fr": "Lire la suite"
+ },
+ "event.less": {
+  "ca": "Veure'n menys",
+  "fr": "Afficher moins"
+ },
+ "help.qr": {
+  "ca": "El meu codi no es llegeix",
+  "fr": "Mon code ne se scanne pas"
+ },
+ "help.qrBody": {
+  "ca": "L'escàner no el llegeix, o a porta diuen que no és vàlid. Digue'ls la referència de sobre.",
+  "fr": "Le scanner ne le lit pas, ou l'entrée le dit invalide. Donnez-leur la référence ci-dessus."
+ },
+ "help.queue": {
+  "ca": "Encara a la cua",
+  "fr": "Toujours dans la file"
+ },
+ "help.queueBody": {
+  "ca": "Ets al local però no t'han deixat entrar, i ja hauria d'estar obert.",
+  "fr": "Vous êtes sur place mais on ne vous a pas laissé entrer, alors que l'ouverture est passée."
+ },
+ "help.refused": {
+  "ca": "No et van deixar entrar",
+  "fr": "Refusé à l'entrée"
+ },
+ "help.refusedBody": {
+  "ca": "Et van denegar l'entrada tot i ser a la llista.",
+  "fr": "L'entrée vous a été refusée alors que vous étiez sur la liste."
+ },
+ "help.charge": {
+  "ca": "Un problema amb el pagament",
+  "fr": "Un problème avec le paiement"
+ },
+ "help.chargeBody": {
+  "ca": "T'han cobrat dues vegades, un import incorrecte, o no ha arribat un reemborsament.",
+  "fr": "Vous avez été débité deux fois, du mauvais montant, ou un remboursement n'est pas arrivé."
+ },
+ "help.details": {
+  "ca": "Dades incorrectes a la meva reserva",
+  "fr": "Informations incorrectes sur ma réservation"
+ },
+ "help.detailsBody": {
+  "ca": "El nom, la data o el nombre de persones no és correcte.",
+  "fr": "Le nom, la date ou le nombre de personnes est incorrect."
+ },
+ "help.other": {
+  "ca": "Una altra cosa",
+  "fr": "Autre chose"
+ },
+ "help.otherBody": {
+  "ca": "Qualsevol cosa que no sigui a la llista.",
+  "fr": "Tout ce que la liste ci-dessus ne couvre pas."
+ },
+ "help.send": {
+  "ca": "Envia a suport",
+  "fr": "Envoyer au support"
+ },
+ "help.sending": {
+  "ca": "Enviant…",
+  "fr": "Envoi…"
+ },
  "gate.keepBrowsing": {
   "ca": "Explorar sempre és gratis",
   "fr": "Explorer reste toujours gratuit"
+ },
+ "gate.saveTitle": {
+  "ca": "Desa aquest local",
+  "fr": "Gardez ce lieu"
+ },
+ "gate.saveBody": {
+  "ca": "Els locals desats t'esperen al teu compte. Crea'n un i aquest es queda.",
+  "fr": "Les lieux gardés vous attendent dans votre compte. Créez-en un et celui-ci reste."
+ },
+ "gate.guestlistTitle": {
+  "ca": "Entra a la llista",
+  "fr": "Entrez sur la liste"
+ },
+ "gate.guestlistBody": {
+  "ca": "La llista va al teu nom, així que necessitem un compte per apuntar-te.",
+  "fr": "La liste est à votre nom, il nous faut donc un compte pour vous y inscrire."
+ },
+ "gate.ticketsTitle": {
+  "ca": "Les teves entrades viuen aquí",
+  "fr": "Vos billets vivent ici"
+ },
+ "gate.ticketsBody": {
+  "ca": "Cada llista, taula i entrada que tinguis apareix en aquesta pantalla.",
+  "fr": "Chaque liste, table et billet que vous avez apparaît sur cet écran."
+ },
+ "gate.accountTitle": {
+  "ca": "Tot en un sol lloc",
+  "fr": "Tout au même endroit"
+ },
+ "gate.accountBody": {
+  "ca": "El teu perfil, els teus amics i cada nit a la qual has dit que sí.",
+  "fr": "Votre profil, vos amis et chaque nuit à laquelle vous avez dit oui."
+ },
+ "gate.rumbaTitle": {
+  "ca": "Uneix-te a la rumba",
+  "fr": "Rejoignez la rumba"
+ },
+ "gate.rumbaBody": {
+  "ca": "Una rumba s'organitza entre tots, i cal un nom al costat del dels teus amics.",
+  "fr": "Une rumba s'organise à plusieurs, il faut un nom à côté de celui de vos amis."
  },
  "gate.title": {
   "ca": "Crea un compte per continuar",

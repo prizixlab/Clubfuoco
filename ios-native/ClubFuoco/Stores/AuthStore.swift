@@ -45,6 +45,14 @@ final class AuthStore {
     /// a relaunched guest lands back on the splash, same as web.
     private(set) var guestMode = false
 
+    /// Where the auth flow should open when a guest leaves guest mode.
+    ///
+    /// Leaving guest mode only decides THAT the auth flow shows; the flow's own
+    /// root is the splash, so without this every gate button dumped the person
+    /// back on "create account / sign in / continue as guest" — asking them the
+    /// question they had just answered. AuthFlowView consumes this on appear.
+    var pendingAuthRoute: AuthRoute?
+
     var accountType: AccountType { profile?.accountType ?? .user }
     var isAnonymous: Bool { user?.isAnonymous ?? false }
 
@@ -297,8 +305,28 @@ final class AuthStore {
     }
 
     /// Guest tapped "Create account" / "Sign in" — return to the auth flow.
-    func exitGuestMode() {
+    ///
+    /// Clearing the flag is not enough on its own. A guest can be carrying an
+    /// anonymous Supabase session (whenever `signInAnonymously()` above
+    /// succeeds), and that session keeps `state == .signedIn` — so RootView
+    /// stays on MainTabView, the You tab re-evaluates `hasAccount`, gets false
+    /// again because the user is still anonymous, and redraws the very same
+    /// gate. Nothing on screen changes and both buttons read as dead.
+    ///
+    /// So drop the anonymous session too. `user`/`state` are set here rather
+    /// than waiting on the network round-trip: the sign-out below also emits
+    /// `.signedOut` through authStateChanges, but the button must move the UI
+    /// on the tap, not a second later.
+    /// `route` is the screen the person asked for — `.signup` from "Create
+    /// account", `.login` from "Sign in". Pass nil to land on the splash.
+    func exitGuestMode(to route: AuthRoute? = nil) {
+        pendingAuthRoute = route
         guestMode = false
+        guard isAnonymous else { return }
+        user = nil
+        profile = nil
+        state = .signedOut
+        Task { [supabase] in try? await supabase.client.auth.signOut() }
     }
 
     // ── OAuth (Apple / Google → signInWithIdToken) ───────────────────────────

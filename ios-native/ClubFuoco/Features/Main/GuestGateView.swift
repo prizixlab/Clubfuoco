@@ -78,10 +78,10 @@ struct GuestGateView: View {
 
             VStack(spacing: 10) {
                 PrimaryButton(title: locale.t("splash.createAccount"), background: Theme.ember) {
-                    auth.exitGuestMode()
+                    auth.exitGuestMode(to: .signup)
                 }
                 Button {
-                    auth.exitGuestMode()
+                    auth.exitGuestMode(to: .login)
                 } label: {
                     Text(locale.t("splash.signIn"))
                         .font(.cfSans(14, weight: .medium))
@@ -89,6 +89,11 @@ struct GuestGateView: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 48)
                         .overlay(RoundedRectangle(cornerRadius: Theme.radiusField).stroke(Theme.hairline))
+                        // The label is an outline around empty space, so hit
+                        // testing finds only the glyphs — a tap anywhere else
+                        // inside the border falls straight through. Unlike
+                        // PrimaryButton above, there is no fill to catch it.
+                        .contentShape(.rect(cornerRadius: Theme.radiusField))
                 }
             }
             .padding(.top, 8)

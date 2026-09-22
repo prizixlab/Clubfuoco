@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireCronOrRole } from '@/lib/auth'
 import { TICKET_MARKUP } from '@/lib/tickets'
+import { mergeScrapedEvent, type Origin } from '@/lib/event-merge'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -178,28 +179,102 @@ export async function GET(req: import('next/server').NextRequest) {
     return true
   })
 
-  // ── 4. Purge past events, then upsert ───────────────────────────────────────
-  await supabase
-    .from('ra_events')
-    .delete()
-    .lt('event_date', new Date().toISOString())
+  // ── 4. Write into `events`, the one dataset ─────────────────────────────────
+  //
+  // This used to delete every past row from `ra_events` and blind-upsert the
+  // rest. Both halves of that are now wrong:
+  //
+  //   * `ra_events` is a VIEW over `events` (20260922_events_one_dataset.sql) —
+  //     kept only so the shipped iOS build keeps reading. Writes go to the
+  //     table.
+  //   * A blind upsert overwrote whatever a promoter or staff member had
+  //     corrected, every morning, silently. mergeScrapedEvent decides what this
+  //     job is allowed to touch: never a locked field, never a value asserted
+  //     by a more authoritative origin. See src/lib/event-merge.ts.
+  //
+  // Past events are no longer deleted. They are the record the DJ scores are
+  // computed from — deleting them threw away the lineup for every night anyone
+  // had already been to.
+  const syncedAt = new Date().toISOString()
+  const refs = unique.map(e => e.id)
 
-  if (unique.length > 0) {
-    const { error } = await supabase
-      .from('ra_events')
-      .upsert(
-        unique.map(e => ({ ...e, synced_at: new Date().toISOString() })),
-        { onConflict: 'id' },
-      )
-    if (error) {
-      console.error('[sync-events] upsert error:', error.message)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+  const { data: existingRows, error: exErr } = await supabase
+    .from('events')
+    .select('ra_event_id, source_ref, origin, locked_fields, title, venue_name, date, start_time, image, base_price, display_price, currency, sold_out')
+    .in('source_ref', refs)
+  if (exErr) {
+    console.error('[sync-events] read error:', exErr.message)
+    return NextResponse.json({ error: exErr.message }, { status: 500 })
+  }
+  const existingByRef = new Map((existingRows ?? []).map(r => [r.source_ref as string, r]))
+
+  let created = 0
+  let updated = 0
+  let protectedFields = 0
+
+  for (const e of unique) {
+    const origin: Origin = e.platform === 'eventbrite' ? 'scrape:eventbrite' : 'scrape:ra'
+    // Only the columns this scrape actually observes. `event_date`,
+    // `platform`, `venue_matched` and `platform_url` are view-shaped names —
+    // the table's equivalents are start_time, origin, club_id and source_url.
+    const observed: Record<string, unknown> = {
+      title:         e.title,
+      venue_name:    e.venue_name,
+      date:          e.date.slice(0, 10),
+      start_time:    e.start_time,
+      image:         e.image,
+      base_price:    e.base_price,
+      display_price: e.display_price,
+      currency:      e.currency,
+      sold_out:      e.sold_out,
+      source_url:    e.platform_url,
     }
+
+    const existing = existingByRef.get(e.id)
+    const { patch, skipped } = mergeScrapedEvent(existing, observed, origin)
+    protectedFields += skipped.filter(s => s.reason === 'locked' || s.reason === 'origin').length
+
+    if (!existing) {
+      const { error } = await supabase.from('events').insert({
+        ...patch,
+        // `ra_event_id` is the bare upstream id; `source_ref` keeps the
+        // platform prefix, which is what the ra_events view exposes as `id`
+        // and what the iOS build strips "ra_" from.
+        ra_event_id: e.id.replace(/^[a-z]+_/, ''),
+        source_ref:  e.id,
+        origin,
+        source_at:   syncedAt,
+        first_seen:  syncedAt.slice(0, 10),
+        last_seen:   syncedAt.slice(0, 10),
+      })
+      if (error) {
+        // One bad row must not abandon the other 300. Logged and counted.
+        console.error(`[sync-events] insert ${e.id}: ${error.message}`)
+        continue
+      }
+      created++
+      continue
+    }
+
+    // `source_at` and `last_seen` always move: the source confirmed the row
+    // exists today even when nothing about it changed.
+    const { error } = await supabase
+      .from('events')
+      .update({ ...patch, source_at: syncedAt, last_seen: syncedAt.slice(0, 10) })
+      .eq('source_ref', e.id)
+    if (error) {
+      console.error(`[sync-events] update ${e.id}: ${error.message}`)
+      continue
+    }
+    if (Object.keys(patch).length > 0) updated++
   }
 
-  console.log(`[sync-events] synced ${unique.length} events (ra=${raEvents.length} eb=${ebEvents.length})`)
+  console.log(`[sync-events] ${unique.length} scraped — ${created} new, ${updated} changed, ${protectedFields} fields left alone (ra=${raEvents.length} eb=${ebEvents.length})`)
   return NextResponse.json({
     synced:     unique.length,
+    created,
+    updated,
+    protected:  protectedFields,
     ra_events:  raEvents.length,
     eb_events:  ebEvents.length,
     eb_clubs:   ebClubs?.length ?? 0,

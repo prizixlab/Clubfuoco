@@ -144,8 +144,24 @@ alter table public.music_night_scores   enable row level security;
 alter table public.music_baselines      enable row level security;
 alter table public.dj_music_scores      enable row level security;
 
-revoke all on public.music_nights        from anon, authenticated;
-revoke all on public.music_night_artists from anon, authenticated;
-revoke all on public.music_night_scores  from anon, authenticated;
-revoke all on public.music_baselines     from anon, authenticated;
-revoke all on public.dj_music_scores     from anon, authenticated;
+-- Guarded on the roles existing so this file also runs on a plain Postgres,
+-- where 'anon' and 'authenticated' are not defined — that is how it gets
+-- validated before being pasted into the SQL editor. On Supabase both roles
+-- exist and every revoke below runs.
+do $$
+declare
+  t text;
+  r text;
+begin
+  foreach r in array array['anon', 'authenticated'] loop
+    if not exists (select 1 from pg_roles where rolname = r) then
+      raise notice 'role % not present — skipping revoke (expected off Supabase)', r;
+      continue;
+    end if;
+    foreach t in array array['music_nights', 'music_night_artists',
+                             'music_night_scores', 'music_baselines',
+                             'dj_music_scores'] loop
+      execute format('revoke all on public.%I from %I', t, r);
+    end loop;
+  end loop;
+end $$;

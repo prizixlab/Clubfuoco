@@ -182,6 +182,10 @@ select
   e.base_price,
   e.display_price,
   e.currency,
+  -- Renamed to source_url on the table, but the shim must still answer to the
+  -- old name: src/app/(app)/explore/page.tsx types it and reads it for the buy
+  -- link, so dropping it silently removes "get tickets" from the web feed.
+  e.source_url                                        as platform_url,
   e.sold_out,
   (e.club_id is not null)                             as venue_matched,
   e.source_at                                         as synced_at

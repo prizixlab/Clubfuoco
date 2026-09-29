@@ -38,7 +38,12 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 
-const HOST = process.env.EVENTS_HOST ?? 'yvinnik@10.0.0.235'
+// Tailscale MagicDNS, not the LAN address. `10.0.0.235` only resolves from the
+// home network, so running this from anywhere else failed with a connect
+// timeout that reads exactly like a dead box — the machine had 31 days of
+// uptime at the time. The tailnet name works from any network the Mac is on.
+// Override with EVENTS_HOST if the tailnet is ever down and you are on the LAN.
+const HOST = process.env.EVENTS_HOST ?? 'yvinnik@agentbox'
 const REMOTE = '~/scraper/intel/events/upcoming.csv'
 const BATCH = 100
 

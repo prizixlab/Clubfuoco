@@ -39,6 +39,12 @@ const PatchClub = z.object({
   music_genres:        z.array(z.string().trim().min(1)).nullable().optional(),
   max_capacity:        z.number().int().positive().max(1_000_000).nullable().optional(),
   general_entry_price: z.number().min(0).max(100_000).nullable().optional(),
+  // The door, per 20260917_door_price.sql. A max below its min is refused by
+  // a CHECK too; catching it here gives the operator a usable message.
+  door_price_min:         z.number().min(0).max(100_000).nullable().optional(),
+  door_price_max:         z.number().min(0).max(100_000).nullable().optional(),
+  door_price_weekend_min: z.number().min(0).max(100_000).nullable().optional(),
+  door_price_weekend_max: z.number().min(0).max(100_000).nullable().optional(),
   vip_table_min_spend: z.number().min(0).max(1_000_000).nullable().optional(),
   instagram_handle:    z.string().trim().max(120).nullable().optional(),
   whatsapp_link:       z.string().trim().max(300).nullable().optional(),

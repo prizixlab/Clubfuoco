@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Android theme exists only to paint the window before Compose takes
+     over: everything the user actually sees is styled by Theme.kt, the port of
+     ios-native's Theme.swift. Keeping this in sync with `cream` (the app
+     background) is what stops a white flash on cold launch — the same problem
+     SplashView solves on iOS. -->
+<resources>
+    <style name="Theme.ClubFuoco" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/cream</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

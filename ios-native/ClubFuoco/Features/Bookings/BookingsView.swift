@@ -119,16 +119,10 @@ struct BookingsView: View {
             // without waiting for the next tab visit.
             maybePromptArrival()
         }
-        .onChange(of: tab) {
-            // The capsule tracks `pageProgress`, which the swipe-offset reader
-            // only updates during an interactive drag. Tapping a label (or a
-            // swipe settling) changes `tab` WITHOUT emitting drag offsets, so
-            // sync the capsule to the settled tab here — otherwise it froze on
-            // taps.
-            withAnimation(.easeInOut(duration: 0.22)) {
-                pageProgress = tab == .reviews ? 1 : 0
-            }
-        }
+        // No manual `pageProgress` sync on tab change: the offset reader below
+        // the pager overwrites it on the next layout pass anyway, so setting it
+        // here only produced a jump to the far end and back before the real
+        // scroll caught up. The pager's own offset is the single source now.
         .sheet(isPresented: $showArrivalLocationSheet) {
             LocationPermissionSheet(mode: .arrival)
         }
@@ -266,6 +260,7 @@ struct BookingsView: View {
     /// late instead of moving with the finger.
     private var list: some View {
         GeometryReader { geo in
+            ScrollViewReader { proxy in
             ScrollView(.horizontal) {
                 HStack(spacing: 0) {
                     ticketsList
@@ -286,13 +281,35 @@ struct BookingsView: View {
                 }
             }
             .coordinateSpace(name: "ticketsPager")
-            .scrollTargetBehavior(.paging)
-            .scrollPosition(id: Binding(
-                get: { Optional(tab) },
-                set: { if let t = $0 { tab = t } }
-            ))
+            // .viewAligned, not .paging: `scrollPosition(id:)` below is what the
+            // Reviews button drives, and it only takes effect on a scroll view
+            // whose targets come from `scrollTargetLayout()`. Under .paging the
+            // binding was written and then ignored — the tab state flipped, the
+            // pager never moved, and the slider (which reads the pager's own
+            // offset) stayed put, so the button looked dead. Each page is
+            // exactly the viewport width, so the feel is unchanged.
+            .scrollTargetBehavior(.viewAligned)
             .scrollIndicators(.hidden)
             .onPreferenceChange(PagerProgressKey.self) { pageProgress = $0 }
+            // ScrollViewReader, not `scrollPosition(id:)`. That binding was
+            // written on every tap and the scroll view ignored it, so the pager
+            // never moved — and because the capsule is derived from the pager's
+            // own offset (below), it snapped straight back and the whole control
+            // read as dead. scrollTo drives the scroll view directly.
+            .onChange(of: tab) {
+                withAnimation(.easeInOut(duration: 0.28)) {
+                    proxy.scrollTo(tab, anchor: .leading)
+                }
+            }
+            // A finger-swipe moves the pager without touching `tab`. Re-sync on
+            // settle, or tapping the label for the page you just swiped to (and
+            // then back) would be a no-op: `tab` would already hold that value
+            // and onChange would never fire.
+            .onChange(of: pageProgress) {
+                if pageProgress >= 0.99, tab != .reviews { tab = .reviews }
+                else if pageProgress <= 0.01, tab != .tickets { tab = .tickets }
+            }
+            }
         }
     }
 

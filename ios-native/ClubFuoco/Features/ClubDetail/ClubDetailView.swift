@@ -116,19 +116,31 @@ struct ClubDetailView: View {
         )
     }
 
-    private let heroHeight: CGFloat = 360
+    /// The hero scales with the screen instead of taking a flat 360.
+    ///
+    /// 360 was most of a small phone's viewport on its own, and with the fact
+    /// strip, the pitch, the chips and the photo strip stacked under it,
+    /// "Tonight's options" — the thing most people open a club page to find —
+    /// started below the fold. Clamped at both ends so it stays a hero on a
+    /// small screen without becoming a billboard on a large one.
+    private func heroHeight(for viewport: CGFloat) -> CGFloat {
+        min(max(viewport * 0.34, 250), 330)
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                hero
-                sheet
-                    .offset(y: -32)   // slide the white sheet up over the hero
+        GeometryReader { proxy in
+            let heroHeight = heroHeight(for: proxy.size.height)
+            ScrollView {
+                VStack(spacing: 0) {
+                    hero(height: heroHeight)
+                    sheet
+                        .offset(y: -32)   // slide the white sheet up over the hero
+                }
             }
+            .scrollIndicators(.hidden)
         }
         .background(Theme.surface)
         .ignoresSafeArea(edges: .top)
-        .scrollIndicators(.hidden)
         .toolbar(.hidden, for: .navigationBar)
         .overlay(alignment: .topLeading) { backButton }
         .sheet(isPresented: $showBookSheet) {
@@ -222,7 +234,7 @@ struct ClubDetailView: View {
 
     // ── Hero ──────────────────────────────────────────────────────────────────
 
-    private var hero: some View {
+    private func hero(height heroHeight: CGFloat) -> some View {
         // The hero photo is not tappable — the photos strip below is the way to
         // open the full-screen viewer.
         ZStack(alignment: .bottomLeading) {

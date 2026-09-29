@@ -346,3 +346,37 @@ export function ActivateButton({ brand, onDone, small, wide }: {
     </>
   )
 }
+
+// Section tabs — one panel's worth of chrome swapped in the card header, so
+// two different things (standing offers, dated nights) share one place on the
+// page instead of stacking into a scroll.
+export function SectionTabs<T extends string>({ tabs, active, onChange }: {
+  tabs: { id: T; label: string; count?: number | null }[]
+  active: T
+  onChange: (id: T) => void
+}) {
+  return (
+    <div style={{ display: 'inline-flex', gap: 4 }}>
+      {tabs.map(t => {
+        const on = t.id === active
+        return (
+          <button key={t.id} onClick={() => onChange(t.id)} style={{
+            ...caps, letterSpacing: '0.14em', cursor: 'pointer',
+            background: on ? 'rgba(192,153,80,0.14)' : 'transparent',
+            border: `1px solid ${on ? 'rgba(192,153,80,0.42)' : 'transparent'}`,
+            color: on ? C.goldHi : C.dim,
+            borderRadius: 5, padding: '7px 12px',
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+          }}>
+            {t.label}
+            {t.count != null && (
+              <span style={{ fontFamily: mono, fontSize: 10.5, color: on ? C.gold : C.faint }}>
+                {t.count}
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}

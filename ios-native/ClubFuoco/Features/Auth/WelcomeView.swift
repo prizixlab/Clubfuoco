@@ -11,6 +11,7 @@ enum AuthRoute: Hashable {
 /// Container for the signed-out experience: dark splash → login / signup /
 /// complete-profile. Replaces Next's (auth) route group + _native/Splash.
 struct AuthFlowView: View {
+    @Environment(AuthStore.self) private var auth
     @State private var path: [AuthRoute] = {
         #if DEBUG
         // Simulator automation: SIMCTL_CHILD_CF_TEST_AUTH_ROUTE=login|signup
@@ -40,6 +41,15 @@ struct AuthFlowView: View {
                 }
         }
         .tint(Theme.stone)
+        // A guest who tapped "Sign in" on a gate asked for the sign-in screen,
+        // not the splash that asks them again. Open straight onto it; the
+        // splash stays underneath, so Back still reaches "continue as guest".
+        .task {
+            if let route = auth.pendingAuthRoute {
+                path = [route]
+                auth.pendingAuthRoute = nil
+            }
+        }
     }
 }
 

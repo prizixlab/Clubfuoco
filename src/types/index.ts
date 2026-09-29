@@ -37,6 +37,12 @@ export interface Club {
   music_genres?:       string[]
   max_capacity?:       number
   general_entry_price?: number
+  // The door, per 20260917_door_price.sql. Strings because numeric(7,2)
+  // arrives from PostgREST as text; doorPriceLabel() coerces.
+  door_price_min?: number | string | null
+  door_price_max?: number | string | null
+  door_price_weekend_min?: number | string | null
+  door_price_weekend_max?: number | string | null
   vip_table_min_spend?: number
   instagram_handle?:   string
   whatsapp_link?:      string

@@ -96,10 +96,13 @@ describe('per-kind conflict rules', () => {
       } as never
     })())
     const visible = (map[CLUB] ?? []).map(o => `${o.brand?.key}:${o.kind}`)
-    // Aashi is selected for the guestlist but muted brand-wide, so it must not
-    // appear — and the rule for the guestlist must not leak onto VIP tables,
-    // which no rule governs and which therefore still run.
+    // Aashi is muted brand-wide, so it must not appear whatever a rule says.
     expect(visible).not.toContain('aashi:free_guestlist')
-    expect(visible).toEqual(['rumba:vip_table'])
+    // And muting Aashi must not take Rumba's guestlist down with it. A muted
+    // supplier is not a contender, so Rumba's guestlist is UNCONTESTED and
+    // shows — under the old whitelist it was dropped for not being named in a
+    // rule that existed only to pick between the two, leaving the venue with
+    // no guestlist at all.
+    expect(visible.sort()).toEqual(['rumba:free_guestlist', 'rumba:vip_table'])
   })
 })

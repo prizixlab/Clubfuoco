@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Btn, ErrorLine, Field, Modal, SectionLabel, TextInput, api, C, caps, font, mono } from '../_ui'
+import { doorPriceLabel } from '@/lib/door-price'
 
 // Full club row — loose typing (the clubs table has many Google/sync columns
 // we only read). The editable subset is spelled out in the form below.
@@ -59,6 +60,13 @@ function ClubForm({ club, onClose, onSavedRow }: { club: Club; onClose: () => vo
   const [genres, setGenres]           = useState(Array.isArray(club.music_genres) ? (club.music_genres as string[]).join(', ') : '')
   const [capacity, setCapacity]       = useState(str(club.max_capacity))
   const [entry, setEntry]             = useState(str(club.general_entry_price))
+  // The door, four fields. Max blank = a flat price; weekend blank = the same
+  // price all week. general_entry_price is kept in step by a DB trigger, so it
+  // is not edited alongside these.
+  const [doorMin, setDoorMin]         = useState(str(club.door_price_min))
+  const [doorMax, setDoorMax]         = useState(str(club.door_price_max))
+  const [doorWMin, setDoorWMin]       = useState(str(club.door_price_weekend_min))
+  const [doorWMax, setDoorWMax]       = useState(str(club.door_price_weekend_max))
   const [vipMin, setVipMin]           = useState(str(club.vip_table_min_spend))
   const [instagram, setInstagram]     = useState(str(club.instagram_handle))
   const [whatsapp, setWhatsapp]       = useState(str(club.whatsapp_link))
@@ -87,6 +95,10 @@ function ClubForm({ club, onClose, onSavedRow }: { club: Club; onClose: () => vo
     if (JSON.stringify(genreArr) !== JSON.stringify(origGenres)) p.music_genres = genreArr.length ? genreArr : null
     if (numOrNull(capacity) !== (club.max_capacity ?? null)) p.max_capacity = numOrNull(capacity)
     if (numOrNull(entry) !== (club.general_entry_price ?? null)) p.general_entry_price = numOrNull(entry)
+    if (numOrNull(doorMin)  !== (club.door_price_min ?? null))          p.door_price_min = numOrNull(doorMin)
+    if (numOrNull(doorMax)  !== (club.door_price_max ?? null))          p.door_price_max = numOrNull(doorMax)
+    if (numOrNull(doorWMin) !== (club.door_price_weekend_min ?? null))  p.door_price_weekend_min = numOrNull(doorWMin)
+    if (numOrNull(doorWMax) !== (club.door_price_weekend_max ?? null))  p.door_price_weekend_max = numOrNull(doorWMax)
     if (numOrNull(vipMin) !== (club.vip_table_min_spend ?? null)) p.vip_table_min_spend = numOrNull(vipMin)
     if (instagram.trim() !== str(club.instagram_handle)) p.instagram_handle = instagram.trim() || null
     if (whatsapp.trim() !== str(club.whatsapp_link)) p.whatsapp_link = whatsapp.trim() || null
@@ -95,7 +107,8 @@ function ClubForm({ club, onClose, onSavedRow }: { club: Club; onClose: () => vo
     if (isPartner !== !!club.is_partner) p.is_partner = isPartner
     return p
   }, [club, name, slug, description, address, neighborhood, lat, lng, cover, genres,
-      capacity, entry, vipMin, instagram, whatsapp, isActive, isFeatured, isPartner])
+      capacity, entry, vipMin, doorMin, doorMax, doorWMin, doorWMax,
+      instagram, whatsapp, isActive, isFeatured, isPartner])
 
   const dirty = Object.keys(patch).length > 0
 
@@ -168,6 +181,24 @@ function ClubForm({ club, onClose, onSavedRow }: { club: Club; onClose: () => vo
         <div style={half}><Field label="VIP table min spend (€)"><TextInput type="number" min={0} value={vipMin} onChange={e => setVipMin(e.target.value)} style={{ fontFamily: mono, fontSize: 13 }} /></Field></div>
         <div style={half}><Field label="Max capacity"><TextInput type="number" min={1} value={capacity} onChange={e => setCapacity(e.target.value)} style={{ fontFamily: mono, fontSize: 13 }} /></Field></div>
       </div>
+
+      {/* ── Door price ───────────────────────────────────────────────────── */}
+      {/* What someone pays walking up with no list and no table. Leave "to"
+          blank for a flat price, and the weekend pair blank when it does not
+          change on a Friday. */}
+      <SectionLabel>Door price</SectionLabel>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div style={half}><Field label="Midweek from (€)"><TextInput type="number" min={0} value={doorMin} onChange={e => setDoorMin(e.target.value)} style={{ fontFamily: mono, fontSize: 13 }} /></Field></div>
+        <div style={half}><Field label="Midweek to (€) — blank if flat"><TextInput type="number" min={0} value={doorMax} onChange={e => setDoorMax(e.target.value)} style={{ fontFamily: mono, fontSize: 13 }} /></Field></div>
+        <div style={half}><Field label="Fri/Sat from (€) — blank if same"><TextInput type="number" min={0} value={doorWMin} onChange={e => setDoorWMin(e.target.value)} style={{ fontFamily: mono, fontSize: 13 }} /></Field></div>
+        <div style={half}><Field label="Fri/Sat to (€) — blank if flat"><TextInput type="number" min={0} value={doorWMax} onChange={e => setDoorWMax(e.target.value)} style={{ fontFamily: mono, fontSize: 13 }} /></Field></div>
+      </div>
+      <p style={{ margin: '8px 0 0', fontSize: 12.5, color: C.dim, fontFamily: font }}>
+        Shows as <strong style={{ color: C.text }}>{doorPriceLabel({
+          door_price_min: numOrNull(doorMin), door_price_max: numOrNull(doorMax),
+          door_price_weekend_min: numOrNull(doorWMin), door_price_weekend_max: numOrNull(doorWMax),
+        }) ?? 'nothing — no door price set'}</strong>
+      </p>
 
       {/* ── Social ───────────────────────────────────────────────────────── */}
       <SectionLabel>Social</SectionLabel>

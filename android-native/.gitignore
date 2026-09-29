@@ -1,0 +1,19 @@
+# Android / Gradle
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+captures/
+
+# Signing — never commit these.
+keystore.properties
+*.jks
+*.keystore
+
+# Firebase config carries project identifiers; add deliberately when it exists.
+# (Not ignored — google-services.json is expected in app/ — but keep it in mind.)
+
+# Parity generator binaries
+scripts/parity/build/

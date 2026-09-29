@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backups are off (allowBackup=false): the Supabase session lives in
+     encrypted prefs and must not travel to a new device silently. -->
+<full-backup-content />

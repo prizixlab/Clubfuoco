@@ -19,6 +19,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { loadStripe, type Stripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { ExternalEvent } from '@/lib/tickets'
+import { doorPriceLabel } from '@/lib/door-price'
 
 // Lazy-load Stripe only on HTTPS (live keys require it). On HTTP (local dev) we fall back to platform links.
 let stripePromise: Promise<Stripe | null> | null = null
@@ -227,6 +228,10 @@ interface PlaceDetail {
   tags?:               string[]
   live_status?:        string | null
   general_entry_price?: number | null
+  door_price_min?: number | string | null
+  door_price_max?: number | string | null
+  door_price_weekend_min?: number | string | null
+  door_price_weekend_max?: number | string | null
   vip_table_min_spend?: number | null
 }
 
@@ -259,6 +264,8 @@ function fmtDate(iso: string) {
 }
 
 function priceDisplay(place: PlaceDetail): string {
+  const door = doorPriceLabel(place)
+  if (door) return door === 'Free' ? 'Free entry' : `${door} entry`
   if (place.general_entry_price === 0) return 'Free entry'
   if (place.general_entry_price && place.general_entry_price > 0) return `€${place.general_entry_price} entry`
   if (place.price_level !== null && place.price_level !== undefined) return PRICE_LABEL[place.price_level]
@@ -822,10 +829,14 @@ export default function PlaceDetailPage() {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 4px', background: C.bg, borderRadius: 12 }}>
             <p style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 4px', fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>Door</p>
             <p style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: 0, fontFamily: 'Geist, -apple-system, system-ui, sans-serif' }}>
-              {place.general_entry_price === 0 ? 'Free'
-                : place.general_entry_price ? `€${place.general_entry_price}`
-                : place.price_level !== null && place.price_level !== undefined ? PRICE_LABEL[place.price_level]
-                : '?'}
+              {/* The real door price when we have one — a range, and the
+                  weekend's own price, rather than the floor dressed up as
+                  the whole story. */}
+              {doorPriceLabel(place)
+                ?? (place.general_entry_price === 0 ? 'Free'
+                  : place.general_entry_price ? `€${place.general_entry_price}`
+                  : place.price_level !== null && place.price_level !== undefined ? PRICE_LABEL[place.price_level]
+                  : '?')}
             </p>
           </div>
 

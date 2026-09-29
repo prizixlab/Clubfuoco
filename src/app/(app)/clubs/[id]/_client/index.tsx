@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { Club, LiveStatus, DrinkSpecial } from '@/types'
+import { doorPriceLabel } from '@/lib/door-price'
 
 interface GuestList {
   id: string
@@ -230,7 +231,12 @@ export default function ClubDetailPage() {
               <span className="material-symbols-outlined text-primary text-[20px]">euro</span>
               <p className="font-label-sm text-label-sm text-on-surface-variant/60 uppercase tracking-widest mt-xs">Entry</p>
               <p className="font-h2 text-h2 text-on-surface">
-                {club.general_entry_price == null ? '?' : club.general_entry_price === 0 ? 'Free' : `€${club.general_entry_price.toFixed(0)}+`}
+                {/* A range and the weekend price where we have them; the old
+                    "from" figure only when we do not. */}
+                {doorPriceLabel(club)
+                  ?? (club.general_entry_price == null ? '?'
+                    : club.general_entry_price === 0 ? 'Free'
+                    : `€${club.general_entry_price.toFixed(0)}+`)}
               </p>
             </div>
             <div className="glass-card p-sm rounded-xl">

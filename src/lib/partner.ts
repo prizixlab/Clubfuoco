@@ -163,17 +163,25 @@ function ruleAllows(rule: ClubVisibility | undefined, brandId: string): boolean 
   return rule.brand_ids.includes(brandId)
 }
 
+/**
+ * May this brand show at this venue, for this kind, on this night?
+ *
+ * Same rule as the feed: a resolution only binds a CONTESTED night. `rivals` is
+ * how many suppliers are actually selling that night — one means there is
+ * nothing to resolve and the answer is always yes, whatever rules exist.
+ *
+ * Booking gates call this so a guest can only ever book what the feed showed
+ * them; if the two disagreed, a booking would be attributed to a supplier the
+ * guest never saw.
+ */
 function allowsBrand(
-  rules: VisibilityRules, clubId: string, kind: string, brandId: string, weekday: number | null,
+  rules: VisibilityRules, clubId: string, kind: string, brandId: string,
+  weekday: number | null, rivals: number,
 ): boolean {
-  return ruleAllows(ruleFor(rules, clubId, kind, weekday), brandId)
-}
-
-// The weekdays (0=Sun..6=Sat) a brand may show for one club+kind.
-function allowedWeekdays(rules: VisibilityRules, clubId: string, kind: string, brandId: string): Set<number> {
-  const out = new Set<number>()
-  for (let w = 0; w < 7; w++) if (allowsBrand(rules, clubId, kind, brandId, w)) out.add(w)
-  return out
+  if (rivals <= 1) return true
+  const rule = ruleFor(rules, clubId, kind, weekday)
+  if (!rule) return true          // contested but unresolved — nobody is hidden
+  return ruleAllows(rule, brandId)
 }
 
 const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -181,19 +189,74 @@ function serializeDays(days: Set<number>): string {
   return [0, 1, 2, 3, 4, 5, 6].filter(d => days.has(d)).map(d => DAY_ABBR[d]).join(', ')
 }
 
-// Narrow an offer's valid_days to the nights a day-aware conflict rule permits.
-// Returns the valid_days string to use — unchanged when the brand is allowed
-// every night (so formatting like "Thu – Sun" survives), narrowed when some
-// nights are blocked, or null when the brand is blocked on every night the
-// offer runs (the caller drops the offer, exactly as an all-days block did).
+/**
+ * Who is offering this product at this venue on each night.
+ *
+ * Keyed club|kind|weekday → the brands whose offer actually runs that night.
+ * This is what makes a rule a CONFLICT RESOLUTION rather than a whitelist: a
+ * night with one supplier has nothing to resolve, so no rule applies to it.
+ */
+export type Contenders = Map<string, Set<string>>
+
+export function contendersFor(
+  rows: { club_id: string; kind?: unknown; brand_id: string; valid_days?: unknown }[],
+  eligible: (brandId: string) => boolean,
+): Contenders {
+  const out: Contenders = new Map()
+  for (const r of rows) {
+    if (!eligible(r.brand_id)) continue
+    const kind = String(r.kind ?? '')
+    for (const d of parseValidDays(String(r.valid_days ?? ''))) {
+      const key = ruleKey(r.club_id, kind, String(d))
+      const set = out.get(key) ?? new Set<string>()
+      set.add(r.brand_id)
+      out.set(key, set)
+    }
+  }
+  return out
+}
+
+/**
+ * Narrow an offer's valid_days to the nights it may actually show.
+ *
+ * ── THE RULE, which is not a whitelist ───────────────────────────────────────
+ * An offer shows unless it LOST a contest. Concretely, per night:
+ *
+ *   one supplier   → show it. No rule is consulted, because there is nothing to
+ *                    resolve. A venue rule naming other brands does not hide an
+ *                    uncontested offer — that was the old whitelist behaviour,
+ *                    and it silently buried every supplier nobody had thought
+ *                    to add to a list.
+ *   two or more    → the operator's resolution decides, from the Conflicts
+ *                    page. No resolution yet → everyone still shows; an
+ *                    unresolved contest is a thing for a human to settle, not a
+ *                    reason to hide inventory.
+ *
+ * Returns the valid_days to use — unchanged when every night survives (so
+ * formatting like "Thu – Sun" is preserved), narrowed when some nights were
+ * lost, or null when none survive and the caller should drop the offer.
+ */
 function narrowValidDays(
-  rules: VisibilityRules, clubId: string, kind: string, brandId: string, validDays: string,
+  rules: VisibilityRules,
+  contenders: Contenders,
+  clubId: string, kind: string, brandId: string, validDays: string,
 ): string | null {
-  const allowed = allowedWeekdays(rules, clubId, kind, brandId)
-  if (allowed.size === 7) return validDays
-  if (allowed.size === 0) return null
-  const eff = [...parseValidDays(validDays)].filter(d => allowed.has(d))
-  return eff.length ? serializeDays(new Set(eff)) : null
+  const days = [...parseValidDays(validDays)]
+  if (days.length === 0) return validDays
+
+  const kept = days.filter(d => {
+    const rivals = contenders.get(ruleKey(clubId, kind, String(d)))
+    // Uncontested — nothing to resolve, so nothing can suppress it.
+    if (!rivals || rivals.size <= 1) return true
+    const rule = ruleFor(rules, clubId, kind, d)
+    // Contested but unresolved: show everyone and let the Conflicts page sort
+    // it out. Hiding one arbitrarily would be a decision nobody made.
+    if (!rule) return true
+    return ruleAllows(rule, brandId)
+  })
+
+  if (kept.length === days.length) return validDays
+  return kept.length ? serializeDays(new Set(kept)) : null
 }
 
 function toVisibility(r: Record<string, unknown>): ClubVisibility {
@@ -264,6 +327,15 @@ export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, Par
     .select('*')
     .order('club_id', { ascending: true })
     .order('sort_order', { ascending: true })
+  // Who is in play per night, computed over the SAME rows the gate will see:
+  // archived offers and muted suppliers are not contenders, so they can never
+  // make a night look contested and suppress somebody who is actually selling.
+  const live = (data ?? []).filter(r => isActiveOffer(r as Record<string, unknown>))
+  const contenders = contendersFor(
+    live as unknown as { club_id: string; kind?: unknown; brand_id: string; valid_days?: unknown }[],
+    id => !hidden.has(id),
+  )
+
   const map: Record<string, PartnerOffer[]> = {}
   for (const r of data ?? []) {
     if (!isActiveOffer(r)) continue
@@ -276,7 +348,7 @@ export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, Par
     // offer's nights to those the rule permits (null = blocked every night).
     // The clients already filter by valid_days, so per-day conflicts take
     // effect with no client change.
-    const nv = narrowValidDays(rules, row.club_id, String(row.kind ?? ''), row.brand_id, String(row.valid_days ?? ''))
+    const nv = narrowValidDays(rules, contenders, row.club_id, String(row.kind ?? ''), row.brand_id, String(row.valid_days ?? ''))
     if (nv === null) continue
     const offer = toOffer(row, brands.get(row.brand_id))
     offer.valid_days = nv
@@ -295,12 +367,19 @@ export async function getPartnerOffers(sb: SB, clubId: string | null | undefined
     .select('*')
     .eq('club_id', clubId)
     .order('sort_order', { ascending: true })
+  // Same contest basis as the feed: every live offer AT THIS VENUE, across all
+  // brands, is what decides whether a night is contested.
+  const contenders = contendersFor(
+    (data ?? []).filter(r => isActiveOffer(r as Record<string, unknown>)) as unknown as
+      { club_id: string; kind?: unknown; brand_id: string; valid_days?: unknown }[],
+    id => !hidden.has(id),
+  )
   return (data ?? [])
     .filter(isActiveOffer)
     .filter(r => !hidden.has((r as unknown as { brand_id: string }).brand_id))
     .flatMap(r => {
       const row = r as Record<string, unknown> & { brand_id: string; kind?: string; valid_days?: string }
-      const nv = narrowValidDays(rule, clubId, String(row.kind ?? ''), row.brand_id, String(row.valid_days ?? ''))
+      const nv = narrowValidDays(rule, contenders, clubId, String(row.kind ?? ''), row.brand_id, String(row.valid_days ?? ''))
       if (nv === null) return []
       const offer = toOffer(row, brands.get(row.brand_id))
       offer.valid_days = nv
@@ -600,11 +679,24 @@ export async function supplyingBrandId(
   const { hidden } = await brandsById(sb)
   const rule = await visibilityForClub(sb, clubId)
   const weekday = weekdayOf(date)
+  // How many suppliers actually run this kind here on this night — the test for
+  // whether a resolution rule applies at all.
+  const rivals = new Set(
+    (data as Record<string, unknown>[])
+      .filter(isActiveOffer)
+      .filter(r => !hidden.has(String(r.brand_id ?? '')))
+      .filter(r => {
+        if (weekday === null) return true
+        const days = parseValidDays(String(r.valid_days ?? ''))
+        return days.size === 0 || days.has(weekday)
+      })
+      .map(r => String(r.brand_id ?? '')),
+  ).size
   const ids = new Set(
     (data as Record<string, unknown>[])
       .filter(isActiveOffer)
       .filter(r => !hidden.has(String(r.brand_id ?? '')))
-      .filter(r => allowsBrand(rule, clubId, kind, String(r.brand_id ?? ''), weekday))
+      .filter(r => allowsBrand(rule, clubId, kind, String(r.brand_id ?? ''), weekday, rivals))
       .filter(r => {
         if (weekday === null) return true
         const days = parseValidDays(String(r.valid_days ?? ''))
@@ -642,9 +734,17 @@ export async function offerRunsOn(
   // operator muted (brand-wide) or deselected (at this venue, on this DAY)
   // must be unbookable, or a client that hasn't refreshed could still put
   // someone on a list we've stopped showing.
+  const runningTonight = rows
+    .filter(r => !hidden.has(r.brand_id ?? ''))
+    .filter(r => {
+      if (weekday === null) return true
+      const days = parseValidDays(r.valid_days ?? '')
+      return days.size === 0 || days.has(weekday)
+    })
+  const rivals = new Set(runningTonight.map(r => r.brand_id ?? '')).size
   const visible = rows
     .filter(r => !hidden.has(r.brand_id ?? ''))
-    .filter(r => allowsBrand(rule, clubId, kind, r.brand_id ?? '', weekday))
+    .filter(r => allowsBrand(rule, clubId, kind, r.brand_id ?? '', weekday, rivals))
   if (!visible.length) return false
 
   // valid_days is enforced HERE, not only in the clients. It is descriptive

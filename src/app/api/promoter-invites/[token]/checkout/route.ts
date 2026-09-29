@@ -16,8 +16,25 @@ import { ladder, livePrice } from '@/lib/releases'
 // keeps our cut — so there is no payout to run, no balance to reconcile, and no
 // point at which a person at Club Fuoco has to do anything.
 
-/** How long a spot is held while somebody is on the Stripe page. */
-const HOLD_MINUTES = 15
+/**
+ * How long a spot is held while somebody is on the Stripe page.
+ *
+ * THIRTY IS A FLOOR, NOT A PREFERENCE. Stripe refuses any Checkout Session
+ * whose `expires_at` is less than 30 minutes out ("The `expires_at` timestamp
+ * must be at least 30 minutes from Checkout Session creation"), and this value
+ * sets both the hold and that expiry. At 15 every single paid checkout came
+ * back 400 from Stripe and 502 from here — no ticket on the platform could be
+ * bought at all. Do not lower it.
+ *
+ * The two clocks are deliberately the same number: a Stripe session that
+ * outlives its hold is a session someone can still pay after the spot has been
+ * given away. The sweeper adds its own 30-minute grace on top before it
+ * releases anything, so a slow webhook still wins the race.
+ */
+const HOLD_MINUTES = 30
+
+/** Stripe's hard minimum for `expires_at`, in minutes. */
+const STRIPE_MIN_SESSION_MINUTES = 30
 
 export async function POST(
   req: Request,
@@ -233,9 +250,10 @@ export async function POST(
         promoter_id: alloc.promoter_id,
         fee_bps: String(feeBps),
       },
-      // Stripe expires the session on its own timetable; ours is shorter, and
-      // the sweeper is what actually frees the spot.
-      expires_at: Math.floor((now + HOLD_MINUTES * 60_000) / 1000),
+      // Same clock as the hold above — and never under Stripe's floor, which
+      // it rejects outright rather than clamping.
+      expires_at: Math.floor(
+        (now + Math.max(HOLD_MINUTES, STRIPE_MIN_SESSION_MINUTES) * 60_000) / 1000),
       success_url: `${appUrl}/i/${token}?paid=1&guest=${guest.id}`,
       cancel_url: `${appUrl}/i/${token}?cancelled=1`,
     })

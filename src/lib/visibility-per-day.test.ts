@@ -77,16 +77,47 @@ describe('day-aware conflict rules', () => {
     expect(await nightsFor(rules, 'aashi')).toBe('Fri')  // only Friday
   })
 
-  it('narrowing intersects with the offer’s own valid_days → drop on no overlap', async () => {
-    // Aashi runs Mon–Wed but is only ALLOWED on Sat (blocked all other nights),
-    // so there is no night it can actually show → dropped.
+  it('a rule cannot hide the ONLY supplier on a night — nothing to resolve', async () => {
+    // Aashi runs Mon–Wed and is the only offer at this venue. Rules name Rumba
+    // on every night and Aashi only on Saturday, which under the old whitelist
+    // dropped Aashi entirely. A rule is a conflict RESOLUTION now: with one
+    // supplier there is no conflict, so every night it runs still shows.
     const offers = [offer(AASHI, 'free_guestlist', 'Mon, Tue, Wed')]
     const rules = [
-      { club_id: CLUB, kind: 'free_guestlist', weekday: '*', mode: 'selected', brand_ids: [RUMBA] }, // Aashi blocked
-      { club_id: CLUB, kind: 'free_guestlist', weekday: '6', mode: 'selected', brand_ids: [AASHI] }, // except Sat
+      { club_id: CLUB, kind: 'free_guestlist', weekday: '*', mode: 'selected', brand_ids: [RUMBA] },
+      { club_id: CLUB, kind: 'free_guestlist', weekday: '6', mode: 'selected', brand_ids: [AASHI] },
     ]
     const map = await getPartnerOffersByClub(fakeSb(rules, offers))
-    expect((map[CLUB] ?? []).filter(o => o.brand?.key === 'aashi').length).toBe(0)
+    const aashi = (map[CLUB] ?? []).filter(o => o.brand?.key === 'aashi')
+    expect(aashi.length).toBe(1)
+    expect(aashi[0].valid_days).toBe('Mon, Tue, Wed')
+  })
+
+  it('a contested night with no rule shows everyone — unresolved is not hidden', async () => {
+    // Both suppliers run Friday and nobody has resolved it. Hiding one would be
+    // a decision no human made; the Conflicts page is where that gets settled.
+    const offers = [
+      offer(RUMBA, 'free_guestlist', 'Fri'),
+      offer(AASHI, 'free_guestlist', 'Fri'),
+    ]
+    const map = await getPartnerOffersByClub(fakeSb([], offers))
+    expect((map[CLUB] ?? []).map(o => o.brand?.key).sort()).toEqual(['aashi', 'rumba'])
+  })
+
+  it('a resolved contest drops the loser on the contested night only', async () => {
+    // Both run Thu+Fri; the operator gave Friday to Rumba. Thursday is still
+    // contested-but-unresolved, so both keep it.
+    const offers = [
+      offer(RUMBA, 'free_guestlist', 'Thu, Fri'),
+      offer(AASHI, 'free_guestlist', 'Thu, Fri'),
+    ]
+    const rules = [
+      { club_id: CLUB, kind: 'free_guestlist', weekday: '5', mode: 'selected', brand_ids: [RUMBA] },
+    ]
+    const map = await getPartnerOffersByClub(fakeSb(rules, offers))
+    const by = Object.fromEntries((map[CLUB] ?? []).map(o => [o.brand?.key, o.valid_days]))
+    expect(by.rumba).toBe('Thu, Fri')
+    expect(by.aashi).toBe('Thu')
   })
 
   it('a pre-migration row (no weekday) reads as all-nights', async () => {

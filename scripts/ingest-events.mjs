@@ -12,6 +12,28 @@
 //
 // REACHABILITY: the box is a LAN address, so nothing hosted in the cloud can
 // run this. It has to run from the Mac, or be inverted so the box pushes.
+//
+// PROVENANCE (added 2026-09-29). `events` became one dataset shared with the
+// ticket scrape and, later, promoters — origin is a column now
+// (20260922_events_one_dataset.sql). This script is one writer among several,
+// so it has two new obligations:
+//
+//   1. STAMP WHAT IT WROTE. Every row gets origin / source_ref / source_at.
+//      PostgREST's merge-duplicates upsert only touches the columns in the
+//      payload, so including them here also REPAIRS rows that lost their
+//      provenance — 1676 of 1812 were missing source_ref when this was
+//      written, because the old sync-events cron had been deleting past rows
+//      through the ra_events view and this script kept re-creating them bare.
+//
+//   2. NOT OVERWRITE A HUMAN. `locked_fields` lists columns somebody set by
+//      hand; a scrape must leave those alone, and must not flatten a row a
+//      promoter owns. Rows needing that care are patched individually; the
+//      rest still go through the fast bulk upsert, so the common path is as
+//      quick as it was.
+//
+// The equivalent rules for the TICKET scrape live in src/lib/event-merge.ts.
+// The two deliberately differ on one column: club_id/club_match are forbidden
+// there and owned here, because THIS script is the venue resolver.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -96,12 +118,16 @@ function buildResolver(clubs) {
 // ── Supabase REST (service role) ─────────────────────────────────────────────
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-if (!URL || !KEY) {
+const headers = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }
+
+/** Checked inside main(), not at import: the pure helpers below are imported
+ *  by the tests, and a module that exits the process on import cannot be. */
+function requireCredentials() {
+  if (URL && KEY) return
   console.error('Missing NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY.')
   console.error('Run with: node --env-file=.env.local scripts/ingest-events.mjs')
   process.exit(1)
 }
-const headers = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }
 
 async function fetchAll(path) {
   const out = []
@@ -116,6 +142,76 @@ async function fetchAll(path) {
 
 const splitList = s => (s ? s.split('|').map(v => v.trim()).filter(Boolean) : [])
 const intOr0 = s => { const n = parseInt(s, 10); return Number.isFinite(n) ? n : 0 }
+
+// ── Provenance policy ────────────────────────────────────────────────────────
+
+/** What this scrape claims to be. Matches events_origin_ck. */
+export const ORIGIN = 'scrape:ra'
+
+/** Origins this scrape must not overwrite. A promoter describing their own
+ *  night beats RA's listing of it; staff and venue edits likewise. */
+export const AUTHORITATIVE_ORIGINS = new Set(['promoter', 'venue', 'staff'])
+
+/** The columns this script owns and may write on an UPDATE.
+ *
+ *  Note what is absent: `ra_event_id` (the key), `first_seen` (never
+ *  overwritten — brief §6), `origin` / `source_ref` / `source_at` (set
+ *  separately, and never changed on a row we do not own), `locked_fields`
+ *  (a human's, never a scraper's), and the ticketing columns base_price /
+ *  display_price / currency / sold_out, which belong to the ticket scrape. */
+export const SCRAPE_OWNED = [
+  'title', 'date', 'start_time', 'venue_name',
+  // club_id/club_match are ours because this script IS the venue resolver.
+  // They are forbidden to the ticket scrape, which has no resolver.
+  'club_id', 'club_match',
+  'promoters', 'artists', 'interested', 'attending',
+  'cost', 'ra_url', 'image', 'description', 'last_seen',
+]
+
+/**
+ * Split the payload into rows that can go through the fast bulk upsert and
+ * rows that need an individual, reduced PATCH.
+ *
+ * Pure, so it can be tested without a network — see ingest-events.test.mjs.
+ *
+ * `existing` maps ra_event_id → { first_seen, locked_fields, origin }.
+ */
+export function planWrites(payload, existing) {
+  const bulk = []
+  const patches = []
+  let protectedFields = 0
+
+  for (const row of payload) {
+    const prior = existing.get(row.ra_event_id)
+
+    // New row, or a plain scrape row nobody has touched: nothing to protect.
+    const locked = new Set(prior?.locked_fields ?? [])
+    const foreign = prior ? AUTHORITATIVE_ORIGINS.has(prior.origin) : false
+    if (!prior || (locked.size === 0 && !foreign)) {
+      bulk.push(row)
+      continue
+    }
+
+    // Somebody owns part of this row. Send only the columns we may still set.
+    const patch = {}
+    for (const col of SCRAPE_OWNED) {
+      if (!(col in row)) continue
+      if (locked.has(col)) { protectedFields++; continue }
+      // On a row owned by a promoter we assert nothing except that RA still
+      // lists it. Filling their blanks would need their current values; that
+      // is a bigger read, and silence is the safe default until it is worth it.
+      if (foreign && col !== 'last_seen') { protectedFields++; continue }
+      patch[col] = row[col]
+    }
+    // Stamp freshness, never the origin of a row we do not own.
+    patch.source_at = row.source_at
+    if (!foreign) patch.source_ref = row.source_ref
+
+    patches.push({ ra_event_id: row.ra_event_id, patch })
+  }
+
+  return { bulk, patches, protectedFields }
+}
 
 // RA reports start times as NAIVE LOCAL Barcelona wall-clock ("...T23:00:00.000").
 // Handing that to a timestamptz column makes Postgres read it as UTC, which
@@ -138,6 +234,7 @@ function toMadridISO(naive) {
 }
 
 async function main() {
+  requireCredentials()
   const csv = fileArg !== -1
     ? readFileSync(args[fileArg + 1], 'utf8')
     : execFileSync('ssh', ['-o', 'ConnectTimeout=10', HOST, `cat ${REMOTE}`],
@@ -151,11 +248,12 @@ async function main() {
   console.log(`clubs: ${clubs.length} (${clubs.filter(c => c.is_active).length} active)`)
 
   // first_seen must never be overwritten by a later run (brief §6).
+  // locked_fields and origin decide what else this run may touch.
   let existing = new Map()
   try {
     existing = new Map(
-      (await fetchAll('events?select=ra_event_id,first_seen&order=ra_event_id'))
-        .map(e => [e.ra_event_id, e.first_seen]))
+      (await fetchAll('events?select=ra_event_id,first_seen,locked_fields,origin&order=ra_event_id'))
+        .map(e => [e.ra_event_id, e]))
   } catch (e) {
     if (!/PGRST205|Could not find the table/.test(e.message)) throw e
     if (!dryRun) {
@@ -167,6 +265,7 @@ async function main() {
     console.log('note: public.events not created yet — treating every event as new.')
   }
 
+  const runAt = new Date().toISOString()
   const stats = { exact: 0, core: 0, unresolved: 0 }
   const payload = rows.map(r => {
     const { club, how } = resolve(r.venue)
@@ -190,8 +289,13 @@ async function main() {
       // compatible until the scraper adds them (EVENTS_INGEST_BRIEF.md, 2026-08-12).
       image:       r.image || null,
       description: r.description || null,
-      first_seen:  existing.get(r.ra_event_id) ?? (r.first_seen || null),
+      first_seen:  existing.get(r.ra_event_id)?.first_seen ?? (r.first_seen || null),
       last_seen:   r.last_seen || null,
+      // Provenance. source_ref carries the platform prefix, matching what the
+      // ra_events compatibility view exposes as `id`.
+      origin:      ORIGIN,
+      source_ref:  `ra_${r.ra_event_id}`,
+      source_at:   runAt,
     }
   })
 
@@ -199,15 +303,23 @@ async function main() {
   console.log(`resolved: ${stats.exact} exact + ${stats.core} core = ${withClub}/${payload.length} events`
             + ` (${stats.unresolved} venues unresolved, kept as venue_name)`)
 
+  const { bulk, patches, protectedFields } = planWrites(payload, existing)
+  if (patches.length) {
+    console.log(`protected: ${patches.length} row(s) carry locked fields or a`
+              + ` non-scrape origin — ${protectedFields} field(s) left alone`)
+  }
+
   if (dryRun) {
-    console.log('\n--dry-run: nothing written. Sample row:')
-    console.log(JSON.stringify(payload[0], null, 2))
+    console.log('\n--dry-run: nothing written.')
+    console.log(`would bulk-upsert ${bulk.length}, patch ${patches.length}`)
+    console.log('sample row:', JSON.stringify(payload[0], null, 2))
+    if (patches.length) console.log('sample patch:', JSON.stringify(patches[0], null, 2))
     return
   }
 
   let written = 0
-  for (let i = 0; i < payload.length; i += BATCH) {
-    const chunk = payload.slice(i, i + BATCH)
+  for (let i = 0; i < bulk.length; i += BATCH) {
+    const chunk = bulk.slice(i, i + BATCH)
     const res = await fetch(`${URL}/rest/v1/events?on_conflict=ra_event_id`, {
       method: 'POST',
       headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=minimal' },
@@ -215,9 +327,28 @@ async function main() {
     })
     if (!res.ok) throw new Error(`upsert failed: ${res.status} ${await res.text()}`)
     written += chunk.length
-    process.stdout.write(`\rupserted ${written}/${payload.length}`)
+    process.stdout.write(`\rupserted ${written}/${bulk.length}`)
   }
-  console.log(`\ndone — ${written} events upserted, ${existing.size} already present.`)
+
+  // The careful path, one row at a time. Rare by construction — only rows a
+  // human or a promoter has a claim on — so the extra round-trips are cheap.
+  let patched = 0
+  for (const { ra_event_id, patch } of patches) {
+    const res = await fetch(
+      `${URL}/rest/v1/events?ra_event_id=eq.${encodeURIComponent(ra_event_id)}`, {
+        method: 'PATCH',
+        headers: { ...headers, Prefer: 'return=minimal' },
+        body: JSON.stringify(patch),
+      })
+    if (!res.ok) throw new Error(`patch ${ra_event_id} failed: ${res.status} ${await res.text()}`)
+    patched++
+  }
+
+  console.log(`\ndone — ${written} upserted, ${patched} patched, ${existing.size} already present.`)
 }
 
-main().catch(e => { console.error('\n' + e.message); process.exit(1) })
+// Guarded so the pure helpers above can be imported by the tests without the
+// script trying to SSH to the scraper box.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(e => { console.error('\n' + e.message); process.exit(1) })
+}

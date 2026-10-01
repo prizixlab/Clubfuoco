@@ -1,0 +1,79 @@
+import { describe, expect, it } from 'vitest'
+import { decodeHtml, inboxAddress, newInboxToken, parseTicketEmail, tokenFromRecipients } from './ticket-inbox'
+
+// Shaped on the real Fourvenues guestlist email (Opium, Jet Lag, 1 Oct 2026).
+const HTML = `
+<h1>You're in! Guest list confirmed for Jet Lag</h1>
+<p>Hello Yakov! We can't wait to see you at Opium Barcelona on <a>October 1, 2026</a>.</p>
+<p>Download your QR code below</p>
+<div><span>October 1, 2026</span><span>11:30 PM - 05:00 AM</span>
+<span>LISTA FREE HASTA LA 1</span><span>Valid for 1 person</span>
+<span>Passeig Marítim de la Barceloneta, 34, 08003 Barcelona</span></div>
+<a href="https://connector-service.fourvenues.com/tickets/trbl6ewfypmbjzk3zag6p46lck6oo24c/listas-LNKO1S1G1.pdf">Download</a>
+<a href="https://connector-service.fourvenues.com/wallet/trbl6ewfypmbjzk3zag6p46lck6oo24c.pkpass">Add to Apple Wallet</a>
+`
+
+describe('parseTicketEmail', () => {
+  it('reads the door code from the PDF filename', () => {
+    const p = parseTicketEmail("You're in! Guest list confirmed for Jet Lag", HTML, '')
+    expect(p.codes).toEqual(['LNKO1S1G1'])
+    expect(p.eventCode).toBe('LNKO')
+    expect(p.pdfUrls).toEqual([
+      'https://connector-service.fourvenues.com/tickets/trbl6ewfypmbjzk3zag6p46lck6oo24c/listas-LNKO1S1G1.pdf',
+    ])
+  })
+
+  it('reads the event, night, party size and kind', () => {
+    const p = parseTicketEmail("You're in! Guest list confirmed for Jet Lag", HTML, '')
+    expect(p.eventName).toBe('Jet Lag')
+    expect(p.night).toBe('2026-10-01')
+    expect(p.heads).toBe(1)
+    expect(p.isGuestlist).toBe(true)
+  })
+
+  it('reads a Spanish date', () => {
+    const p = parseTicketEmail('Entrada para Ku Fridays', 'el 2 de octubre de 2026 · Válido para 3 personas', '')
+    expect(p.night).toBe('2026-10-02')
+    expect(p.heads).toBe(3)
+  })
+
+  it('finds nothing in an email that is not a ticket', () => {
+    const p = parseTicketEmail('Newsletter', '<p>Promo this weekend</p>', '')
+    expect(p.codes).toEqual([])
+    expect(p.eventCode).toBeNull()
+  })
+
+  it('de-duplicates a link that appears twice', () => {
+    const p = parseTicketEmail('x', HTML + HTML, '')
+    expect(p.codes).toEqual(['LNKO1S1G1'])
+  })
+})
+
+describe('tokenFromRecipients', () => {
+  it('matches our domain, bare or display-named, any case', () => {
+    expect(tokenFromRecipients(['k7q2xw9pab@tickets.clubfuoco.com'])).toBe('k7q2xw9pab')
+    expect(tokenFromRecipients(['Yakov <K7Q2XW9PAB@Tickets.ClubFuoco.com>'])).toBe('k7q2xw9pab')
+  })
+  it('ignores other domains and malformed tokens', () => {
+    expect(tokenFromRecipients(['k7q2xw9pab@clubfuoco.com'])).toBeNull()
+    expect(tokenFromRecipients(['a-b@tickets.clubfuoco.com'])).toBeNull()
+  })
+})
+
+describe('tokens', () => {
+  it('are 12 chars of the unambiguous alphabet and round-trip through the address', () => {
+    const t = newInboxToken()
+    expect(t).toMatch(/^[a-km-np-z2-9]{12}$/)
+    expect(tokenFromRecipients([inboxAddress(t)])).toBe(t)
+  })
+})
+
+describe('decodeHtml', () => {
+  it('unwraps a base64 data URI', () => {
+    const b64 = Buffer.from('<b>hi</b>').toString('base64')
+    expect(decodeHtml(`data:text/html;charset=utf-8;base64,${b64}`)).toBe('<b>hi</b>')
+  })
+  it('leaves plain html alone', () => {
+    expect(decodeHtml('<b>hi</b>')).toBe('<b>hi</b>')
+  })
+})

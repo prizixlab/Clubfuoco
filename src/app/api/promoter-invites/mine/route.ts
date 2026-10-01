@@ -21,7 +21,8 @@ export async function GET(req: Request) {
         id, invite_token, spots,
         night:promoter_nights (
           id, title, night_date, open_time, close_time,
-          club:clubs ( id, name, address )
+          location_name, address, photo_urls, lineup, hosts,
+          club:clubs ( id, name, address, neighborhood, cover_image_url )
         )
       )
     `)

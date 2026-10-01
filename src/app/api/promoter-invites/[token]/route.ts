@@ -27,7 +27,7 @@ export async function GET(
         id, title, night_date, open_time, close_time,
         location_name, address, lat, lng, auto_checkin,
         description, theme, photo_urls, max_plus_ones, price_cents, currency,
-        club:clubs ( id, name, address, cover_image_url, lat, lng )
+        club:clubs ( id, name, address, neighborhood, cover_image_url, lat, lng )
       ),
       promoter:users!promoter_allocations_promoter_id_fkey ( id, full_name )
     `)

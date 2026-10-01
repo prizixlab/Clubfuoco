@@ -2774,5 +2774,145 @@
  "wallet.error": {
   "ca": "No s'ha pogut carregar el pase",
   "fr": "Impossible de charger le pass"
+ },
+ "fv.waysIn": {
+  "ca": "Maneres d'entrar",
+  "fr": "Accès"
+ },
+ "fv.kickerDoor": {
+  "ca": "Llista · pagament a la porta",
+  "fr": "Liste · paiement à l'entrée"
+ },
+ "fv.kickerTicket": {
+  "ca": "Entrada",
+  "fr": "Billet"
+ },
+ "fv.fewLeft": {
+  "ca": "En queden poques",
+  "fr": "Plus que quelques-unes"
+ },
+ "fv.soldOut": {
+  "ca": "Esgotat",
+  "fr": "Complet"
+ },
+ "fv.atDoor": {
+  "ca": "a la porta",
+  "fr": "à l'entrée"
+ },
+ "fv.atDoorAmount": {
+  "ca": "%@ a la porta",
+  "fr": "%@ à l'entrée"
+ },
+ "fv.from": {
+  "ca": "des de",
+  "fr": "dès"
+ },
+ "fv.doors": {
+  "ca": "Obertura",
+  "fr": "Ouverture"
+ },
+ "fv.age": {
+  "ca": "Edat",
+  "fr": "Âge"
+ },
+ "fv.people": {
+  "ca": "Persones",
+  "fr": "Personnes"
+ },
+ "fv.groupSize": {
+  "ca": "Mida del grup",
+  "fr": "Taille du groupe"
+ },
+ "fv.payAtDoorTitle": {
+  "ca": "Paga %@ a la porta",
+  "fr": "Payez %@ à l'entrée"
+ },
+ "fv.payAtDoorNote": {
+  "ca": "%@ per persona al local. No es cobra res a l'app.",
+  "fr": "%@ par personne sur place. Rien n'est débité dans l'app."
+ },
+ "fv.ctaDoor": {
+  "ca": "Unir-me · paga %@ a la porta",
+  "fr": "M'inscrire · %@ à l'entrée"
+ },
+ "fv.ctaPay": {
+  "ca": "Continuar al pagament · %@",
+  "fr": "Continuer vers le paiement · %@"
+ },
+ "fv.ctaTable": {
+  "ca": "Reservar taula · %@",
+  "fr": "Réserver la table · %@"
+ },
+ "fv.joining": {
+  "ca": "T'estem apuntant a la llista…",
+  "fr": "Inscription sur la liste…"
+ },
+ "fv.opening": {
+  "ca": "Obrint el pagament…",
+  "fr": "Ouverture du paiement…"
+ },
+ "fv.termsNote": {
+  "ca": "En unir-te acceptes les condicions de l'organitzador i de Fourvenues. Enviem el nom i el correu del teu compte a Fourvenues per emetre la teva entrada.",
+  "fr": "En vous inscrivant, vous acceptez les conditions de l'organisateur et de Fourvenues. Nous envoyons le nom et l'e-mail de votre compte à Fourvenues pour émettre votre entrée."
+ },
+ "fv.payNote": {
+  "ca": "Pagaràs a la pàgina segura de Fourvenues: Apple Pay, targeta o Bizum. La teva entrada torna aquí.",
+  "fr": "Vous payez sur la page sécurisée de Fourvenues — Apple Pay, carte ou Bizum. Votre billet revient ici."
+ },
+ "fv.credit": {
+  "ca": "Venut via Fourvenues per a",
+  "fr": "Vendu via Fourvenues pour"
+ },
+ "fv.youreIn": {
+  "ca": "Ja hi ets",
+  "fr": "C'est bon, vous y êtes"
+ },
+ "fv.viewTicket": {
+  "ca": "Veure entrada",
+  "fr": "Voir le billet"
+ },
+ "fv.done": {
+  "ca": "Fet",
+  "fr": "Terminé"
+ },
+ "bookings.sortBy": { "ca": "Ordena les entrades per", "fr": "Trier les billets par" },
+ "bookings.sortEvent": { "ca": "Data de l'esdeveniment", "fr": "Date de l'événement" },
+ "bookings.sortBooked": { "ca": "Data de reserva", "fr": "Date de réservation" },
+ "bookings.sortBookedTitle": { "ca": "Reserves més recents", "fr": "Réservations les plus récentes" },
+ "fv.cantComplete": {
+  "ca": "No hem pogut completar aquesta reserva. Torna-ho a provar d'aquí a un moment.",
+  "fr": "Nous n'avons pas pu finaliser cette réservation. Réessayez dans un instant."
+ },
+ "fv.unconfirmed": {
+  "ca": "Fourvenues no ha confirmat la teva plaça. Si s'ha completat, la teva entrada apareixerà aquí quan arribi el seu correu.",
+  "fr": "Fourvenues n'a pas confirmé votre place. Si c'est passé, votre billet apparaîtra ici dès réception de leur e-mail."
+ },
+ "fv.rejected": {
+  "ca": "Fourvenues no t'ha pogut afegir a aquesta llista.",
+  "fr": "Fourvenues n'a pas pu vous ajouter à cette liste."
+ },
+ "fv.qrInEmail": {
+  "ca": "El teu QR també és al correu de Fourvenues.",
+  "fr": "Votre QR est aussi dans l'e-mail de Fourvenues."
+ },
+ "fv.chipTickets": {
+  "ca": "Entrades des de %@",
+  "fr": "Billets dès %@"
+ },
+ "fv.chipVip": {
+  "ca": "VIP des de %@",
+  "fr": "VIP dès %@"
+ },
+ "fv.upTo": {
+  "ca": "fins a %d",
+  "fr": "jusqu'à %d"
+ },
+ "fv.deposit": {
+  "ca": "Dipòsit",
+  "fr": "Acompte"
+ },
+ "fv.phoneLabel": {
+  "ca": "Telèfon per a la teva entrada",
+  "fr": "Téléphone pour votre billet"
  }
 }

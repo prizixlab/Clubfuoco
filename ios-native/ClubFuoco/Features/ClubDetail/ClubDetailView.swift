@@ -41,12 +41,12 @@ struct ClubDetailView: View {
     /// dates, which showed a "Sun – Fri" offer on a Saturday here while the
     /// feed correctly hid it. The server now refuses that booking too.
     private var offers: [RumbalistOffer] {
-        RumbalistOffers.offers(for: place.placeId).filter { $0.liveOn(plan.date) }
+        RumbalistOffers.live(for: place.placeId, on: plan.date)
     }
 
     /// Offers live on a specific date (the `offers` property covers plan.date).
     private func offers(on date: String) -> [RumbalistOffer] {
-        RumbalistOffers.offers(for: place.placeId).filter { $0.liveOn(date) }
+        RumbalistOffers.live(for: place.placeId, on: date)
     }
 
     /// Next date (today…14d ahead, YYYY-MM-DD) matching an English weekday name
@@ -150,6 +150,11 @@ struct ClubDetailView: View {
             GuestGateView(reason: .guestlist).presentationDetents([.medium])
         }
         .sheet(item: $activeOffer) { offer in
+            // A HypeList free list joins through the background Fourvenues
+            // sign-up — one tap, the account's own name and email.
+            if let fv = offer.fourvenues {
+                FVEventSheet(event: fv.event, initial: fv.product, rooms: fv.rooms)
+            } else {
             RumbalistOfferSheet(
                 offer: offer,
                 clubId: place.placeId,
@@ -163,6 +168,7 @@ struct ClubDetailView: View {
                     }
                 }
             )
+            }
         }
         .sheet(item: $planGroup) { ref in
             NavigationStack { GroupDetailView(groupId: ref.id, presentedModally: true) }
@@ -337,7 +343,7 @@ struct ClubDetailView: View {
                     .padding(.init(top: 24, leading: 20, bottom: 0, trailing: 20))
             }
 
-            if !events.isEmpty || !featuredDJs.isEmpty {
+            if !events.isEmpty || !featuredDJs.isEmpty || FVCatalog.shared.upcoming(clubId: place.placeId).contains { e in e.products.contains { $0.settle != .free && !$0.soldOut } } {
                 eventsSection
                     .padding(.init(top: 24, leading: 20, bottom: 0, trailing: 20))
             }
@@ -497,6 +503,8 @@ struct ClubDetailView: View {
             }
 
             VStack(spacing: 10) {
+                // Nights we can actually sell (HypeList via Fourvenues) lead.
+                FVClubNights(clubId: place.placeId)
                 ForEach(Array(featuredDJs.prefix(djShown))) { dj in
                     FeaturedDJBox(dj: dj) { autoplay in
                         djAutoplay = autoplay

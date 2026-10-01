@@ -70,7 +70,7 @@ struct PlaceDetailRow: Decodable, Sendable {
         var seen = Set<String>()
         let allPhotos = ([coverImageUrl].compactMap { $0 } + (photos ?? []) + (galleryUrls ?? []))
             .filter { url in
-                !url.isEmpty
+                url.hasPrefix("http")
                     && !url.contains("maps.googleapis.com/maps/api/place/photo")
                     && !url.contains("/api/places/photo")
             }

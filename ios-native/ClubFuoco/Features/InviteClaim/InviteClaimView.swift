@@ -46,12 +46,25 @@ struct InviteClaimView: View {
     private static let baseURL = "https://clubfuoco.com"
     private var inviteURL: URL { URL(string: "\(Self.baseURL)/i/\(token)")! }
 
+    // This screen follows the phone's appearance like every other screen.
+    //
+    // It used to be pinned dark: `Theme.night` / `Theme.parchment` plus
+    // `.preferredColorScheme(.dark)`. That pair exists for the splash and for
+    // dark hero SURFACES — panels that are meant to stay dark inside a light
+    // page — and this is not one of those. It is a whole RSVP screen, and it is
+    // usually the first thing a guest ever sees of Club Fuoco, arriving cold
+    // from a WhatsApp link. Handing someone in Light mode a full black screen
+    // reads as a broken page, not as a look.
+    //
+    // Three colours here are still fixed on purpose, and should stay that way:
+    // the QR card (Theme.qrSurface — scanners need the quiet zone), the Apple
+    // Wallet button (black capsule, Apple's convention in both modes), and the
+    // label on a filled accent pill, whose fill is light in both modes.
     var body: some View {
         ZStack {
-            Theme.night.ignoresSafeArea()
+            Theme.cream.ignoresSafeArea()
             content
         }
-        .preferredColorScheme(.dark)
         .task { await load() }
         .sheet(isPresented: Binding(get: { pickingSlotId != nil }, set: { if !$0 { pickingSlotId = nil } })) {
             FriendPickerSheet(excluded: assignedFriendIds) { friend in
@@ -79,19 +92,19 @@ struct InviteClaimView: View {
             case .open(let id):
                 Image(systemName: "person.badge.plus")
                     .font(.system(size: 15))
-                    .foregroundStyle(Theme.parchment.opacity(0.5))
+                    .foregroundStyle(Theme.ink.opacity(0.5))
                     .frame(width: 38, height: 38)
-                    .background(Circle().stroke(Theme.parchment.opacity(0.15)))
+                    .background(Circle().stroke(Theme.ink.opacity(0.15)))
                 Button { Haptics.tap(); pickingSlotId = id } label: {
                     Text("Invite a friend").font(.cfSans(15)).foregroundStyle(Theme.ember)
                 }
                 Spacer()
-                Text("OPEN").font(.cfMono(8)).kerning(1).foregroundStyle(Theme.parchment.opacity(0.35))
+                Text("OPEN").font(.cfMono(8)).kerning(1).foregroundStyle(Theme.ink.opacity(0.35))
                 removeSlotButton(id)
             case .friend(let f):
-                Circle().fill(Theme.parchment.opacity(0.12)).frame(width: 38, height: 38)
+                Circle().fill(Theme.ink.opacity(0.12)).frame(width: 38, height: 38)
                     .overlay(Text(f.initials).font(.cfSerif(15)).foregroundStyle(Theme.flame))
-                Text(f.fullName ?? "Friend").font(.cfSans(15)).foregroundStyle(Theme.parchment)
+                Text(f.fullName ?? "Friend").font(.cfSans(15)).foregroundStyle(Theme.ink)
                 Spacer()
                 removeSlotButton(f.id)
             }
@@ -105,7 +118,7 @@ struct InviteClaimView: View {
             slots.removeAll { $0.id == id }
         } label: {
             Image(systemName: "xmark").font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Theme.parchment.opacity(0.4))
+                .foregroundStyle(Theme.ink.opacity(0.4))
                 .frame(width: 28, height: 28)
         }
     }
@@ -113,10 +126,10 @@ struct InviteClaimView: View {
     @ViewBuilder
     private var content: some View {
         if loading {
-            ProgressView().tint(Theme.parchment)
+            ProgressView().tint(Theme.ink)
         } else if let error {
             VStack(spacing: 12) {
-                Text(error).font(.cfSans(15)).foregroundStyle(Theme.parchment)
+                Text(error).font(.cfSans(15)).foregroundStyle(Theme.ink)
                 Button("Close") { dismiss() }
                     .foregroundStyle(Theme.ember)
             }
@@ -250,29 +263,29 @@ struct InviteClaimView: View {
                     }
 
                     TextField("", text: $name,
-                              prompt: Text("Full name").foregroundStyle(Theme.parchment.opacity(0.5)))
+                              prompt: Text("Full name").foregroundStyle(Theme.ink.opacity(0.5)))
                         .font(.cfSans(16))
-                        .foregroundStyle(Theme.parchment)
+                        .foregroundStyle(Theme.ink)
                         .textInputAutocapitalization(.words)
                         .padding(.vertical, 10)
                         .overlay(alignment: .bottom) {
-                            Rectangle().fill(Theme.parchment.opacity(0.2)).frame(height: 1)
+                            Rectangle().fill(Theme.ink.opacity(0.2)).frame(height: 1)
                         }
 
                     // One slot per extra spot. Assign a friend (targeted invite,
                     // they claim their own row) or leave it open (anonymous
                     // plus-one, filled by whoever uses the shared link).
-                    Rectangle().fill(Theme.parchment.opacity(0.1)).frame(height: 1).padding(.vertical, 4)
+                    Rectangle().fill(Theme.ink.opacity(0.1)).frame(height: 1).padding(.vertical, 4)
                     let cap = detail.night.maxPlusOnes ?? 20
                     HStack {
                         Text("BRING PEOPLE")
                             .font(.cfMono(9)).kerning(1.5)
-                            .foregroundStyle(Theme.parchment.opacity(0.5))
+                            .foregroundStyle(Theme.ink.opacity(0.5))
                         Spacer()
                         if !slots.isEmpty {
                             Text("\(slots.count)/\(cap)")
                                 .font(.cfMono(9))
-                                .foregroundStyle(Theme.parchment.opacity(0.4))
+                                .foregroundStyle(Theme.ink.opacity(0.4))
                         }
                     }
 
@@ -303,19 +316,19 @@ struct InviteClaimView: View {
                                 Text("Share link for open spots").font(.cfSans(13, weight: .semibold))
                                 Spacer()
                             }
-                            .foregroundStyle(Theme.parchment.opacity(0.8))
+                            .foregroundStyle(Theme.ink.opacity(0.8))
                             .padding(.vertical, 6)
                         }
                         .simultaneousGesture(TapGesture().onEnded { Haptics.tap() })
                     }
                 }
                 .padding(18)
-                .background(RoundedRectangle(cornerRadius: 18).fill(Color(hex: 0x15110E)))
+                .background(RoundedRectangle(cornerRadius: 18).fill(Theme.surface))
 
                 Button(action: { detail.night.isPaid ? startCheckout() : submit() }) {
                     Text(buttonTitle(detail: detail))
                         .font(.cfSans(15, weight: .semibold))
-                        .foregroundStyle(Color(hex: 0xFFF6E5))
+                        .foregroundStyle(Theme.emberCream)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(Capsule().fill(Theme.ember))
@@ -334,17 +347,17 @@ struct InviteClaimView: View {
                                        : "Save it, pay later")
                                 .font(.cfSans(14, weight: .medium))
                         }
-                        .foregroundStyle(saved ? Theme.gold : Theme.parchment.opacity(0.85))
+                        .foregroundStyle(saved ? Theme.gold : Theme.ink.opacity(0.85))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                         .background(Capsule().stroke(
-                            saved ? Theme.gold.opacity(0.5) : Theme.parchment.opacity(0.22)))
+                            saved ? Theme.gold.opacity(0.5) : Theme.ink.opacity(0.22)))
                     }
                     .disabled(savingEvent)
 
                     Text("Saving doesn't hold a spot — pay to lock it in.")
                         .font(.cfMono(9)).kerning(1.2)
-                        .foregroundStyle(Theme.parchment.opacity(0.45))
+                        .foregroundStyle(Theme.ink.opacity(0.45))
                         .frame(maxWidth: .infinity)
                         .multilineTextAlignment(.center)
                 }
@@ -352,12 +365,12 @@ struct InviteClaimView: View {
                 if detail.groupVisible {
                     Text("EVERYONE WILL SEE YOU ON THE GUESTLIST")
                         .font(.cfMono(9)).kerning(1.5)
-                        .foregroundStyle(Theme.parchment.opacity(0.5))
+                        .foregroundStyle(Theme.ink.opacity(0.5))
                         .frame(maxWidth: .infinity)
                 }
 
                 Button("Not now") { dismiss() }
-                    .foregroundStyle(Theme.parchment.opacity(0.5))
+                    .foregroundStyle(Theme.ink.opacity(0.5))
                     .frame(maxWidth: .infinity)
                     .padding(.top, 12)
             }
@@ -373,10 +386,10 @@ struct InviteClaimView: View {
                 .foregroundStyle(Theme.flame)
             Text(night.title ?? night.venueName)
                 .font(.cfSerif(40))
-                .foregroundStyle(Theme.parchment)
+                .foregroundStyle(Theme.ink)
             Text("\(night.venueName) · \(Self.formatDate(night.nightDate))")
                 .font(.cfSans(13))
-                .foregroundStyle(Theme.parchment.opacity(0.7))
+                .foregroundStyle(Theme.ink.opacity(0.7))
         }
     }
 
@@ -461,72 +474,85 @@ struct InviteClaimView: View {
         guests.first { $0.id.uuidString.lowercased() == guestId.lowercased() }
     }
 
+    /// This screen's night as the shared ticket shape. Same struct the Tickets
+    /// tab builds from an InviteSummary, so the card in the list and the page it
+    /// opens cannot describe the night differently.
+    private func ticketData(guestId: String, night: InviteNight) -> TicketCardData {
+        TicketCardData(
+            eventTitle: night.title,
+            venueName: night.venueName,
+            neighborhood: night.neighborhood,
+            address: night.venueAddress,
+            hostLine: nil,
+            coverImageUrl: night.coverImageUrl,
+            date: night.nightDate,
+            doorsLabel: night.doorsLabel,
+            closesLabel: night.closesLabel,
+            credits: [],
+            guests: (myGuest(guestId)?.plusOnes ?? 0) + 1,
+            totalAmount: nil,
+            status: myGuest(guestId)?.checkedInAt != nil ? "used" : "confirmed",
+            checkedInAt: myGuest(guestId)?.checkedInAt,
+            doorToken: "fuoco-invite:\(guestId)",
+            reference: nil,
+            walletPath: "/api/promoter-invites/guest/\(guestId)/wallet",
+            ticketTypeKey: "bookings.guestlistTag"
+        )
+    }
+
     private func ticket(guestId: String, detail: InviteDetail) -> some View {
         let night = detail.night
-        let invited = InvitedFriendsStore.load(token: token)
-        let myPlusOnes = myGuest(guestId)?.plusOnes ?? 0
+        // The SAME page a booking gets — hero, overlapping QR card, facts strip
+        // — built from the shared parts in TicketDetailParts. This used to be a
+        // centred serif name over a bare QR on the page background: a completely
+        // different object from every other ticket in the app, for a guest who
+        // cannot tell why their night arrived by a different route. Whatever is
+        // specific to an invite (the party, the roster) sits BELOW the strip,
+        // where a booking puts its receipt and manage sections.
         return ScrollView {
-            VStack(spacing: 18) {
-                Text("YOU'RE ON THE LIST")
-                    .font(.cfMono(11)).kerning(2)
-                    .foregroundStyle(Theme.flame)
-                Text(name)
-                    .font(.cfSerif(34))
-                    .foregroundStyle(Theme.parchment)
-                Text("\(night.title ?? night.venueName) · \(Self.formatDate(night.nightDate))")
-                    .font(.cfSans(13))
-                    .foregroundStyle(Theme.parchment.opacity(0.7))
+            VStack(spacing: 0) {
+                TicketHero(
+                    data: ticketData(guestId: guestId, night: night),
+                    attribution: night.locationName?.uppercased(),
+                    codeLabel: nil,
+                    onBack: { dismiss() },
+                    onHelp: nil
+                )
+                VStack(spacing: 26) {
+                    TicketQRCard(token: "fuoco-invite:\(guestId)", printed: nil)
+                    TicketStatsStrip(data: ticketData(guestId: guestId, night: night))
 
-                Image(uiImage: generateQR("fuoco-invite:\(guestId)"))
-                    .interpolation(.none)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 220, height: 220)
-                    .padding(12)
-                    .background(RoundedRectangle(cornerRadius: 16).fill(Color(hex: 0xFFF6E5)))
+                    // The reduced signup. It sits HERE, after the spot is already
+                    // theirs, rather than in front of the claim: a wizard between a
+                    // guest and an RSVP loses the guest, and the claim endpoint has
+                    // always accepted anonymous callers anyway.
+                    //
+                    // What it actually buys is keeping. An anonymous claim leaves
+                    // claimed_by_user null, so the spot exists only in this screen's
+                    // state — relaunch and the ticket is gone, it never reaches the
+                    // Tickets tab, and the Wallet URL is one nobody remembers.
+                    if !auth.hasAccount { saveSpotCard(guestId: guestId) }
 
-                Text("SHOW THIS AT THE DOOR")
-                    .font(.cfMono(10)).kerning(1.5)
-                    .foregroundStyle(Theme.parchment.opacity(0.5))
+                    WalletPassButton(
+                        passPath: "/api/promoter-invites/guest/\(guestId)/wallet",
+                        fullWidth: true)
 
-                // The reduced signup. It sits HERE, after the spot is already
-                // theirs, rather than in front of the claim: a wizard between a
-                // guest and an RSVP loses the guest, and the claim endpoint has
-                // always accepted anonymous callers anyway.
-                //
-                // What it actually buys is keeping. An anonymous claim leaves
-                // claimed_by_user null, so the spot exists only in this screen's
-                // state — relaunch and the ticket is gone, it never reaches the
-                // Tickets tab, and the Wallet URL is one nobody remembers.
-                if !auth.hasAccount { saveSpotCard(guestId: guestId) }
+                    // ── Your party — editable: adjust open spots, invite friends ──
+                    partyCard(guestId: guestId)
 
-                Link(destination: URL(string: "\(Self.baseURL)/api/promoter-invites/guest/\(guestId)/wallet")!) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "wallet.pass.fill")
-                        Text("Add to Apple Wallet").font(.cfSans(14, weight: .semibold))
+                    // ── Who's going: the roster (when the promoter makes it visible)
+                    if !guests.isEmpty {
+                        rosterCard
                     }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 20).padding(.vertical, 12)
-                    .background(Capsule().fill(Color.black))
                 }
-                .padding(.top, 4)
-
-                // ── Your party — editable: adjust open spots, invite friends ──
-                partyCard(guestId: guestId)
-
-
-                // ── Who's going: the roster (when the promoter makes it visible)
-                if !guests.isEmpty {
-                    rosterCard
-                }
-
-                Button("Done") { dismiss() }
-                    .foregroundStyle(Theme.parchment.opacity(0.6))
-                    .padding(.top, 10)
+                .padding(.horizontal, 20)
+                // Lifts the QR card over the hero, matching the booking ticket.
+                .padding(.top, -46)
+                .padding(.bottom, 40)
             }
-            .padding(.horizontal, 28)
-            .padding(.vertical, 32)
         }
+        .background(Theme.cream)
+        .ignoresSafeArea(edges: .top)
         .task {
             // Straight back from Stripe: the webhook usually beats the redirect,
             // but when it doesn't the ticket would render with a QR that 402s.
@@ -594,20 +620,20 @@ struct InviteClaimView: View {
                     Image(systemName: "checkmark.seal.fill").foregroundStyle(Theme.gold)
                     Text("Saved to your account")
                         .font(.cfSans(14, weight: .semibold))
-                        .foregroundStyle(Theme.parchment)
+                        .foregroundStyle(Theme.ink)
                 }
             } else {
                 VStack(spacing: 4) {
                     Text("Keep this spot")
-                        .font(.cfSerif(22)).foregroundStyle(Theme.parchment)
+                        .font(.cfSerif(22)).foregroundStyle(Theme.ink)
                     Text("Save it to your phone so it's here tomorrow, and in your tickets.")
                         .font(.cfSans(12))
-                        .foregroundStyle(Theme.parchment.opacity(0.65))
+                        .foregroundStyle(Theme.ink.opacity(0.65))
                         .multilineTextAlignment(.center)
                 }
 
                 if attaching {
-                    ProgressView().tint(Theme.parchment)
+                    ProgressView().tint(Theme.ink)
                 } else {
                     OAuthButtonsView(path: .constant([])) { _ in
                         // Deliberately ignoring `needsProfile`: the profile
@@ -624,8 +650,8 @@ struct InviteClaimView: View {
             }
         }
         .padding(18)
-        .background(RoundedRectangle(cornerRadius: 18).fill(Theme.parchment.opacity(0.06)))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.parchment.opacity(0.12)))
+        .background(RoundedRectangle(cornerRadius: 18).fill(Theme.ink.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.ink.opacity(0.12)))
         .padding(.top, 6)
     }
 
@@ -663,14 +689,14 @@ struct InviteClaimView: View {
     private func partyCard(guestId: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("MY GUESTS").font(.cfMono(9)).kerning(1.5).foregroundStyle(Theme.parchment.opacity(0.5))
+                Text("MY GUESTS").font(.cfMono(9)).kerning(1.5).foregroundStyle(Theme.ink.opacity(0.5))
                 Spacer()
                 if partyBusy {
-                    ProgressView().tint(Theme.parchment.opacity(0.6)).scaleEffect(0.7)
+                    ProgressView().tint(Theme.ink.opacity(0.6)).scaleEffect(0.7)
                 } else if slotLimit > 0 {
                     // Total party vs the promoter's allowance (you + slots).
                     Text("\(1 + usedSlots)/\(1 + slotLimit)")
-                        .font(.cfMono(9)).foregroundStyle(Theme.parchment.opacity(0.4))
+                        .font(.cfMono(9)).foregroundStyle(Theme.ink.opacity(0.4))
                 }
             }
 
@@ -682,9 +708,9 @@ struct InviteClaimView: View {
                 let going = claimedUserIds.contains(friend.id)
                 HStack(spacing: 10) {
                     Text(friend.name.isEmpty ? "Friend" : friend.name)
-                        .font(.cfSans(14)).foregroundStyle(Theme.parchment).lineLimit(1)
+                        .font(.cfSans(14)).foregroundStyle(Theme.ink).lineLimit(1)
                     Spacer(minLength: 8)
-                    statusPill(going ? "GOING" : "INVITED", going ? Theme.gold : Theme.parchment.opacity(0.4), filled: false)
+                    statusPill(going ? "GOING" : "INVITED", going ? Theme.gold : Theme.ink.opacity(0.4), filled: false)
                     if !going { slotRemove { removeInvited(friend) } }
                 }
             }
@@ -693,7 +719,7 @@ struct InviteClaimView: View {
             // shared link. Same slot, two ways to fill it.
             ForEach(Array(0..<partyPlusOnes), id: \.self) { _ in
                 HStack(spacing: 10) {
-                    Text("Open spot").font(.cfSans(14)).foregroundStyle(Theme.parchment.opacity(0.85))
+                    Text("Open spot").font(.cfSans(14)).foregroundStyle(Theme.ink.opacity(0.85))
                     Spacer(minLength: 8)
                     Button { Haptics.tap(); showTicketFriendPicker = true } label: {
                         HStack(spacing: 4) {
@@ -703,7 +729,7 @@ struct InviteClaimView: View {
                         .foregroundStyle(Theme.ember)
                     }
                     .disabled(partyBusy)
-                    statusPill("OPEN", Theme.parchment.opacity(0.35), filled: false)
+                    statusPill("OPEN", Theme.ink.opacity(0.35), filled: false)
                     slotRemove { changePlusOnes(partyPlusOnes - 1, guestId: guestId) }
                 }
             }
@@ -718,18 +744,18 @@ struct InviteClaimView: View {
                         Text("Add a spot").font(.cfSans(14, weight: .medium))
                         Spacer()
                     }
-                    .foregroundStyle(Theme.parchment.opacity(0.8))
+                    .foregroundStyle(Theme.ink.opacity(0.8))
                     .padding(.vertical, 2)
                 }
                 .disabled(partyBusy)
             } else if slotLimit > 0 && usedSlots >= slotLimit {
                 Text("You've filled every spot the promoter allows.")
-                    .font(.cfSans(11)).foregroundStyle(Theme.parchment.opacity(0.4))
+                    .font(.cfSans(11)).foregroundStyle(Theme.ink.opacity(0.4))
             }
 
             // Share link — anyone who opens it takes one of your open spots.
             if partyPlusOnes > 0 {
-                Rectangle().fill(Theme.parchment.opacity(0.1)).frame(height: 1).padding(.vertical, 2)
+                Rectangle().fill(Theme.ink.opacity(0.1)).frame(height: 1).padding(.vertical, 2)
                 ShareLink(item: inviteURL,
                           subject: Text(detail?.night.title ?? detail?.night.venueName ?? "Guestlist"),
                           message: Text("Join me on the guestlist")) {
@@ -740,13 +766,13 @@ struct InviteClaimView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(RoundedRectangle(cornerRadius: 16).fill(Color(hex: 0x15110E)))
+        .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surface))
     }
 
     private func slotRemove(_ action: @escaping () -> Void) -> some View {
         Button { Haptics.tap(); action() } label: {
             Image(systemName: "xmark").font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Theme.parchment.opacity(0.4)).frame(width: 24, height: 24)
+                .foregroundStyle(Theme.ink.opacity(0.4)).frame(width: 24, height: 24)
         }
         .disabled(partyBusy)
     }
@@ -769,11 +795,11 @@ struct InviteClaimView: View {
             Image(systemName: icon).font(.system(size: 13, weight: .semibold))
             Text(label).font(.cfSans(13, weight: .semibold))
         }
-        .foregroundStyle(filled ? Color(hex: 0xFFF6E5) : Theme.parchment)
+        .foregroundStyle(filled ? Theme.emberCream : Theme.ink)
         .frame(maxWidth: .infinity)
         .frame(height: 44)
         .background(filled ? AnyShapeStyle(Theme.ember) : AnyShapeStyle(Color.clear), in: .capsule)
-        .overlay { if !filled { Capsule().stroke(Theme.parchment.opacity(0.25)) } }
+        .overlay { if !filled { Capsule().stroke(Theme.ink.opacity(0.25)) } }
     }
 
     private func changePlusOnes(_ value: Int, guestId: String) {
@@ -820,10 +846,10 @@ struct InviteClaimView: View {
     private var rosterCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("WHO'S GOING").font(.cfMono(9)).kerning(1.5).foregroundStyle(Theme.parchment.opacity(0.5))
+                Text("WHO'S GOING").font(.cfMono(9)).kerning(1.5).foregroundStyle(Theme.ink.opacity(0.5))
                 Spacer()
                 Text("\(guests.reduce(0) { $0 + 1 + $1.plusOnes })")
-                    .font(.cfMono(9)).foregroundStyle(Theme.parchment.opacity(0.4))
+                    .font(.cfMono(9)).foregroundStyle(Theme.ink.opacity(0.4))
             }
             ForEach(guests) { g in
                 partyRow(name: g.plusOnes > 0 ? "\(g.fullName) +\(g.plusOnes)" : g.fullName,
@@ -832,20 +858,20 @@ struct InviteClaimView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(RoundedRectangle(cornerRadius: 16).fill(Color(hex: 0x15110E)))
+        .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surface))
     }
 
     private enum PartyStatus { case going, invited, open, checkedIn, none }
 
     private func partyRow(name: String, trailing: PartyStatus) -> some View {
         HStack(spacing: 10) {
-            Text(name).font(.cfSans(14)).foregroundStyle(Theme.parchment).lineLimit(1)
+            Text(name).font(.cfSans(14)).foregroundStyle(Theme.ink).lineLimit(1)
             Spacer(minLength: 8)
             switch trailing {
             case .going:     statusPill("GOING", Theme.gold, filled: false)
             case .checkedIn: statusPill("CHECKED IN", Theme.gold, filled: true)
-            case .invited:   statusPill("INVITED", Theme.parchment.opacity(0.4), filled: false)
-            case .open:      statusPill("OPEN", Theme.parchment.opacity(0.35), filled: false)
+            case .invited:   statusPill("INVITED", Theme.ink.opacity(0.4), filled: false)
+            case .open:      statusPill("OPEN", Theme.ink.opacity(0.35), filled: false)
             case .none:      EmptyView()
             }
         }
@@ -868,16 +894,6 @@ struct InviteClaimView: View {
         return out.string(from: d)
     }
 
-    private func generateQR(_ string: String) -> UIImage {
-        let data = string.data(using: .utf8)
-        guard let f = CIFilter(name: "CIQRCodeGenerator") else { return UIImage() }
-        f.setValue(data, forKey: "inputMessage")
-        f.setValue("H", forKey: "inputCorrectionLevel")
-        guard let ci = f.outputImage?.transformed(by: CGAffineTransform(scaleX: 10, y: 10)),
-              let cg = CIContext().createCGImage(ci, from: ci.extent)
-        else { return UIImage() }
-        return UIImage(cgImage: cg)
-    }
 }
 
 // MARK: - Models
@@ -908,6 +924,7 @@ struct InviteNight: Decodable, Sendable {
     /// decodes rather than throwing.
     let priceCents: Int?
     let currency: String?
+    let photoUrls: [String]?
     let club: InviteClub?
 
     var isPaid: Bool { (priceCents ?? 0) > 0 }
@@ -927,11 +944,23 @@ struct InviteNight: Decodable, Sendable {
     /// Geofence coordinate — club coords, else the custom pin.
     var venueLat: Double? { club?.lat ?? lat }
     var venueLng: Double? { club?.lng ?? lng }
+    var venueAddress: String? { club?.address ?? address }
+    var neighborhood: String? { club?.neighborhood ?? locationName }
+    var coverImageUrl: String? { club?.coverImageUrl ?? photoUrls?.first }
+
+    private func clock(_ s: String?) -> String? {
+        guard let s, s.count >= 5 else { return nil }
+        return String(s.prefix(5))
+    }
+    var doorsLabel: String? { clock(openTime) }
+    var closesLabel: String? { clock(closeTime) }
 }
 struct InviteClub: Decodable, Sendable {
     let id: UUID
     let name: String
     let address: String?
+    let neighborhood: String?
+    let coverImageUrl: String?
     let lat: Double?
     let lng: Double?
 }
@@ -1068,34 +1097,33 @@ struct FriendPickerSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Theme.night.ignoresSafeArea()
+                Theme.cream.ignoresSafeArea()
                 content
             }
             .navigationTitle("Pick a friend")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Theme.night, for: .navigationBar)
+            .toolbarBackground(Theme.cream, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }.foregroundStyle(Theme.parchment.opacity(0.7))
+                    Button("Close") { dismiss() }.foregroundStyle(Theme.ink.opacity(0.7))
                 }
             }
         }
-        .preferredColorScheme(.dark)
         .task { await load() }
     }
 
     @ViewBuilder private var content: some View {
         if loading {
-            ProgressView().tint(Theme.parchment)
+            ProgressView().tint(Theme.ink)
         } else if filtered.isEmpty {
             VStack(spacing: 10) {
-                Image(systemName: "person.2").font(.system(size: 34)).foregroundStyle(Theme.parchment.opacity(0.3))
+                Image(systemName: "person.2").font(.system(size: 34)).foregroundStyle(Theme.ink.opacity(0.3))
                 Text(friends.isEmpty ? "No friends yet" : "Everyone's already added")
-                    .font(.cfSans(15)).foregroundStyle(Theme.parchment)
+                    .font(.cfSans(15)).foregroundStyle(Theme.ink)
                 if friends.isEmpty {
                     Text("Add friends from your profile, then invite them to spots here.")
-                        .font(.cfSans(12)).foregroundStyle(Theme.parchment.opacity(0.5))
+                        .font(.cfSans(12)).foregroundStyle(Theme.ink.opacity(0.5))
                         .multilineTextAlignment(.center).padding(.horizontal, 50)
                 }
             }
@@ -1105,15 +1133,15 @@ struct FriendPickerSheet: View {
                     Haptics.tap(); onPick(friend); dismiss()
                 } label: {
                     HStack(spacing: 12) {
-                        Circle().fill(Theme.parchment.opacity(0.12)).frame(width: 38, height: 38)
+                        Circle().fill(Theme.ink.opacity(0.12)).frame(width: 38, height: 38)
                             .overlay(Text(friend.initials).font(.cfSerif(15)).foregroundStyle(Theme.flame))
-                        Text(friend.fullName ?? "Friend").font(.cfSans(16)).foregroundStyle(Theme.parchment)
+                        Text(friend.fullName ?? "Friend").font(.cfSans(16)).foregroundStyle(Theme.ink)
                         Spacer()
                         Image(systemName: "plus.circle.fill").font(.system(size: 18)).foregroundStyle(Theme.ember)
                     }
                     .contentShape(.rect)
                 }
-                .listRowBackground(Color(hex: 0x15110E))
+                .listRowBackground(Theme.surface)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)

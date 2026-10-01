@@ -52,14 +52,16 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
             }
         }
         .task(id: url) {
+            // Clear on every new URL: a reused view (one club's page swapped
+            // for another's) otherwise kept the old photo whenever the new
+            // one failed or was still loading — La Fira showing Opium.
             guard let url else { uiImage = nil; return }
             if let cached = ImageCache.shared.cached(for: url) {
                 uiImage = cached
                 return
             }
-            if let loaded = await ImageCache.shared.load(url) {
-                uiImage = loaded
-            }
+            uiImage = nil
+            uiImage = await ImageCache.shared.load(url)
         }
     }
 }

@@ -65,6 +65,8 @@ CLUBS = {
     "hype barcelona": "00e3f149-bd90-4180-83f9-a79ebf71ab8f",
     "nix barcelona": "91ef759c-4b34-4e63-ab2a-ac015dcf76e8",
     "la fira casanova": "f710a3a3-c84e-408a-a061-d6791215848a",
+    "duvet": "cd260c75-6a5e-464e-a24d-48155b6d0c5a",          # Duvet Barcelona
+    "nu bcn": "cecc969c-ded2-40d3-9dfb-54e606e67f26",         # added 1 Oct 2026 (Google Places)
     "la fira villarroel": "5eaaf6ad-c479-4e7e-b735-f3459b319aac",
     "la fira provença": "fb8a09e0-6a79-4023-b990-6a0702d88053",
     "costa breve": "dbf8342b-e7b8-4f27-97d2-5982bc4a3947",

@@ -170,6 +170,10 @@ def main() -> int:
                   "fourvenues": snapshot(e, hit.get("fourvenues") if hit else None)}
         if hit:
             claimed.add(hit["id"])
+            # A venue linked to a club since the night was created (Nu Bcn,
+            # Duvet): attach the club now.
+            if e.get("club_id") and not hit.get("club_id"):
+                fields["club_id"] = e["club_id"]
             updates.append((hit["id"], fields, hit.get("fourvenues_code") is None))
         else:
             row = {**fields, "night_date": e["night"], "created_by": owner, "is_published": True,

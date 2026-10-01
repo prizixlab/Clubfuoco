@@ -5,7 +5,6 @@ import { nightPassDates } from '@/lib/wallet/expiry'
 import path from 'path'
 import fs from 'fs'
 import sharp from 'sharp'
-import { RUMBALIST_OFFERS } from '@/lib/rumbalist-offers'
 
 // Apple Wallet pass generation
 // Required env vars (all cert values are base64-encoded PEM):
@@ -127,25 +126,33 @@ export async function GET(
 
   // Who supplied this booking, for the pass's branding.
   //
-  // Preferred source is bookings.brand_id, stamped at booking time. Falling
-  // back to "is this club in RUMBALIST_OFFERS" was safe only while Rumba was
-  // the sole supplier; now that several suppliers cover the same venues, that
-  // guess would print a Rumba pass on another supplier's guestlist. So the
-  // fallback is only used for rows booked before attribution existed.
+  // The ONLY source is bookings.brand_id, stamped at booking time by
+  // supplyingBrandId, which returns null whenever it cannot be certain which
+  // supplier's list this is. Null therefore means "unattributed", and an
+  // unattributed pass is a Club Fuoco pass.
+  //
+  // There used to be a fallback here: no brand_id + club present in the
+  // hardcoded RUMBALIST_OFFERS map ⇒ render it as Rumbalist, in #FF2D92. That
+  // map covers ten venues, which is nearly the whole catalogue, so in practice
+  // every unattributed pass came out branded Rumbalist — 40 of the 41
+  // unattributed bookings in production on 30 Sep 2026, including ones taken
+  // that same day. It printed another supplier's name on their guestlist.
+  //
+  // It was wrong even when it fired correctly: the brand is called "Rumba" in
+  // partner_brands and carries its own colour, so the fallback invented a name
+  // and a pink that belong to nothing. Do not reintroduce a guess from the
+  // club — if attribution is missing, fix it at the booking, not here.
   const brand = await brandForBooking(supabase, (booking as { brand_id?: string | null }).brand_id)
-  const isRumbalist = !brand
-    && booking.club_id != null && booking.club_id in RUMBALIST_OFFERS
 
   // Fetched before the pass JSON because logoText depends on whether a
   // supplier mark actually lands in the logo slot — a brand whose logo fails
   // to load falls back to the Club Fuoco mark and still wants the text.
   const brandLogo = brand ? await fetchBrandLogo(brand.logo_url) : null
-  const showsSupplierMark = isRumbalist || brandLogo !== null
+  const showsSupplierMark = brandLogo !== null
 
   // Supplier-branded when we know the supplier, Club Fuoco otherwise.
-  const orgName = brand?.name ?? (isRumbalist ? 'Rumbalist' : 'Club Fuoco')
-  const bgColor = brand?.color ? hexToPassRgb(brand.color) ?? 'rgb(18, 20, 20)'
-                : isRumbalist ? 'rgb(255, 45, 146)' : 'rgb(18, 20, 20)'
+  const orgName = brand?.name ?? 'Club Fuoco'
+  const bgColor = (brand?.color ? hexToPassRgb(brand.color) : null) ?? 'rgb(18, 20, 20)'
 
   const passJson = {
     formatVersion:      1,
@@ -157,10 +164,10 @@ export async function GET(
     // looking as current as tonight's booking.
     ...nightPassDates(booking.booking_date),
     organizationName:   orgName,
-    description:        brand || isRumbalist ? `${clubName} with ${orgName}` : `${clubName} ticket`,
+    description:        brand ? `${clubName} with ${orgName}` : `${clubName} ticket`,
     foregroundColor:    'rgb(255, 255, 255)',
     backgroundColor:    bgColor,
-    labelColor:         isRumbalist ? 'rgb(255, 226, 240)' : 'rgb(255, 180, 166)',
+    labelColor:         'rgb(255, 180, 166)',
     // A supplier's logo IS their wordmark, so logoText beside it is both
     // redundant and harmful: the two compete for one row and Wallet truncates
     // the text ("C…"). Omit it for any supplier mark, not just Rumba's.
@@ -176,22 +183,16 @@ export async function GET(
         { key: 'date',  label: 'DATE',   value: dateStr },
         { key: 'type',  label: 'TICKET', value: booking.booking_type === 'vip' ? 'VIP' : 'General' },
       ],
-      // PAID row is dropped on Rumbalist passes — free guestlists would show
-      // "€0.00" which reads as a glitch, and paid VIP tables don't need the
-      // amount on the wallet face. Club Fuoco passes keep it when there's an
-      // amount to show.
-      auxiliaryFields: isRumbalist
-        ? [
-            { key: 'guests', label: 'GUESTS', value: String(booking.party_size) },
-          ]
-        : (booking.total_amount ?? 0) > 0
-        ? [
-            { key: 'guests', label: 'GUESTS', value: String(booking.party_size) },
-            { key: 'paid',   label: 'PAID',   value: `€${(booking.total_amount ?? 0).toFixed(2)}` },
-          ]
-        : [
-            { key: 'guests', label: 'GUESTS', value: String(booking.party_size) },
-          ],
+      // PAID row only when there is an amount. A free guestlist would show
+      // "€0.00", which reads as a glitch. This used to be gated on the
+      // supplier as well, which was always redundant — a free list has no
+      // amount, so the amount test already covers it.
+      auxiliaryFields: [
+        { key: 'guests', label: 'GUESTS', value: String(booking.party_size) },
+        ...((booking.total_amount ?? 0) > 0
+          ? [{ key: 'paid', label: 'PAID', value: `€${(booking.total_amount ?? 0).toFixed(2)}` }]
+          : []),
+      ],
       backFields: [
         { key: 'address', label: 'LOCATION', value: address },
         { key: 'support', label: 'SUPPORT',  value: 'tickets@clubfuoco.com' },
@@ -221,20 +222,21 @@ export async function GET(
 
   const assetsDir = path.join(process.cwd(), 'public', 'pass-assets')
 
-  // Read every logo variant with a literal string path so Vercel's static
-  // file tracer bundles them into the serverless function. (Reading via a
-  // variable name skips the tracer → ENOENT on Vercel → 500.) We pick the
-  // Rumbalist variant only AFTER both are loaded.
-  const logoFuoco       = fs.readFileSync(path.join(assetsDir, 'logo.png'))
-  const logoFuoco2x     = fs.readFileSync(path.join(assetsDir, 'logo@2x.png'))
-  const logoRumbalist   = fs.readFileSync(path.join(assetsDir, 'logo-rumbalist.png'))
-  const logoRumbalist2x = fs.readFileSync(path.join(assetsDir, 'logo-rumbalist@2x.png'))
+  // Literal string paths so Vercel's static file tracer bundles these into
+  // the serverless function. (Reading via a variable name skips the tracer →
+  // ENOENT on Vercel → 500.)
+  //
+  // Only the house mark is bundled now. A supplier's logo comes from their own
+  // logo_url, so onboarding one stays a portal action; the checked-in
+  // Rumbalist pair went with the club-based guess above.
+  const logoFuoco   = fs.readFileSync(path.join(assetsDir, 'logo.png'))
+  const logoFuoco2x = fs.readFileSync(path.join(assetsDir, 'logo@2x.png'))
 
   // Each slot is fitted to Apple's point box for that scale — the bundled
-  // marks are already correct pairs, but a hosted one is whatever the
-  // supplier happened to upload.
-  const logo1x = brandLogo ? await fitLogo(brandLogo, 1) : (isRumbalist ? logoRumbalist   : logoFuoco)
-  const logo2x = brandLogo ? await fitLogo(brandLogo, 2) : (isRumbalist ? logoRumbalist2x : logoFuoco2x)
+  // mark is already a correct pair, but a hosted one is whatever the supplier
+  // happened to upload.
+  const logo1x = brandLogo ? await fitLogo(brandLogo, 1) : logoFuoco
+  const logo2x = brandLogo ? await fitLogo(brandLogo, 2) : logoFuoco2x
 
   try {
     const pass = new PKPass(

@@ -37,6 +37,40 @@ export function tokenFromRecipients(to: string[]): string | null {
   return null
 }
 
+// ── Who may use the inbox ────────────────────────────────────────────────────
+//
+// Anyone can send mail TO an inbox address; nothing they send may cost us
+// anything unless it is genuinely a partner platform's ticket. Senders are
+// allow-listed by domain (TICKET_INBOX_SENDERS, comma-separated; Fourvenues by
+// default), and the webhook additionally requires the email to pass DMARC (or
+// both SPF and DKIM) — a From header alone is trivially forged.
+
+export const DEFAULT_SENDERS = ['fourvenues.com']
+
+export function allowedSenders(env = process.env.TICKET_INBOX_SENDERS): string[] {
+  const list = (env ?? '').split(',').map(s => s.trim().toLowerCase().replace(/^@/, '')).filter(Boolean)
+  return list.length ? list : DEFAULT_SENDERS
+}
+
+/** "Opium Barcelona <no-reply@mail.fourvenues.com>" → "mail.fourvenues.com" */
+export function senderDomain(from: string): string | null {
+  const addr = (from.match(/<([^>]+)>/)?.[1] ?? from).trim().toLowerCase()
+  const at = addr.lastIndexOf('@')
+  return at > 0 && at < addr.length - 1 ? addr.slice(at + 1) : null
+}
+
+/** The domain or any subdomain of an allowed one — never a lookalike suffix. */
+export function isAllowedSender(domain: string | null, allowed: string[]): boolean {
+  if (!domain) return false
+  return allowed.some(a => domain === a || domain.endsWith('.' + a))
+}
+
+/** Resend's authentication results for a received email. */
+export function isAuthenticated(auth: { spf?: string; dkim?: string; dmarc?: string } | null | undefined): boolean {
+  if (!auth) return false
+  return auth.dmarc === 'pass' || (auth.spf === 'pass' && auth.dkim === 'pass')
+}
+
 // ── Reading a Fourvenues ticket email ────────────────────────────────────────
 
 export interface ParsedTicketEmail {

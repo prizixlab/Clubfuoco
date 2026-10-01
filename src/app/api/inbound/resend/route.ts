@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
-import { decodeHtml, parseTicketEmail, tokenFromRecipients } from '@/lib/ticket-inbox'
+import { allowedSenders, decodeHtml, isAllowedSender, isAuthenticated, parseTicketEmail, senderDomain, tokenFromRecipients } from '@/lib/ticket-inbox'
 import { notify } from '@/lib/notify'
 
 // POST /api/inbound/resend
@@ -20,6 +20,11 @@ import { notify } from '@/lib/notify'
 //      sign-up/payment when there is one, so one ticket never becomes two;
 //   6. forward a copy to the user's real inbox from our own domain.
 //
+// Guarded so a leaked address can't cost us: only allow-listed sender domains
+// get past the metadata check (no API read otherwise), the email must pass
+// DMARC (or SPF+DKIM), there's a per-inbox daily cap, and only real tickets
+// are ever forwarded.
+//
 // Always answers 200 once the signature checks out, even when the email isn't
 // a ticket: a non-2xx makes Resend retry an email that will never parse.
 
@@ -35,6 +40,8 @@ const READ_KEY = process.env.RESEND_INBOUND_API_KEY ?? process.env.ESEND_INBOUND
 const reader = READ_KEY ? new Resend(READ_KEY) : null
 const SECRET = process.env.RESEND_INBOUND_WEBHOOK_SECRET
 const FORWARD_FROM = process.env.TICKET_INBOX_FORWARD_FROM ?? 'Club Fuoco Tickets <tickets@clubfuoco.com>'
+/** Emails one inbox may have processed per 24h — a ceiling on what a leaked address can cost. */
+const DAILY_CAP = Number(process.env.TICKET_INBOX_DAILY_CAP ?? 25)
 
 type Sb = Awaited<ReturnType<typeof createServiceClient>>
 
@@ -88,10 +95,39 @@ export async function POST(req: NextRequest) {
   }
   const userId = inbox.user_id as string
 
+  // Nothing below may cost anything unless the email is genuinely a partner
+  // ticket. These cheap checks run BEFORE the body is fetched.
+  const domain = senderDomain(from)
+  if (!isAllowedSender(domain, allowedSenders())) {
+    // Logged with the domain, so a partner sending from a domain we haven't
+    // allowed yet shows up here instead of vanishing.
+    await log({ user_id: userId, status: 'no_ticket', detail: `blocked: sender ${domain ?? '?'} not allowed` })
+    return ok({ filed: false, reason: 'sender not allowed' })
+  }
+  const since = new Date(Date.now() - 24 * 3600_000).toISOString()
+  // Count only emails that cost a read — ones dropped at the sender check
+  // above are free, and counting them would let junk mail use up the cap and
+  // block the user's real tickets.
+  const { count } = await sb.from('ticket_inbox_messages')
+    .select('email_id', { count: 'exact', head: true })
+    .eq('user_id', userId).gte('received_at', since)
+    .not('detail', 'like', 'blocked: sender%')
+  if ((count ?? 0) >= DAILY_CAP) {
+    await log({ user_id: userId, status: 'no_ticket', detail: `blocked: daily cap ${DAILY_CAP}` })
+    return ok({ filed: false, reason: 'daily cap' })
+  }
+
   try {
     // 4. Body.
     const { data: email, error: getErr } = await reader.emails.receiving.get(email_id)
     if (getErr || !email) throw new Error(getErr?.message ?? 'email not found')
+    // A From header is trivially forged — require the domain to have proven it.
+    const auth = (email as { authentication?: { spf?: string; dkim?: string; dmarc?: string } }).authentication
+    if (!isAuthenticated(auth)) {
+      await log({ user_id: userId, status: 'no_ticket',
+        detail: `blocked: unauthenticated ${domain} (spf ${auth?.spf ?? '?'}, dkim ${auth?.dkim ?? '?'}, dmarc ${auth?.dmarc ?? '?'})` })
+      return ok({ filed: false, reason: 'unauthenticated' })
+    }
     const html = decodeHtml((email as { html?: string | null }).html)
     const text = (email as { text?: string | null }).text ?? ''
     const parsed = parseTicketEmail(subject, html, text)
@@ -115,8 +151,9 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // 6. Forward a copy whatever it was — it reached the user's address.
-    const forwarded = await forward(sb, userId, subject, html, text, from, parsed.eventName)
+    // 6. Forward a copy — of real tickets only. Our sending quota is never
+    // spent on anything else, even from an allowed, authenticated sender.
+    const forwarded = ticketId ? await forward(sb, userId, subject, html, text, from, parsed.eventName) : false
 
     await log({
       user_id: userId,

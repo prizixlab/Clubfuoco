@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decodeHtml, inboxAddress, newInboxToken, parseTicketEmail, tokenFromRecipients } from './ticket-inbox'
+import { allowedSenders, decodeHtml, inboxAddress, isAllowedSender, isAuthenticated, newInboxToken, parseTicketEmail, senderDomain, tokenFromRecipients } from './ticket-inbox'
 
 // Shaped on the real Fourvenues guestlist email (Opium, Jet Lag, 1 Oct 2026).
 const HTML = `
@@ -75,5 +75,30 @@ describe('decodeHtml', () => {
   })
   it('leaves plain html alone', () => {
     expect(decodeHtml('<b>hi</b>')).toBe('<b>hi</b>')
+  })
+})
+
+describe('sender checks', () => {
+  it('reads the sender domain from a display-named address', () => {
+    expect(senderDomain('Opium Barcelona <no-reply@Mail.Fourvenues.com>')).toBe('mail.fourvenues.com')
+    expect(senderDomain('bare@fourvenues.com')).toBe('fourvenues.com')
+    expect(senderDomain('nonsense')).toBeNull()
+  })
+  it('allows the domain and its subdomains, never a lookalike', () => {
+    const allowed = allowedSenders(undefined)
+    expect(isAllowedSender('fourvenues.com', allowed)).toBe(true)
+    expect(isAllowedSender('mail.fourvenues.com', allowed)).toBe(true)
+    expect(isAllowedSender('evilfourvenues.com', allowed)).toBe(false)
+    expect(isAllowedSender('fourvenues.com.evil.io', allowed)).toBe(false)
+    expect(isAllowedSender('gmail.com', allowed)).toBe(false)
+  })
+  it('reads the allow-list from env, with @ and spaces tolerated', () => {
+    expect(allowedSenders(' fourvenues.com, @sendgrid.net ')).toEqual(['fourvenues.com', 'sendgrid.net'])
+  })
+  it('needs DMARC, or SPF and DKIM together', () => {
+    expect(isAuthenticated({ dmarc: 'pass' })).toBe(true)
+    expect(isAuthenticated({ spf: 'pass', dkim: 'pass', dmarc: 'fail' })).toBe(true)
+    expect(isAuthenticated({ spf: 'pass', dkim: 'fail', dmarc: 'fail' })).toBe(false)
+    expect(isAuthenticated(null)).toBe(false)
   })
 })

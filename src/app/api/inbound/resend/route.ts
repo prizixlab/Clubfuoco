@@ -146,7 +146,8 @@ export async function POST(req: NextRequest) {
         type: 'partner_ticket_ready',
         title: `Your ticket for ${name} is ready`,
         body: "It's in Tickets — show the QR at the door.",
-        link: '/bookings',
+        // The app opens Tickets on this ticket; the web ignores the query.
+        link: `/bookings?ticket=${ticketId}`,
         push: 'clubfuoco',
       })
     }

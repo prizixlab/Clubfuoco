@@ -129,13 +129,37 @@ final class PromoterRepo: ObservableObject {
             .value
     }
 
+    /// Mark a guest in or out from the guestlist screen.
+    ///
+    /// Stamps `checked_in_source` as well as the time. It used to write the
+    /// timestamp alone, which made a promoter tapping a name on this screen
+    /// indistinguishable from a QR scanned at the door — the exact thing that
+    /// column exists to tell apart. A row with a check-in time and no source
+    /// could have come from anywhere, and on 30 Sep 2026 one sent a debugging
+    /// session chasing the geofence for a check-in that was a tap in this app.
+    ///
+    /// Drift-defensive, like the selects above: if `checked_in_source` is not in
+    /// this environment yet, fall back to stamping the time alone rather than
+    /// failing the tap.
     func toggleCheckIn(guestId: UUID, checkedIn: Bool) async throws {
-        struct Patch: Encodable { let checkedInAt: Date? }
-        try await sb.client
-            .from("promoter_guests")
-            .update(Patch(checkedInAt: checkedIn ? Date() : nil))
-            .eq("id", value: guestId)
-            .execute()
+        struct Patch: Encodable { let checkedInAt: Date?; let checkedInSource: String? }
+        struct LeanPatch: Encodable { let checkedInAt: Date? }
+        let now = checkedIn ? Date() : nil
+        do {
+            try await sb.client
+                .from("promoter_guests")
+                .update(Patch(checkedInAt: now, checkedInSource: checkedIn ? "promoter" : nil))
+                .eq("id", value: guestId)
+                .execute()
+        } catch {
+            guard "\(error)".range(of: "checked_in_source") != nil
+                    || "\(error)".range(of: "schema cache") != nil else { throw error }
+            try await sb.client
+                .from("promoter_guests")
+                .update(LeanPatch(checkedInAt: now))
+                .eq("id", value: guestId)
+                .execute()
+        }
     }
 
     func setGroupVisible(allocationId: UUID, visible: Bool) async throws {
@@ -215,7 +239,7 @@ final class PromoterRepo: ObservableObject {
 
     // MARK: - Series (permanent recurring links)
 
-    private static let webBase = "https://clubfuoco.com"
+    private static let webBase = WebHost.api
 
     struct NewSeries: Encodable {
         let promoterId: UUID

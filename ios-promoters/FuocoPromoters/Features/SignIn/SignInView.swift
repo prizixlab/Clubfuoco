@@ -78,7 +78,7 @@ struct SignInView: View {
                 Button {
                     Haptics.tap(); showSignUp = true
                 } label: {
-                    Text("Not a promoter? Apply →")
+                    Text("Don't have an account? Apply →")
                         .font(.cfMono(11))
                         .kerning(1.5)
                         .foregroundStyle(Theme.ember)

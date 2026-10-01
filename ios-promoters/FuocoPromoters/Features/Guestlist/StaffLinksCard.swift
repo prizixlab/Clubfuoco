@@ -14,7 +14,7 @@ struct StaffLinksCard: View {
     @State private var shareURL: ShareURL?
     @State private var blockedRemoval = false
 
-    private static let base = "https://clubfuoco.com/i/"
+    private static let base = "\(WebHost.brand)/i/"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

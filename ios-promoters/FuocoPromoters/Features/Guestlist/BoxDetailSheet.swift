@@ -329,7 +329,7 @@ struct SeriesDetailSheet: View {
                 dismiss(); onEdit()
             }
             Divider().background(Theme.hairline)
-            if let url = URL(string: "https://clubfuoco.com/i/\(series.inviteToken)") {
+            if let url = URL(string: "\(WebHost.brand)/i/\(series.inviteToken)") {
                 ShareLink(item: url) {
                     HStack(spacing: 12) {
                         Image(systemName: "square.and.arrow.up")

@@ -136,7 +136,7 @@ enum OfferError: LocalizedError {
 @MainActor
 final class OfferRepo {
     private let sb = SupabaseService.shared
-    private static let webBase = "https://clubfuoco.com"
+    private static let webBase = WebHost.api
 
     private static let decoder: JSONDecoder = {
         let d = JSONDecoder(); d.keyDecodingStrategy = .convertFromSnakeCase; return d

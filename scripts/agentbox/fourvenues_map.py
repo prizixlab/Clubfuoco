@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -106,6 +107,19 @@ def latest(con: sqlite3.Connection, run: int, code: str, endpoint: str):
         return None
 
 
+def first_time(s: str | None) -> str | None:
+    """'Hasta la(s) 01:30' / 'Until 1:30' → '01:30'; no time → None."""
+    m = re.search(r"(\d{1,2}):(\d{2})", s or "")
+    return f"{int(m.group(1)):02d}:{m.group(2)}" if m else None
+
+
+def strip_label(s: str | None) -> str | None:
+    """Drop Fourvenues' own 'Includes:' / 'Incluye:' lead-in."""
+    if not s:
+        return s
+    return re.sub(r"^\s*(?:includes|incluye|inclou|include|comprend)\s*:\s*", "", s, flags=re.I) or None
+
+
 def tickets(data: list, base: str) -> list[dict]:
     out = []
     for t in data or []:
@@ -135,15 +149,20 @@ def guestlists(data: list, base: str) -> list[dict]:
     for g in data or []:
         opts = g.get("options") or [{}]
         price = float(min((o.get("price") or 0) for o in opts))
-        window = " ".join(filter(None, [
-            clean(s.get("duration")) for s in g.get("summary") or []] + [
-            clean(s.get("until")) for s in g.get("summary") or []]))
-        includes = next((clean(o.get("content")) for o in opts if clean(o.get("content"))), None)
+        # The entry window. Fourvenues sends it as text in whatever language
+        # the page loaded in ("From 01:00" / "A partir de la(s) 01:00",
+        # "Until 01:30" / "Hasta la(s) 01:30") — keep only the times, and let
+        # the app say it in the guest's language.
+        summary = (g.get("summary") or [{}])[0] or {}
+        window = {"from": first_time(summary.get("duration")), "until": first_time(summary.get("until"))}
+        includes = next((clean(o.get("content")) for o in opts if clean(o.get("content"))), None) \
+            or strip_label(clean(summary.get("content")))
         out.append({
             "id": g["id"],
             "source": "guestlist",
             "name": clean(g.get("name")),
-            "detail": " · ".join(filter(None, [window or None, includes])),
+            "detail": includes,
+            "window": window if window["from"] or window["until"] else None,
             "price": price,
             "settle": "door" if price > 0 else "free",
             "door_verified": False,

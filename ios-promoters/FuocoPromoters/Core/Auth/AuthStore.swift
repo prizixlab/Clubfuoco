@@ -95,7 +95,7 @@ final class AuthStore: ObservableObject {
     /// locally on success so RootView returns to the sign-in screen.
     func deleteAccount() async throws {
         let token = try await sb.client.auth.session.accessToken
-        var req = URLRequest(url: URL(string: "https://clubfuoco.com/api/account/delete")!)
+        var req = URLRequest(url: URL(string: "\(WebHost.api)/api/account/delete")!)
         req.httpMethod = "POST"
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")

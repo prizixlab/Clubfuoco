@@ -31,6 +31,17 @@ final class NotificationForegroundDelegate: NSObject, UNUserNotificationCenterDe
             )
         } else if info["kind"] as? String == "morning_after_test" {
             NotificationCenter.default.post(name: .cfMorningAfterTapped, object: nil)
+        } else if let link = info["link"] as? String, link.hasPrefix("/bookings") {
+            // "Your ticket is ready" → open Tickets on that ticket. Stored on
+            // the store, not posted, so a cold launch from the push still
+            // lands once the tab bar exists.
+            let ticket = URLComponents(string: link)?.queryItems?
+                .first { $0.name == "ticket" }?.value.flatMap(UUID.init(uuidString:))
+            Task { @MainActor in
+                let store = FVTicketStore.shared
+                if let ticket { store.focus = .server(ticket) }
+                store.wantsTicketsTab = true
+            }
         }
         completionHandler()
     }

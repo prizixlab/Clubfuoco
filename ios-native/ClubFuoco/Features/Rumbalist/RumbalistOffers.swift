@@ -6,7 +6,7 @@ import Foundation
 struct RumbalistOffer: Identifiable, Hashable {
     enum Kind { case freeGuestlist, vipTable }
 
-    let id = UUID()
+    var id = UUID()
     let kind: Kind
     let title: String          // "Free Guestlist" / "VIP Table"
     let subtitle: String       // e.g. "Free till 1:00 AM"
@@ -27,6 +27,10 @@ struct RumbalistOffer: Identifiable, Hashable {
     /// Paid front-screen promotion — pins this offer's venue into the hero tier
     /// (see ShelfBuilder). nil/false for ordinary offers and bundled fallback.
     var featured: Bool = false
+    /// Set when this guestlist is a free list on our Fourvenues (HypeList)
+    /// channel. It runs on exactly one night, and booking it goes through the
+    /// background sign-up (FVEventSheet), not /api/rumbalist/join-guestlist.
+    var fourvenues: FVOfferRef? = nil
 
     var isVip: Bool { kind == .vipTable }
     /// Is this offer actually running on `date` ("yyyy-MM-dd")?
@@ -40,6 +44,7 @@ struct RumbalistOffer: Identifiable, Hashable {
     /// live offers.) CLIENT-SIDE ONLY: booking enforcement stays server-side
     /// in offerRunsOn() (src/lib/partner.ts).
     func liveOn(_ date: String) -> Bool {
+        if let fv = fourvenues { return fv.event.night == date && !fv.soldOut }
         guard let weekday = Self.weekdayIndex(of: date) else { return false }
         return ValidDays.parse(validDays).contains(weekday) && runsOn(date)
     }
@@ -167,7 +172,22 @@ enum RumbalistOffers {
     }
 
     static func offers(for clubId: String) -> [RumbalistOffer] {
-        byClub[clubId.lowercased()] ?? []
+        let id = clubId.lowercased()
+        return (byClub[id] ?? []) + (fourvenuesByClub[id] ?? [])
+    }
+
+    /// Free HypeList lists from the Fourvenues feed, as guestlist offers keyed
+    /// by lowercased club id. Written by FVCatalog whenever its feed changes,
+    /// so every surface that shows a Guestlist picks them up.
+    nonisolated(unsafe) static var fourvenuesByClub: [String: [RumbalistOffer]] = [:]
+
+    /// The offers to show for a club on one night. A partner's own free
+    /// guestlist wins: when one runs that night, HypeList's free list for the
+    /// same night is left out rather than listed twice.
+    static func live(for clubId: String, on date: String) -> [RumbalistOffer] {
+        let live = offers(for: clubId).filter { $0.liveOn(date) }
+        let partnerFree = live.contains { !$0.isVip && $0.fourvenues == nil }
+        return partnerFree ? live.filter { $0.fourvenues == nil } : live
     }
 
     // ── Backend feed ────────────────────────────────────────────────────────
@@ -238,6 +258,9 @@ enum RumbalistOffers {
     /// there, but ranking must never key off it.
     @MainActor
     static func fetchLive(api: APIClient) async -> [String: [RumbalistOffer]]? {
+        // Make sure HypeList's nights are loaded (from cache/bundle) before
+        // they're merged below — Explore can ask before anything else has.
+        _ = FVCatalog.shared
         guard let resp: Response = try? await api.get("/api/partner") else { return nil }
         brand = resp.brand?.model
         let mapped = resp.offersByClub.reduce(into: [String: [RumbalistOffer]]()) { acc, pair in
@@ -251,7 +274,11 @@ enum RumbalistOffers {
         // A FAILED request is the only case that keeps the last known set, and
         // that path returns nil above without touching anything.
         byClub = mapped
-        liveClubIds = Set(mapped.keys)
-        return mapped
+        // Ranking (Explore, When planner) sees HypeList's free nights as live
+        // deals too — each one is only live on its own night.
+        var withFV = mapped
+        for (club, fv) in fourvenuesByClub { withFV[club, default: []] += fv }
+        liveClubIds = Set(withFV.keys)
+        return withFV
     }
 }

@@ -54,8 +54,8 @@ struct ShareCardContent {
                      host: String?,
                      cover: UIImage?) -> ShareCardContent {
         let night = allocation.night
-        let url = URL(string: "https://clubfuoco.com/i/\(token)")
-            ?? URL(string: "https://clubfuoco.com")!
+        let url = URL(string: "\(WebHost.brand)/i/\(token)")
+            ?? URL(string: WebHost.brand)!
         return ShareCardContent(
             title: night?.displayTitle ?? "Guestlist",
             venue: night?.venueName ?? "",

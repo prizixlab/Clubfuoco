@@ -76,6 +76,11 @@ struct MainTabView: View {
         .onChange(of: selection) {
             Task { await refreshBadges() }
         }
+        .onChange(of: FVTicketStore.shared.wantsTicketsTab, initial: true) { _, wants in
+            guard wants else { return }
+            selection = .tickets
+            FVTicketStore.shared.wantsTicketsTab = false
+        }
     }
 
     private func refreshBadges() async {

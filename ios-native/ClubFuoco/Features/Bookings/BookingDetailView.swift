@@ -46,13 +46,7 @@ struct BookingDetailView: View {
     /// Full token, grouped in fours so it can be read aloud or typed at the
     /// door when a scan fails.
     private var printedTokenGrouped: String? {
-        printedToken.map { token in
-            stride(from: 0, to: token.count, by: 4).map { offset -> String in
-                let start = token.index(token.startIndex, offsetBy: offset)
-                let end = token.index(start, offsetBy: min(4, token.count - offset))
-                return String(token[start..<end])
-            }.joined(separator: " ")
-        }
+        printedToken.map(TicketFormat.grouped)
     }
 
     /// Short handle for the header pill, where the full 32 characters won't fit.
@@ -92,6 +86,13 @@ struct BookingDetailView: View {
         .background(Theme.cream)
         .ignoresSafeArea(edges: .top)
         .toolbar(.hidden, for: .navigationBar)
+        // This is pushed now rather than presented as a cover, so the tab bar
+        // would otherwise sit under the ticket. Hidden here keeps the
+        // full-bleed look the cover gave it, with the back swipe on top.
+        .toolbar(.hidden, for: .tabBar)
+        // ...and hiding the navigation bar above is exactly what switches the
+        // back-swipe off, so put it back.
+        .interactivePopEnabled()
         .sheet(isPresented: $showHelp) { BookingHelpSheet(booking: booking) }
         .task { await firePassViewedIfAppropriate() }
     }
@@ -117,63 +118,26 @@ struct BookingDetailView: View {
 
     // ── Hero ──────────────────────────────────────────────────────────────────
 
+    private var data: TicketCardData { TicketCardData(booking: booking) }
+
     private var hero: some View {
-        ZStack(alignment: .top) {
-            Color(hex: 0x2A1F1A)
-                .overlay {
-                    if let url = booking.club?.coverImageUrl.flatMap(URL.init(string:)) {
-                        CachedAsyncImage(url: url) {
-                            $0.resizable().aspectRatio(contentMode: .fill)
-                        } placeholder: { Color(hex: 0x2A1F1A) }
-                    }
-                }
-                .frame(height: 340)
-                .clipped()
-                // Deep wine scrim: dark enough at the bottom for the title and
-                // for the QR card's shadow to sit on, clear at the middle so the
-                // venue photo still reads.
-                .overlay(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .black.opacity(0.55), location: 0.00),
-                            .init(color: .black.opacity(0.10), location: 0.34),
-                            .init(color: Color(hex: 0x4A1313).opacity(0.72), location: 0.78),
-                            .init(color: Color(hex: 0x2A1F1A).opacity(0.95), location: 1.00),
-                        ],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                )
-
-            VStack(spacing: 0) {
-                heroControls
-                Spacer(minLength: 0)
-                heroTitle
-            }
-            .padding(.horizontal, 20)
-            // Clears the status bar — the hero runs under it.
-            .padding(.top, 56)
-            .padding(.bottom, 62)
-        }
-        .frame(height: 340)
+        TicketHero(
+            data: data,
+            accent: accent,
+            attribution: brand?.attributionLabel,
+            codeLabel: printedTokenShort.map {
+                "\(locale.t("bookings.factTicket").uppercased()) · \($0)"
+            },
+            onBack: { dismiss() },
+            onHelp: { showHelp = true }
+        )
     }
 
-    private var heroControls: some View {
-        HStack(spacing: 10) {
-            circleButton("chevron.left") { Haptics.tap(); dismiss() }
-            Spacer(minLength: 8)
-            if let printedTokenShort {
-                Text("\(locale.t("bookings.factTicket").uppercased()) · \(printedTokenShort)")
-                    .font(.cfMono(9)).kerning(1.2)
-                    .foregroundStyle(.white.opacity(0.92))
-                    .lineLimit(1)
-                    .padding(.horizontal, 12).padding(.vertical, 7)
-                    .background(.black.opacity(0.34), in: .capsule)
-                    .overlay(Capsule().stroke(.white.opacity(0.16)))
-            }
-            Spacer(minLength: 8)
-            circleButton("questionmark") { Haptics.tap(); showHelp = true }
-        }
+    private func qrCard(_ token: String) -> some View {
+        TicketQRCard(token: token, printed: printedTokenGrouped)
     }
+
+    private var statsStrip: some View { TicketStatsStrip(data: data) }
 
     private func circleButton(_ system: String, _ run: @escaping () -> Void) -> some View {
         Button(action: run) {
@@ -185,112 +149,6 @@ struct BookingDetailView: View {
                 .overlay(Circle().stroke(.white.opacity(0.16)))
         }
         .buttonStyle(.plain)
-    }
-
-    private var heroTitle: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 8) {
-                Text(brand?.attributionLabel ?? locale.t("bookings.nightlife"))
-                    .font(.cfMono(9)).kerning(1.4)
-                    .foregroundStyle(.white.opacity(0.8))
-                    .lineLimit(1)
-                Spacer(minLength: 6)
-                statusBadge
-            }
-            Text(booking.club?.name ?? "—")
-                .font(.cfSerif(34, italic: true))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-                .minimumScaleFactor(0.7)
-            Text(heroMeta)
-                .font(.cfMono(9)).kerning(1.2)
-                .foregroundStyle(.white.opacity(0.78))
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var heroMeta: String {
-        [dateLabel.uppercased(), doorsLabel, booking.club?.neighborhood?.uppercased()]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-            .joined(separator: " · ")
-    }
-
-    private var statusBadge: some View {
-        let (key, color): (String, Color) = switch booking.status {
-        case "cancelled": ("bookings.statusCancelled", Color(hex: 0x888888))
-        case "pending":   ("bookings.statusPending", Theme.gold)
-        default:          ("bookings.statusConfirmed", accent)
-        }
-        return Text(locale.t(key).uppercased())
-            .font(.cfSans(9, weight: .semibold))
-            .kerning(0.8)
-            .foregroundStyle(color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(.black.opacity(0.34), in: .capsule)
-            .overlay(Capsule().stroke(color.opacity(0.35)))
-    }
-
-    // ── QR card (overlaps the hero) ───────────────────────────────────────────
-
-    private func qrCard(_ token: String) -> some View {
-        VStack(spacing: 14) {
-            Text(locale.t("bookings.atDoor").uppercased())
-                .font(.cfMono(9)).kerning(1.5)
-                .foregroundStyle(Theme.wine)
-            QRCodeView(token: token)
-                .frame(width: 208, height: 208)
-            if let printedTokenGrouped {
-                Text(printedTokenGrouped)
-                    .font(.cfMono(11)).kerning(1.2)
-                    .foregroundStyle(Theme.onQRSurface)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-                    .padding(.horizontal, 6)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 26)
-        .padding(.horizontal, 20)
-        // Always white with dark modules in both modes — door scanners read the
-        // physical contrast, not the appearance.
-        .background(Theme.qrSurface, in: .rect(cornerRadius: 20))
-        .shadow(color: Color(hex: 0x221E1A).opacity(0.16), radius: 18, y: 8)
-    }
-
-    // ── Facts strip ───────────────────────────────────────────────────────────
-
-    private var statsStrip: some View {
-        VStack(spacing: 0) {
-            Rectangle().fill(Theme.hairline).frame(height: 1)
-            HStack(alignment: .top, spacing: 10) {
-                statCell(locale.t("bookings.factDate"), dateLabel)
-                statCell(locale.t("bookings.factDoors"), doorsLabel)
-                statCell(locale.t("bookings.factGuests"), "\(booking.partySize)")
-                statCell(locale.t("bookings.factTicket"), ticketTypeLabel)
-            }
-            .padding(.vertical, 16)
-            Rectangle().fill(Theme.hairline).frame(height: 1)
-        }
-    }
-
-    private func statCell(_ label: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(label.uppercased())
-                .font(.cfMono(8)).kerning(1)
-                .foregroundStyle(Theme.fadedSand)
-                .lineLimit(1)
-            Text(value)
-                .font(.cfSerif(17))
-                .foregroundStyle(Theme.ink)
-                .lineLimit(2)
-                .minimumScaleFactor(0.65)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // ── Receipt ───────────────────────────────────────────────────────────────
@@ -522,20 +380,5 @@ struct BookingDetailView: View {
     }
 
     /// "Tonight" on the night itself, otherwise a short date.
-    private var dateLabel: String {
-        let parser = DateFormatter()
-        parser.dateFormat = "yyyy-MM-dd"
-        parser.timeZone = TimeZone(identifier: "Europe/Madrid")
-        guard let date = parser.date(from: booking.bookingDate) else { return booking.bookingDate }
-
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(identifier: "Europe/Madrid") ?? .current
-        if cal.isDateInToday(date) { return locale.t("bookings.tonight") }
-
-        let out = DateFormatter()
-        out.locale = Locale(identifier: locale.locale == "es" ? "es_ES" : "en_GB")
-        out.timeZone = cal.timeZone
-        out.setLocalizedDateFormatFromTemplate("EEE d MMM")
-        return out.string(from: date)
-    }
+    private var dateLabel: String { TicketFormat.dateLabel(booking.bookingDate, locale: locale) }
 }

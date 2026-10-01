@@ -11,11 +11,17 @@ struct BookingsView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(LocaleStore.self) private var locale
     @State private var model = BookingsViewModel()
-    @State private var qrBooking: Booking?
     @State private var detailBooking: Booking?
     @State private var openGroup: GroupListItem?
     @State private var reviewBooking: Booking?
     @State private var openInvite: InviteSummary?
+    @State private var openFourvenues: FVTicket?
+    /// The card lit up after a reveal (see revealFocus).
+    @State private var highlighted: UUID?
+    /// How the Tickets list is ordered — see sortMenu.
+    @AppStorage("tickets.sort") private var sortRaw = BookingsViewModel.Sort.event.rawValue
+    private var sort: BookingsViewModel.Sort { .init(rawValue: sortRaw) ?? .event }
+    @State private var onScreen = false
     /// A saved event reopened to pay for it — no guest row exists yet, so it
     /// goes through the normal claim sheet rather than the preclaimed path.
     @State private var savedInviteToken: String?
@@ -126,7 +132,9 @@ struct BookingsView: View {
         .sheet(isPresented: $showArrivalLocationSheet) {
             LocationPermissionSheet(mode: .arrival)
         }
+        .onDisappear { onScreen = false }
         .onAppear {
+            onScreen = true
             // Refresh when returning to the tab (e.g. after booking in Explore).
             // Silent — keeps showing current data while it reloads.
             if case .loaded = model.state {
@@ -138,26 +146,38 @@ struct BookingsView: View {
             NavigationStack { GroupDetailView(groupId: group.id, presentedModally: true) }
         }
         #endif
-        .sheet(item: $qrBooking) { booking in
-            qrSheet(booking)
-        }
-        .fullScreenCover(item: $detailBooking) { booking in
-            BookingDetailView(
-                booking: booking,
-                group: groupFor(booking),
-                canCancel: canCancel(booking),
-                onConfirmCancel: {
-                    detailBooking = nil
-                    Task { await model.cancel(booking, api: api, queries: auth.queries, locale: locale) }
-                },
-                onOpenGroup: { group in
-                    detailBooking = nil
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { openGroup = group }
-                },
-                onAttendanceChanged: {
-                    Task { await model.load(api: api, queries: auth.queries) }
-                }
-            )
+        // A PUSH, not a fullScreenCover. A cover is a modal: it has no back
+        // gesture, so the only way off the ticket was the chevron, and swiping
+        // in from the left edge did nothing. Pushing onto the Tickets tab's
+        // own NavigationStack hands the whole thing to UIKit — the interactive
+        // pop, the partial drag, releasing early to cancel — instead of us
+        // approximating it with a DragGesture.
+        //
+        // isPresented rather than item: `navigationDestination(item:)` wants a
+        // Hashable, and Booking is only Identifiable. Same shape ProfileView
+        // uses for its own pushes.
+        .navigationDestination(isPresented: Binding(
+            get: { detailBooking != nil },
+            set: { if !$0 { detailBooking = nil } }
+        )) {
+            if let booking = detailBooking {
+                BookingDetailView(
+                    booking: booking,
+                    group: groupFor(booking),
+                    canCancel: canCancel(booking),
+                    onConfirmCancel: {
+                        detailBooking = nil
+                        Task { await model.cancel(booking, api: api, queries: auth.queries, locale: locale) }
+                    },
+                    onOpenGroup: { group in
+                        detailBooking = nil
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { openGroup = group }
+                    },
+                    onAttendanceChanged: {
+                        Task { await model.load(api: api, queries: auth.queries) }
+                    }
+                )
+            }
         }
         .sheet(item: $openGroup, onDismiss: {
             // Reload so a just-answered invite drops out of the prompt and the
@@ -167,6 +187,7 @@ struct BookingsView: View {
             NavigationStack { GroupDetailView(groupId: group.id, presentedModally: true) }
                 .presentationDragIndicator(.visible)
         }
+        .sheet(item: $openFourvenues) { FVTicketDetailView(ticket: $0, justIssued: false) }
         .sheet(item: $openInvite, onDismiss: {
             Task { await model.load(api: api, queries: auth.queries) }
         }) { inv in
@@ -271,34 +292,38 @@ struct BookingsView: View {
                         .id(TopTab.reviews)
                 }
                 .scrollTargetLayout()
-                .background {
-                    GeometryReader { inner in
-                        Color.clear.preference(
-                            key: PagerProgressKey.self,
-                            value: -inner.frame(in: .named("ticketsPager")).minX / max(geo.size.width, 1)
-                        )
-                    }
-                }
+                .background(pagerProbe(width: geo.size.width))
             }
             .coordinateSpace(name: "ticketsPager")
-            // .viewAligned, not .paging: `scrollPosition(id:)` below is what the
-            // Reviews button drives, and it only takes effect on a scroll view
-            // whose targets come from `scrollTargetLayout()`. Under .paging the
-            // binding was written and then ignored — the tab state flipped, the
-            // pager never moved, and the slider (which reads the pager's own
-            // offset) stayed put, so the button looked dead. Each page is
-            // exactly the viewport width, so the feel is unchanged.
+            // .viewAligned, not .paging: programmatic scrolling only takes
+            // effect on a scroll view whose targets come from
+            // `scrollTargetLayout()`. Each page is exactly the viewport width,
+            // so the paging feel is unchanged.
             .scrollTargetBehavior(.viewAligned)
             .scrollIndicators(.hidden)
-            .onPreferenceChange(PagerProgressKey.self) { pageProgress = $0 }
             // ScrollViewReader, not `scrollPosition(id:)`. That binding was
             // written on every tap and the scroll view ignored it, so the pager
-            // never moved — and because the capsule is derived from the pager's
-            // own offset (below), it snapped straight back and the whole control
-            // read as dead. scrollTo drives the scroll view directly.
+            // never moved at all. scrollTo drives the scroll view directly.
+            //
+            // BOTH LINES BELOW ARE LOAD-BEARING. `pageProgress` is what the
+            // capsule and the label styling are drawn from, so a tap has to
+            // move it even if the probe stays silent through a programmatic
+            // scroll. Deleting the assignment as redundant is exactly what
+            // shipped a build where tapping Reviews changed the page and left
+            // the capsule sitting on Tickets.
+            //
+            // The two writers converge rather than fight: if the probe does
+            // report during this animation it is reporting the pager's true
+            // position, which is where the capsule belongs anyway.
+            // .snappy, not .easeInOut: easeInOut eases at BOTH ends, so a tap
+            // spends its first frames barely moving and reads as lag on a
+            // control that should feel instant. .snappy leaves immediately and
+            // settles without overshoot; extraBounce 0 keeps a segmented
+            // control from wobbling like a sheet.
             .onChange(of: tab) {
-                withAnimation(.easeInOut(duration: 0.28)) {
+                withAnimation(.snappy(duration: 0.22, extraBounce: 0)) {
                     proxy.scrollTo(tab, anchor: .leading)
+                    pageProgress = tab == .reviews ? 1 : 0
                 }
             }
             // A finger-swipe moves the pager without touching `tab`. Re-sync on
@@ -313,6 +338,33 @@ struct BookingsView: View {
         }
     }
 
+    /// Live horizontal position of the pager, 0 on Tickets and 1 on Reviews,
+    /// republished every frame a finger is dragging.
+    ///
+    /// `.onPreferenceChange` is attached to the PROBE, inside the scroll
+    /// content — not to the ScrollView from outside, which is what this used to
+    /// do and which never delivered a single update. That is why a tap moved
+    /// the capsule (the tap writes `pageProgress` by hand, below) while a swipe
+    /// moved the page and left the capsule behind: the only thing that could
+    /// have followed the finger was never being called.
+    ///
+    /// The shape here is copied deliberately from
+    /// `EventDetailView.scrollTracker`, the one offset probe in this app that
+    /// is known to work. If this needs touching again, keep the consumer on the
+    /// GeometryReader. iOS 18's `onScrollGeometryChange` would replace the
+    /// whole thing, but this app targets 17.
+    private func pagerProbe(width: CGFloat) -> some View {
+        GeometryReader { inner in
+            Color.clear.preference(
+                key: PagerProgressKey.self,
+                value: -inner.frame(in: .named("ticketsPager")).minX / max(width, 1)
+            )
+        }
+        .onPreferenceChange(PagerProgressKey.self) { p in
+            pageProgress = min(max(p, 0), 1)
+        }
+    }
+
     /// Segmented slider at the very top of Tickets. One wine capsule slides
     /// between the two labels, riding `pageProgress` so it tracks the swipe
     /// frame by frame. Reviews shows a badge with the pending count.
@@ -324,7 +376,12 @@ struct BookingsView: View {
                 let isActive = active == t
                 Button {
                     Haptics.tap()
-                    withAnimation(.easeInOut(duration: 0.22)) { tab = t }
+                    // No withAnimation here. Changing `tab` fires the onChange
+                    // in `list`, which animates the scroll and the capsule
+                    // together — wrapping this as well stacked a second
+                    // transaction on top of that one and the whole switch
+                    // dragged. One animation, owned by the thing that moves.
+                    tab = t
                 } label: {
                     HStack(spacing: 8) {
                         Text(t.label)
@@ -362,6 +419,7 @@ struct BookingsView: View {
     }
 
     private var ticketsList: some View {
+        ScrollViewReader { cards in
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 if !model.pendingInvites.isEmpty {
@@ -372,11 +430,19 @@ struct BookingsView: View {
                 SavedEventsSection { token in
                     savedInviteToken = token
                 }
-                if !model.tonight.isEmpty {
-                    section(locale.t("bookings.tonight"), items: model.tonight, tonight: true)
-                }
-                if !model.upcoming.isEmpty {
-                    section(locale.t("bookings.upcoming"), items: model.upcoming, tonight: false)
+                if sort == .booked {
+                    let recent = model.byBooked
+                    if !recent.isEmpty {
+                        section(locale.t("bookings.sortBookedTitle"), items: recent, tonight: false, sortable: true)
+                    }
+                } else {
+                    if !model.tonight.isEmpty {
+                        section(locale.t("bookings.tonight"), items: model.tonight, tonight: true, sortable: true)
+                    }
+                    if !model.upcoming.isEmpty {
+                        section(locale.t("bookings.upcoming"), items: model.byEvent(model.upcoming), tonight: false,
+                                sortable: model.tonight.isEmpty)
+                    }
                 }
                 // Nothing tonight/upcoming — show a real empty state instead of
                 // a bare "SHOW PAST" (which read as a bug).
@@ -416,6 +482,38 @@ struct BookingsView: View {
             .padding(.vertical, 16)
         }
         .refreshable { await model.load(api: api, queries: auth.queries) }
+        .task(id: revealKey) { await revealFocus(cards) }
+        }
+    }
+
+    /// Re-runs the reveal when there is something to reveal, the page comes
+    /// on screen, or a sync brings the pushed ticket onto the phone.
+    private var revealKey: String {
+        let store = FVTicketStore.shared
+        return "\(String(describing: store.focus))|\(store.tickets.count)|\(onScreen)"
+    }
+
+    private func revealFocus(_ cards: ScrollViewProxy) async {
+        let store = FVTicketStore.shared
+        guard onScreen, let focus = store.focus else { return }
+        let target: FVTicket? = switch focus {
+        case .local(let id): store.tickets.first { $0.id == id }
+        case .server(let sid): store.tickets.first { $0.serverId == sid }
+        }
+        // A pushed ticket can be on the account before it is on the phone —
+        // pull it now; the count change re-runs this.
+        guard let target else {
+            if case .server = focus { await FVAccountSync.sync(auth.queries.supabaseService) }
+            return
+        }
+        store.focus = nil
+        tab = .tickets
+        try? await Task.sleep(for: .milliseconds(300))
+        withAnimation(.snappy) { cards.scrollTo(target.id, anchor: .center) }
+        withAnimation(.easeOut(duration: 0.25)) { highlighted = target.id }
+        Haptics.success()
+        try? await Task.sleep(for: .seconds(2.4))
+        withAnimation(.easeOut(duration: 0.8)) { highlighted = nil }
     }
 
     @ViewBuilder private var reviewsList: some View {
@@ -552,10 +650,15 @@ struct BookingsView: View {
         .buttonStyle(.plain)
     }
 
-    private func section(_ title: String, items: [BookingsViewModel.Item], tonight: Bool) -> some View {
+    private func section(_ title: String, items: [BookingsViewModel.Item], tonight: Bool,
+                         sortable: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Kicker(title, color: tonight ? Theme.wine : Theme.fadedSand)
-                .padding(.horizontal, 20)
+            HStack {
+                Kicker(title, color: tonight ? Theme.wine : Theme.fadedSand)
+                Spacer()
+                if sortable { sortMenu }
+            }
+            .padding(.horizontal, 20)
 
             ForEach(items) { item in
                 switch item {
@@ -563,24 +666,76 @@ struct BookingsView: View {
                     // Only the first upcoming ticket carries the Wallet button
                     // (see the artboard) — on every card it becomes wallpaper.
                     TicketCard(
-                        booking: booking,
+                        data: TicketCardData(booking: booking),
                         group: groupFor(booking),
                         showWallet: booking.id == model.nextUpBookingID,
-                        onShowQR: { qrBooking = booking },
-                        onOpenGroup: { if let g = groupFor(booking) { openGroup = g } }
+                        onOpenGroup: { if let g = groupFor(booking) { openGroup = g } },
+                        onOpenDetail: { detailBooking = booking }
                     )
                     .padding(.horizontal, 20)
                 case .signup(let signup):
                     signupCard(signup)
                 case .ticket(let order):
                     ticketCard(order)
+                case .fourvenues(let t):
+                    TicketCard(
+                        data: TicketCardData(fourvenues: t),
+                        group: nil,
+                        showWallet: false,
+                        onOpenGroup: {},
+                        onOpenDetail: { openFourvenues = t }
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(Theme.gold, lineWidth: 2.5)
+                            .opacity(highlighted == t.id ? 1 : 0)
+                    }
+                    .id(t.id)
+                    .padding(.horizontal, 20)
                 case .invite(let inv):
-                    Button { openInvite = inv } label: { inviteCard(inv) }
-                        .buttonStyle(.plain)
+                    // The same card a booking gets. A claimed guestlist spot is
+                    // a ticket to the person holding it — same venue, same
+                    // night, same QR at the same door — so rendering it as a
+                    // one-line strip made it look like a leftover notification.
+                    // Its detail screen differs (InviteClaimView, which owns the
+                    // party and the friend slots), and that is what onOpenDetail
+                    // is for.
+                    TicketCard(
+                        data: TicketCardData(invite: inv),
+                        group: nil,
+                        showWallet: false,
+                        onOpenGroup: {},
+                        onOpenDetail: { openInvite = inv }
+                    )
+                    .padding(.horizontal, 20)
                 }
             }
             .padding(.horizontal, 20)
         }
+    }
+
+    /// The small button beside the first heading: event date or date booked.
+    private var sortMenu: some View {
+        Menu {
+            Picker(locale.t("bookings.sortBy"), selection: Binding(
+                get: { sortRaw },
+                set: { v in withAnimation(.snappy) { sortRaw = v } }
+            )) {
+                Label(locale.t("bookings.sortEvent"), systemImage: "calendar")
+                    .tag(BookingsViewModel.Sort.event.rawValue)
+                Label(locale.t("bookings.sortBooked"), systemImage: "clock.arrow.circlepath")
+                    .tag(BookingsViewModel.Sort.booked.rawValue)
+            }
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.stone)
+                .frame(width: 30, height: 30)
+                .background(Theme.surface.opacity(0.6), in: .circle)
+                .overlay(Circle().stroke(Theme.hairline))
+                .contentShape(.circle)
+        }
+        .accessibilityLabel(locale.t("bookings.sortBy"))
     }
 
     // ── Cards ─────────────────────────────────────────────────────────────────
@@ -694,44 +849,6 @@ struct BookingsView: View {
     /// Claimed promoter guestlist — rendered as a booking so it sits inline
     /// with the rest, but tagged with a gold "GUESTLIST" pill so it reads as a
     /// promoter pass rather than a paid reservation.
-    private func inviteCard(_ inv: InviteSummary) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 24))
-                .foregroundStyle(Theme.gold)
-                .frame(width: 28)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(locale.t("bookings.guestlistTag"))
-                        .font(.cfMono(8, weight: .semibold)).kerning(1)
-                        .foregroundStyle(Theme.ink)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Theme.gold, in: .capsule)
-                    if inv.checkedInAt != nil {
-                        statusChip("checked_in")
-                    }
-                }
-                Text(inv.eventTitle)
-                    .font(.cfSerif(18))
-                    .foregroundStyle(Theme.ink)
-                    .lineLimit(1)
-                Text([inv.venueName, formatDate(inv.nightDate),
-                      inv.plusOnes > 0 ? String(format: locale.t("bookings.partyOf"), inv.plusOnes + 1) : nil]
-                    .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
-                    .font(.cfSans(11.5))
-                    .foregroundStyle(Theme.fadedSand)
-                    .lineLimit(1)
-            }
-            Spacer()
-            Image(systemName: "qrcode")
-                .font(.system(size: 20))
-                .foregroundStyle(Theme.stone)
-        }
-        .padding(14)
-        .background(Theme.surface)
-        .clipShape(.rect(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.gold.opacity(0.35)))
-    }
 
     private func statusChip(_ status: String) -> some View {
         let (key, color): (String, Color) = switch status {
@@ -752,32 +869,6 @@ struct BookingsView: View {
 
     // ── Fullscreen QR ─────────────────────────────────────────────────────────
 
-    private func qrSheet(_ booking: Booking) -> some View {
-        VStack(spacing: 20) {
-            Kicker("CLUB FUOCO · \(booking.club?.name ?? "")")
-                .padding(.top, 32)
-
-            Text(formatDate(booking.bookingDate))
-                .font(.cfSerif(28))
-                .foregroundStyle(Theme.ink)
-
-            if let token = booking.doorToken {
-                QRCodeView(token: token)
-                    .frame(width: 260, height: 260)
-                    .padding(20)
-                    .background(Theme.qrSurface, in: .rect(cornerRadius: 20))
-            }
-
-            Text(locale.t("bookings.atDoor"))
-                .font(.cfSerif(16, italic: true))
-                .foregroundStyle(Theme.stone)
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-        .background(Theme.cream)
-        .presentationDetents([.large])
-    }
 
     private func formatDate(_ value: String) -> String {
         let parser = DateFormatter()
@@ -896,6 +987,7 @@ final class BookingsViewModel {
         case signup(GuestSignup)
         case ticket(TicketOrder)
         case invite(InviteSummary)   // claimed promoter guestlist
+        case fourvenues(FVTicket)    // HypeList night via Fourvenues
 
         var id: UUID {
             switch self {
@@ -903,6 +995,7 @@ final class BookingsViewModel {
             case .signup(let s): return s.id
             case .ticket(let t): return t.id
             case .invite(let i): return i.id
+            case .fourvenues(let t): return t.id
             }
         }
     }
@@ -948,6 +1041,15 @@ final class BookingsViewModel {
         // empty array, so real deletions still clear correctly.
         if let g = await groupList { groups = g.filter { $0.status != "cancelled" } }
         if let resp = await inviteResp { invites = resp.invites }
+        // HypeList tickets: pick up QRs the ticket inbox filed and tickets
+        // booked on another device.
+        // Unstructured: pull-to-refresh cancels its task when the list
+        // redraws, which killed the sync mid-fetch every time.
+        let supabase = queries.supabaseService
+        await Task { await FVAccountSync.sync(supabase) }.value
+        let today = todayString
+        let fv = FVTicketStore.shared.tickets
+        FVTrace.log("tickets page: \(fv.count) HypeList — tonight \(fv.filter { $0.night == today }.count), upcoming \(fv.filter { $0.night > today }.count) [\(fv.map { "\($0.eventCode)@\($0.night)" }.joined(separator: ","))]")
         // Re-sync background geofences against the fresh booking list — picks
         // up newly-booked nights and drops cancelled or past ones. No-op when
         // the user hasn't granted Always.
@@ -996,37 +1098,89 @@ final class BookingsViewModel {
         return list.filter { !booked.contains($0.allocation.night.id.uuidString.lowercased()) }
     }
 
+    // Invites are filed by DATE alone, exactly like bookings. They used to drop
+    // to Past the moment `checked_in_at` was set, so scanning someone in at the
+    // door took their ticket off Tonight while they were still standing in the
+    // club — and a booking scanned at the same door stayed put. The card already
+    // has a CHECKED IN state; that is what should show.
+    /// HypeList tickets live on the device (FVTicketStore), not in `data`, so
+    /// they show even when the bookings fetch fails. Filed by night like the rest.
+    private func fourvenues(_ keep: (String) -> Bool) -> [Item] {
+        FVTicketStore.shared.tickets.filter { keep($0.night) }
+            .sorted { $0.night < $1.night }.map(Item.fourvenues)
+    }
+
     var tonight: [Item] {
-        guard let data else { return [] }
         let today = todayString
-        return data.bookings.filter { $0.bookingDate == today && $0.status != "cancelled" }.map(Item.booking)
+        let fv = fourvenues { $0 == today }
+        guard let data else { return fv }
+        return fv + data.bookings.filter { $0.bookingDate == today && $0.status != "cancelled" }.map(Item.booking)
             + data.guestSignups.filter { $0.guestList?.eventDate == today && $0.checkedIn != true && $0.status != "cancelled" }.map(Item.signup)
             + data.ticketOrders.filter { $0.eventDate == today && $0.status != "payment_failed" }.map(Item.ticket)
-            + unbooked(invites).filter { $0.nightDate == today && $0.checkedInAt == nil }.map(Item.invite)
+            + unbooked(invites).filter { $0.nightDate == today }.map(Item.invite)
     }
 
     var upcoming: [Item] {
-        guard let data else { return [] }
         let today = todayString
-        return data.bookings.filter { $0.bookingDate > today && $0.status != "cancelled" }.map(Item.booking)
+        let fv = fourvenues { $0 > today }
+        guard let data else { return fv }
+        return fv + data.bookings.filter { $0.bookingDate > today && $0.status != "cancelled" }.map(Item.booking)
             + data.guestSignups.filter { ($0.guestList?.eventDate ?? "") > today && $0.checkedIn != true && $0.status != "cancelled" }.map(Item.signup)
             + data.ticketOrders.filter { $0.status != "payment_failed" && ($0.eventDate == nil || $0.eventDate! > today) }.map(Item.ticket)
-            + unbooked(invites).filter { $0.nightDate > today && $0.checkedInAt == nil }.map(Item.invite)
+            + unbooked(invites).filter { $0.nightDate > today }.map(Item.invite)
     }
 
     var past: [Item] {
-        guard let data else { return [] }
         let today = todayString
-        return data.bookings.filter { $0.bookingDate < today || $0.status == "cancelled" }.map(Item.booking)
+        let fv = fourvenues { $0 < today }
+        guard let data else { return fv }
+        return fv + data.bookings.filter { $0.bookingDate < today || $0.status == "cancelled" }.map(Item.booking)
             + data.guestSignups.filter { $0.guestList == nil || ($0.guestList?.eventDate ?? "") < today || $0.checkedIn == true || $0.status == "cancelled" }.map(Item.signup)
             + data.ticketOrders.filter { $0.status != "payment_failed" && ($0.eventDate ?? "9999") < today }.map(Item.ticket)
-            + invites.filter { $0.nightDate < today || $0.checkedInAt != nil }.map(Item.invite)
+            + invites.filter { $0.nightDate < today }.map(Item.invite)
     }
 
     var hasPast: Bool { !past.isEmpty }
 
     /// Newest created_at across upcoming items — drives the "re-ask once per
     /// new booking" arrival-prompt rule.
+    enum Sort: String { case event, booked }
+
+    /// The night an item is for (YYYY-MM-DD).
+    func eventDay(_ item: Item) -> String {
+        switch item {
+        case .booking(let b): b.bookingDate
+        case .signup(let s): s.guestList?.eventDate ?? ""
+        case .ticket(let t): String((t.eventDate ?? "").prefix(10))
+        case .invite(let i): i.nightDate
+        case .fourvenues(let t): t.night
+        }
+    }
+
+    /// When the item was booked, where known.
+    func bookedAt(_ item: Item) -> Date? {
+        switch item {
+        case .booking(let b): b.createdAt.flatMap(Self.parseISO)
+        case .signup(let s): s.createdAt.flatMap(Self.parseISO)
+        case .ticket(let t): t.createdAt.flatMap(Self.parseISO)
+        case .invite: nil
+        case .fourvenues(let t): t.createdAt
+        }
+    }
+
+    /// Soonest night first.
+    func byEvent(_ items: [Item]) -> [Item] {
+        items.enumerated().sorted {
+            let (a, b) = (eventDay($0.element), eventDay($1.element))
+            return a == b ? $0.offset < $1.offset : a < b
+        }.map(\.element)
+    }
+
+    /// Tonight and upcoming in one list, newest booking first.
+    var byBooked: [Item] {
+        (tonight + upcoming).sorted { (bookedAt($0) ?? .distantPast) > (bookedAt($1) ?? .distantPast) }
+    }
+
     var newestUpcomingCreation: Date? {
         let stamps: [String] = upcoming.compactMap {
             switch $0 {
@@ -1034,6 +1188,7 @@ final class BookingsViewModel {
             case .signup(let s):  s.createdAt
             case .ticket(let t):  t.createdAt
             case .invite:         nil
+            case .fourvenues:     nil
             }
         }
         return stamps.compactMap(Self.parseISO).max()

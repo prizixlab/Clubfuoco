@@ -12,6 +12,6 @@ import Foundation
 /// are paid, their nights are reviewed before publishing, and they receive
 /// personal data about guests.
 enum LegalLinks {
-    static let terms   = URL(string: "https://clubfuoco.com/legal/promoters/terms")!
-    static let privacy = URL(string: "https://clubfuoco.com/legal/promoters/privacy")!
+    static let terms   = URL(string: "\(WebHost.brand)/legal/promoters/terms")!
+    static let privacy = URL(string: "\(WebHost.brand)/legal/promoters/privacy")!
 }

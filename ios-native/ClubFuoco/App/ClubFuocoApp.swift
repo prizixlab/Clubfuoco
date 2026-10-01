@@ -38,11 +38,17 @@ struct ClubFuocoApp: App {
                     #endif
                     await RumbalistOffers.refresh(api: env.api)
                 }
+                // HypeList/Fourvenues nights, published hourly by agentbox.
+                .task { await FVContentRules.prepare() }
+                .task { await FVCatalog.shared.keepFresh() }
                 // Re-pull on foreground so a partner switch made in the portal
                 // shows up without a cold start.
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
                         Task { await RumbalistOffers.refresh(api: env.api) }
+                        Task { await FVCatalog.shared.refresh() }
+                        // A QR the ticket inbox filed while the app was away.
+                        Task { await FVAccountSync.sync(env.authStore.queries.supabaseService) }
                     }
                 }
             #if DEBUG

@@ -69,9 +69,11 @@ final class AppEnvironment {
                 guard claim.autoCheckin,
                       let lat = claim.lat, let lng = claim.lng,
                       let guestUUID = UUID(uuidString: claim.guestId) else { return nil }
-                let (from, until) = activeNightBounds(forDate: claim.nightDate,
-                                                      openTime: claim.openTime)
-                guard now < until else { return nil }
+                // No window, no fence. A claim whose date will not parse gets no
+                // geofence at all rather than one that is live immediately.
+                guard let (from, until) = activeNightBounds(forDate: claim.nightDate,
+                                                            openTime: claim.openTime),
+                      now < until else { return nil }
                 return .init(kind: .invite, id: guestUUID,
                              clubLat: lat, clubLng: lng,
                              activeFrom: from, activeUntil: until)
@@ -106,13 +108,25 @@ final class AppEnvironment {
 /// Same 2h-before / 8h-after window, but for a promoter-invite's date string
 /// (yyyy-MM-dd) + optional opening time. Falls back to 22:00 (matches the
 /// nightlife default the bookings version uses).
+///
+/// Returns NIL when the date will not parse. It used to fall back to `Date()`,
+/// which turned an unreadable date into "the night is open right now, for the
+/// next eight hours" — failing open on the only question this answers, and
+/// arming a geofence that could check a guest in on the wrong day. A window we
+/// cannot compute is not a window.
+///
+/// Locale is pinned to POSIX: `HH:mm` against a device locale with a
+/// non-Gregorian calendar or a 12-hour clock is exactly how a parse that works
+/// on the developer's phone fails on someone else's.
 @MainActor
-private func activeNightBounds(forDate ymd: String, openTime: String?) -> (Date, Date) {
+private func activeNightBounds(forDate ymd: String, openTime: String?) -> (Date, Date)? {
     let fmt = DateFormatter()
     fmt.dateFormat = "yyyy-MM-dd HH:mm"
+    fmt.locale = Locale(identifier: "en_US_POSIX")
+    fmt.calendar = Calendar(identifier: .gregorian)
     fmt.timeZone = TimeZone(identifier: "Europe/Madrid") ?? .current
     let hhmm = openTime.map { String($0.prefix(5)) } ?? "22:00"
-    let base = fmt.date(from: "\(ymd) \(hhmm)") ?? Date()
+    guard let base = fmt.date(from: "\(String(ymd.prefix(10))) \(hhmm)") else { return nil }
     return (base.addingTimeInterval(-2 * 3600), base.addingTimeInterval(8 * 3600))
 }
 

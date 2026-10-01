@@ -49,7 +49,7 @@ struct PassTheme: Decodable, Hashable {
 @MainActor
 final class PassThemeRepo {
     private let sb = SupabaseService.shared
-    private static let webBase = "https://clubfuoco.com"
+    private static let webBase = WebHost.api
 
     private static let decoder: JSONDecoder = {
         let d = JSONDecoder(); d.keyDecodingStrategy = .convertFromSnakeCase; return d
@@ -132,8 +132,10 @@ final class PassThemeRepo {
         req.setValue("Bearer \(try await sb.client.auth.session.accessToken)",
                      forHTTPHeaderField: "Authorization")
         req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        req.httpBody = body
 
+        // No `req.httpBody` here: the upload overload takes the body as its
+        // own argument and ignores the request's, so setting both just held
+        // six PNGs in memory twice.
         let (data, resp) = try await URLSession.shared.upload(for: req, from: body)
         let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
         guard (200...299).contains(code) else {

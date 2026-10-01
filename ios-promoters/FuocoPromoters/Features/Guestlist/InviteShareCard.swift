@@ -19,7 +19,7 @@ struct InviteShareCard: View {
         _visible = State(initialValue: allocation.groupVisible ?? true)
     }
 
-    private static let baseURL = "https://clubfuoco.com/i/"
+    private static let baseURL = "\(WebHost.brand)/i/"
 
     /// Permanent series token wins over the per-night allocation token.
     private var token: String? { tokenOverride ?? allocation.inviteToken }

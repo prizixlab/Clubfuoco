@@ -12,6 +12,9 @@ final class Queries: @unchecked Sendable {
         self.supabase = supabase
     }
 
+    /// For feature code that owns its own tables (FVAccountSync).
+    var supabaseService: SupabaseService { supabase }
+
     /// Mirror of getMe(): the signed-in user's `users` row.
     /// (`/api/auth/me` is cookie-only and 401s for Bearer requests — the
     /// web app's native path uses this exact direct query instead.)

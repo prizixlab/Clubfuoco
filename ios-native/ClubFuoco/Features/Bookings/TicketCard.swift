@@ -2,46 +2,60 @@ import SwiftUI
 
 /// The ticket on the Tickets tab, built to the "Ticket Card.html" artboard.
 ///
-/// One card serves two things deliberately: an event reservation and a plain
-/// venue booking. They share the hero, the perforation and the fact strip so
-/// they read as one family; what differs is what the hero says. An event leads
-/// with its OWN name and puts the venue underneath ("at Razzmatazz"), because
-/// the guest chose the night, not the room. A venue booking leads with the
-/// venue and puts its neighbourhood in the kicker.
+/// One card serves three things deliberately: an event reservation, a plain
+/// venue booking, and a promoter-guestlist invite somebody sent the guest. They
+/// share the hero, the perforation and the fact strip so they read as one
+/// family; what differs is what the hero says. An event leads with its OWN name
+/// and puts the venue underneath ("at Razzmatazz"), because the guest chose the
+/// night, not the room. A venue booking leads with the venue and puts its
+/// neighbourhood in the kicker.
 ///
-/// Event detail comes from `booking.event`, populated by the embedded
-/// `promoter_nights` row. Every field of it is optional — most bookings are not
-/// events — so each part is dropped rather than faked when absent.
+/// It reads a `TicketCardData`, not a Booking, which is what lets an invite
+/// through — to the guest holding it, a claimed guestlist spot IS a ticket, and
+/// it used to render as a one-line strip with a sparkle icon instead.
+///
+/// Every field of the data is optional bar the date. Most bookings are not
+/// events and an invite may have no club at all, so each part is dropped rather
+/// than faked when absent.
 struct TicketCard: View {
-    let booking: Booking
+    /// A night, whether it came from a booking the guest made or a promoter
+    /// guestlist invite they claimed. See TicketCardData.
+    let data: TicketCardData
     /// The friends' group this night belongs to, when it is one.
     let group: GroupListItem?
     /// Only the next ticket up carries the Wallet button, per the artboard —
     /// on every card it becomes wallpaper.
     let showWallet: Bool
-    let onShowQR: () -> Void
     let onOpenGroup: () -> Void
+    /// Opens BookingDetailView — receipt, venue, calendar, share and Cancel.
+    ///
+    /// When this card replaced the old one, the tap that opened the detail
+    /// screen was not carried over, and `detailBooking` in BookingsView was
+    /// left with nothing that ever assigned it. The fullScreenCover could not
+    /// present, so BookingDetailView, AttendanceCheckInCard, BookingHelpSheet
+    /// and CancelConfirmButton all became unreachable — there was no way to
+    /// cancel a booking in the app at all. Keep a route to it.
+    let onOpenDetail: () -> Void
 
     @Environment(LocaleStore.self) private var locale
 
-    private var isCancelled: Bool { booking.status == "cancelled" }
-    private var isCheckedIn: Bool { booking.checkedInAt != nil || booking.status == "used" }
-    private var isTonight: Bool { Self.isToday(booking.bookingDate) }
-    private var event: BookingEvent? { booking.event }
+    private var isCancelled: Bool { data.status == "cancelled" }
+    private var isCheckedIn: Bool { data.checkedInAt != nil || data.status == "used" }
+    private var isTonight: Bool { Self.isToday(data.date) }
 
     /// Title/subtitle swap: the event's name leads when there is one.
     private var headline: String {
-        event?.title ?? booking.club?.name ?? "—"
+        data.eventTitle ?? data.venueName ?? "—"
     }
     private var underline: String? {
-        if event?.title != nil, let venue = booking.club?.name {
+        if data.eventTitle != nil, let venue = data.venueName {
             return String(format: locale.t("bookings.atVenue"), venue)
         }
-        return booking.club?.neighborhood ?? booking.club?.address
+        return data.neighborhood ?? data.address
     }
     /// Hosts for an event, neighbourhood for a venue booking.
     private var kicker: String? {
-        event?.hostLine ?? booking.club?.neighborhood ?? locale.t("bookings.nightlife")
+        data.hostLine ?? data.neighborhood ?? locale.t("bookings.nightlife")
     }
 
     var body: some View {
@@ -57,6 +71,16 @@ struct TicketCard: View {
                 .stroke(borderColour, lineWidth: 1)
         )
         .opacity(isCancelled ? 0.62 : 1)
+        // The WHOLE card opens the ticket, picture and stub alike — tapping the
+        // photo but not the body underneath it is the kind of split nobody can
+        // guess at. The Wallet, "See who's going" and Manage rows are real
+        // Buttons inside this, so they still take their own taps first; only
+        // the dead space between them falls through to here.
+        .contentShape(Rectangle())
+        .onTapGesture {
+            Haptics.tap()
+            onOpenDetail()
+        }
     }
 
     /// Ember outline for tonight, a warm one for the next ticket up, hairline
@@ -74,7 +98,7 @@ struct TicketCard: View {
         ZStack {
             Explore.surface2
                 .overlay {
-                    if let url = booking.club?.coverImageUrl.flatMap(URL.init(string:)) {
+                    if let url = data.coverImageUrl.flatMap(URL.init(string:)) {
                         CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) }
                             placeholder: { Explore.surface2 }
                     }
@@ -111,6 +135,9 @@ struct TicketCard: View {
                         if group != nil { tag(locale.t("bookings.groupTag")) }
                         statusBadge
                     }
+                    // These are fixed-width now, so they must win the layout
+                    // against the kicker rather than being compressed into it.
+                    .layoutPriority(1)
                 }
 
                 Spacer(minLength: 0)
@@ -139,6 +166,8 @@ struct TicketCard: View {
         Text(text.uppercased())
             .font(.cfMono(8.5)).kerning(1.4)
             .foregroundStyle(Color(hex: 0xF6EEDD))
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(Color(hex: 0x080605).opacity(0.34), in: .capsule)
@@ -172,6 +201,13 @@ struct TicketCard: View {
             }
             Text(text.uppercased())
                 .font(.cfMono(8.5)).kerning(1.3)
+                // A status badge is two short words and must never break. The
+                // kicker capsule beside it asks for up to 206pt, which left
+                // this squeezed enough to wrap — "LIVE TONIGHT" rendered as
+                // "LIVE TONIG / HT". The kicker already truncates cleanly, so
+                // it is the one that should give way.
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
         .foregroundStyle(textColour)
         .padding(.horizontal, 9)
@@ -210,11 +246,25 @@ struct TicketCard: View {
                 .padding(.top, 12)
             }
 
+            if let owed = data.payAtDoor, owed > 0, !isCancelled, !isCheckedIn {
+                HStack(spacing: 8) {
+                    Image(systemName: "eurosign.circle.fill").font(.system(size: 16))
+                    Text("Pay €\(String(format: owed.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f" : "%.2f", owed)) at the door")
+                        .font(.cfSans(13.5, weight: .bold))
+                    Spacer(minLength: 0)
+                    Text("NOT PAID YET").font(.cfMono(8.5)).kerning(1.2)
+                }
+                .foregroundStyle(Color(hex: 0xFFF1E8))
+                .padding(.horizontal, 12).padding(.vertical, 10)
+                .background(Explore.ember, in: .rect(cornerRadius: 10))
+                .padding(.top, 13)
+            }
+
             qrRow.padding(.top, 13)
 
             if showWallet && !isCancelled && !isCheckedIn {
                 WalletPassButton(
-                    passPath: "/api/bookings/\(booking.id.uuidString.lowercased())/wallet",
+                    passPath: data.walletPath,
                     fullWidth: true
                 )
                 .padding(.top, 14)
@@ -238,6 +288,7 @@ struct TicketCard: View {
                 }
                 .padding(.top, 14)
             }
+
         }
         .padding(.init(top: 2, leading: 16, bottom: 16, trailing: 16))
         .background(Explore.surface)
@@ -249,17 +300,20 @@ struct TicketCard: View {
     /// rather than inventing one.
     private var factStrip: some View {
         HStack(alignment: .top, spacing: 10) {
-            fact(locale.t("bookings.factDate"), Self.shortDate(booking.bookingDate))
+            fact(locale.t("bookings.factDate"), Self.shortDate(data.date))
             fact(locale.t("bookings.factDoors"),
-                 event?.doorsLabel ?? "—",
-                 sub: event?.closesLabel.map { String(format: locale.t("bookings.till"), $0) })
-            fact(locale.t("bookings.factGuests"), "\(booking.partySize)")
+                 data.doorsLabel ?? "—",
+                 sub: data.closesLabel.map { String(format: locale.t("bookings.till"), $0) })
+            fact(locale.t("bookings.factGuests"), "\(data.guests)")
             fact(locale.t("events.entry"), entryLabel)
         }
     }
 
     private var entryLabel: String {
-        if let total = booking.totalAmount, total > 0 {
+        if let owed = data.payAtDoor, owed > 0 {
+            return "€\(String(format: "%.0f", owed)) door"
+        }
+        if let total = data.totalAmount, total > 0 {
             return "€\(String(format: "%.0f", total))"
         }
         return locale.t("rumbalist.free")
@@ -275,7 +329,10 @@ struct TicketCard: View {
                 .font(.cfDisplay(15))
                 .foregroundStyle(Explore.ink)
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                // 0.75 wasn't enough headroom for a date: "Wed 30 Sep" in a
+                // quarter of the card still overflowed and came out "Wed 30…",
+                // an ellipsis in a column whose whole job is the date.
+                .minimumScaleFactor(0.6)
             if let sub {
                 Text(sub)
                     .font(.cfMono(9)).kerning(0.7)
@@ -288,7 +345,8 @@ struct TicketCard: View {
 
     /// "Solomun, Nina Kraviz +3 more" — headliner emphasised, tail counted.
     private var lineupLine: AttributedString? {
-        guard let credits = event?.credits, !credits.isEmpty else { return nil }
+        let credits = data.credits
+        guard !credits.isEmpty else { return nil }
         var out = AttributedString(credits[0].name)
         out.foregroundColor = Explore.ink
         out.font = .cfSans(12.5, weight: .semibold)
@@ -307,41 +365,47 @@ struct TicketCard: View {
 
     private var qrRow: some View {
         HStack(spacing: 14) {
-            Button {
-                Haptics.tap()
-                onShowQR()
-            } label: {
-                Group {
-                    if let token = booking.doorToken {
-                        QRCodeView(token: token)
-                            .frame(width: 68, height: 68)
-                    } else {
-                        Image(systemName: "qrcode")
-                            .font(.system(size: 30))
-                            .foregroundStyle(Theme.onQRSurface.opacity(0.25))
-                            .frame(width: 68, height: 68)
-                    }
+            // Not a button. Tapping the QR used to raise its own sheet, which
+            // made it the one part of the card that did something different
+            // from the card. It is a thumbnail now and the tap falls through to
+            // the ticket, where the full-size scannable QR already lives.
+            Group {
+                if let token = data.doorToken {
+                    QRCodeView(token: token)
+                        .frame(width: 68, height: 68)
+                } else {
+                    Image(systemName: "qrcode")
+                        .font(.system(size: 30))
+                        .foregroundStyle(Theme.onQRSurface.opacity(0.25))
+                        .frame(width: 68, height: 68)
                 }
-                .padding(7)
-                // Fixed white in both appearances — a scanner needs the quiet
-                // zone, so this surface never follows the theme.
-                .background(Theme.qrSurface, in: .rect(cornerRadius: 11))
-                .grayscale(isCancelled ? 1 : 0)
-                .opacity(isCancelled ? 0.45 : 1)
             }
-            .disabled(isCancelled || booking.doorToken == nil)
+            .padding(7)
+            // Fixed white in both appearances — a scanner needs the quiet
+            // zone, so this surface never follows the theme.
+            .background(Theme.qrSurface, in: .rect(cornerRadius: 11))
+            .grayscale(isCancelled ? 1 : 0)
+            .opacity(isCancelled ? 0.45 : 1)
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(locale.t("rumbalist.reference").uppercased())
                     .font(.cfMono(8)).kerning(1.5)
                     .foregroundStyle(Explore.ink3)
                     .padding(.bottom, 5)
-                if let reference = booking.qrCodeToken {
+                if let reference = data.reference {
                     // Never truncated — see the note in ReservedSheet. Wraps
                     // instead, because the code is the thing support asks for.
+                    //
+                    // It shrinks before it wraps, though. Bookings carry two
+                    // shapes of token: an 11-char "CF-XXXXXXXX" reference, and
+                    // a raw 36-char UUID from generateQRToken. The long one
+                    // broke mid-group in this narrow column ("…-3E29835 /
+                    // 5DE5F"), which reads as a rendering fault rather than a
+                    // code. Scaling down keeps the hyphen groups intact.
                     Text(reference.uppercased())
                         .font(.cfMono(10.5)).kerning(0.4)
                         .foregroundStyle(Explore.ink)
+                        .minimumScaleFactor(0.7)
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
                 }

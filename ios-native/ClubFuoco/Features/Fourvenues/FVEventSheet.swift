@@ -323,17 +323,58 @@ struct FVEventSheet: View {
         }
     }
 
-    /// Every way in, as a radio list. Hidden behind a single row when the guest
-    /// came for one thing and there's nothing else to choose between.
+    /// Every way in, in three plain tiers so the difference reads at a glance:
+    /// the free guestlist first (one tap), then paid entry — each saying what
+    /// it includes — then VIP tables.
     private var waysCard: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(waysIn.enumerated()), id: \.element.id) { i, p in
-                if i > 0 { Rectangle().fill(Self.veil(0.08)).frame(height: 1) }
-                wayRow(p)
+        let tiers: [(String, [FVProduct])] = [
+            (locale.t("fv.sectionFree"), waysIn.filter { $0.settle == .free }),
+            (locale.t("fv.sectionAdmission"), waysIn.filter { $0.settle == .online || $0.settle == .door }),
+            (locale.t("fv.sectionVip"), waysIn.filter { $0.settle == .table }),
+        ]
+        return VStack(alignment: .leading, spacing: 14) {
+            ForEach(tiers.filter { !$0.1.isEmpty }, id: \.0) { title, products in
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(title.uppercased())
+                        .font(.cfMono(10)).kerning(1.6)
+                        .foregroundStyle(Self.text.opacity(0.55))
+                        .padding(.leading, 4)
+                    VStack(spacing: 0) {
+                        ForEach(Array(products.enumerated()), id: \.element.id) { i, p in
+                            if i > 0 { Rectangle().fill(Self.veil(0.08)).frame(height: 1) }
+                            wayRow(p)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .background(Self.veil(0.05), in: .rect(cornerRadius: 14))
+                }
             }
         }
-        .padding(.horizontal, 14)
-        .background(Self.veil(0.05), in: .rect(cornerRadius: 14))
+    }
+
+    /// "Includes 1 drink + 1 shot", "Entry only", "Entry before 01:00".
+    private func perksLine(_ p: FVProduct) -> (what: String?, when: String?) {
+        let k = FVPerks(p.name)
+        var items: [String] = []
+        if k.openBar { items.append(locale.t("fv.perkOpenBar")) }
+        if k.drinks > 0 { items.append(k.drinks == 1 ? locale.t("fv.perkDrink") : String(format: locale.t("fv.perkDrinks"), k.drinks)) }
+        if k.shots > 0 { items.append(k.shots == 1 ? locale.t("fv.perkShot") : String(format: locale.t("fv.perkShots"), k.shots)) }
+        if k.beerOrSoft { items.append(locale.t("fv.perkBeer")) }
+        if k.bottle { items.append(locale.t("fv.perkBottle")) }
+        let what: String? = switch p.settle {
+        case .table: nil
+        case .free: items.isEmpty ? nil : String(format: locale.t("fv.perkIncludes"), items.joined(separator: " + "))
+        case .online, .door: items.isEmpty ? locale.t("fv.perkEntryOnly")
+            : String(format: locale.t("fv.perkIncludes"), items.joined(separator: " + "))
+        }
+        // The guestlist's own window first — it's data, not a guess from the name.
+        let when: String? = if let w = p.window, let f = w.from, let u = w.until { String(format: locale.t("fv.perkWindow"), f, u) }
+            else if let u = p.window?.until { String(format: locale.t("fv.perkBefore"), u) }
+            else if let f = p.window?.from { String(format: locale.t("fv.perkFrom"), f) }
+            else if let w = k.window { String(format: locale.t("fv.perkWindow"), w.0, w.1) }
+            else if let b = k.before { String(format: locale.t("fv.perkBefore"), b) }
+            else { nil }
+        return (what, when)
     }
 
     private func wayRow(_ p: FVProduct) -> some View {
@@ -349,11 +390,18 @@ struct FVEventSheet: View {
                     .foregroundStyle(on ? accent : Self.text.opacity(0.3))
                     .padding(.top, 1)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(FVText.pretty(p.name) ?? locale.t("rumbalist.titleFree"))
+                    Text(FVText.pretty(p.title(locale.locale)) ?? locale.t("rumbalist.titleFree"))
                         .font(.cfSans(14, weight: .semibold))
                         .foregroundStyle(Self.text)
                         .multilineTextAlignment(.leading)
-                    if let d = p.detail, !d.isEmpty {
+                    let perks = perksLine(p)
+                    if perks.what != nil || perks.when != nil {
+                        Text([perks.what, perks.when].compactMap { $0 }.joined(separator: " · "))
+                            .font(.cfSans(12, weight: .medium))
+                            .foregroundStyle(p.settle == .free ? accent : Self.text.opacity(0.8))
+                            .multilineTextAlignment(.leading)
+                    }
+                    if let d = p.info(locale.locale), !d.isEmpty {
                         Text(d.replacingOccurrences(of: "\n", with: " "))
                             .font(.cfSans(12))
                             .foregroundStyle(Self.text.opacity(0.55))
@@ -409,7 +457,7 @@ struct FVEventSheet: View {
                         Haptics.tap(); rate = r
                         quantity = Self.snap(quantity, to: r.sizes)
                     } label: {
-                        Text([r.name, r.price.euros, r.pax.flatMap { $0.max() }.map { String(format: locale.t("fv.upTo"), $0) }]
+                        Text([r.title(locale.locale), r.price.euros, r.pax.flatMap { $0.max() }.map { String(format: locale.t("fv.upTo"), $0) }]
                             .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
                             .font(.cfSans(13, weight: .medium))
                             .padding(.horizontal, 14).frame(height: 36)
@@ -432,7 +480,7 @@ struct FVEventSheet: View {
             }
             if let age = p.minAge ?? event.minAge { row(locale.t("fv.age")) { Text("\(age)+") } }
             if p.settle == .table, let rate {
-                if let d = rate.description, !d.isEmpty { row(rate.name ?? "", small: true) { Text(d).opacity(0.7) } }
+                if let d = rate.info(locale.locale), !d.isEmpty { row(rate.title(locale.locale) ?? "", small: true) { Text(d).opacity(0.7) } }
                 if rate.offersFullPayment, let dep = rate.depositAmount {
                     Picker(locale.t("fv.payChoice"), selection: $payInFull) {
                         Text(String(format: locale.t("fv.payDeposit"), dep.euros)).tag(false)
@@ -763,7 +811,8 @@ struct FVEventSheet: View {
         let t = FVTicket(
             eventCode: event.code, eventName: event.name, venue: event.venue, address: event.address,
             night: event.night, doors: event.doors, closes: event.closes, image: event.image,
-            productName: p.settle == .table ? "\(p.name ?? "Table") · \(rate?.name ?? "")" : p.name,
+            productName: p.settle == .table ? "\(p.title(locale.locale) ?? "Table") · \(rate?.title(locale.locale) ?? "")"
+                : p.title(locale.locale),
             settle: p.settle.rawValue, unitPrice: unitPrice, heads: heads,
             qrPayload: qr, pdfURL: pdf?.absoluteString)
         FVTicketStore.shared.add(t)

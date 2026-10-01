@@ -73,14 +73,24 @@ struct FVProduct: Decodable, Identifiable, Hashable {
     let checkout: String
     let rates: [FVRate]?
     let zonePage: String?
+    /// {"en": …, "es": …} — see FVLang. Missing until agentbox has them.
+    let nameI18n: [String: String]?
+    let detailI18n: [String: String]?
+    /// Guestlists: when entry is allowed ("from" / "until", "HH:mm").
+    let window: FVWindow?
 
     enum CodingKeys: String, CodingKey {
-        case id, source, name, detail, price, settle, min, max, checkout, rates
+        case id, source, name, detail, price, settle, min, max, checkout, rates, window
+        case nameI18n = "name_i18n"
+        case detailI18n = "detail_i18n"
         case soldOut = "sold_out"
         case fewLeft = "few_left"
         case minAge = "min_age"
         case zonePage = "zone_page"
     }
+
+    func title(_ locale: String) -> String? { FVLang.pick(nameI18n, name, locale) }
+    func info(_ locale: String) -> String? { FVLang.pick(detailI18n, detail, locale) }
 
     /// Anything that runs without the guest paying online can be done in the
     /// background: free entry and pay-at-the-door lists.
@@ -113,12 +123,19 @@ struct FVRate: Decodable, Identifiable, Hashable {
     let description: String?
     /// The venue lets the guest pay the whole table now instead of the deposit.
     let fullPayment: Bool?
+    let nameI18n: [String: String]?
+    let descriptionI18n: [String: String]?
 
     enum CodingKeys: String, CodingKey {
         case id, name, price, pax, deposit, description
         case depositType = "deposit_type"
         case fullPayment = "full_payment"
+        case nameI18n = "name_i18n"
+        case descriptionI18n = "description_i18n"
     }
+
+    func title(_ locale: String) -> String? { FVLang.pick(nameI18n, name, locale) }
+    func info(_ locale: String) -> String? { FVLang.pick(descriptionI18n, description, locale) }
 
     /// What the deposit comes to in euros.
     var depositAmount: Double? {
@@ -197,7 +214,7 @@ final class FVCatalog {
             let club = String(key.split(separator: "|")[0])
             let rooms = list.sorted { $0.0.startsAt < $1.0.startsAt }
             let (e, p) = rooms.first { !$0.1.soldOut } ?? rooms[0]
-            let till = FVText.freeWindow([p.name, p.detail]).map { "free till \($0)" }
+            let till = (p.window?.until ?? FVText.freeWindow([p.name, p.detail])).map { "free till \($0)" }
                 ?? e.doors.map { "doors \($0)" }
             let name = [FVText.pretty(e.name), rooms.count > 1 ? "+ \(rooms.count - 1) more" : nil]
                 .compactMap { $0 }.joined(separator: " ")
@@ -379,5 +396,76 @@ enum FVText {
         var min = "00"
         if m.range(at: 2).location != NSNotFound, let r = Range(m.range(at: 2), in: hay) { min = String(hay[r]) }
         return String(format: "%02d:%@", h, min)
+    }
+}
+
+/// What an entry includes, read from Fourvenues' product name — "Entrada | 1
+/// Copa + 1 Chupito (ANTES DE LA 01H)", "EARLY ACCESS +2 DRINKS (ENTRY BEFORE
+/// 01:30)", "LISTA de 01:00-01:30". Their names are the only place this lives,
+/// in Spanish, English or Catalan; this turns them into "1 drink + 1 shot ·
+/// entry before 01:00" so free, paid and paid-with-a-drink read differently.
+struct FVPerks: Equatable {
+    var drinks = 0
+    var shots = 0
+    var beerOrSoft = false
+    var bottle = false
+    var openBar = false
+    /// "01:30" — entry must be before this.
+    var before: String?
+    /// ("19:00", "20:00") — entry within this window.
+    var window: (String, String)?
+
+    static func == (a: FVPerks, b: FVPerks) -> Bool {
+        a.drinks == b.drinks && a.shots == b.shots && a.beerOrSoft == b.beerOrSoft && a.bottle == b.bottle
+            && a.openBar == b.openBar && a.before == b.before && a.window?.0 == b.window?.0 && a.window?.1 == b.window?.1
+    }
+
+    var includesSomething: Bool { drinks > 0 || shots > 0 || beerOrSoft || bottle || openBar }
+
+    init(_ raw: String?) {
+        let s = (raw ?? "").folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil).lowercased()
+        func first(_ pattern: String) -> [String]? {
+            guard let re = try? NSRegularExpression(pattern: pattern),
+                  let m = re.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)) else { return nil }
+            return (0..<m.numberOfRanges).map { i in
+                Range(m.range(at: i), in: s).map { String(s[$0]) } ?? ""
+            }
+        }
+        let drinkWord = #"(?:copas?|drinks?|consumicio(?:n|ns|nes)?|bebidas?|cubatas?)"#
+        if let m = first(#"(\d+)\s*"# + drinkWord) { drinks = Int(m[1]) ?? 1 }
+        else if first(#"\b"# + drinkWord + #"\b"#) != nil { drinks = 1 }
+        if let m = first(#"(\d+)\s*(?:chupitos?|chupis?|shots?)"#) { shots = Int(m[1]) ?? 1 }
+        else if first(#"\b(?:chupitos?|chupis?|shots?)\b"#) != nil { shots = 1 }
+        beerOrSoft = first(#"\b(?:cerveza|cervesa|refresco|beer|soft drink)\b"#) != nil
+        bottle = first(#"\b(?:botella|ampolla|bottle)\b"#) != nil
+        openBar = first(#"\b(?:barra libre|open bar|barra lliure)\b"#) != nil
+
+        func hhmm(_ h: String, _ m: String) -> String {
+            String(format: "%02d:%@", Int(h) ?? 0, m.isEmpty ? "00" : m)
+        }
+        // "de 19:00-20:00", "19h-20:30h", "01:00 a 01:30"
+        if let m = first(#"(\d{1,2})(?::(\d{2}))?\s*h?\s*(?:-|–|\ba\b)\s*(\d{1,2})(?::(\d{2}))\s*h?"#)
+            ?? first(#"(\d{1,2})(?::(\d{2}))?\s*h\s*(?:-|–)\s*(\d{1,2})(?::(\d{2}))?\s*h"#) {
+            window = (hhmm(m[1], m[2]), hhmm(m[3], m[4]))
+        } else if let m = first(#"(?:hasta|antes|before|till|until|fins|abans)\s*(?:de\s*)?(?:la\s|las\s|les\s|the\s)?\s*(\d{1,2})(?:[:.](\d{2}))?"#) {
+            before = hhmm(m[1], m[2])
+        }
+    }
+}
+
+struct FVWindow: Decodable, Hashable {
+    let from: String?
+    let until: String?
+}
+
+/// One language per guest. Promoters write in Spanish, English, Catalan or
+/// both; agentbox (fourvenues_i18n.py) splits and translates every text into
+/// {"en", "es"}. Spanish phones get Spanish; everyone else gets English, the
+/// fallback for any language we don't carry. If neither is there yet, the
+/// promoter's original text.
+enum FVLang {
+    static func pick(_ i18n: [String: String]?, _ raw: String?, _ locale: String) -> String? {
+        let lang = locale == "es" ? "es" : "en"
+        return i18n?[lang] ?? i18n?["en"] ?? raw
     }
 }

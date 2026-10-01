@@ -17,11 +17,14 @@ struct FVEventSheet: View {
     /// Every room at this club with a free list tonight. More than one →
     /// a room picker; the Guestlist card covers them all as one offer.
     var rooms: [FVEvent] = []
+    /// Opened from one of the three buttons: only that tier's ways in.
+    var tier: FVTier? = nil
 
-    init(event: FVEvent, initial: FVProduct? = nil, rooms: [FVEvent] = []) {
+    init(event: FVEvent, initial: FVProduct? = nil, rooms: [FVEvent] = [], tier: FVTier? = nil) {
         self.opened = event
         self.initial = initial
         self.rooms = rooms
+        self.tier = tier
     }
 
     @State private var room: FVEvent?
@@ -37,6 +40,8 @@ struct FVEventSheet: View {
     @State private var rate: FVRate?
     /// Tables whose venue allows it: pay the whole table now, not the deposit.
     @State private var payInFull = false
+    /// Fourvenues' own summary for what's selected — subtotal, fee, total.
+    @State private var quote: FVQuote?
     @State private var quantity = 1
     @State private var runner: FVFormRunner?
     @State private var working = false
@@ -96,7 +101,7 @@ struct FVEventSheet: View {
     /// Every way in, cheapest-to-commit first: free, door, ticket, table.
     private var waysIn: [FVProduct] {
         let order: [Settle] = [.free, .door, .online, .table]
-        return event.products.sorted {
+        return event.products.filter { tier?.includes($0) ?? true }.sorted {
             let a = order.firstIndex(of: $0.settle) ?? 9, b = order.firstIndex(of: $1.settle) ?? 9
             return a == b ? $0.price < $1.price : a < b
         }
@@ -267,8 +272,8 @@ struct FVEventSheet: View {
                         let want = selected?.settle ?? .free
                         withAnimation(.snappy(duration: 0.2)) {
                             room = r
-                            let pick = r.products.first { $0.settle == want && !$0.soldOut }
-                                ?? r.products.first { !$0.soldOut }
+                            let pick = r.products.first { (tier?.includes($0) ?? ($0.settle == want)) && !$0.soldOut }
+                                ?? r.products.first { (tier?.includes($0) ?? true) && !$0.soldOut }
                             if let pick { choose(pick) } else { selected = nil }
                         }
                     } label: {
@@ -335,10 +340,13 @@ struct FVEventSheet: View {
         return VStack(alignment: .leading, spacing: 14) {
             ForEach(tiers.filter { !$0.1.isEmpty }, id: \.0) { title, products in
                 VStack(alignment: .leading, spacing: 7) {
-                    Text(title.uppercased())
-                        .font(.cfMono(10)).kerning(1.6)
-                        .foregroundStyle(Self.text.opacity(0.55))
-                        .padding(.leading, 4)
+                    // One tier (opened from its own button) needs no heading.
+                    if tier == nil {
+                        Text(title.uppercased())
+                            .font(.cfMono(10)).kerning(1.6)
+                            .foregroundStyle(Self.text.opacity(0.55))
+                            .padding(.leading, 4)
+                    }
                     VStack(spacing: 0) {
                         ForEach(Array(products.enumerated()), id: \.element.id) { i, p in
                             if i > 0 { Rectangle().fill(Self.veil(0.08)).frame(height: 1) }
@@ -481,26 +489,52 @@ struct FVEventSheet: View {
             if let age = p.minAge ?? event.minAge { row(locale.t("fv.age")) { Text("\(age)+") } }
             if p.settle == .table, let rate {
                 if let d = rate.info(locale.locale), !d.isEmpty { row(rate.title(locale.locale) ?? "", small: true) { Text(d).opacity(0.7) } }
-                if rate.offersFullPayment, let dep = rate.depositAmount {
+                if rate.offersFullPayment, let dep = quote?.deposit ?? rate.depositAmount {
+                    let full = quote?.full ?? quote?.total ?? rate.price
                     Picker(locale.t("fv.payChoice"), selection: $payInFull) {
                         Text(String(format: locale.t("fv.payDeposit"), dep.euros)).tag(false)
-                        Text(String(format: locale.t("fv.payFull"), rate.price.euros)).tag(true)
+                        Text(String(format: locale.t("fv.payFull"), full.euros)).tag(true)
                     }
                     .pickerStyle(.segmented)
                     .padding(.vertical, 8)
                     .disabled(working)
-                    if !payInFull {
-                        row(locale.t("fv.restLater"), small: true) { Text((rate.price - dep).euros).opacity(0.7) }
-                    }
-                } else if let dep = rate.depositLabel {
+                } else if quote == nil, let dep = rate.depositLabel {
                     row(locale.t("fv.deposit")) { Text(dep) }
                 }
             }
             Rectangle().fill(Self.veil(0.08)).frame(height: 1).padding(.vertical, 3)
-            row(locale.t("rumbalist.total"), bold: true) { Text(totalText(p)) }
+            priceRows(p)
         }
         .padding(.init(top: 10, leading: 16, bottom: 10, trailing: 16))
         .background(Self.veil(0.05), in: .rect(cornerRadius: 14))
+    }
+
+    /// Subtotal, fees and the total actually charged — Fourvenues' figures
+    /// once the page has reported them; our estimate (marked "+ fees") until.
+    @ViewBuilder private func priceRows(_ p: FVProduct) -> some View {
+        if p.settle == .table, let q = quote, let total = q.total {
+            let canSplit = rate?.offersFullPayment == true || (q.deposit ?? total) < total
+            let inFull = payInFull || !canSplit || q.deposit == nil
+            let now = inFull ? (q.full ?? total) : (q.deposit ?? total)
+            let fee = (inFull ? q.fullFee : q.depositFee) ?? 0
+            row(locale.t("fv.tableTotal")) { Text(total.euros) }
+            if !inFull { row(locale.t("fv.depositNow")) { Text(now.euros) } }
+            row(locale.t("fv.fees")) { Text(fee.euros) }
+            row(locale.t("fv.payNow"), bold: true) { Text((now + fee).euros) }
+            if !inFull, total - now > 0.009 {
+                row(locale.t("fv.restLater"), small: true) { Text((total - now).euros).opacity(0.7) }
+            }
+        } else if p.settle == .online, let q = quote, let total = q.total {
+            row(locale.t("fv.subtotal")) { Text((q.subtotal ?? total - (q.fee ?? 0)).euros) }
+            row(locale.t("fv.fees")) { Text((q.fee ?? 0).euros) }
+            row(locale.t("rumbalist.total"), bold: true) { Text(total.euros) }
+        } else if p.settle == .online || p.settle == .table {
+            row(locale.t("rumbalist.total"), bold: true) {
+                Text(totalText(p) + " " + locale.t("fv.plusFees")).opacity(0.85)
+            }
+        } else {
+            row(locale.t("rumbalist.total"), bold: true) { Text(totalText(p)) }
+        }
     }
 
     private func totalText(_ p: FVProduct) -> String {
@@ -691,7 +725,7 @@ struct FVEventSheet: View {
             let unit: Double
             if p.settle == .table {
                 guard let rate else { return }
-                formURL = p.tableURL(rate: rate, pax: quantity); unit = rate.price
+                formURL = p.tableURL(rate: rate, pax: quantity); unit = quote?.total ?? rate.price
             } else {
                 formURL = p.checkoutURL(quantity: quantity); unit = p.price
             }
@@ -711,11 +745,12 @@ struct FVEventSheet: View {
             do {
                 var extras = FVAttendee(profile: auth.profile)
                 extras.fullPayment = p.settle == .table && payInFull && rate?.offersFullPayment == true
+                if p.settle == .table { FVTrace.log("table payment: \(extras.fullPayment ? "in full" : "deposit")") }
                 let pay = try await r.payURL(url: formURL, name: name, email: email, phone: phone, extras: extras)
                 working = false
                 // A table on deposit: remember what was paid now, so the ticket
                 // shows the balance due at the venue.
-                let paidNow = p.settle == .table && !extras.fullPayment ? rate?.depositAmount : nil
+                let paidNow = p.settle == .table && !extras.fullPayment ? (quote?.deposit ?? rate?.depositAmount) : nil
                 checkout = CheckoutTarget(url: pay, product: p, heads: quantity, unitPrice: unit,
                                           paymentExpected: true, paidNow: paidNow)
             } catch FVFormRunner.Failure.rejected(let why) {
@@ -804,6 +839,14 @@ struct FVEventSheet: View {
         let r = runner ?? FVFormRunner()
         runner = r
         r.preload(url)
+        // Paid ways in: read the real price summary (fees, per-person table
+        // supplements) off the page as soon as it has loaded.
+        guard p.settle == .online || p.settle == .table else { quote = nil; return }
+        if quote != nil { quote = nil }
+        Task {
+            let q = await r.quote(for: url)
+            if r.loadedURL == url { quote = q }
+        }
     }
 
     @discardableResult

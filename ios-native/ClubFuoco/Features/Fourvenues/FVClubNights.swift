@@ -26,7 +26,10 @@ struct FVClubNights: View {
         VStack(spacing: 10) {
             ForEach(nights.prefix(6)) { card($0) }
         }
-        .sheet(item: $target) { FVEventSheet(event: $0.event, initial: $0.product) }
+        .sheet(item: $target) { t in
+            FVEventSheet(event: t.event, initial: t.product,
+                         tier: t.product.flatMap { p in FVTier.allCases.first { $0.includes(p) } })
+        }
     }
 
     /// Anything besides a free list: pay-at-door, tickets, tables.

@@ -469,3 +469,21 @@ enum FVLang {
         return i18n?[lang] ?? i18n?["en"] ?? raw
     }
 }
+
+/// The three ways in a guest chooses between, each its own button: the free
+/// guestlist, paid entry (fast pass, entry with drinks, pay at the door), and
+/// VIP tables. The event sheet opened from a button shows only that tier.
+enum FVTier: String, CaseIterable, Identifiable {
+    case free, paid, vip
+    var id: String { rawValue }
+
+    var settles: [Settle] {
+        switch self {
+        case .free: [.free]
+        case .paid: [.online, .door]
+        case .vip: [.table]
+        }
+    }
+
+    func includes(_ p: FVProduct) -> Bool { settles.contains(p.settle) }
+}

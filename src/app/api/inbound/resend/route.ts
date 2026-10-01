@@ -3,6 +3,7 @@ import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
 import { decodeHtml, parseTicketEmail, tokenFromRecipients } from '@/lib/ticket-inbox'
+import { notify } from '@/lib/notify'
 
 // POST /api/inbound/resend
 //
@@ -87,12 +88,26 @@ export async function POST(req: NextRequest) {
     const parsed = parseTicketEmail(subject, html, text)
 
     let ticketId: string | null = null
+    let fresh = false
     if (parsed.codes.length && parsed.eventCode) {
-      ticketId = await fileTicket(sb, userId, parsed, from)
+      ({ id: ticketId, fresh } = await fileTicket(sb, userId, parsed, from))
+    }
+
+    // The QR just reached the account — tell the guest, once per ticket.
+    if (ticketId && fresh) {
+      const name = parsed.eventName ?? 'your night'
+      await notify({
+        user_id: userId,
+        type: 'partner_ticket_ready',
+        title: `Your ticket for ${name} is ready`,
+        body: "It's in Tickets — show the QR at the door.",
+        link: '/bookings',
+        push: 'clubfuoco',
+      })
     }
 
     // 6. Forward a copy whatever it was — it reached the user's address.
-    const forwarded = await forward(sb, userId, subject, html, text, from)
+    const forwarded = await forward(sb, userId, subject, html, text, from, parsed.eventName)
 
     await log({
       user_id: userId,
@@ -116,7 +131,7 @@ export async function POST(req: NextRequest) {
  */
 async function fileTicket(
   sb: Sb, userId: string, p: ReturnType<typeof parseTicketEmail>, from: string,
-): Promise<string | null> {
+): Promise<{ id: string; fresh: boolean }> {
   const code = p.codes[0]
   const pdf = p.pdfUrls.find(u => u.toUpperCase().includes(code)) ?? p.pdfUrls[0] ?? null
 
@@ -125,7 +140,7 @@ async function fileTicket(
     .select('id').eq('user_id', userId).eq('qr_payload', code).maybeSingle()
   if (same) {
     await sb.from('external_tickets').update({ pdf_url: pdf }).eq('id', same.id)
-    return same.id as string
+    return { id: same.id as string, fresh: false }
   }
 
   // The app's row for this event, still waiting for its QR — newest first.
@@ -134,7 +149,7 @@ async function fileTicket(
     .order('created_at', { ascending: false }).limit(1).maybeSingle()
   if (pending) {
     await sb.from('external_tickets').update({ qr_payload: code, pdf_url: pdf }).eq('id', pending.id)
-    return pending.id as string
+    return { id: pending.id as string, fresh: true }
   }
 
   // Email only (booked on another device before this existed, or the app was
@@ -154,27 +169,44 @@ async function fileTicket(
     source: 'email',
   }).select('id').single()
   if (error) throw new Error(`file ticket: ${error.message}`)
-  return row.id as string
+  return { id: row.id as string, fresh: true }
 }
 
 /** A copy to the account's real address, from our verified domain. */
 async function forward(
   sb: Sb, userId: string, subject: string, html: string, text: string, from: string,
+  eventName: string | null,
 ): Promise<boolean> {
   if (!resend) return false
   const { data: user } = await sb.from('users').select('email').eq('id', userId).maybeSingle()
   const to = (user as { email?: string | null } | null)?.email
   if (!to) return false
-  const banner = `<p style="font:13px -apple-system,sans-serif;color:#6E6356;margin:0 0 16px">
-    Your ticket is also saved in the Club Fuoco app, under Tickets.</p>`
+  const note = eventName
+    ? `Your ticket for ${escapeHtml(eventName)} is saved in the Club Fuoco app, under Tickets — the QR is there, ready for the door.`
+    : 'This came to your Club Fuoco ticket address. Anything we recognise as a ticket is saved in the app, under Tickets.'
+  // Club Fuoco's lockup above the platform's own email. Gold, never pink —
+  // the brand accent is #C09950.
+  const header = `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto 18px;padding:18px 20px;border-radius:14px;background:#F8F5EE;border:1px solid #E9E2D3">
+  <div style="font-size:11px;letter-spacing:3px;color:#C09950;font-weight:600">CLUB FUOCO</div>
+  <div style="font-size:14px;line-height:1.45;color:#221E1A;margin-top:8px">${note}</div>
+  <div style="font-size:11px;color:#9F9486;margin-top:8px">Below is the original email from ${escapeHtml(senderName(from))}.</div>
+</div>`
   const { error } = await resend.emails.send({
     from: FORWARD_FROM,
     to,
     subject,
-    html: html ? banner + html : undefined,
-    text: html ? undefined : `Your ticket is also saved in the Club Fuoco app, under Tickets.\n\n${text}`,
+    html: header + (html || `<pre style="font-family:inherit;white-space:pre-wrap">${escapeHtml(text)}</pre>`),
     replyTo: from || undefined,
   } as Parameters<typeof resend.emails.send>[0])
   if (error) console.warn('[inbound/resend] forward failed:', error.message)
   return !error
+}
+
+function senderName(from: string): string {
+  return from.match(/^\s*"?([^"<]+?)"?\s*</)?.[1]?.trim() ?? (from || 'the sender')
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 }

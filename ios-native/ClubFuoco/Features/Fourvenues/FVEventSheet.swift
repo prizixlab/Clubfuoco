@@ -35,6 +35,8 @@ struct FVEventSheet: View {
 
     @State private var selected: FVProduct?
     @State private var rate: FVRate?
+    /// Tables whose venue allows it: pay the whole table now, not the deposit.
+    @State private var payInFull = false
     @State private var quantity = 1
     @State private var runner: FVFormRunner?
     @State private var working = false
@@ -55,6 +57,7 @@ struct FVEventSheet: View {
         let heads: Int
         let unitPrice: Double
         let paymentExpected: Bool
+        var paidNow: Double? = nil
     }
 
     // Same adaptive palette as RumbalistOfferSheet.
@@ -140,12 +143,12 @@ struct FVEventSheet: View {
         }
         .onChange(of: selected) { _, _ in preload() }
         .onChange(of: quantity) { _, _ in preload() }
-        .onChange(of: rate) { _, _ in preload() }
+        .onChange(of: rate) { _, _ in payInFull = false; preload() }
         .fullScreenCover(item: $checkout) { target in
             FVCheckoutView(url: target.url, title: event.name ?? "Checkout",
                            paymentExpected: target.paymentExpected,
                            prefill: target.paymentExpected ? nil : account) { pdf in
-                Task { await capture(pdf: pdf, product: target.product, heads: target.heads, unitPrice: target.unitPrice) }
+                Task { await capture(pdf: pdf, product: target.product, heads: target.heads, unitPrice: target.unitPrice, paidNow: target.paidNow) }
             }
         }
         .sheet(item: $openTicket) { FVTicketDetailView(ticket: $0, justIssued: false) }
@@ -430,7 +433,20 @@ struct FVEventSheet: View {
             if let age = p.minAge ?? event.minAge { row(locale.t("fv.age")) { Text("\(age)+") } }
             if p.settle == .table, let rate {
                 if let d = rate.description, !d.isEmpty { row(rate.name ?? "", small: true) { Text(d).opacity(0.7) } }
-                if let dep = rate.depositLabel { row(locale.t("fv.deposit")) { Text(dep) } }
+                if rate.offersFullPayment, let dep = rate.depositAmount {
+                    Picker(locale.t("fv.payChoice"), selection: $payInFull) {
+                        Text(String(format: locale.t("fv.payDeposit"), dep.euros)).tag(false)
+                        Text(String(format: locale.t("fv.payFull"), rate.price.euros)).tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.vertical, 8)
+                    .disabled(working)
+                    if !payInFull {
+                        row(locale.t("fv.restLater"), small: true) { Text((rate.price - dep).euros).opacity(0.7) }
+                    }
+                } else if let dep = rate.depositLabel {
+                    row(locale.t("fv.deposit")) { Text(dep) }
+                }
             }
             Rectangle().fill(Self.veil(0.08)).frame(height: 1).padding(.vertical, 3)
             row(locale.t("rumbalist.total"), bold: true) { Text(totalText(p)) }
@@ -645,10 +661,15 @@ struct FVEventSheet: View {
             working = true
             FVTrace.log("pay tapped (\(event.code))")
             do {
-                let pay = try await r.payURL(url: formURL, name: name, email: email, phone: phone,
-                                             extras: FVAttendee(profile: auth.profile))
+                var extras = FVAttendee(profile: auth.profile)
+                extras.fullPayment = p.settle == .table && payInFull && rate?.offersFullPayment == true
+                let pay = try await r.payURL(url: formURL, name: name, email: email, phone: phone, extras: extras)
                 working = false
-                checkout = CheckoutTarget(url: pay, product: p, heads: quantity, unitPrice: unit, paymentExpected: true)
+                // A table on deposit: remember what was paid now, so the ticket
+                // shows the balance due at the venue.
+                let paidNow = p.settle == .table && !extras.fullPayment ? rate?.depositAmount : nil
+                checkout = CheckoutTarget(url: pay, product: p, heads: quantity, unitPrice: unit,
+                                          paymentExpected: true, paidNow: paidNow)
             } catch FVFormRunner.Failure.rejected(let why) {
                 working = false
                 errorText = why.isEmpty ? locale.t("fv.rejected") : why
@@ -756,9 +777,10 @@ struct FVEventSheet: View {
     }
 
     /// Paid checkout came back with the PDF: read the QR, then issue.
-    private func capture(pdf: URL, product p: FVProduct, heads: Int, unitPrice: Double) async {
+    private func capture(pdf: URL, product p: FVProduct, heads: Int, unitPrice: Double, paidNow: Double?) async {
         let read = try? await FVTicketReader.read(pdfURL: pdf)
-        issue(product: p, heads: heads, unitPrice: unitPrice, pdf: pdf, qr: read?.qrPayload)
+        let t = issue(product: p, heads: heads, unitPrice: unitPrice, pdf: pdf, qr: read?.qrPayload)
+        if let paidNow { FVTicketStore.shared.update(t.id) { $0.paidNow = paidNow } }
     }
 }
 

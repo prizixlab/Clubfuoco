@@ -33,8 +33,15 @@ struct FVTicket: Codable, Identifiable, Hashable {
     /// external_tickets.id once the ticket is on the account.
     var serverId: UUID?
     var createdAt: Date = Date()
+    /// A table paid by deposit: what was paid now. The rest is owed at the venue.
+    var paidNow: Double?
 
-    var owedAtDoor: Double? { settle == Settle.door.rawValue ? unitPrice * Double(heads) : nil }
+    var owedAtDoor: Double? {
+        if settle == Settle.door.rawValue { return unitPrice * Double(heads) }
+        // A table's price is for the table, not per head.
+        if settle == Settle.table.rawValue, let paidNow, unitPrice - paidNow > 0.009 { return unitPrice - paidNow }
+        return nil
+    }
     var paidOnline: Double? { settle == Settle.online.rawValue ? unitPrice * Double(heads) : nil }
 }
 

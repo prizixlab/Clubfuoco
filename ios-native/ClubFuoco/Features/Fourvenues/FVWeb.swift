@@ -174,6 +174,12 @@ enum FVJS {
       if (extras.dob) set('field-fecha_nacimiento', extras.dob);
       if (extras.postal) set('field-codigo_postal', extras.postal);
       pick('field-sexo', extras.gender); pick('field-country', extras.country);
+      // Tables: deposit or the whole table now, as the guest chose in our
+      // sheet. Their summary toggles on checkFullPayment(); isFullPayment is
+      // its state, so this is idempotent across passes.
+      const resumen = window.bookingsResumenComponent;
+      if (resumen && typeof resumen.checkFullPayment === 'function'
+          && !!resumen.isFullPayment !== (extras.full === '1')) resumen.checkFullPayment();
       tick('checkbox-promotor'); tick('checkbox-fourvenues-condiciones');
       validate();
       const b = button();
@@ -284,6 +290,8 @@ struct FVAttendee {
     var gender: String?     // their codes: 0 female, 1 male, 2 other
     var country = "ES"
     var postal = "08019"
+    /// Tables: pay the whole table now rather than the deposit.
+    var fullPayment = false
 
     init(profile: UserProfile?) {
         dob = profile?.birthday.map { String($0.prefix(10)) }
@@ -296,7 +304,7 @@ struct FVAttendee {
     }
 
     var js: [String: String] {
-        var d = ["country": country, "postal": postal]
+        var d = ["country": country, "postal": postal, "full": fullPayment ? "1" : "0"]
         if let dob { d["dob"] = dob }
         if let gender { d["gender"] = gender }
         return d

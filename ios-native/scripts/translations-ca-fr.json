@@ -2879,6 +2879,10 @@
  "bookings.sortEvent": { "ca": "Data de l'esdeveniment", "fr": "Date de l'événement" },
  "bookings.sortBooked": { "ca": "Data de reserva", "fr": "Date de réservation" },
  "bookings.sortBookedTitle": { "ca": "Reserves més recents", "fr": "Réservations les plus récentes" },
+ "fv.payChoice": { "ca": "Com pagar", "fr": "Mode de paiement" },
+ "fv.payDeposit": { "ca": "Dipòsit %@", "fr": "Acompte %@" },
+ "fv.payFull": { "ca": "Pagament total %@", "fr": "Paiement total %@" },
+ "fv.restLater": { "ca": "La resta, a pagar al local", "fr": "Le reste, à payer sur place" },
  "fv.cantComplete": {
   "ca": "No hem pogut completar aquesta reserva. Torna-ho a provar d'aquí a un moment.",
   "fr": "Nous n'avons pas pu finaliser cette réservation. Réessayez dans un instant."

@@ -111,10 +111,25 @@ struct FVRate: Decodable, Identifiable, Hashable {
     /// "porcentaje" (a % of the total) or "por_reserva" (a fixed amount).
     let depositType: String?
     let description: String?
+    /// The venue lets the guest pay the whole table now instead of the deposit.
+    let fullPayment: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id, name, price, pax, deposit, description
         case depositType = "deposit_type"
+        case fullPayment = "full_payment"
+    }
+
+    /// What the deposit comes to in euros.
+    var depositAmount: Double? {
+        guard let deposit, deposit > 0 else { return nil }
+        return depositType == "porcentaje" ? price * deposit / 100 : deposit
+    }
+
+    /// Deposit now or the whole table now — only when the venue offers both.
+    var offersFullPayment: Bool {
+        guard fullPayment == true, let d = depositAmount else { return false }
+        return d < price
     }
 
     /// The sizes the stepper walks through.

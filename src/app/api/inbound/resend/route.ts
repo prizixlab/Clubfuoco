@@ -23,7 +23,13 @@ import { notify } from '@/lib/notify'
 // Always answers 200 once the signature checks out, even when the email isn't
 // a ticket: a non-2xx makes Resend retry an email that will never parse.
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+// Two keys, least privilege. Reading a RECEIVED email needs a full-access key;
+// the app's RESEND_API_KEY is (rightly) send-only and Resend refuses it here
+// ("This API key is restricted to only send emails"). So the inbox reads with
+// its own RESEND_INBOUND_API_KEY and keeps sending (the forward) on the
+// ordinary send-only key.
+const sender = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+const reader = process.env.RESEND_INBOUND_API_KEY ? new Resend(process.env.RESEND_INBOUND_API_KEY) : null
 const SECRET = process.env.RESEND_INBOUND_WEBHOOK_SECRET
 const FORWARD_FROM = process.env.TICKET_INBOX_FORWARD_FROM ?? 'Club Fuoco Tickets <tickets@clubfuoco.com>'
 
@@ -35,12 +41,12 @@ interface ReceivedEvent {
 }
 
 export async function POST(req: NextRequest) {
-  if (!resend || !SECRET) return err('Ticket inbox not configured', 503)
+  if (!reader || !sender || !SECRET) return err('Ticket inbox not configured', 503)
 
   const raw = await req.text()
   let event: ReceivedEvent
   try {
-    event = resend.webhooks.verify({
+    event = reader.webhooks.verify({
       payload: raw,
       headers: {
         id: req.headers.get('svix-id') ?? '',
@@ -81,7 +87,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // 4. Body.
-    const { data: email, error: getErr } = await resend.emails.receiving.get(email_id)
+    const { data: email, error: getErr } = await reader.emails.receiving.get(email_id)
     if (getErr || !email) throw new Error(getErr?.message ?? 'email not found')
     const html = decodeHtml((email as { html?: string | null }).html)
     const text = (email as { text?: string | null }).text ?? ''
@@ -177,7 +183,7 @@ async function forward(
   sb: Sb, userId: string, subject: string, html: string, text: string, from: string,
   eventName: string | null,
 ): Promise<boolean> {
-  if (!resend) return false
+  if (!sender) return false
   const { data: user } = await sb.from('users').select('email').eq('id', userId).maybeSingle()
   const to = (user as { email?: string | null } | null)?.email
   if (!to) return false
@@ -192,13 +198,13 @@ async function forward(
   <div style="font-size:14px;line-height:1.45;color:#221E1A;margin-top:8px">${note}</div>
   <div style="font-size:11px;color:#9F9486;margin-top:8px">Below is the original email from ${escapeHtml(senderName(from))}.</div>
 </div>`
-  const { error } = await resend.emails.send({
+  const { error } = await sender.emails.send({
     from: FORWARD_FROM,
     to,
     subject,
     html: header + (html || `<pre style="font-family:inherit;white-space:pre-wrap">${escapeHtml(text)}</pre>`),
     replyTo: from || undefined,
-  } as Parameters<typeof resend.emails.send>[0])
+  } as Parameters<typeof sender.emails.send>[0])
   if (error) console.warn('[inbound/resend] forward failed:', error.message)
   return !error
 }

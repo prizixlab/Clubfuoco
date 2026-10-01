@@ -29,7 +29,10 @@ import { notify } from '@/lib/notify'
 // its own RESEND_INBOUND_API_KEY and keeps sending (the forward) on the
 // ordinary send-only key.
 const sender = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
-const reader = process.env.RESEND_INBOUND_API_KEY ? new Resend(process.env.RESEND_INBOUND_API_KEY) : null
+// Read under either name: production has it as ESEND_INBOUND_API_KEY (a typo
+// in Vercel). Renaming it there to RESEND_INBOUND_API_KEY needs no code change.
+const READ_KEY = process.env.RESEND_INBOUND_API_KEY ?? process.env.ESEND_INBOUND_API_KEY
+const reader = READ_KEY ? new Resend(READ_KEY) : null
 const SECRET = process.env.RESEND_INBOUND_WEBHOOK_SECRET
 const FORWARD_FROM = process.env.TICKET_INBOX_FORWARD_FROM ?? 'Club Fuoco Tickets <tickets@clubfuoco.com>'
 

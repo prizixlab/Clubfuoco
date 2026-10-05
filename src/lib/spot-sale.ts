@@ -184,10 +184,44 @@ export async function openSpotHold(req: Request, token: string): Promise<SpotSal
   }[]
 
   // Already paid → hand back the existing spot rather than selling a second one.
+  // Already HOLDING one (opened the payment page or Apple Pay sheet, backed
+  // out, tapped Buy again) → release that hold and sell afresh below. The
+  // one-claim-per-user index covers pending rows too, so this used to answer
+  // "You already have a spot on this list" to someone who had paid nothing,
+  // for the whole 30-minute hold.
   if (buyerId) {
     const mine = guests.find(g => g.claimed_by_user === buyerId)
     if (mine && mine.payment_status === 'paid') {
       return { kind: 'alreadyPaid', guestId: mine.id }
+    }
+    if (mine && mine.payment_status === 'pending') {
+      const { data: held } = await sb.from('promoter_guests')
+        .select('stripe_checkout_session_id, stripe_payment_intent_id')
+        .eq('id', mine.id).maybeSingle()
+      const row = (held ?? {}) as { stripe_checkout_session_id?: string | null; stripe_payment_intent_id?: string | null }
+      try {
+        const { paid, paymentIntentId } = await holdPaidOnStripe(row)
+        if (paid) {
+          // Paid, the webhook just hasn't landed — record it now.
+          await sb.from('promoter_guests').update({
+            payment_status: 'paid', paid_at: new Date().toISOString(), hold_expires_at: null,
+            stripe_payment_intent_id: paymentIntentId,
+          }).eq('id', mine.id).neq('payment_status', 'paid')
+          return { kind: 'alreadyPaid', guestId: mine.id }
+        }
+        // Make the abandoned attempt unpayable before its spot is let go.
+        if (row.stripe_checkout_session_id) {
+          await stripe.checkout.sessions.expire(row.stripe_checkout_session_id).catch(() => {})
+        } else if (row.stripe_payment_intent_id
+                   && !(await releaseUnpaidIntent(row.stripe_payment_intent_id))) {
+          return fail('Your last payment is still going through. Check Tickets in a moment.', 409)
+        }
+      } catch (e) {
+        console.warn('[checkout] could not read the held payment:', e instanceof Error ? e.message : e)
+        return fail('Couldn’t reopen your checkout. Try again in a moment.', 502)
+      }
+      await sb.from('promoter_guests').delete().eq('id', mine.id).eq('payment_status', 'pending')
+      guests.splice(guests.indexOf(mine), 1)
     }
   }
 

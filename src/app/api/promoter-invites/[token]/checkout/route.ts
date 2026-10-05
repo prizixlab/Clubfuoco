@@ -2,7 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { resolveTokenToAllocation } from '@/lib/promoter-series'
 import { stripe } from '@/lib/stripe'
 import { ok, err } from '@/lib/utils'
-import { payoutAccount, canCharge, syncAccount, feeBpsForVisibility } from '@/lib/connect'
+import { payoutAccount, canCharge, syncAccount, feeBpsForVisibility, isPlatformSettled } from '@/lib/connect'
 import { platformFeeCents } from '@/lib/platform-fee'
 import { ladder, livePrice } from '@/lib/releases'
 
@@ -98,50 +98,58 @@ export async function POST(
   // silently creating a €0 Checkout session would be a confusing dead end.
   if (unitPrice <= 0) return err('This event is free — use the normal RSVP.', 409)
 
+  // A named promoter whose sales land on OUR account — see
+  // isPlatformSettled. None of the Connect checks below apply: there
+  // is no destination account to verify and no promoter card to back refunds,
+  // because both of those are ours.
+  const platformSettled = await isPlatformSettled(sb, alloc.promoter_id)
+
   // The promoter must be able to receive money BEFORE a guest is asked for any.
   // Discovering this at the card form is the worst possible moment.
   let payout = await payoutAccount(sb, alloc.promoter_id)
 
-  // Ask STRIPE, not just our mirror.
-  //
-  // Our copy of charges_enabled is only as fresh as the last account.updated we
-  // received — and a webhook is a wire that can be unsubscribed, misconfigured,
-  // or silently failing signature verification, none of which is visible from
-  // here. Depending on it to decide whether someone can be paid means a promoter
-  // Stripe disabled last week still takes a guest's card and fails.
-  //
-  // One extra API call at the START of a checkout is cheap: this is a payment
-  // flow, nobody notices 200ms, and being wrong costs a guest their night. The
-  // webhook stays as the fast path that keeps the mirror warm for the UI; this
-  // is the check that actually gates money.
-  if (payout.stripe_account_id) {
-    try {
-      const fresh = await stripe.accounts.retrieve(payout.stripe_account_id)
-      await syncAccount(sb, fresh)
-      payout = await payoutAccount(sb, alloc.promoter_id)
-    } catch (e) {
-      // Stripe unreachable. Fall through on the mirror rather than refusing a
-      // sale on our own outage — the charge itself would fail anyway if the
-      // account really is disabled.
-      console.warn('[checkout] could not re-verify the payout account:',
-        e instanceof Error ? e.message : e)
+  if (!platformSettled) {
+    // Ask STRIPE, not just our mirror.
+    //
+    // Our copy of charges_enabled is only as fresh as the last account.updated we
+    // received — and a webhook is a wire that can be unsubscribed, misconfigured,
+    // or silently failing signature verification, none of which is visible from
+    // here. Depending on it to decide whether someone can be paid means a promoter
+    // Stripe disabled last week still takes a guest's card and fails.
+    //
+    // One extra API call at the START of a checkout is cheap: this is a payment
+    // flow, nobody notices 200ms, and being wrong costs a guest their night. The
+    // webhook stays as the fast path that keeps the mirror warm for the UI; this
+    // is the check that actually gates money.
+    if (payout.stripe_account_id) {
+      try {
+        const fresh = await stripe.accounts.retrieve(payout.stripe_account_id)
+        await syncAccount(sb, fresh)
+        payout = await payoutAccount(sb, alloc.promoter_id)
+      } catch (e) {
+        // Stripe unreachable. Fall through on the mirror rather than refusing a
+        // sale on our own outage — the charge itself would fail anyway if the
+        // account really is disabled.
+        console.warn('[checkout] could not re-verify the payout account:',
+          e instanceof Error ? e.message : e)
+      }
     }
-  }
 
-  if (!canCharge(payout)) {
-    return err('This event can’t take payments yet. Ask the promoter to finish their payout setup.', 409)
-  }
-  // A card on file is checked HERE too, not only when the price was set. Stripe
-  // can disable an account, and a card expires, weeks after a night went on
-  // sale — and the moment either lapses we would be selling a ticket whose
-  // refunds and chargebacks have nowhere to land.
-  const { data: billing } = await sb
-    .from('promoter_billing_accounts')
-    .select('card_verified')
-    .eq('user_id', alloc.promoter_id)
-    .maybeSingle()
-  if (!(billing as { card_verified?: boolean } | null)?.card_verified) {
-    return err('This event can’t take payments yet. Ask the promoter to finish their payout setup.', 409)
+    if (!canCharge(payout)) {
+      return err('This event can’t take payments yet. Ask the promoter to finish their payout setup.', 409)
+    }
+    // A card on file is checked HERE too, not only when the price was set. Stripe
+    // can disable an account, and a card expires, weeks after a night went on
+    // sale — and the moment either lapses we would be selling a ticket whose
+    // refunds and chargebacks have nowhere to land.
+    const { data: billing } = await sb
+      .from('promoter_billing_accounts')
+      .select('card_verified')
+      .eq('user_id', alloc.promoter_id)
+      .maybeSingle()
+    if (!(billing as { card_verified?: boolean } | null)?.card_verified) {
+      return err('This event can’t take payments yet. Ask the promoter to finish their payout setup.', 409)
+    }
   }
 
   const guests = (alloc.promoter_guests ?? []) as {
@@ -171,7 +179,8 @@ export async function POST(
 
   const amount = unitPrice * heads
   // Public offer or private event — two different deals, two different rates.
-  const feeBps = feeBpsForVisibility(payout, night.visibility)
+  // On a platform-settled sale the whole amount is ours, so there is no fee.
+  const feeBps = platformSettled ? 0 : feeBpsForVisibility(payout, night.visibility)
   const fee = platformFeeCents(amount, feeBps)
   const currency = (night.currency || 'eur').toLowerCase()
 
@@ -222,21 +231,25 @@ export async function POST(
         },
       }],
       payment_intent_data: {
-        application_fee_amount: fee,
-        transfer_data: { destination: payout.stripe_account_id! },
-        // WHO IS THE SELLER. Without on_behalf_of the charge is created on the
-        // PLATFORM account: Club Fuoco becomes merchant of record, the charge
-        // settles under our US entity, and — the part that costs money — a
-        // chargeback debits OUR balance even though the funds were already
-        // transferred to the promoter. We would be paying back money we no
-        // longer hold.
-        //
-        // on_behalf_of makes the connected account the merchant of record. The
-        // charge settles in their country and currency (which is also what
-        // makes a EUR price coherent under a US platform), their name is on the
-        // statement, and a dispute comes out of their balance, where the sale
-        // happened.
-        on_behalf_of: payout.stripe_account_id!,
+        // Platform-settled: a plain charge on our own account — no transfer,
+        // no fee, no on_behalf_of. Everything below applies to Connect sales.
+        ...(platformSettled ? {} : {
+          application_fee_amount: fee,
+          transfer_data: { destination: payout.stripe_account_id! },
+          // WHO IS THE SELLER. Without on_behalf_of the charge is created on the
+          // PLATFORM account: Club Fuoco becomes merchant of record, the charge
+          // settles under our US entity, and — the part that costs money — a
+          // chargeback debits OUR balance even though the funds were already
+          // transferred to the promoter. We would be paying back money we no
+          // longer hold.
+          //
+          // on_behalf_of makes the connected account the merchant of record. The
+          // charge settles in their country and currency (which is also what
+          // makes a EUR price coherent under a US platform), their name is on the
+          // statement, and a dispute comes out of their balance, where the sale
+          // happened.
+          on_behalf_of: payout.stripe_account_id!,
+        }),
         // On the promoter's statement, not ours — they are the seller.
         description: `${eventName} · ${night.night_date}`,
         metadata: { guest_id: guest.id, night_id: night.id },
@@ -249,6 +262,7 @@ export async function POST(
         night_id: night.id,
         promoter_id: alloc.promoter_id,
         fee_bps: String(feeBps),
+        settle: platformSettled ? 'platform' : 'connect',
       },
       // Same clock as the hold above — and never under Stripe's floor, which
       // it rejects outright rather than clamping.

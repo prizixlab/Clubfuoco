@@ -1026,7 +1026,10 @@ final class BookingsViewModel {
         // promoter guestlists stay on their REST routes — they use the service
         // client + manual scoping, so they work for native Bearer requests.
         async let groupList: [GroupListItem]? = try? await api.get("/api/groups")
-        async let inviteResp: InvitesResponse? = try? await api.get("/api/promoter-invites/mine")
+        async let inviteResp: InvitesResponse? = {
+            do { return try await api.get("/api/promoter-invites/mine") as InvitesResponse }
+            catch { FVTrace.log("tickets page: invites failed to load — \(error)"); return nil }
+        }()
         do {
             data = try await queries.myBookings()
             state = .loaded
@@ -1040,7 +1043,10 @@ final class BookingsViewModel {
         // list. A genuine empty result decodes to a non-nil response with an
         // empty array, so real deletions still clear correctly.
         if let g = await groupList { groups = g.filter { $0.status != "cancelled" } }
-        if let resp = await inviteResp { invites = resp.invites }
+        if let resp = await inviteResp {
+            invites = resp.invites
+            FVTrace.log("tickets page: \(resp.invites.count) invites [\(resp.invites.map { $0.nightDate }.joined(separator: ","))]")
+        }
         // HypeList tickets: pick up QRs the ticket inbox filed and tickets
         // booked on another device.
         // Unstructured: pull-to-refresh cancels its task when the list
@@ -1163,7 +1169,7 @@ final class BookingsViewModel {
         case .booking(let b): b.createdAt.flatMap(Self.parseISO)
         case .signup(let s): s.createdAt.flatMap(Self.parseISO)
         case .ticket(let t): t.createdAt.flatMap(Self.parseISO)
-        case .invite: nil
+        case .invite(let i): i.createdAt.flatMap(Self.parseISO)
         case .fourvenues(let t): t.createdAt
         }
     }

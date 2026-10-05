@@ -16,6 +16,10 @@ struct InviteSummary: Decodable, Identifiable, Hashable, Sendable {
     let fullName: String
     let plusOnes: Int
     let checkedInAt: String?
+    /// When the spot was claimed or bought — what "sort by date booked" uses.
+    /// Without it every invite sorted as the oldest thing on Tickets, so a
+    /// ticket bought a minute ago sat at the very bottom.
+    let createdAt: String?
     let allocation: InviteAllocation
 
     // Convenience accessors for the merged Tickets list.

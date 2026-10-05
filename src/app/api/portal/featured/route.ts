@@ -231,14 +231,24 @@ async function pool(
     },
   ]
 
-  const { data: nights } = await sb
-    .from('promoter_nights')
-    .select('id, title, night_date, location_name, club_id')
-    .gte('night_date', today)
-    .order('night_date', { ascending: true })
-    .limit(200)
+  // Every upcoming night, any date. This was `.limit(200)`, which with the
+  // HypeList sync is about a week — a night two weeks out could not be put
+  // in the hero at all. Paged like the venues below (PostgREST caps at 1000).
+  const nights: Record<string, unknown>[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb
+      .from('promoter_nights')
+      .select('id, title, night_date, location_name, club_id, fourvenues_code')
+      .gte('night_date', today)
+      .order('night_date', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + 999)
+    if (error || !data || data.length === 0) break
+    nights.push(...data)
+    if (data.length < 1000) break
+  }
 
-  const clubIds = [...new Set((nights ?? [])
+  const clubIds = [...new Set(nights
     .map(n => n.club_id).filter((v): v is string => typeof v === 'string'))]
   const names = new Map<string, string>()
   if (clubIds.length > 0) {
@@ -246,7 +256,23 @@ async function pool(
     for (const c of data ?? []) names.set(c.id as string, c.name as string)
   }
 
-  for (const n of nights ?? []) {
+  // One entry per night. The same night can exist as two rows — an older
+  // import beside the HypeList sync (two "MONEY MONDAYS" at Ku on 5 Oct) —
+  // and offering both is how the featured shelf ended up showing it twice.
+  // The synced row wins (it carries the poster and the ways in); either twin
+  // being featured marks the night taken.
+  const twinKey = (n: Record<string, unknown>) => [
+    (n.club_id as string | null) ?? (n.location_name as string | null) ?? '',
+    n.night_date,
+    String(n.title ?? '').normalize('NFKD').toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''),
+  ].join('|')
+  const byNight = new Map<string, Record<string, unknown>[]>()
+  for (const n of nights) {
+    const k = twinKey(n)
+    byNight.set(k, [...(byNight.get(k) ?? []), n])
+  }
+  for (const twins of byNight.values()) {
+    const n = twins.find(t => t.fourvenues_code) ?? twins[0]
     const id = n.id as string
     out.push({
       kind: 'event', id,
@@ -254,7 +280,7 @@ async function pool(
       subtitle: (typeof n.club_id === 'string' ? names.get(n.club_id) : null)
         ?? (n.location_name as string) ?? null,
       night_date: (n.night_date as string) ?? null,
-      taken: taken.has(`event:${id}`),
+      taken: twins.some(t => taken.has(`event:${t.id as string}`)),
     })
   }
 

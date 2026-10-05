@@ -188,4 +188,7 @@ if (existing) {
   if (aErr) console.error('! approve:', aErr.message)
   console.log(`        created ${data.id}${aErr ? '' : ' (approved)'}`)
 }
-console.log('\ndone')
+// `photos` above are raw Google references, which the apps refuse to render —
+// and the Explore feed (so search too) drops a venue with no usable photo.
+console.log('\ndone. Now run: python3 scripts/host-club-photos.py')
+console.log('or the new venue stays invisible in Explore and search.')

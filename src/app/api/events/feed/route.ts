@@ -247,6 +247,17 @@ export async function GET() {
   // would silently drop the editorial pin to wherever night_date puts it. Rows
   // are deduped by id instead, so a row shifting across a page boundary between
   // requests can't be served twice.
+  // A brand switched off in the portal ("Hide all offers") takes its nights
+  // off the app too. The switch used to cover only its partner_offers, so
+  // HypeList "off" still showed every one of its nights. Keyed on the brand's
+  // promoter account, which is what owns (created_by) its nights.
+  const { data: hiddenBrands } = await sb
+    .from('partner_brands')
+    .select('owner_user_id')
+    .eq('offers_hidden', true)
+    .not('owner_user_id', 'is', null)
+  const hiddenOwners = new Set((hiddenBrands ?? []).map(b => b.owner_user_id as string))
+
   const PAGE = 1000
   const list: Record<string, unknown>[] = []
   const seen = new Set<string>()
@@ -256,7 +267,7 @@ export async function GET() {
       .select(
         'id, title, night_date, open_time, close_time, description, club_id, ' +
         'location_name, address, lat, lng, photo_urls, total_capacity, ' +
-        'price_cents, currency, is_pinned, featured, is_house, lineup, hosts, stops',
+        'price_cents, currency, is_pinned, featured, is_house, lineup, hosts, stops, created_by',
       )
       .range(from, from + PAGE - 1)
 
@@ -264,6 +275,7 @@ export async function GET() {
     if (!data || data.length === 0) break
     for (const r of data as unknown as Record<string, unknown>[]) {
       const id = r.id as string
+      if (hiddenOwners.has(r.created_by as string)) continue
       if (!seen.has(id)) { seen.add(id); list.push(r) }
     }
     if (data.length < PAGE) break

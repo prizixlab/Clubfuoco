@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const { data, error } = await sb
     .from('promoter_guests')
     .select(`
-      id, full_name, plus_ones, checked_in_at, created_at,
+      id, full_name, plus_ones, checked_in_at, created_at, payment_status, amount_cents,
       allocation:promoter_allocations (
         id, invite_token, spots,
         night:promoter_nights (

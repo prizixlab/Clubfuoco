@@ -181,13 +181,26 @@ enum RumbalistOffers {
     /// so every surface that shows a Guestlist picks them up.
     nonisolated(unsafe) static var fourvenuesByClub: [String: [RumbalistOffer]] = [:]
 
-    /// The offers to show for a club on one night. A partner's own free
-    /// guestlist wins: when one runs that night, HypeList's free list for the
-    /// same night is left out rather than listed twice.
+    /// The offers to show for a club on one night. NEVER the same product
+    /// twice: where Fourvenues sells a kind of entry that night, it is the
+    /// only one shown and our internal offer of that kind is dropped —
+    ///   free guestlist on Fourvenues → no internal free guestlist,
+    ///   tables on Fourvenues        → no internal VIP table.
+    /// (This used to be the other way round for free lists, which is how a
+    /// HypeList portal "Free Guestlist" sat under HypeList's Fourvenues one.)
+    @MainActor
     static func live(for clubId: String, on date: String) -> [RumbalistOffer] {
         let live = offers(for: clubId).filter { $0.liveOn(date) }
-        let partnerFree = live.contains { !$0.isVip && $0.fourvenues == nil }
-        return partnerFree ? live.filter { $0.fourvenues == nil } : live
+        let fvNight = FVCatalog.shared.events.filter {
+            $0.clubId?.lowercased() == clubId.lowercased() && $0.night == date
+        }
+        let fvFree = fvNight.contains { $0.products.contains { $0.settle == .free } }
+            || live.contains { $0.fourvenues != nil }
+        let fvTables = fvNight.contains { $0.products.contains { $0.settle == .table } }
+        return live.filter { o in
+            guard o.fourvenues == nil else { return true }
+            return o.isVip ? !fvTables : !fvFree
+        }
     }
 
     // ── Backend feed ────────────────────────────────────────────────────────

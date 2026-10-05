@@ -38,7 +38,7 @@ targets:
         # numerically, so 1.2.3 is LOWER than 1.12 and ASC rejects it. Anything
         # shipped from here must beat 1.12; the next one after this is 1.14.
         MARKETING_VERSION: "1.14"
-        CURRENT_PROJECT_VERSION: "37"
+        CURRENT_PROJECT_VERSION: "38"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         DEVELOPMENT_TEAM: 4V87UVPTBW
         TARGETED_DEVICE_FAMILY: "1"

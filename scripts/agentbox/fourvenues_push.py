@@ -62,6 +62,21 @@ def call(url: str, key: str, *, method: str, body: bytes, ctype: str,
         return e.code, e.read().decode()[:300]
 
 
+def brand_hidden(base: str, key: str, brand_key: str) -> bool:
+    """partner_brands.offers_hidden for one brand. Unreadable → False (publish
+    as normal): a failed lookup must not take the whole catalog off sale."""
+    req = urllib.request.Request(
+        f"{base}/rest/v1/partner_brands?key=eq.{brand_key}&select=offers_hidden",
+        headers={"apikey": key, "Authorization": f"Bearer {key}"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            rows = json.loads(r.read().decode())
+        return bool(rows and rows[0].get("offers_hidden"))
+    except Exception as e:  # noqa: BLE001
+        print(f"could not read brand switch ({e}) — publishing as normal")
+        return False
+
+
 def main() -> int:
     data = json.loads(OFFERS.read_text())
     if not data.get("events"):
@@ -69,12 +84,25 @@ def main() -> int:
         # Publishing it would blank every club page in the app.
         print("offers.json has no events — not publishing")
         return 1
+    base, key = supabase_env()
+
+    # The portal's switch. HypeList "off" (partner_brands.offers_hidden) must
+    # take its Fourvenues lists, tickets and tables out of the app too, not
+    # just its portal offers. Publish every night with NO products rather than
+    # no nights: the app keeps its last good copy when the feed is empty, so an
+    # empty file would leave everything on sale. No products = no Guestlist
+    # button, no paid entry, no VIP, anywhere.
+    hidden = brand_hidden(base, key, "hypelist")
+    if hidden:
+        for e in data["events"]:
+            e["products"] = []
+            e["vip_map"] = None
+
     body = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode()
     if "--dry-run" in sys.argv:
-        print(f"would publish {len(data['events'])} events, {len(body)} bytes")
+        print(f"would publish {len(data['events'])} events, {len(body)} bytes, hypelist hidden={hidden}")
         return 0
 
-    base, key = supabase_env()
     # Idempotent: 400/409 "already exists" is the normal answer after the first run.
     status, text = call(f"{base}/storage/v1/bucket", key, method="POST", ctype="application/json",
                         body=json.dumps({"id": BUCKET, "name": BUCKET, "public": True}).encode())
@@ -88,7 +116,8 @@ def main() -> int:
     if status not in (200, 201):
         print(f"upload failed: {status} {text}")
         return 1
-    print(f"published {len(data['events'])} events ({len(body)} bytes) run {data.get('run')}")
+    print(f"published {len(data['events'])} events ({len(body)} bytes) run {data.get('run')}"
+          + (" — HypeList OFF in portal: nothing on sale" if hidden else ""))
     return 0
 
 

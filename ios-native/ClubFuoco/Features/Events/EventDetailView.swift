@@ -808,33 +808,31 @@ struct EventDetailView: View {
         return "Guest"
     }
 
-    /// Start a purchase: ask the server for a Stripe Checkout URL and hand the
-    /// buyer to it.
+    /// Start a purchase: the Apple Pay sheet where the phone has it, Stripe
+    /// Checkout in Safari where it doesn't.
     ///
-    /// Deliberately the SAME endpoint an invite link uses. That path already
-    /// holds the capacity check, the 15-minute hold, the payout verification
-    /// and the release stamping — a second implementation would drift from it,
-    /// and money is the worst place for two truths.
+    /// Deliberately the SAME endpoints an invite link uses, through the same
+    /// SpotPayment helper. The server already holds the capacity check, the
+    /// hold, the payout verification and the release stamping — a second
+    /// implementation would drift from it, and money is the worst place for
+    /// two truths.
     private func buy() async {
         guard let token = event.inviteToken else { return }
         guard auth.hasAccount else { showGuestGate = true; return }
         working = true; errorText = nil
         defer { working = false }
-        struct Body: Encodable { let fullName: String; let plusOnes: Int }
-        struct Reply: Decodable { let url: String?; let alreadyPaid: Bool? }
         do {
-            let reply: Reply = try await api.post(
-                "/api/promoter-invites/\(token)/checkout",
-                body: Body(fullName: buyerName, plusOnes: 0))
-            if reply.alreadyPaid == true {
+            switch try await SpotPayment.buy(
+                api: api, token: token, fullName: buyerName, plusOnes: 0, label: event.displayTitle) {
+            case .paid:
+                Haptics.success()
+                NotificationCenter.default.post(name: .cfInviteClaimed, object: nil)
                 await loadState()
-                return
+            case .openCheckout(let url):
+                await UIApplication.shared.open(url)
+            case .cancelled:
+                break
             }
-            guard let raw = reply.url, let url = URL(string: raw) else {
-                errorText = "Couldn't start checkout. Please try again."
-                return
-            }
-            await UIApplication.shared.open(url)
         } catch {
             // The server's message is the useful one here — it is what says
             // "this event can't take payments yet" when a promoter has not
@@ -842,7 +840,7 @@ struct EventDetailView: View {
             if case let .http(_, message) = error as? APIError ?? .emptyData {
                 errorText = message
             } else {
-                errorText = "Couldn't start checkout."
+                errorText = (error as? LocalizedError)?.errorDescription ?? "Couldn't start checkout."
             }
         }
     }

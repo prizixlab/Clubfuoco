@@ -205,6 +205,30 @@ export async function POST(request: NextRequest) {
 
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent
+        // ---- Event spot paid with native Apple Pay (app 1.14+) ----
+        // No Checkout session behind these, so checkout.session.completed never
+        // fires for them; this is their webhook. Spots bought through Checkout
+        // carry no `purpose` on the intent and are settled above.
+        if (pi.metadata?.purpose === 'event_spot' && pi.metadata?.guest_id) {
+          // Same rule as the Checkout branch: a guest has been charged, so a
+          // failure here must make Stripe retry, not be swallowed.
+          const { error: payErr } = await supabase
+            .from('promoter_guests')
+            .update({
+              payment_status: 'paid',
+              paid_at: new Date().toISOString(),
+              hold_expires_at: null,
+              stripe_payment_intent_id: pi.id,
+            })
+            .eq('id', pi.metadata.guest_id)
+            .neq('payment_status', 'paid')
+          if (payErr) {
+            console.error('[webhook] event_spot intent: could not mark paid —',
+              pi.metadata.guest_id, payErr.message)
+            return NextResponse.json({ error: 'could not record payment' }, { status: 500 })
+          }
+          break
+        }
         if (pi.metadata?.qr_token) {
           await supabase
             .from('bookings')

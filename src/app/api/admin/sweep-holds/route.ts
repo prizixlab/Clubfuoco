@@ -1,5 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/server'
-import { stripe } from '@/lib/stripe'
+import { holdPaidOnStripe, releaseUnpaidIntent } from '@/lib/spot-sale'
 import { ok, err } from '@/lib/utils'
 
 // Clearing checkout holds nobody finished.
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
 
   const { data: stale, error } = await sb
     .from('promoter_guests')
-    .select('id, stripe_checkout_session_id, hold_expires_at')
+    .select('id, stripe_checkout_session_id, stripe_payment_intent_id, hold_expires_at')
     .eq('payment_status', 'pending')
     .lt('hold_expires_at', cutoff)
     .limit(200)
@@ -43,9 +43,9 @@ export async function GET(req: Request) {
   let rescued = 0
 
   for (const row of stale) {
-    // No session id means checkout never got off the ground — nothing to ask
-    // Stripe about, and nothing that could have been paid.
-    if (!row.stripe_checkout_session_id) {
+    // Neither a session nor an intent means checkout never got off the ground —
+    // nothing to ask Stripe about, and nothing that could have been paid.
+    if (!row.stripe_checkout_session_id && !row.stripe_payment_intent_id) {
       const { error: delErr } = await sb.from('promoter_guests')
         .delete().eq('id', row.id).eq('payment_status', 'pending')
       if (!delErr) released++
@@ -53,19 +53,26 @@ export async function GET(req: Request) {
     }
 
     try {
-      const session = await stripe.checkout.sessions.retrieve(row.stripe_checkout_session_id)
-      if (session.payment_status === 'paid') {
+      // A Checkout session (web) or a bare PaymentIntent (native Apple Pay).
+      const stripeSays = await holdPaidOnStripe(row)
+      if (stripeSays.paid) {
         // The webhook never landed, or landed and failed. Honour the money.
         const { error: payErr } = await sb.from('promoter_guests')
           .update({
             payment_status: 'paid',
             paid_at: new Date().toISOString(),
             hold_expires_at: null,
-            stripe_payment_intent_id: (session.payment_intent as string) ?? null,
+            stripe_payment_intent_id: stripeSays.paymentIntentId,
           })
           .eq('id', row.id)
           .neq('payment_status', 'paid')
         if (!payErr) rescued++
+        continue
+      }
+      // An Apple Pay hold: cancel the intent before deleting the row, so a
+      // confirmation arriving later can't charge for a spot that's gone.
+      if (!row.stripe_checkout_session_id && row.stripe_payment_intent_id
+          && !(await releaseUnpaidIntent(row.stripe_payment_intent_id))) {
         continue
       }
     } catch (e) {

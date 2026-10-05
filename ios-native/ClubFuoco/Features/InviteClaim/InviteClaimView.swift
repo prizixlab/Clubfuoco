@@ -170,7 +170,7 @@ struct InviteClaimView: View {
     /// button, not buried in the body — nobody should tap "join" and discover a
     /// card form.
     private func buttonTitle(detail: InviteDetail) -> String {
-        if submitting { return detail.night.isPaid ? "Opening checkout…" : "Joining…" }
+        if submitting { return detail.night.isPaid ? "Paying…" : "Joining…" }
         guard detail.night.isPaid else { return "Add me to the list" }
         let heads = 1 + openSpots
         return heads > 1
@@ -178,47 +178,32 @@ struct InviteClaimView: View {
             : "Join for \(detail.night.priceLabel())"
     }
 
-    /// Open Stripe Checkout. The spot is held while they're on Stripe's page and
-    /// released if they never finish — see the checkout route.
+    /// Pay for the spot — the Apple Pay sheet where the phone has it, Stripe
+    /// Checkout in Safari where it doesn't. See SpotPayment.
     private func startCheckout() {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty, let detail else { return }
         submitting = true
         Task {
             defer { submitting = false }
-            struct Body: Encodable, Sendable {
-                let fullName: String
-                let plusOnes: Int
-                enum CodingKeys: String, CodingKey {
-                    case fullName = "full_name"
-                    case plusOnes = "plus_ones"
-                }
-            }
-            struct Resp: Decodable, Sendable {
-                let url: String?
-                let alreadyPaid: Bool?
-                let guestId: String?
-            }
             do {
-                let resp: Resp = try await api.post(
-                    "/api/promoter-invites/\(token)/checkout",
-                    body: Body(fullName: trimmed, plusOnes: openSpots))
-                // Already bought on another device — go straight to the ticket
-                // rather than charging twice.
-                if resp.alreadyPaid == true, let id = resp.guestId {
+                switch try await SpotPayment.buy(
+                    api: api, token: token, fullName: trimmed, plusOnes: openSpots,
+                    label: detail.night.title ?? detail.night.venueName) {
+                case .paid(let id):
+                    // Straight to the ticket — paid now, or already bought.
                     claimedGuestId = id
                     Haptics.success()
-                    return
+                    NotificationCenter.default.post(name: .cfInviteClaimed, object: nil)
+                case .openCheckout(let url):
+                    checkoutURL = url
+                    await UIApplication.shared.open(url)
+                case .cancelled:
+                    break
                 }
-                guard let raw = resp.url, let url = URL(string: raw) else {
-                    self.error = "Couldn't open checkout. Try again in a moment."
-                    return
-                }
-                checkoutURL = url
-                await UIApplication.shared.open(url)
             } catch {
                 self.error = (error as? LocalizedError)?.errorDescription
-                    ?? "Couldn't open checkout. Try again in a moment."
+                    ?? "Couldn't take the payment. You haven't been charged."
                 Haptics.error()
             }
         }

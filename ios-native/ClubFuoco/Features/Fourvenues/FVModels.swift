@@ -243,8 +243,32 @@ extension Double {
 final class FVCatalog {
     static let shared = FVCatalog()
 
-    private(set) var events: [FVEvent] = [] {
-        didSet { RumbalistOffers.fourvenuesByClub = Self.guestlistOffers(events) }
+    /// The feed as downloaded. Never read directly — `events` applies the
+    /// portal switch on top of it.
+    private var allEvents: [FVEvent] = [] {
+        didSet { publishOffers() }
+    }
+
+    /// HypeList switched on in the portal. The catalog file knows nothing of
+    /// the switch and the phone keeps it up to an hour, so turning HypeList off
+    /// used to leave every list, ticket and table bookable until the copy aged
+    /// out. Asked of the server on launch, on every foreground and every
+    /// minute (checkSwitch); remembered across launches so a cold start while
+    /// off doesn't flash HypeList back on.
+    private(set) var onSale: Bool = UserDefaults.standard.object(forKey: "fv.onSale") as? Bool ?? true {
+        didSet {
+            guard onSale != oldValue else { return }
+            UserDefaults.standard.set(onSale, forKey: "fv.onSale")
+            publishOffers()
+        }
+    }
+
+    /// Every HypeList night the app may show — none while it's switched off.
+    /// Club pages, the Guestlist offers, event pages and Explore all read this.
+    var events: [FVEvent] { onSale ? allEvents : [] }
+
+    private func publishOffers() {
+        RumbalistOffers.fourvenuesByClub = Self.guestlistOffers(events)
     }
     private(set) var fetchedAt: Date?
     /// When agentbox last PUBLISHED the feed (the object's Last-Modified), as
@@ -316,15 +340,15 @@ final class FVCatalog {
 
     private init() {
         if let data = try? Data(contentsOf: cacheFile), let feed = Self.decode(data) {
-            events = feed.events
+            allEvents = feed.events
             fetchedAt = (try? cacheFile.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate
         } else if let url = Bundle.main.url(forResource: "FourvenuesSample", withExtension: "json"),
                   let data = try? Data(contentsOf: url), let feed = Self.decode(data) {
-            events = feed.events
+            allEvents = feed.events
         }
         // didSet doesn't run during init — publish the offers explicitly.
-        RumbalistOffers.fourvenuesByClub = Self.guestlistOffers(events)
+        publishOffers()
     }
 
     /// Download if the copy we hold is over an hour old (or `force`).
@@ -347,7 +371,7 @@ final class FVCatalog {
               (resp as? HTTPURLResponse)?.statusCode == 200,
               let feed = Self.decode(data), !feed.events.isEmpty
         else { return }   // keep what we have
-        events = feed.events
+        allEvents = feed.events
         fetchedAt = Date()
         if let lm = (resp as? HTTPURLResponse)?.value(forHTTPHeaderField: "Last-Modified"),
            let d = Self.httpDate.date(from: lm) {
@@ -357,13 +381,28 @@ final class FVCatalog {
         try? data.write(to: cacheFile, options: .atomic)
     }
 
-    /// Checks every 15 minutes while the app is open; refresh() only downloads
-    /// when the copy is an hour old, so this is an hourly pull in practice.
+    /// The portal switch, every minute while the app is open; the catalog
+    /// itself still only downloads when the copy is an hour old.
     func keepFresh() async {
         while !Task.isCancelled {
+            await checkSwitch()
             await refresh()
-            try? await Task.sleep(for: .seconds(15 * 60))
+            try? await Task.sleep(for: .seconds(60))
         }
+    }
+
+    /// Ask the server whether HypeList is on sale (GET /api/fourvenues/status).
+    /// No answer (offline, outage) keeps the last known state.
+    func checkSwitch() async {
+        struct Resp: Decodable { struct D: Decodable { let on_sale: Bool }; let data: D? }
+        var req = URLRequest(url: APIClient.defaultBaseURL.appending(path: "api/fourvenues/status"))
+        req.cachePolicy = .reloadIgnoringLocalCacheData
+        req.timeoutInterval = 10
+        guard let (data, resp) = try? await URLSession.shared.data(for: req),
+              (resp as? HTTPURLResponse)?.statusCode == 200,
+              let r = try? JSONDecoder().decode(Resp.self, from: data), let d = r.data
+        else { return }
+        onSale = d.on_sale
     }
 
     /// Upcoming nights at one of our clubs, soonest first.

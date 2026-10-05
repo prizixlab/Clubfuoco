@@ -46,7 +46,10 @@ struct ClubFuocoApp: App {
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
                         Task { await RumbalistOffers.refresh(api: env.api) }
-                        Task { await FVCatalog.shared.refresh() }
+                        Task {
+                            await FVCatalog.shared.checkSwitch()
+                            await FVCatalog.shared.refresh()
+                        }
                         // A QR the ticket inbox filed while the app was away.
                         Task { await FVAccountSync.sync(env.authStore.queries.supabaseService) }
                     }

@@ -5518,6 +5518,34 @@
         }
       }
     },
+    "fv.mapHint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap a table to choose its price. The venue assigns your exact table on the night."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca una mesa para elegir su precio. El local asigna tu mesa exacta esa noche."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca una taula per triar-ne el preu. El local assigna la teva taula exacta aquella nit."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez une table pour choisir son tarif. Le club attribue votre table exacte le soir même."
+          }
+        }
+      }
+    },
     "fv.payChoice": {
       "localizations": {
         "en": {

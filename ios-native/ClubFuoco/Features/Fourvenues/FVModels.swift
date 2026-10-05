@@ -78,9 +78,11 @@ struct FVProduct: Decodable, Identifiable, Hashable {
     let detailI18n: [String: String]?
     /// Guestlists: when entry is allowed ("from" / "until", "HH:mm").
     let window: FVWindow?
+    /// Tables: the zone's floor plan, when the venue publishes one.
+    let map: FVZoneMap?
 
     enum CodingKeys: String, CodingKey {
-        case id, source, name, detail, price, settle, min, max, checkout, rates, window
+        case id, source, name, detail, price, settle, min, max, checkout, rates, window, map
         case nameI18n = "name_i18n"
         case detailI18n = "detail_i18n"
         case soldOut = "sold_out"
@@ -294,7 +296,13 @@ final class FVCatalog {
     }
 
     private static func decode(_ data: Data) -> FVFeed? {
-        try? JSONDecoder().decode(FVFeed.self, from: data)
+        do {
+            return try JSONDecoder().decode(FVFeed.self, from: data)
+        } catch {
+            // Say why — a silent failure here leaves the app on a stale feed.
+            FVTrace.log("feed decode failed: \(error)")
+            return nil
+        }
     }
 }
 
@@ -486,4 +494,51 @@ enum FVTier: String, CaseIterable, Identifiable {
     }
 
     func includes(_ p: FVProduct) -> Bool { settles.contains(p.settle) }
+}
+
+/// A table zone's floor plan as Fourvenues draws it: a square background and
+/// each table placed by percentages of that square (top/left of its box,
+/// width = height, scaled from its centre, then rotated).
+struct FVZoneMap: Decodable, Hashable {
+    let image: String?
+    let spaces: [FVSpace]
+
+    enum CodingKeys: String, CodingKey { case image, spaces }
+
+    /// Never throws: a table we can't read is dropped, not the whole feed —
+    /// one unplaced table once made every map (and new night) vanish.
+    init(from decoder: Decoder) throws {
+        let c = try? decoder.container(keyedBy: CodingKeys.self)
+        image = (try? c?.decodeIfPresent(String.self, forKey: .image)) ?? nil
+        spaces = ((try? c?.decodeIfPresent([FVLossy<FVSpace>].self, forKey: .spaces)) ?? nil)?
+            .compactMap(\.value) ?? []
+    }
+}
+
+/// Decodes T if it can, nil otherwise — so one bad element can't fail an array.
+struct FVLossy<T: Decodable>: Decodable {
+    let value: T?
+    init(from decoder: Decoder) throws { value = try? T(from: decoder) }
+}
+
+struct FVSpace: Decodable, Hashable, Identifiable {
+    let id: String
+    let name: String?
+    let cap: Int?
+    let top: Double
+    let left: Double
+    let w: Double
+    /// Corner radius as a % of the box (50 = round).
+    let r: Double?
+    let s: Double?
+    let rot: Double?
+    /// Blocked by the venue.
+    let off: Bool
+    /// Already booked tonight.
+    let taken: Bool
+    /// The rate ids (FVRate.id) this table is sold under.
+    let rates: [String]
+    let rgb: [Int]?
+
+    var available: Bool { !off && !taken }
 }

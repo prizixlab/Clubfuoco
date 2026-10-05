@@ -2909,6 +2909,7 @@
  "fv.payNow": { "ca": "Pagues ara", "fr": "À payer maintenant" },
  "fv.subtotal": { "ca": "Subtotal", "fr": "Sous-total" },
  "fv.plusFees": { "ca": "+ despeses", "fr": "+ frais" },
+ "fv.mapHint": { "ca": "Toca una taula per triar-ne el preu. El local assigna la teva taula exacta aquella nit.", "fr": "Touchez une table pour choisir son tarif. Le club attribue votre table exacte le soir même." },
  "fv.payChoice": { "ca": "Com pagar", "fr": "Mode de paiement" },
  "fv.payDeposit": { "ca": "Dipòsit %@", "fr": "Acompte %@" },
  "fv.payFull": { "ca": "Pagament total %@", "fr": "Paiement total %@" },

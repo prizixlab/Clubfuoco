@@ -87,6 +87,7 @@ const NATIVE_KEYS = {
   'fv.payNow': { en: "Pay now", es: "Pagas ahora" },
   'fv.subtotal': { en: "Subtotal", es: "Subtotal" },
   'fv.plusFees': { en: "+ fees", es: "+ gastos" },
+  'fv.mapHint': { en: "Tap a table to choose its price. The venue assigns your exact table on the night.", es: "Toca una mesa para elegir su precio. El local asigna tu mesa exacta esa noche." },
   'fv.payChoice': { en: 'How to pay', es: 'Cómo pagar' },
   'fv.payDeposit': { en: 'Deposit %@', es: 'Depósito %@' },
   'fv.payFull': { en: 'Pay in full %@', es: 'Pago total %@' },

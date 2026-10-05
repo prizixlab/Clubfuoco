@@ -1,3 +1,4 @@
+import ImageIO
 import SwiftUI
 import UIKit
 
@@ -96,12 +97,24 @@ extension URL {
 /// In-memory (`NSCache`) + disk-backed (`URLCache`) image cache shared across
 /// the app. Coalesces concurrent requests for the same URL so the same photo
 /// isn't fetched twice when several cards reference it.
+///
+/// Downloads go through a small concurrency gate and retry transient failures.
+/// Supabase Storage answers 429 once an IP has spent its request budget, and
+/// on a carrier NAT that budget is shared with strangers; cellular drops and
+/// timeouts are just as common at 3am outside a club. Before this, a 429's JSON
+/// body simply failed to decode, any failure was final, and the card kept its
+/// grey placeholder for the rest of the session.
 actor ImageCache {
     static let shared = ImageCache()
+
+    private static let maxConcurrent = 8
+    private static let maxAttempts = 4
 
     private let memory = NSCache<NSURL, UIImage>()
     private let session: URLSession
     private var inFlight: [URL: Task<UIImage?, Never>] = [:]
+    private var active = 0
+    private var waiters: [CheckedContinuation<Void, Never>] = []
 
     private init() {
         memory.countLimit = 250
@@ -126,18 +139,75 @@ actor ImageCache {
         if let image = memory.object(forKey: url as NSURL) { return image }
         if let existing = inFlight[url] { return await existing.value }
 
-        let task = Task<UIImage?, Never> { [session] in
-            guard
-                let (data, _) = try? await session.data(from: url),
-                let image = UIImage(data: data)
-            else { return nil }
-            return image
-        }
+        let task = Task<UIImage?, Never> { await self.fetch(url) }
         inFlight[url] = task
         let image = await task.value
         inFlight[url] = nil
         if let image { memory.setObject(image, forKey: url as NSURL) }
         return image
+    }
+
+    private func fetch(_ url: URL) async -> UIImage? {
+        for attempt in 0..<Self.maxAttempts {
+            await acquire()
+            let result = try? await session.data(from: url)
+            release()
+
+            var retryAfter: Double?
+            if let (data, response) = result {
+                let http = response as? HTTPURLResponse
+                let status = http?.statusCode ?? 200
+                if (200..<300).contains(status) { return Self.decode(data) }
+                // Only throttling and server errors can change on a retry; a
+                // 404 or 400 (e.g. an expired Google photo reference) won't.
+                guard status == 429 || status >= 500 else { return nil }
+                retryAfter = http?.value(forHTTPHeaderField: "Retry-After").flatMap(Double.init)
+            }
+            // A failed transport (result == nil) falls through and retries too.
+            guard attempt < Self.maxAttempts - 1 else { break }
+            let backoff = retryAfter ?? 0.5 * pow(2, Double(attempt))
+            let jitter = Double.random(in: 0...0.4)
+            try? await Task.sleep(for: .seconds(min(backoff, 5) + jitter))
+        }
+        return nil
+    }
+
+    /// Decodes straight to at most `maxDecodePx` on the long side. Some
+    /// uploaded covers are camera originals (Bar Los Amigos is 39 MB), and a
+    /// full decode of those costs hundreds of MB of bitmap for a 220pt card.
+    private static let maxDecodePx = 2000
+
+    private static func decode(_ data: Data) -> UIImage? {
+        let options = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, options) else { return nil }
+        let thumbOptions = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxDecodePx,
+        ] as CFDictionary
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbOptions) else {
+            return UIImage(data: data)
+        }
+        return UIImage(cgImage: cg)
+    }
+
+    private func acquire() async {
+        if active < Self.maxConcurrent {
+            active += 1
+            return
+        }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    /// Hands the slot straight to the next waiter, so `active` only drops
+    /// when nobody is queued.
+    private func release() {
+        if waiters.isEmpty {
+            active -= 1
+        } else {
+            waiters.removeFirst().resume()
+        }
     }
 
     /// Warm the cache for feed cover photos before they scroll into view, at

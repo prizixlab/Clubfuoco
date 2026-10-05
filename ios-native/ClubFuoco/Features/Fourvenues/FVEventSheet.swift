@@ -194,6 +194,24 @@ struct FVEventSheet: View {
 
                 waysCard.padding(.top, rooms.count > 1 ? 12 : 22)
 
+                if let p = selected, p.settle == .table, let map = p.map, !map.spaces.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        FVTableMap(map: map, selectedRate: rate?.id) { space in
+                            // A table picks its price, and a group that fits it.
+                            guard let r = p.rates?.first(where: { space.rates.contains($0.id) }) else { return }
+                            withAnimation(.snappy(duration: 0.2)) {
+                                rate = r
+                                let fit = space.cap.map { min(quantity, $0) } ?? quantity
+                                quantity = Self.snap(max(fit, 1), to: r.sizes)
+                            }
+                        }
+                        Text(locale.t("fv.mapHint"))
+                            .font(.cfSans(11))
+                            .foregroundStyle(Self.text.opacity(0.5))
+                    }
+                    .padding(.top, 12)
+                }
+
                 if let p = selected, p.settle == .table, let rates = p.rates, rates.count > 1 {
                     rateChips(rates).padding(.top, 12)
                 }

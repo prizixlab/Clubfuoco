@@ -129,6 +129,8 @@ export default function InviteClaimClient({
 }) {
   const [inWebview, setInWebview] = useState(false)
   const [iOS, setIOS] = useState(false)
+  // Back from Stripe Checkout (app builds ≤1.13 pay there, in Safari).
+  const [returned, setReturned] = useState<{ paid: boolean; guest: string | null } | null>(null)
   const autoTried = useRef(false)
 
   useEffect(() => {
@@ -136,6 +138,13 @@ export default function InviteClaimClient({
     const ios = isIOS()
     setInWebview(webview)
     setIOS(ios)
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('paid') === '1' || q.get('cancelled') === '1') {
+      // Never bounce a buyer to the App Store — they came from the app and
+      // need to get back to it. See the return card below.
+      setReturned({ paid: q.get('paid') === '1', guest: q.get('guest') })
+      return
+    }
     // No prompts. With the app installed, iOS opens a tapped
     // https://clubfuoco.com/i/… link straight in the app (Universal Link) and
     // this page never loads. So an iPhone that DOES reach this page either has
@@ -152,6 +161,32 @@ export default function InviteClaimClient({
 
   const guests = initialGuests
   const totalUsed = guests.reduce((s, g) => s + 1 + g.plus_ones, 0)
+
+  // Back from Checkout. Stripe returns to this page on clubfuoco.vercel.app
+  // (see the checkout route), so the button below links to ANOTHER domain —
+  // clubfuoco.com, the one in the app's associated domains — and a tap on it
+  // opens the app directly, no "Open in…?" prompt, carrying ?paid=1&guest=
+  // which lands the app on the ticket. A link to the page's own domain would
+  // just reload it: iOS never opens a Universal Link for the domain you're on.
+  if (returned) {
+    const back = returned.paid && returned.guest
+      ? `https://clubfuoco.com/i/${token}?paid=1&guest=${encodeURIComponent(returned.guest)}`
+      : `https://clubfuoco.com/i/${token}`
+    return (
+      <div style={{ minHeight: '100vh', background: '#0A0807', color: '#F4ECDD', fontFamily: 'var(--font-geist-sans, system-ui)', padding: '64px 24px' }}>
+        <Kicker>{returned.paid ? 'Payment received' : 'Payment cancelled'}</Kicker>
+        <h1 style={{ fontFamily: 'var(--font-instrument-serif, Georgia, serif)', fontWeight: 400, fontSize: 34, lineHeight: 1.1, margin: '6px 0 12px' }}>
+          {returned.paid ? 'You’re in.' : 'Nothing was charged.'}
+        </h1>
+        <p style={{ fontSize: 14, lineHeight: 1.5, color: 'rgba(244,236,221,0.75)', margin: '0 0 28px' }}>
+          {returned.paid
+            ? `${night.title ?? 'Your night'} — your ticket and door QR are in the Club Fuoco app.`
+            : 'Your spot isn’t held. Head back to the app to try again or save it for later.'}
+        </p>
+        <a href={back} style={primaryBtn}>{returned.paid ? 'Open your ticket' : 'Back to the app'}</a>
+      </div>
+    )
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#0A0807', color: '#F4ECDD', fontFamily: 'var(--font-geist-sans, system-ui)' }}>

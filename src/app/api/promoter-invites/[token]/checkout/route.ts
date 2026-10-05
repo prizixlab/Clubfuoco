@@ -16,6 +16,9 @@ import { openSpotHold, HOLD_MINUTES } from '@/lib/spot-sale'
 // Every check that can refuse the sale is in lib/spot-sale, shared with the
 // native Apple Pay path (/payment-intent).
 
+/** Where Stripe Checkout returns the buyer — see success_url. */
+const RETURN_HOST = 'https://clubfuoco.vercel.app'
+
 /** Stripe's hard minimum for `expires_at`, in minutes. */
 const STRIPE_MIN_SESSION_MINUTES = 30
 
@@ -31,8 +34,6 @@ export async function POST(
   const { sb, night, eventName, heads, amount, currency, fee, feeBps, platformSettled, payout, now } = sale
   const guest = { id: sale.guestId }
   const alloc = { id: sale.allocationId, promoter_id: sale.promoterId }
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://clubfuoco.com'
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -88,8 +89,11 @@ export async function POST(
       // it rejects outright rather than clamping.
       expires_at: Math.floor(
         (now + Math.max(HOLD_MINUTES, STRIPE_MIN_SESSION_MINUTES) * 60_000) / 1000),
-      success_url: `${appUrl}/i/${token}?paid=1&guest=${guest.id}`,
-      cancel_url: `${appUrl}/i/${token}?cancelled=1`,
+      // Back to the invite page on the vercel.app host, NOT clubfuoco.com:
+      // that page's "Open your ticket" button links to clubfuoco.com, and only
+      // a tap across domains opens the app (Universal Link) without a prompt.
+      success_url: `${RETURN_HOST}/i/${token}?paid=1&guest=${guest.id}`,
+      cancel_url: `${RETURN_HOST}/i/${token}?cancelled=1`,
     })
 
     await sb.from('promoter_guests')

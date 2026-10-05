@@ -82,10 +82,10 @@ extension TicketCardData {
             // The claimer plus whoever they brought — the door admits the party,
             // same as a booking's party_size.
             guests: invite.plusOnes + 1,
-            // A guestlist spot is free at the door. A paid invite is taken
-            // through checkout before the row exists, so there is nothing owed
-            // on the card either way.
-            totalAmount: nil,
+            // What they paid — a bought spot used to read "Free" here because
+            // the card had no price for these rows at all. A guestlist spot
+            // stays nil → Free.
+            totalAmount: invite.paidAmount,
             status: invite.checkedInAt != nil ? "used" : "confirmed",
             checkedInAt: invite.checkedInAt,
             // The payload the door scanner expects for a guest row — NOT the
@@ -93,7 +93,7 @@ extension TicketCardData {
             doorToken: "fuoco-invite:\(guestId)",
             reference: nil,
             walletPath: "/api/promoter-invites/guest/\(guestId)/wallet",
-            ticketTypeKey: "bookings.guestlistTag"
+            ticketTypeKey: invite.paidAmount != nil ? "bookings.general" : "bookings.guestlistTag"
         )
     }
 }

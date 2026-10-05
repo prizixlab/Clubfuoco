@@ -47,6 +47,11 @@ struct EventDetailView: View {
     @State private var scrollY: CGFloat = 0
     /// The HypeList tier being booked, and the sign-in prompt in front of it.
     @State private var fvTarget: FVTier?
+    /// The guest's PAID spot on this night (a promoter_guests row) — set the
+    /// moment Apple Pay succeeds, or found on load. The ticket is the invite
+    /// screen's, opened straight onto the QR + Wallet.
+    @State private var paidGuestId: String?
+    @State private var showPaidTicket = false
     @State private var showFVGate = false
 
     /// A HypeList night is booked through HypeList: the same three buttons as
@@ -89,6 +94,13 @@ struct EventDetailView: View {
         .animation(.easeOut(duration: 0.18), value: barShown)
         .sheet(isPresented: $showGuestGate) {
             GuestGateView(reason: .save).presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showPaidTicket) {
+            if let token = event.inviteToken, let gid = paidGuestId {
+                InviteClaimView(token: token, preclaimedGuestId: gid)
+                    .presentationDetents([.large])
+                    .cfSheetGrabber()
+            }
         }
         .sheet(isPresented: $showFVGate) {
             GuestGateView(reason: .guestlist).presentationDetents([.medium])
@@ -773,6 +785,23 @@ struct EventDetailView: View {
     }
 
     @ViewBuilder private var dockButton: some View {
+        // Bought: the only thing left to do is show the ticket. Never "Buy"
+        // again — that read as if the payment hadn't gone through.
+        if paidGuestId != nil {
+            Button { Haptics.tap(); showPaidTicket = true } label: {
+                dockShell(fill: Explore.accentSoft, stroke: Explore.accentDim, text: Explore.ink) {
+                    HStack(spacing: 9) {
+                        Image(systemName: "checkmark").font(.system(size: 14, weight: .bold))
+                        Text(locale.t("events.viewPass"))
+                    }
+                }
+            }
+        } else {
+            dockStateButton
+        }
+    }
+
+    @ViewBuilder private var dockStateButton: some View {
         switch state {
         case .working:
             dockShell(fill: Explore.accent, stroke: nil, text: Explore.onAccent) {
@@ -858,10 +887,13 @@ struct EventDetailView: View {
         do {
             switch try await SpotPayment.buy(
                 api: api, token: token, fullName: buyerName, plusOnes: 0, label: event.displayTitle) {
-            case .paid:
+            case .paid(let guestId):
+                // Straight onto the ticket — the QR, Wallet, the party. A
+                // haptic alone left a paying guest unsure it had worked.
                 Haptics.success()
+                paidGuestId = guestId
+                showPaidTicket = true
                 NotificationCenter.default.post(name: .cfInviteClaimed, object: nil)
-                await loadState()
             case .openCheckout(let url):
                 await UIApplication.shared.open(url)
             case .cancelled:
@@ -894,6 +926,7 @@ struct EventDetailView: View {
     }
 
     private var dockNote: String {
+        if paidGuestId != nil { return locale.t("rumbalist.savedToTickets") }
         switch state {
         case .working:   return locale.t("events.holdingSpot")
         case .full:      return String(format: locale.t("events.fullNote"), event.totalCapacity ?? 0)
@@ -942,7 +975,18 @@ struct EventDetailView: View {
         return djByName[credit.name]
     }
 
+    /// A spot already bought on this night (paid or free promoter_guests row,
+    /// never an unpaid hold — /mine filters those).
+    private func loadPaidSpot() async {
+        guard auth.hasAccount, let token = event.inviteToken else { return }
+        guard let resp: InvitesResponse = try? await api.get("/api/promoter-invites/mine") else { return }
+        if let mine = resp.invites.first(where: { $0.allocation.inviteToken == token }) {
+            paidGuestId = mine.id.uuidString.lowercased()
+        }
+    }
+
     private func loadState() async {
+        await loadPaidSpot()
         // Public for the capacity answer, so this runs for guests too.
         guard let result: StateResult = try? await api.get("/api/events/\(event.id)/reserve")
         else { return }

@@ -248,13 +248,17 @@ final class BookNightViewModel {
                         let partySize: Int
                         let bookingDate: String
                         let paymentMethodId: String
+                        /// What the Apple Pay sheet showed: the server refuses
+                        /// to charge more than this if the price moved.
+                        let expectedTotal: Double
                     }
                     let booking: Booking = try await api.post("/api/bookings", body: Body(
                         clubId: detail.placeId,
                         bookingType: self.bookingType,
                         partySize: self.partySize,
                         bookingDate: self.date,
-                        paymentMethodId: paymentMethodId
+                        paymentMethodId: paymentMethodId,
+                        expectedTotal: self.total
                     ))
                     self.confirmation = booking
                 }

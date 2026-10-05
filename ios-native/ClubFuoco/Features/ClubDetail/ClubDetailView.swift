@@ -51,11 +51,9 @@ struct ClubDetailView: View {
     }
 
     /// Rooms that sell this tier tonight, and whether any of it is left.
-    private func fvRooms(_ tier: FVTier) -> [FVEvent] {
-        fvNight.filter { $0.products.contains(where: tier.includes) }
-    }
+    private func fvRooms(_ tier: FVTier) -> [FVEvent] { tier.rooms(in: fvNight) }
 
-    private var fvTiers: [FVTier] { FVTier.allCases.filter { !fvRooms($0).isEmpty } }
+    private var fvTiers: [FVTier] { FVTier.offered(in: fvNight) }
 
     /// The partner's own offers; HypeList's are drawn as the tier buttons.
     private var partnerOffers: [RumbalistOffer] { offers.filter { $0.fourvenues == nil } }
@@ -768,7 +766,7 @@ struct ClubDetailView: View {
                         if !auth.hasAccount { showGuestGate = true; return }
                         fvTarget = FVTierTarget(tier: tier, rooms: fvRooms(tier))
                     } label: {
-                        fvTierCard(tier)
+                        FVTierCard(tier: tier, rooms: fvRooms(tier))
                     }
                     .buttonStyle(.plain)
                 }
@@ -793,83 +791,6 @@ struct ClubDetailView: View {
                 .foregroundStyle(Theme.fadedSand)
                 .padding(.leading, 4)
         }
-    }
-
-    /// Latest "entry before" among tonight's open free lists.
-    private var fvFreeUntil: String? {
-        fvRooms(.free).flatMap(\.products).filter { $0.settle == .free && !$0.soldOut }
-            .compactMap { $0.window?.until ?? FVPerks($0.name).before }.max()
-    }
-
-    /// Cheapest still-available price in a tier tonight.
-    private func fvFrom(_ tier: FVTier) -> Double? {
-        fvRooms(tier).flatMap(\.products).filter { tier.includes($0) && !$0.soldOut }
-            .map { p in p.rates?.map(\.price).min() ?? p.price }.filter { $0 > 0 }.min()
-    }
-
-    private func fvTierCard(_ tier: FVTier) -> some View {
-        let vip = tier == .vip
-        let ink = Color(hex: 0x2A1B08)
-        let fg = vip ? ink : Theme.ink
-        let left = fvRooms(tier).flatMap(\.products).contains { tier.includes($0) && !$0.soldOut }
-        let title: String = switch tier {
-        case .free: locale.t("fv.sectionFree")
-        case .paid: locale.t("fv.tierPaid")
-        case .vip: locale.t("fv.tierVip")
-        }
-        let subtitle: String = if !left { locale.t("fv.soldOut") } else {
-            switch tier {
-            case .free: fvFreeUntil.map { String(format: locale.t("fv.tierFreeUntil"), $0) } ?? locale.t("fv.tierFreeSub")
-            case .paid: fvFrom(.paid).map { String(format: locale.t("fv.tierPaidSub"), $0.euros) } ?? locale.t("fv.tierPaidSubNoPrice")
-            case .vip: fvFrom(.vip).map { String(format: locale.t("fv.tierVipSub"), $0.euros) } ?? locale.t("fv.tierVipSubNoPrice")
-            }
-        }
-        let icon = switch tier {
-        case .free: "list.bullet.rectangle.fill"
-        case .paid: "bolt.fill"
-        case .vip: "wineglass.fill"
-        }
-        return HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundStyle(fg)
-                .frame(width: 44, height: 44)
-                .background(fg.opacity(vip ? 0.18 : 0.06), in: .rect(cornerRadius: 12))
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 5) {
-                    Text(title)
-                        .font(.cfSans(14, weight: .semibold))
-                        .foregroundStyle(fg)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                    Text("with").font(.cfSans(11)).foregroundStyle(fg.opacity(0.75)).fixedSize()
-                    SupplierMark(brand: FVCatalog.brand, height: 11, animated: false,
-                                 tint: Color(hexString: FVCatalog.brand.color) ?? Theme.ember)
-                        .layoutPriority(1)
-                }
-                Text(subtitle)
-                    .font(.cfSans(12))
-                    .foregroundStyle(vip ? ink.opacity(0.7) : Theme.stone)
-                    .lineLimit(2)
-            }
-            Spacer(minLength: 6)
-            Text(locale.t(tier == .free ? "rumbalist.join" : tier == .paid ? "fv.tierBuy" : "rumbalist.book"))
-                .font(.cfSans(11, weight: .semibold))
-                .foregroundStyle(fg.opacity(0.9))
-                .fixedSize()
-        }
-        .padding(.init(top: 14, leading: 16, bottom: 14, trailing: 16))
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            if vip {
-                LinearGradient(colors: [Color(hex: 0xF5D8AE), Color(hex: 0xE7BC80), Color(hex: 0xCF9B54)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-            } else {
-                Theme.cream
-            }
-        }
-        .clipShape(.rect(cornerRadius: 16))
-        .opacity(left ? 1 : 0.5)
     }
 
     private func offerCard(_ offer: RumbalistOffer) -> some View {

@@ -103,11 +103,24 @@ enum FVAccountSync {
                 // No door code yet: claim an account row for the same night and
                 // kind that no other device ticket has linked.
                 let claimed = Set(store.tickets.compactMap(\.serverId))
+                // A row the ticket inbox filed from Fourvenues' email may carry
+                // a guessed settle (the email never says how money moves), so
+                // it is claimed on event + night alone — insisting on the same
+                // settle left two cards for one entry, one without a QR.
                 if t.qrPayload == nil, let match = rows.first(where: {
-                    $0.eventCode == t.eventCode && $0.night == t.night && $0.settle == t.settle
+                    $0.eventCode == t.eventCode && $0.night == t.night
+                        && ($0.settle == t.settle || $0.source == "email")
                         && $0.id.map { !claimed.contains($0) } ?? false
                 }), let mid = match.id {
                     store.update(t.id) { $0.serverId = mid }
+                    // The device knows what was actually bought: correct the row.
+                    if match.source == "email", match.settle != t.settle || match.unitPrice != t.unitPrice {
+                        let fix: [String: AnyJSON] = [
+                            "settle": .string(t.settle), "unit_price": .double(t.unitPrice),
+                            "heads": .integer(t.heads),
+                        ]
+                        _ = try? await supabase.client.from("external_tickets").update(fix).eq("id", value: mid.uuidString).execute()
+                    }
                     continue
                 }
                 let row = ExternalTicketRow(
@@ -159,9 +172,22 @@ enum FVInbox {
 
     static func email(api: APIClient, userId: String?, fallback: String) async -> String {
         let key = "fv.inbox.\(userId ?? "")"
-        if let cached = UserDefaults.standard.string(forKey: key) { return cached }
-        guard let r: Reply = try? await api.get("/api/me/ticket-inbox"), r.active else {
+        let checkedKey = key + ".checkedAt"
+        // Re-asked at most daily: an address cached forever kept being handed
+        // to Fourvenues after the inbox was switched off, so the mail bounced.
+        let checked = UserDefaults.standard.object(forKey: checkedKey) as? Date
+        if let cached = UserDefaults.standard.string(forKey: key),
+           let checked, Date().timeIntervalSince(checked) < 24 * 3600 {
+            return cached
+        }
+        guard let r: Reply = try? await api.get("/api/me/ticket-inbox") else {
+            // Offline: the last known answer beats the account address.
+            return UserDefaults.standard.string(forKey: key) ?? fallback
+        }
+        UserDefaults.standard.set(Date(), forKey: checkedKey)
+        guard r.active else {
             FVTrace.log("ticket email: account address (inbox not active)")
+            UserDefaults.standard.removeObject(forKey: key)
             return fallback
         }
         FVTrace.log("ticket email: private inbox")

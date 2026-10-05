@@ -52,9 +52,9 @@ private struct EventTag: View {
     @Environment(LocaleStore.self) private var locale
 
     var body: some View {
-        if event.isTonight {
-            pill(locale.t("events.tonightTag"), background: Theme.ember, color: .white)
-        } else if event.pinned {
+        // No "Tonight" marker: the When planner already says which night
+        // you're looking at. Only the hero dates a night that isn't it.
+        if event.pinned {
             // Dark ink on gold, not white: white on #C09950 is about 2:1 and
             // unreadable at 9pt.
             pill(locale.t("events.pickTag"), background: Theme.gold, color: Color(hex: 0x221E1A))
@@ -79,11 +79,18 @@ private struct EventTag: View {
 struct EventHeroCard: View {
     let event: FeedEvent
     @Environment(LocaleStore.self) private var locale
+    @Environment(PlanStore.self) private var plan
+
+    /// The hero can hold a night on any date. On the night picked in the When
+    /// planner it carries no date at all ("Tonight" included); on any other
+    /// night its own day goes on the photo — "SAT 17 OCT" — so a pick two
+    /// weeks out never reads as happening now.
+    private var otherNight: Bool { event.nightDate != plan.date }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
-                EventPhoto(url: event.image, height: 220)
+                EventPhoto(url: event.posterURL, height: 220)
                     .overlay(
                         LinearGradient(
                             stops: [
@@ -95,13 +102,22 @@ struct EventHeroCard: View {
                         )
                     )
 
-                HStack(alignment: .top) {
+                HStack(alignment: .top, spacing: 6) {
+                    if otherNight {
+                        Text(event.dateLabel(locale: locale).uppercased())
+                            .font(.cfSans(10, weight: .semibold))
+                            .kerning(1)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 4)
+                            .background(.black.opacity(0.6), in: .capsule)
+                    }
                     EventTag(event: event)
                     Spacer()
                 }
                 .padding(12)
 
-                if event.isFree {
+                if event.isFree, event.fvRooms.isEmpty {
                     VStack {
                         Spacer()
                         HStack {
@@ -148,7 +164,9 @@ struct EventHeroCard: View {
                 }
 
                 HStack {
-                    Text(event.metaLine(locale: locale))
+                    // The day is either irrelevant (the planned night) or
+                    // already on the photo — never repeated down here.
+                    Text([event.timeLabel, event.placeLine].compactMap { $0 }.joined(separator: " · "))
                         .font(.cfSans(11))
                         .foregroundStyle(Theme.fadedSand)
                         .lineLimit(1)
@@ -190,7 +208,7 @@ struct EventCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
-                EventPhoto(url: event.image, height: 168, targetWidth: FeedImage.thumbWidth)
+                EventPhoto(url: event.posterURL, height: 168, targetWidth: FeedImage.thumbWidth)
                     .overlay(
                         LinearGradient(
                             stops: [

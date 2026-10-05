@@ -5826,6 +5826,370 @@
         }
       }
     },
+    "fv.alreadyOnList": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're already on this list. Your ticket is in Tickets."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ya estás en esta lista. Tu entrada está en Entradas."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ja ets en aquesta llista. La teva entrada és a Entrades."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu es déjà sur cette liste. Ton billet est dans Billets."
+          }
+        }
+      }
+    },
+    "fv.justSoldOut": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That just sold out. Pick another way in."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se acaba de agotar. Elige otra opción."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "S'acaba d'esgotar. Tria una altra opció."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C'est complet à l'instant. Choisis une autre option."
+          }
+        }
+      }
+    },
+    "fv.overLimit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That's more than this list allows per person. Try fewer people."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supera el máximo por persona de esta lista. Prueba con menos personas."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supera el màxim per persona d'aquesta llista. Prova amb menys persones."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C'est plus que ce que cette liste autorise par personne. Essaie avec moins de personnes."
+          }
+        }
+      }
+    },
+    "fv.underAge": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This night is %d+. Fourvenues and the door will check ID."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta noche es para mayores de %d. Fourvenues y la puerta pedirán DNI."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aquesta nit és per a majors de %d. Fourvenues i la porta demanaran el DNI."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette soirée est réservée aux %d ans et plus. Fourvenues et l'entrée vérifieront ta pièce d'identité."
+          }
+        }
+      }
+    },
+    "fv.relayNoInbox": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your Apple sign-in hides your email, so Fourvenues can't send your ticket. Add an email in Profile to book."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu inicio de sesión con Apple oculta tu email y Fourvenues no puede enviarte la entrada. Añade un email en tu perfil para reservar."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El teu inici de sessió amb Apple amaga el teu correu i Fourvenues no et pot enviar l'entrada. Afegeix un correu al perfil per reservar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta connexion Apple masque ton e-mail, donc Fourvenues ne peut pas t'envoyer ton billet. Ajoute un e-mail dans ton profil pour réserver."
+          }
+        }
+      }
+    },
+    "fv.phoneHint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include the country code, e.g. +44 7700 900123."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incluye el prefijo del país, p. ej. +34 612 345 678."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inclou el prefix del país, p. ex. +34 612 345 678."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajoute l'indicatif du pays, ex. +33 6 12 34 56 78."
+          }
+        }
+      }
+    },
+    "fv.checkingWithFV": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking with Fourvenues — if you got in, your ticket will appear in Tickets. Try again in a few minutes."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprobando con Fourvenues: si has entrado, tu entrada aparecerá en Entradas. Vuelve a intentarlo en unos minutos."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprovant amb Fourvenues: si has entrat, la teva entrada apareixerà a Entrades. Torna-ho a provar d'aquí a uns minuts."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérification auprès de Fourvenues — si c'est passé, ton billet apparaîtra dans Billets. Réessaie dans quelques minutes."
+          }
+        }
+      }
+    },
+    "fv.feedStale": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Availability last checked at %@. It may have changed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disponibilidad comprobada a las %@. Puede haber cambiado."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disponibilitat comprovada a les %@. Pot haver canviat."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disponibilité vérifiée à %@. Elle a pu changer."
+          }
+        }
+      }
+    },
+    "fv.didYouPay": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Did you finish paying?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Has terminado de pagar?"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Has acabat de pagar?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As-tu terminé le paiement ?"
+          }
+        }
+      }
+    },
+    "fv.didYouPayNote": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you did, your ticket arrives by email in a moment and appears in Tickets. Don't pay again."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si es así, tu entrada llegará por email en un momento y aparecerá en Entradas. No vuelvas a pagar."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si és així, l'entrada arribarà per correu en un moment i apareixerà a Entrades. No tornis a pagar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si oui, ton billet arrive par e-mail dans un instant et apparaît dans Billets. Ne paie pas une deuxième fois."
+          }
+        }
+      }
+    },
+    "fv.paidYes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yes, I paid"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sí, he pagado"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sí, he pagat"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oui, j'ai payé"
+          }
+        }
+      }
+    },
+    "fv.paidNo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No, close"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No, cerrar"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No, tanca"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non, fermer"
+          }
+        }
+      }
+    },
+    "vip.savingTable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payment received — we're saving your table. Don't pay again; it'll appear in Tickets shortly."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pago recibido: estamos guardando tu mesa. No vuelvas a pagar; aparecerá en Entradas en breve."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pagament rebut: estem desant la teva taula. No tornis a pagar; apareixerà a Entrades aviat."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paiement reçu — on enregistre ta table. Ne paie pas une deuxième fois ; elle apparaîtra bientôt dans Billets."
+          }
+        }
+      }
+    },
     "fv.gettingTicket": {
       "localizations": {
         "en": {
@@ -9854,6 +10218,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Entrée libre — votre pass apparaît dans Billets."
+          }
+        }
+      }
+    },
+    "events.buyHint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pay securely — your pass appears under Tickets."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pago seguro — tu pase aparece en Entradas."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pagament segur — el teu passi apareix a Entrades."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paiement sécurisé — ton pass apparaît dans Billets."
           }
         }
       }

@@ -167,6 +167,16 @@ struct FeedEvent: Decodable, Sendable, Identifiable, Hashable {
         return out.string(from: parsed)
     }
 
+    /// "Sat 17 Oct" — always the date itself, never "Tonight"/"Tomorrow".
+    @MainActor func dateLabel(locale: LocaleStore) -> String {
+        guard let parsed = parsedDate else { return nightDate }
+        let out = DateFormatter()
+        out.timeZone = Self.madrid
+        out.locale = Locale(identifier: ["es": "es_ES", "ca": "ca_ES", "fr": "fr_FR"][locale.locale] ?? "en_GB")
+        out.dateFormat = "EEE d MMM"
+        return out.string(from: parsed)
+    }
+
     /// Is this event on tonight? Drives the live marker.
     var isTonight: Bool {
         guard let parsed = parsedDate else { return false }

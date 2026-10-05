@@ -2955,5 +2955,19 @@
  "fv.gettingTicket": { "ca": "Dona'ns un segon per aconseguir la teva entrada", "fr": "Donne-nous une seconde pour obtenir ton billet" },
  "fv.gettingTicketNote": { "ca": "El teu QR apareixerà aquí mateix.", "fr": "Ton QR apparaîtra ici même." },
  "fv.ticketSlow": { "ca": "Està trigant més del normal. La teva entrada apareixerà a Entrades tan aviat com estigui llesta; t'enviarem una notificació.", "fr": "C'est plus long que d'habitude. Ton billet apparaîtra dans Billets dès qu'il sera prêt — on t'enverra une notification." },
- "fv.needsProfile": { "ca": "Afegeix el teu nom al perfil: apareix a l'entrada.", "fr": "Ajoute ton nom à ton profil — il figure sur le billet." }
+ "fv.needsProfile": { "ca": "Afegeix el teu nom al perfil: apareix a l'entrada.", "fr": "Ajoute ton nom à ton profil — il figure sur le billet." },
+ "fv.alreadyOnList": { "ca": "Ja ets en aquesta llista. La teva entrada és a Entrades.", "fr": "Tu es déjà sur cette liste. Ton billet est dans Billets." },
+ "fv.justSoldOut": { "ca": "S'acaba d'esgotar. Tria una altra opció.", "fr": "C'est complet à l'instant. Choisis une autre option." },
+ "fv.overLimit": { "ca": "Supera el màxim per persona d'aquesta llista. Prova amb menys persones.", "fr": "C'est plus que ce que cette liste autorise par personne. Essaie avec moins de personnes." },
+ "fv.underAge": { "ca": "Aquesta nit és per a majors de %d. Fourvenues i la porta demanaran el DNI.", "fr": "Cette soirée est réservée aux %d ans et plus. Fourvenues et l'entrée vérifieront ta pièce d'identité." },
+ "fv.relayNoInbox": { "ca": "El teu inici de sessió amb Apple amaga el teu correu i Fourvenues no et pot enviar l'entrada. Afegeix un correu al perfil per reservar.", "fr": "Ta connexion Apple masque ton e-mail, donc Fourvenues ne peut pas t'envoyer ton billet. Ajoute un e-mail dans ton profil pour réserver." },
+ "fv.phoneHint": { "ca": "Inclou el prefix del país, p. ex. +34 612 345 678.", "fr": "Ajoute l'indicatif du pays, ex. +33 6 12 34 56 78." },
+ "fv.checkingWithFV": { "ca": "Comprovant amb Fourvenues: si has entrat, la teva entrada apareixerà a Entrades. Torna-ho a provar d'aquí a uns minuts.", "fr": "Vérification auprès de Fourvenues — si c'est passé, ton billet apparaîtra dans Billets. Réessaie dans quelques minutes." },
+ "fv.feedStale": { "ca": "Disponibilitat comprovada a les %@. Pot haver canviat.", "fr": "Disponibilité vérifiée à %@. Elle a pu changer." },
+ "fv.didYouPay": { "ca": "Has acabat de pagar?", "fr": "As-tu terminé le paiement ?" },
+ "fv.didYouPayNote": { "ca": "Si és així, l'entrada arribarà per correu en un moment i apareixerà a Entrades. No tornis a pagar.", "fr": "Si oui, ton billet arrive par e-mail dans un instant et apparaît dans Billets. Ne paie pas une deuxième fois." },
+ "fv.paidYes": { "ca": "Sí, he pagat", "fr": "Oui, j'ai payé" },
+ "fv.paidNo": { "ca": "No, tanca", "fr": "Non, fermer" },
+ "vip.savingTable": { "ca": "Pagament rebut: estem desant la teva taula. No tornis a pagar; apareixerà a Entrades aviat.", "fr": "Paiement reçu — on enregistre ta table. Ne paie pas une deuxième fois ; elle apparaîtra bientôt dans Billets." },
+ "events.buyHint": { "ca": "Pagament segur — el teu passi apareix a Entrades.", "fr": "Paiement sécurisé — ton pass apparaît dans Billets." }
 }

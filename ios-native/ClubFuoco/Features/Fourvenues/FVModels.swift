@@ -247,6 +247,13 @@ final class FVCatalog {
         didSet { RumbalistOffers.fourvenuesByClub = Self.guestlistOffers(events) }
     }
     private(set) var fetchedAt: Date?
+    /// When agentbox last PUBLISHED the feed (the object's Last-Modified), as
+    /// opposed to when this phone downloaded it. If the hourly job stalls, the
+    /// phone keeps happily re-downloading an old file; this is what tells.
+    private(set) var publishedAt: Date? = UserDefaults.standard.object(forKey: "fv.feed.publishedAt") as? Date
+
+    /// Availability may be out of date: the feed is over 3 hours old.
+    var isStale: Bool { publishedAt.map { Date().timeIntervalSince($0) > 3 * 3600 } ?? false }
 
     /// HypeList, as it appears in partner_brands — credited on its offers.
     static let brand = PartnerBrand(
@@ -321,6 +328,14 @@ final class FVCatalog {
     }
 
     /// Download if the copy we hold is over an hour old (or `force`).
+    private static let httpDate: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "GMT")
+        f.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        return f
+    }()
+
     func refresh(force: Bool = false) async {
         if inFlight { return }
         if !force, let fetchedAt, Date().timeIntervalSince(fetchedAt) < Self.maxAge { return }
@@ -334,6 +349,11 @@ final class FVCatalog {
         else { return }   // keep what we have
         events = feed.events
         fetchedAt = Date()
+        if let lm = (resp as? HTTPURLResponse)?.value(forHTTPHeaderField: "Last-Modified"),
+           let d = Self.httpDate.date(from: lm) {
+            publishedAt = d
+            UserDefaults.standard.set(d, forKey: "fv.feed.publishedAt")
+        }
         try? data.write(to: cacheFile, options: .atomic)
     }
 

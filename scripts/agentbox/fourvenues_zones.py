@@ -25,6 +25,13 @@ pause, a per-run cap, and the same lock as the reader so they never overlap.
 
 Writes table `zone_rates` in intel/fourvenues/fourvenues.sqlite.
 
+── Floor plans (added 1 Oct 2026) ───────────────────────────────────────────
+The same page embeds the event's table map for EVERY zone:
+`this.zonasEspacios = [{_id, imagen, imagen_plano, mostrar_plano, espacios:
+[{nombre, capacidad, top, left, width, radius, scale, rotate, bloqueado,
+ocupado, tipos:[rate…]}]}]` — positions are percentages of a square plan.
+Parsed from the HTML already fetched (no extra request) into `zone_maps`.
+
 Usage:
     ~/scraper/venv/bin/python3 ~/scraper/fourvenues_zones.py [--limit N] [--force]
 """
@@ -95,6 +102,54 @@ def rate_meta(html: str, rate_id: str) -> dict:
     return out
 
 
+MAP_RX = re.compile(r"this\.zonasEspacios\s*=\s*")
+
+
+def zone_maps(html: str) -> list[dict]:
+    """Every zone's floor plan on this event page, compacted."""
+    # The class body also assigns it from a variable — take the assignment
+    # that is followed by the literal data.
+    zones = None
+    for m in MAP_RX.finditer(html):
+        if html[m.end():m.end() + 1] != "[":
+            continue
+        try:
+            zones, _ = json.JSONDecoder().raw_decode(html, m.end())
+            break
+        except json.JSONDecodeError:
+            continue
+    if not zones:
+        return []
+    out = []
+    for z in zones or []:
+        # Fourvenues' own choice of background (setMapaImage): the zone image
+        # unless the plan is switched on, else the plan. Many venues upload a
+        # plan but leave it switched off (Fourvenues then shows "no floor
+        # plan") — we show the plan anyway: the tables sit on it.
+        img, plan, show = z.get("imagen"), z.get("imagen_plano"), bool(z.get("mostrar_plano"))
+        bg = (plan if (show and plan) else img) or plan
+        spaces = []
+        for e in z.get("espacios") or []:
+            if e.get("removed_at"):
+                continue
+            # A table the venue hasn't placed on its plan has no position —
+            # nothing to draw (and the app's map can't read it).
+            if not all(isinstance(e.get(k), (int, float)) for k in ("top", "left", "width")):
+                continue
+            tipos = e.get("tipos") or []
+            spaces.append({
+                "id": e.get("_id"), "name": e.get("nombre"), "cap": e.get("capacidad"),
+                "top": e.get("top"), "left": e.get("left"), "w": e.get("width"),
+                "r": e.get("radius"), "s": e.get("scale"), "rot": e.get("rotate"),
+                "off": bool(e.get("bloqueado") or e.get("bloqueado_web")),
+                "taken": bool(e.get("ocupado")),
+                "rates": [t.get("_id") for t in tipos if t.get("_id")],
+                "rgb": (tipos[0].get("color") if tipos else None),
+            })
+        out.append({"zone_id": z.get("_id"), "image": bg, "spaces": spaces})
+    return out
+
+
 def fetch(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Language": "en"})
     with urllib.request.urlopen(req, timeout=30) as r:
@@ -131,6 +186,14 @@ def main() -> int:
           description text,
           fetched_at  text not null,
           primary key (zone_id, rate_id)
+        );
+        create table if not exists zone_maps (
+          code       text not null,
+          zone_id    text not null,
+          image      text,
+          spaces     text not null,      -- JSON, see zone_maps()
+          fetched_at text not null,
+          primary key (code, zone_id)
         );
         create table if not exists zone_fetches (
           zone_id    text primary key,
@@ -182,6 +245,11 @@ def main() -> int:
                              meta.get("deposit"), meta.get("deposit_type"),
                              None if meta.get("full_payment") is None else int(meta["full_payment"]),
                              meta.get("description"), ts))
+            # The page carries every zone's plan for this night — keep them all.
+            for zm in zone_maps(html):
+                if zm["zone_id"]:
+                    con.execute("insert or replace into zone_maps values (?,?,?,?,?)",
+                                (code, zm["zone_id"], zm["image"], json.dumps(zm["spaces"]), ts))
             con.execute("delete from zone_rates where zone_id=?", (zone_id,))
             con.executemany("insert into zone_rates values (?,?,?,?,?,?,?,?,?,?)", rows)
             con.execute("insert or replace into zone_fetches values (?,?,?,1,null)", (zone_id, code, ts))

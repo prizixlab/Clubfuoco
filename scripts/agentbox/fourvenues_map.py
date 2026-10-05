@@ -181,9 +181,11 @@ def guestlists(data: list, base: str) -> list[dict]:
 
 # Per-rate capacities from fourvenues_zones.py (zone_rates). Filled in main().
 RATE_META: dict[tuple[str, str], dict] = {}
+# Floor plans from fourvenues_zones.py (zone_maps), keyed (event code, zone id).
+ZONE_MAPS: dict[tuple[str, str], dict] = {}
 
 
-def zones(data: list, base: str) -> list[dict]:
+def zones(data: list, base: str, code: str = "") -> list[dict]:
     out = []
     for z in data or []:
         rates = []
@@ -209,6 +211,9 @@ def zones(data: list, base: str) -> list[dict]:
             # {rate} are filled by the app from the rate the guest picks.
             "checkout": f"{base}/bookings/{z['id']}/2?pax={{pax}}&rate={{rate}}",
             "zone_page": f"{base}/bookings/{z['id']}",
+            # Where the zone's tables are: background + tables as percentages
+            # of a square plan. The app draws it; none for zones without one.
+            "map": ZONE_MAPS.get((code, z["id"])),
         })
     return out
 
@@ -246,6 +251,16 @@ def main() -> int:
             }.items() if v is not None}
     except sqlite3.OperationalError:
         pass
+    try:
+        for code_, zid, image, spaces in con.execute(
+                "select code, zone_id, image, spaces from zone_maps"):
+            # Only tables placed on the plan (older rows may hold unplaced ones).
+            sp = [x for x in (json.loads(spaces) if spaces else [])
+                  if all(isinstance(x.get(k), (int, float)) for k in ("top", "left", "w"))]
+            if image or sp:
+                ZONE_MAPS[(code_, zid)] = {"image": image, "spaces": sp}
+    except sqlite3.OperationalError:
+        pass
 
     events = []
     for code in codes:
@@ -260,7 +275,7 @@ def main() -> int:
         coords = loc.get("coordinates") or {}
         products = (tickets(latest(con, run, code, "tickets"), base)
                     + guestlists(latest(con, run, code, "guestlists"), base)
-                    + zones(latest(con, run, code, "zones"), base))
+                    + zones(latest(con, run, code, "zones"), base, code))
         events.append({
             "code": code,
             "id": ev["id"],

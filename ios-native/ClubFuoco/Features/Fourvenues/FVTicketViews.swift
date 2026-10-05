@@ -103,6 +103,14 @@ struct FVTicketDetailView: View {
 
                         qrCard
 
+                        // The Fourvenues QR as a Wallet pass, in the promoter's
+                        // style (HypeList purple). Needs the synced server row
+                        // and the QR — until both land, nothing to add.
+                        if ticket.qrPayload != nil, let sid = ticket.serverId {
+                            WalletPassButton(passPath: "/api/external-tickets/\(sid.uuidString.lowercased())/wallet",
+                                             fullWidth: true)
+                        }
+
                         VStack(spacing: 0) {
                             row(kicker) { Text(FVText.pretty(ticket.productName) ?? "—") }
                             row(locale.t("fv.people")) { Text("\(ticket.heads)") }

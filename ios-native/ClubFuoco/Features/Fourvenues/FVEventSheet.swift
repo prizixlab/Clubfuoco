@@ -847,6 +847,11 @@ struct FVEventSheet: View {
             .frame(maxWidth: .infinity)
             .background(Theme.qrSurface, in: .rect(cornerRadius: 18))
 
+            if let sid = FVTicketStore.shared.tickets.first(where: { $0.id == t.id })?.serverId ?? t.serverId {
+                WalletPassButton(passPath: "/api/external-tickets/\(sid.uuidString.lowercased())/wallet",
+                                 fullWidth: true)
+            }
+
             if let owed = t.owedAtDoor {
                 HStack(spacing: 10) {
                     Image(systemName: "eurosign.circle.fill").font(.system(size: 20))

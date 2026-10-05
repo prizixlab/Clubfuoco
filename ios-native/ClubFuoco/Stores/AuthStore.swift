@@ -34,7 +34,11 @@ final class AuthStore {
     }
 
     private(set) var state: State = .loading
-    private(set) var user: User?
+    private(set) var user: User? {
+        // Device-held tickets belong to an account: swap them with the user,
+        // or the next person to sign in on this phone inherits them.
+        didSet { if user?.id != oldValue?.id { FVTicketStore.shared.use(owner: user?.id) } }
+    }
     private(set) var profile: UserProfile?
     var onboardingInProgress = false
 

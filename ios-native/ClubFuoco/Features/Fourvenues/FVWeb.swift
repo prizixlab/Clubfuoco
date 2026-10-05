@@ -175,11 +175,24 @@ enum FVJS {
       if (extras.postal) set('field-codigo_postal', extras.postal);
       pick('field-sexo', extras.gender); pick('field-country', extras.country);
       // Tables: deposit or the whole table now, as the guest chose in our
-      // sheet. Their summary toggles on checkFullPayment(); isFullPayment is
-      // its state, so this is idempotent across passes.
+      // sheet. checkFullPayment() is ASYNC — it flips their tick icon and
+      // recalculates the price after it returns, while the button is already
+      // enabled. Clicking in that gap books the deposit. So: flip, await it,
+      // and never click until the tick shows the state the guest picked.
       const resumen = window.bookingsResumenComponent;
-      if (resumen && typeof resumen.checkFullPayment === 'function'
-          && !!resumen.isFullPayment !== (extras.full === '1')) resumen.checkFullPayment();
+      if (resumen && typeof resumen.checkFullPayment === 'function') {
+        const wantFull = extras.full === '1';
+        const tickOn = () => {
+          const i = document.getElementById('icon-check');
+          return i ? /check-circle/.test(i.className) : !!resumen.isFullPayment;
+        };
+        if (tickOn() !== wantFull) {
+          try { await resumen.checkFullPayment(); } catch (e) {}
+          mark('fullPayment');
+          await sleep(300);
+          continue;
+        }
+      }
       tick('checkbox-promotor'); tick('checkbox-fourvenues-condiciones');
       validate();
       const b = button();
@@ -248,6 +261,49 @@ enum FVJS {
 
     /// On the confirmation page when the PDF isn't a plain link: press
     /// Download and let the navigation delegate catch the URL.
+    /// What the checkout will actually charge, read off Fourvenues' own
+    /// summary on the preloaded form — their fee and per-person table
+    /// supplements are computed there and nowhere else. Waits for the page.
+    static let quote = """
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const eur = el => {
+      if (!el) return null;
+      const a = el.getAttribute('data-currency-amount');
+      if (a != null && a !== '') return Number(a);
+      // "1.50 €", "1,5 €" and "1.234,50 €" all occur while it boots and
+      // localises: the LAST separator followed by one or two digits is the
+      // decimal point; any other separator groups thousands.
+      const t = (el.innerText || '').replace(/[^0-9.,]/g, '');
+      if (!t) return null;
+      const m = t.match(/^(.*?)[.,](\\d{1,2})$/);
+      return m ? Number(m[1].replace(/[.,]/g, '') + '.' + m[2]) : Number(t.replace(/[.,]/g, ''));
+    };
+    // Their summary re-renders a few times while it boots — report only once
+    // two reads in a row agree.
+    let last = '';
+    const settled = v => { const same = v === last; last = v; return same ? v : null; };
+    const until = Date.now() + 8000;
+    while (Date.now() < until) {
+      const r = window.bookingsResumenComponent;
+      if (r && r.prepago && r.prepago.precio != null) {
+        const p = r.prepago;
+        const v = settled(JSON.stringify({ kind: 'table', total: p.precio, deposit: p.fianza, depositFee: p.ggdd,
+          full: p.full_payment, fullFee: p.full_payment_ggdd }));
+        if (v) return v;
+        await sleep(350); continue;
+      }
+      const sub = document.getElementById('resumen-subtotal'), tot = document.getElementById('resumen-total');
+      if (window.ticketsResumenComponent && tot && eur(tot) != null) {
+        const v = settled(JSON.stringify({ kind: 'ticket', subtotal: eur(sub), fee: eur(document.getElementById('resumen-ggdd')),
+          total: eur(tot) }));
+        if (v) return v;
+        await sleep(350); continue;
+      }
+      await sleep(150);
+    }
+    return '';
+    """
+
     static let pressDownload = """
     (() => {
       const b = [...document.querySelectorAll('button, a')].find(b => /^\\s*download/i.test(b.innerText));
@@ -354,6 +410,29 @@ final class FVFormRunner: NSObject, WKNavigationDelegate, WKUIDelegate {
         caught = nil
         committed = false
         webView.load(URLRequest(url: url))
+    }
+
+    /// The price summary of the page loaded for `url`, once it has loaded.
+    func quote(for url: URL) async -> FVQuote? {
+        let deadline = Date().addingTimeInterval(10)
+        while !(committed && loadedURL == url) {
+            if Date() > deadline || loadedURL != url { return nil }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        guard let raw = try? await webView.callAsyncJavaScript(FVJS.quote, arguments: [:], contentWorld: .page) as? String,
+              let data = raw.data(using: .utf8), !raw.isEmpty,
+              let q = try? JSONDecoder().decode(FVQuote.self, from: data)
+        else { return nil }
+        // A ticket quote must add up, or it was read mid-render (a €1.50 fee
+        // once came back as €150). Better "+ fees" than a wrong number.
+        if q.kind == "ticket", let total = q.total {
+            let sub = q.subtotal ?? total, fee = q.fee ?? 0
+            guard fee >= 0, abs(sub + fee - total) < 0.011, fee <= max(sub * 0.5, 5) else {
+                FVTrace.log("quote rejected: subtotal \(sub) fee \(fee) total \(total)")
+                return nil
+            }
+        }
+        return loadedURL == url ? q : nil
     }
 
     /// Fill, submit, and return once Fourvenues has accepted the sign-up.
@@ -616,10 +695,25 @@ private struct FVCheckoutWeb: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         // Default data store: Fourvenues' own session and the guest's Safari
         // autofill behave as they would in a browser.
-        let web = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+        let config = WKWebViewConfiguration()
+        config.userContentController.addUserScript(WKUserScript(
+            source: Self.solid, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = coordinator
         web.uiDelegate = coordinator
         web.allowsBackForwardNavigationGestures = true
+        // Feel like a screen, not a website: no rubber-banding, no pinch-zoom,
+        // no sideways drift on pages a few pixels wider than the phone.
+        let scroll = web.scrollView
+        scroll.bounces = false
+        scroll.alwaysBounceHorizontal = false
+        scroll.showsHorizontalScrollIndicator = false
+        scroll.minimumZoomScale = 1
+        scroll.maximumZoomScale = 1
+        scroll.pinchGestureRecognizer?.isEnabled = false
+        context.coordinator.pin = scroll.observe(\.contentOffset, options: [.new]) { s, _ in
+            if s.contentOffset.x != 0 { s.contentOffset.x = 0 }
+        }
         coordinator.attach(web, paymentExpected: paymentExpected)
         coordinator.prefill = paymentExpected ? nil : prefill
         web.load(URLRequest(url: url))
@@ -627,6 +721,22 @@ private struct FVCheckoutWeb: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
+
+    func makeCoordinator() -> Pin { Pin() }
+    /// Holds the observer that keeps the page from scrolling sideways.
+    final class Pin { var pin: NSKeyValueObservation? }
+
+    /// Locks the page to the phone's width and scale.
+    private static let solid = """
+    (function () {
+      var m = document.querySelector('meta[name=viewport]');
+      if (!m) { m = document.createElement('meta'); m.name = 'viewport'; document.head.appendChild(m); }
+      m.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
+      var s = document.createElement('style');
+      s.textContent = 'html,body{overflow-x:hidden!important;max-width:100%!important;overscroll-behavior:none!important}';
+      document.head.appendChild(s);
+    })();
+    """
 }
 
 /// A step-by-step log of the background sign-up, on the device, so a failure
@@ -681,4 +791,20 @@ struct FVConfirmation {
             .flatMap { URL(string: $0.value) }
         shape = keys.prefix(60).joined(separator: ",")
     }
+}
+
+/// Fourvenues' own price summary for the selected way in — what Apple Pay
+/// will show. Tables carry both the deposit and the pay-in-full figures.
+struct FVQuote: Decodable, Equatable {
+    let kind: String
+    // tickets
+    var subtotal: Double?
+    var fee: Double?
+    // both
+    var total: Double?
+    // tables
+    var deposit: Double?
+    var depositFee: Double?
+    var full: Double?
+    var fullFee: Double?
 }

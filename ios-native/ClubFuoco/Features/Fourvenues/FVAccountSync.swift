@@ -56,6 +56,12 @@ enum FVAccountSync {
         defer { running = false }
         guard let session = await supabase.currentSession() else { return }
         let store = FVTicketStore.shared
+        // Only ever reconcile the store against its own account. A mismatch
+        // means the user changed mid-flight; the next sync gets it right.
+        guard store.owner == session.user.id else {
+            FVTrace.log("account sync skipped: store belongs to another account")
+            return
+        }
         let rows: [ExternalTicketRow]
         do {
             rows = try await supabase.client.from("external_tickets")
@@ -65,6 +71,8 @@ enum FVAccountSync {
             FVTrace.log("account sync skipped: \(error.localizedDescription)")
             return
         }
+        // The fetch awaited the network — the user may have switched since.
+        guard store.owner == session.user.id else { return }
         var byId: [UUID: ExternalTicketRow] = [:]
         for r in rows { if let id = r.id { byId[id] = r } }
 
@@ -107,6 +115,7 @@ enum FVAccountSync {
                     address: t.address, night: t.night, doors: t.doors, closes: t.closes, image: t.image,
                     productName: t.productName, settle: t.settle, unitPrice: t.unitPrice, heads: t.heads,
                     qrPayload: t.qrPayload, pdfUrl: t.pdfURL, successUrl: t.successURL, source: "app")
+                guard store.owner == session.user.id else { return }
                 do {
                     let inserted: Inserted = try await supabase.client.from("external_tickets")
                         .insert(row).select("id").single().execute().value

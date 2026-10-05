@@ -90,7 +90,7 @@ struct RumbalistOfferSheet: View {
             }
         }
         .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
+        .cfSheetGrabber()
         // A join/group request mid-flight must not be swiped into the void —
         // the model (and its error message) die with the sheet, so a slow
         // request would fail invisibly and look like a silent no-op.

@@ -114,3 +114,14 @@ struct FormError: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+
+extension View {
+    /// Every sheet's grabber, plus a clear strip under it so the first line
+    /// of the sheet (a kicker, a title) never sits beneath the bar. Use this
+    /// instead of `.presentationDragIndicator(.visible)` on its own.
+    func cfSheetGrabber() -> some View {
+        self
+            .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 18) }
+            .presentationDragIndicator(.visible)
+    }
+}

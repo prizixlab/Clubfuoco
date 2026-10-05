@@ -17,11 +17,14 @@ struct FVEventSheet: View {
     /// Every room at this club with a free list tonight. More than one →
     /// a room picker; the Guestlist card covers them all as one offer.
     var rooms: [FVEvent] = []
+    /// Opened from one of the three buttons: only that tier's ways in.
+    var tier: FVTier? = nil
 
-    init(event: FVEvent, initial: FVProduct? = nil, rooms: [FVEvent] = []) {
+    init(event: FVEvent, initial: FVProduct? = nil, rooms: [FVEvent] = [], tier: FVTier? = nil) {
         self.opened = event
         self.initial = initial
         self.rooms = rooms
+        self.tier = tier
     }
 
     @State private var room: FVEvent?
@@ -37,6 +40,8 @@ struct FVEventSheet: View {
     @State private var rate: FVRate?
     /// Tables whose venue allows it: pay the whole table now, not the deposit.
     @State private var payInFull = false
+    /// Fourvenues' own summary for what's selected — subtotal, fee, total.
+    @State private var quote: FVQuote?
     @State private var quantity = 1
     @State private var runner: FVFormRunner?
     @State private var working = false
@@ -44,8 +49,10 @@ struct FVEventSheet: View {
     @State private var checkout: CheckoutTarget?
     @State private var confirmed: FVTicket?
     @State private var openTicket: FVTicket?
+    /// The QR didn't arrive within waitForQR's window.
+    @State private var waitedOut = false
     /// Phone for paid checkouts when the profile has none — asked once, kept.
-    @State private var phoneInput: String = UserDefaults.standard.string(forKey: "fv.phone") ?? ""
+    @State private var phoneInput: String = UserDefaults.standard.string(forKey: FVTicketStore.phoneKey) ?? ""
     /// Where Fourvenues mails the ticket: the private ticket inbox when it's
     /// live, the account email until then.
     @State private var ticketEmail: String?
@@ -94,9 +101,14 @@ struct FVEventSheet: View {
     }
 
     /// Every way in, cheapest-to-commit first: free, door, ticket, table.
+    /// Table zones tonight that have a floor plan.
+    private var mappedZones: [FVProduct] {
+        event.products.filter { $0.settle == .table && !($0.map?.spaces.isEmpty ?? true) }
+    }
+
     private var waysIn: [FVProduct] {
         let order: [Settle] = [.free, .door, .online, .table]
-        return event.products.sorted {
+        return event.products.filter { tier?.includes($0) ?? true }.sorted {
             let a = order.firstIndex(of: $0.settle) ?? 9, b = order.firstIndex(of: $1.settle) ?? 9
             return a == b ? $0.price < $1.price : a < b
         }
@@ -104,15 +116,6 @@ struct FVEventSheet: View {
 
     var body: some View {
         ZStack {
-            // The background runner's page sits here at FULL opacity, under the
-            // opaque sheet colour. A near-transparent web view is treated as
-            // hidden by iOS, which throttles the scripts Fourvenues' form needs.
-            if let runner {
-                FVHiddenWeb(webView: runner.webView)
-                    .frame(width: 390, height: 844)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
             Self.ink.ignoresSafeArea()
             VStack(spacing: 0) {
                 Rectangle().fill(accent).frame(height: 2)
@@ -126,11 +129,27 @@ struct FVEventSheet: View {
                 }
             }
         }
+        // The background runner's page sits here at FULL opacity, under the
+        // opaque sheet colour (a near-transparent web view is treated as
+        // hidden by iOS, which throttles the scripts Fourvenues' form needs).
+        // In a background so its phone-sized frame never sizes the sheet: as
+        // a ZStack child it made the sheet taller than a small iPhone's and
+        // pushed the top of the sheet up under the grabber.
+        .background(alignment: .topLeading) {
+            if let runner {
+                FVHiddenWeb(webView: runner.webView)
+                    .frame(width: 390, height: 844)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
         .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
+        .cfSheetGrabber()
         .interactiveDismissDisabled(working)
         .onAppear {
-            if selected == nil {
+            // VIP opens on the whole-venue map with nothing chosen — unless
+            // the guest came for a specific area.
+            if selected == nil, !(tier == .vip && initial == nil && !mappedZones.isEmpty) {
                 let pick = (initial.flatMap { i in event.products.first { $0.id == i.id } } ?? initial)
                     ?? waysIn.first { !$0.soldOut }
                 if let pick, !pick.soldOut { choose(pick) }
@@ -189,6 +208,37 @@ struct FVEventSheet: View {
 
                 waysCard.padding(.top, rooms.count > 1 ? 12 : 22)
 
+                // VIP: the whole venue first, nothing selected; tapping an area
+                // zooms onto it and picks it.
+                if tier == .vip || selected?.settle == .table, !mappedZones.isEmpty {
+                    FVVenueMap(
+                        layout: event.vipMap,
+                        zones: mappedZones,
+                        selected: selected?.settle == .table ? selected : nil,
+                        selectedRate: rate?.id,
+                        onSelectZone: { z in
+                            if let z { choose(z) } else { selected = nil; rate = nil; quote = nil }
+                        },
+                        onPickTable: { space in
+                            // A table picks its price, and a group that fits it.
+                            guard let p = selected,
+                                  let r = p.rates?.first(where: { space.rates.contains($0.id) }) else { return }
+                            withAnimation(.snappy(duration: 0.2)) {
+                                rate = r
+                                let fit = space.cap.map { min(quantity, $0) } ?? quantity
+                                quantity = Self.snap(max(fit, 1), to: r.sizes)
+                            }
+                        }
+                    )
+                    .padding(.top, 12)
+                    if selected?.settle == .table {
+                        Text(locale.t("fv.mapHint"))
+                            .font(.cfSans(11))
+                            .foregroundStyle(Self.text.opacity(0.5))
+                            .padding(.top, 6)
+                    }
+                }
+
                 if let p = selected, p.settle == .table, let rates = p.rates, rates.count > 1 {
                     rateChips(rates).padding(.top, 12)
                 }
@@ -219,7 +269,7 @@ struct FVEventSheet: View {
                             .foregroundStyle(Self.text)
                             .padding(.horizontal, 14).frame(height: 46)
                             .background(Self.veil(0.05), in: .rect(cornerRadius: 12))
-                            .onChange(of: phoneInput) { _, v in UserDefaults.standard.set(v, forKey: "fv.phone") }
+                            .onChange(of: phoneInput) { _, v in UserDefaults.standard.set(v, forKey: FVTicketStore.phoneKey) }
                     }
                     .padding(.top, 16)
                 }
@@ -267,8 +317,8 @@ struct FVEventSheet: View {
                         let want = selected?.settle ?? .free
                         withAnimation(.snappy(duration: 0.2)) {
                             room = r
-                            let pick = r.products.first { $0.settle == want && !$0.soldOut }
-                                ?? r.products.first { !$0.soldOut }
+                            let pick = r.products.first { (tier?.includes($0) ?? ($0.settle == want)) && !$0.soldOut }
+                                ?? r.products.first { (tier?.includes($0) ?? true) && !$0.soldOut }
                             if let pick { choose(pick) } else { selected = nil }
                         }
                     } label: {
@@ -323,17 +373,61 @@ struct FVEventSheet: View {
         }
     }
 
-    /// Every way in, as a radio list. Hidden behind a single row when the guest
-    /// came for one thing and there's nothing else to choose between.
+    /// Every way in, in three plain tiers so the difference reads at a glance:
+    /// the free guestlist first (one tap), then paid entry — each saying what
+    /// it includes — then VIP tables.
     private var waysCard: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(waysIn.enumerated()), id: \.element.id) { i, p in
-                if i > 0 { Rectangle().fill(Self.veil(0.08)).frame(height: 1) }
-                wayRow(p)
+        let tiers: [(String, [FVProduct])] = [
+            (locale.t("fv.sectionFree"), waysIn.filter { $0.settle == .free }),
+            (locale.t("fv.sectionAdmission"), waysIn.filter { $0.settle == .online || $0.settle == .door }),
+            (locale.t("fv.sectionVip"), waysIn.filter { $0.settle == .table }),
+        ]
+        return VStack(alignment: .leading, spacing: 14) {
+            ForEach(tiers.filter { !$0.1.isEmpty }, id: \.0) { title, products in
+                VStack(alignment: .leading, spacing: 7) {
+                    // One tier (opened from its own button) needs no heading.
+                    if tier == nil {
+                        Text(title.uppercased())
+                            .font(.cfMono(10)).kerning(1.6)
+                            .foregroundStyle(Self.text.opacity(0.55))
+                            .padding(.leading, 4)
+                    }
+                    VStack(spacing: 0) {
+                        ForEach(Array(products.enumerated()), id: \.element.id) { i, p in
+                            if i > 0 { Rectangle().fill(Self.veil(0.08)).frame(height: 1) }
+                            wayRow(p)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .background(Self.veil(0.05), in: .rect(cornerRadius: 14))
+                }
             }
         }
-        .padding(.horizontal, 14)
-        .background(Self.veil(0.05), in: .rect(cornerRadius: 14))
+    }
+
+    /// "Includes 1 drink + 1 shot", "Entry only", "Entry before 01:00".
+    private func perksLine(_ p: FVProduct) -> (what: String?, when: String?) {
+        let k = p.perks
+        var items: [String] = []
+        if k.openBar { items.append(locale.t("fv.perkOpenBar")) }
+        if k.drinks > 0 { items.append(k.drinks == 1 ? locale.t("fv.perkDrink") : String(format: locale.t("fv.perkDrinks"), k.drinks)) }
+        if k.shots > 0 { items.append(k.shots == 1 ? locale.t("fv.perkShot") : String(format: locale.t("fv.perkShots"), k.shots)) }
+        if k.beerOrSoft { items.append(locale.t("fv.perkBeer")) }
+        if k.bottle { items.append(locale.t("fv.perkBottle")) }
+        let what: String? = switch p.settle {
+        case .table: nil
+        case .free: items.isEmpty ? nil : String(format: locale.t("fv.perkIncludes"), items.joined(separator: " + "))
+        case .online, .door: items.isEmpty ? locale.t("fv.perkEntryOnly")
+            : String(format: locale.t("fv.perkIncludes"), items.joined(separator: " + "))
+        }
+        // The guestlist's own window first — it's data, not a guess from the name.
+        let when: String? = if let w = p.window, let f = w.from, let u = w.until { String(format: locale.t("fv.perkWindow"), f, u) }
+            else if let u = p.window?.until { String(format: locale.t("fv.perkBefore"), u) }
+            else if let f = p.window?.from { String(format: locale.t("fv.perkFrom"), f) }
+            else if let w = k.window { String(format: locale.t("fv.perkWindow"), w.0, w.1) }
+            else if let b = k.before { String(format: locale.t("fv.perkBefore"), b) }
+            else { nil }
+        return (what, when)
     }
 
     private func wayRow(_ p: FVProduct) -> some View {
@@ -349,11 +443,18 @@ struct FVEventSheet: View {
                     .foregroundStyle(on ? accent : Self.text.opacity(0.3))
                     .padding(.top, 1)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(FVText.pretty(p.name) ?? locale.t("rumbalist.titleFree"))
+                    Text(FVText.pretty(p.title(locale.locale)) ?? locale.t("rumbalist.titleFree"))
                         .font(.cfSans(14, weight: .semibold))
                         .foregroundStyle(Self.text)
                         .multilineTextAlignment(.leading)
-                    if let d = p.detail, !d.isEmpty {
+                    let perks = perksLine(p)
+                    if perks.what != nil || perks.when != nil {
+                        Text([perks.what, perks.when].compactMap { $0 }.joined(separator: " · "))
+                            .font(.cfSans(12, weight: .medium))
+                            .foregroundStyle(p.settle == .free ? accent : Self.text.opacity(0.8))
+                            .multilineTextAlignment(.leading)
+                    }
+                    if let d = p.info(locale.locale), !d.isEmpty {
                         Text(d.replacingOccurrences(of: "\n", with: " "))
                             .font(.cfSans(12))
                             .foregroundStyle(Self.text.opacity(0.55))
@@ -409,7 +510,7 @@ struct FVEventSheet: View {
                         Haptics.tap(); rate = r
                         quantity = Self.snap(quantity, to: r.sizes)
                     } label: {
-                        Text([r.name, r.price.euros, r.pax.flatMap { $0.max() }.map { String(format: locale.t("fv.upTo"), $0) }]
+                        Text([r.title(locale.locale), r.price.euros, r.pax.flatMap { $0.max() }.map { String(format: locale.t("fv.upTo"), $0) }]
                             .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
                             .font(.cfSans(13, weight: .medium))
                             .padding(.horizontal, 14).frame(height: 36)
@@ -432,27 +533,53 @@ struct FVEventSheet: View {
             }
             if let age = p.minAge ?? event.minAge { row(locale.t("fv.age")) { Text("\(age)+") } }
             if p.settle == .table, let rate {
-                if let d = rate.description, !d.isEmpty { row(rate.name ?? "", small: true) { Text(d).opacity(0.7) } }
-                if rate.offersFullPayment, let dep = rate.depositAmount {
+                if let d = rate.info(locale.locale), !d.isEmpty { row(rate.title(locale.locale) ?? "", small: true) { Text(d).opacity(0.7) } }
+                if rate.offersFullPayment, let dep = quote?.deposit ?? rate.depositAmount {
+                    let full = quote?.full ?? quote?.total ?? rate.price
                     Picker(locale.t("fv.payChoice"), selection: $payInFull) {
                         Text(String(format: locale.t("fv.payDeposit"), dep.euros)).tag(false)
-                        Text(String(format: locale.t("fv.payFull"), rate.price.euros)).tag(true)
+                        Text(String(format: locale.t("fv.payFull"), full.euros)).tag(true)
                     }
                     .pickerStyle(.segmented)
                     .padding(.vertical, 8)
                     .disabled(working)
-                    if !payInFull {
-                        row(locale.t("fv.restLater"), small: true) { Text((rate.price - dep).euros).opacity(0.7) }
-                    }
-                } else if let dep = rate.depositLabel {
+                } else if quote == nil, let dep = rate.depositLabel {
                     row(locale.t("fv.deposit")) { Text(dep) }
                 }
             }
             Rectangle().fill(Self.veil(0.08)).frame(height: 1).padding(.vertical, 3)
-            row(locale.t("rumbalist.total"), bold: true) { Text(totalText(p)) }
+            priceRows(p)
         }
         .padding(.init(top: 10, leading: 16, bottom: 10, trailing: 16))
         .background(Self.veil(0.05), in: .rect(cornerRadius: 14))
+    }
+
+    /// Subtotal, fees and the total actually charged — Fourvenues' figures
+    /// once the page has reported them; our estimate (marked "+ fees") until.
+    @ViewBuilder private func priceRows(_ p: FVProduct) -> some View {
+        if p.settle == .table, let q = quote, let total = q.total {
+            let canSplit = rate?.offersFullPayment == true || (q.deposit ?? total) < total
+            let inFull = payInFull || !canSplit || q.deposit == nil
+            let now = inFull ? (q.full ?? total) : (q.deposit ?? total)
+            let fee = (inFull ? q.fullFee : q.depositFee) ?? 0
+            row(locale.t("fv.tableTotal")) { Text(total.euros) }
+            if !inFull { row(locale.t("fv.depositNow")) { Text(now.euros) } }
+            row(locale.t("fv.fees")) { Text(fee.euros) }
+            row(locale.t("fv.payNow"), bold: true) { Text((now + fee).euros) }
+            if !inFull, total - now > 0.009 {
+                row(locale.t("fv.restLater"), small: true) { Text((total - now).euros).opacity(0.7) }
+            }
+        } else if p.settle == .online, let q = quote, let total = q.total {
+            row(locale.t("fv.subtotal")) { Text((q.subtotal ?? total - (q.fee ?? 0)).euros) }
+            row(locale.t("fv.fees")) { Text((q.fee ?? 0).euros) }
+            row(locale.t("rumbalist.total"), bold: true) { Text(total.euros) }
+        } else if p.settle == .online || p.settle == .table {
+            row(locale.t("rumbalist.total"), bold: true) {
+                Text(totalText(p) + " " + locale.t("fv.plusFees")).opacity(0.85)
+            }
+        } else {
+            row(locale.t("rumbalist.total"), bold: true) { Text(totalText(p)) }
+        }
     }
 
     private func totalText(_ p: FVProduct) -> String {
@@ -560,76 +687,145 @@ struct FVEventSheet: View {
 
     // ── Pass ──────────────────────────────────────────────────────────────────
 
+    /// Until the QR is here the guest sees only "give us a second" — never a
+    /// placeholder QR, and never anything on Fourvenues. A guestlist sign-up's
+    /// reply carries no door code (just _id/purchase_id), so the QR always
+    /// comes the other way: Fourvenues' email → ticket inbox → the account,
+    /// ~5 s after joining. waitForQR pulls the account until it lands.
     private func passStep(_ issued: FVTicket) -> some View {
-        // Follow the store, so a QR that lands a beat later shows up here.
+        // Follow the store, so the QR shows the moment sync brings it.
         let t = FVTicketStore.shared.tickets.first { $0.id == issued.id } ?? issued
         return ScrollView {
-            VStack(spacing: 16) {
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(accent)
-                Text(locale.t(t.settle == Settle.online.rawValue ? "fv.youreIn" : "rumbalist.onDoorList"))
-                    .font(.cfSerif(26, italic: true))
-                    .foregroundStyle(Self.text)
-                    .multilineTextAlignment(.center)
-                HStack(spacing: 6) {
-                    Image(systemName: "ticket.fill").font(.system(size: 11))
-                    Text(locale.t("rumbalist.savedToTickets")).font(.cfSans(11))
-                }
-                .foregroundStyle(Self.text.opacity(0.55))
-
-                Text("\(FVText.pretty(t.eventName) ?? "") · \(t.venue ?? "")\n\(FVFormat.night(t.night))\(t.doors.map { " · \($0)" } ?? "")")
-                    .font(.cfSans(13))
-                    .foregroundStyle(Self.text.opacity(0.7))
-                    .multilineTextAlignment(.center)
-
-                VStack(spacing: 8) {
-                    if let qr = t.qrPayload {
-                        QRCodeView(token: qr).frame(width: 200, height: 200)
-                        Text(qr).font(.cfMono(13, weight: .semibold)).foregroundStyle(Theme.onQRSurface)
-                    } else {
-                        Image(systemName: "qrcode").font(.system(size: 54))
-                            .foregroundStyle(Theme.onQRSurface.opacity(0.3))
-                            .frame(width: 200, height: 160)
-                        Text(locale.t("fv.qrInEmail"))
-                            .font(.cfSans(11)).foregroundStyle(Theme.onQRSurface.opacity(0.6))
-                            .multilineTextAlignment(.center)
-                    }
-                }
-                .padding(18)
-                .frame(maxWidth: .infinity)
-                .background(Theme.qrSurface, in: .rect(cornerRadius: 18))
-
-                if let owed = t.owedAtDoor {
-                    HStack(spacing: 10) {
-                        Image(systemName: "eurosign.circle.fill").font(.system(size: 20))
-                        Text(String(format: locale.t("fv.payAtDoorTitle"), owed.euros))
-                            .font(.cfSans(14, weight: .bold))
-                        Spacer(minLength: 0)
-                    }
-                    .foregroundStyle(.white)
-                    .padding(14)
-                    .background(Theme.ember, in: .rect(cornerRadius: 14))
-                }
-
-                Button { openTicket = t } label: {
-                    Text(locale.t("fv.viewTicket"))
-                        .font(.cfSans(15, weight: .medium))
-                        .foregroundStyle(Self.text)
-                        .frame(maxWidth: .infinity).frame(height: 48)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Self.veil(0.18)))
-                        .contentShape(.rect(cornerRadius: 12))
-                }
-                Button { dismiss() } label: {
-                    Text(locale.t("fv.done"))
-                        .font(.cfSans(16, weight: .semibold))
-                        .foregroundStyle(Self.ctaLabel)
-                        .frame(maxWidth: .infinity).frame(height: 54)
-                        .background(Self.ctaFill, in: .rect(cornerRadius: 12))
+            Group {
+                if let qr = t.qrPayload {
+                    ticketReady(t, qr: qr)
+                        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                } else {
+                    gettingTicket(t)
+                        .transition(.opacity)
                 }
             }
             .padding(.horizontal, 22)
             .padding(.bottom, 28)
+        }
+        .animation(.snappy(duration: 0.35), value: t.qrPayload)
+        .task(id: t.id) { await waitForQR(t.id) }
+    }
+
+    private func gettingTicket(_ t: FVTicket) -> some View {
+        VStack(spacing: 16) {
+            Group {
+                if waitedOut {
+                    Image(systemName: "clock").font(.system(size: 34)).foregroundStyle(accent)
+                } else {
+                    ProgressView().controlSize(.large).tint(accent)
+                }
+            }
+            .frame(height: 48)
+            .padding(.top, 40)
+            Text(locale.t("fv.gettingTicket"))
+                .font(.cfSerif(26, italic: true))
+                .foregroundStyle(Self.text)
+                .multilineTextAlignment(.center)
+            Text(locale.t(waitedOut ? "fv.ticketSlow" : "fv.gettingTicketNote"))
+                .font(.cfSans(13))
+                .foregroundStyle(Self.text.opacity(0.6))
+                .multilineTextAlignment(.center)
+            eventLine(t).padding(.top, 8)
+            // They may leave: the ticket is on the account and lands in
+            // Tickets (with a push) whether or not this screen is open.
+            Button { dismiss() } label: {
+                Text(locale.t("fv.done"))
+                    .font(.cfSans(15, weight: .medium))
+                    .foregroundStyle(Self.text)
+                    .frame(maxWidth: .infinity).frame(height: 48)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Self.veil(0.18)))
+                    .contentShape(.rect(cornerRadius: 12))
+            }
+            .padding(.top, 24)
+        }
+    }
+
+    private func ticketReady(_ t: FVTicket, qr: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 40))
+                .foregroundStyle(accent)
+            Text(locale.t(t.settle == Settle.online.rawValue ? "fv.youreIn" : "rumbalist.onDoorList"))
+                .font(.cfSerif(26, italic: true))
+                .foregroundStyle(Self.text)
+                .multilineTextAlignment(.center)
+            HStack(spacing: 6) {
+                Image(systemName: "ticket.fill").font(.system(size: 11))
+                Text(locale.t("rumbalist.savedToTickets")).font(.cfSans(11))
+            }
+            .foregroundStyle(Self.text.opacity(0.55))
+
+            eventLine(t)
+
+            VStack(spacing: 8) {
+                QRCodeView(token: qr).frame(width: 200, height: 200)
+                Text(qr).font(.cfMono(13, weight: .semibold)).foregroundStyle(Theme.onQRSurface)
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity)
+            .background(Theme.qrSurface, in: .rect(cornerRadius: 18))
+
+            if let owed = t.owedAtDoor {
+                HStack(spacing: 10) {
+                    Image(systemName: "eurosign.circle.fill").font(.system(size: 20))
+                    Text(String(format: locale.t("fv.payAtDoorTitle"), owed.euros))
+                        .font(.cfSans(14, weight: .bold))
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(.white)
+                .padding(14)
+                .background(Theme.ember, in: .rect(cornerRadius: 14))
+            }
+
+            Button { openTicket = t } label: {
+                Text(locale.t("fv.viewTicket"))
+                    .font(.cfSans(15, weight: .medium))
+                    .foregroundStyle(Self.text)
+                    .frame(maxWidth: .infinity).frame(height: 48)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Self.veil(0.18)))
+                    .contentShape(.rect(cornerRadius: 12))
+            }
+            Button { dismiss() } label: {
+                Text(locale.t("fv.done"))
+                    .font(.cfSans(16, weight: .semibold))
+                    .foregroundStyle(Self.ctaLabel)
+                    .frame(maxWidth: .infinity).frame(height: 54)
+                    .background(Self.ctaFill, in: .rect(cornerRadius: 12))
+            }
+        }
+    }
+
+    private func eventLine(_ t: FVTicket) -> some View {
+        Text("\(FVText.pretty(t.eventName) ?? "") · \(t.venue ?? "")\n\(FVFormat.night(t.night))\(t.doors.map { " · \($0)" } ?? "")")
+            .font(.cfSans(13))
+            .foregroundStyle(Self.text.opacity(0.7))
+            .multilineTextAlignment(.center)
+    }
+
+    /// Pull the account until the QR arrives: every 2 s for 90 s. The inbox
+    /// files it ~4 s after the sign-up; past 90 s something upstream is slow,
+    /// and the screen says the ticket will land in Tickets instead.
+    private func waitForQR(_ id: UUID) async {
+        let store = FVTicketStore.shared
+        let started = Date()
+        while !Task.isCancelled {
+            if store.tickets.first(where: { $0.id == id })?.qrPayload != nil {
+                Haptics.success()
+                return
+            }
+            if Date().timeIntervalSince(started) > 90 {
+                FVTrace.log("qr wait: not here after 90s")
+                waitedOut = true
+                return
+            }
+            await FVAccountSync.sync(auth.queries.supabaseService)
+            try? await Task.sleep(for: .seconds(2))
         }
     }
 
@@ -643,7 +839,7 @@ struct FVEventSheet: View {
             let unit: Double
             if p.settle == .table {
                 guard let rate else { return }
-                formURL = p.tableURL(rate: rate, pax: quantity); unit = rate.price
+                formURL = p.tableURL(rate: rate, pax: quantity); unit = quote?.total ?? rate.price
             } else {
                 formURL = p.checkoutURL(quantity: quantity); unit = p.price
             }
@@ -663,11 +859,12 @@ struct FVEventSheet: View {
             do {
                 var extras = FVAttendee(profile: auth.profile)
                 extras.fullPayment = p.settle == .table && payInFull && rate?.offersFullPayment == true
+                if p.settle == .table { FVTrace.log("table payment: \(extras.fullPayment ? "in full" : "deposit")") }
                 let pay = try await r.payURL(url: formURL, name: name, email: email, phone: phone, extras: extras)
                 working = false
                 // A table on deposit: remember what was paid now, so the ticket
                 // shows the balance due at the venue.
-                let paidNow = p.settle == .table && !extras.fullPayment ? rate?.depositAmount : nil
+                let paidNow = p.settle == .table && !extras.fullPayment ? (quote?.deposit ?? rate?.depositAmount) : nil
                 checkout = CheckoutTarget(url: pay, product: p, heads: quantity, unitPrice: unit,
                                           paymentExpected: true, paidNow: paidNow)
             } catch FVFormRunner.Failure.rejected(let why) {
@@ -685,9 +882,10 @@ struct FVEventSheet: View {
         guard let url = p.checkoutURL(quantity: quantity) else { return }
 
         guard let (name, email) = account else {
-            FVTrace.log("no account name/email — showing the form")
-            // Nothing to fill with — let the guest do it on Fourvenues' form.
-            checkout = CheckoutTarget(url: url, product: p, heads: quantity, unitPrice: p.price, paymentExpected: false)
+            // Nothing to fill with. A guestlist never sends the guest to
+            // Fourvenues — ask for the name in our own UI instead.
+            FVTrace.log("no account name/email — asking for profile")
+            errorText = locale.t("fv.needsProfile")
             return
         }
 
@@ -756,6 +954,14 @@ struct FVEventSheet: View {
         let r = runner ?? FVFormRunner()
         runner = r
         r.preload(url)
+        // Paid ways in: read the real price summary (fees, per-person table
+        // supplements) off the page as soon as it has loaded.
+        guard p.settle == .online || p.settle == .table else { quote = nil; return }
+        if quote != nil { quote = nil }
+        Task {
+            let q = await r.quote(for: url)
+            if r.loadedURL == url { quote = q }
+        }
     }
 
     @discardableResult
@@ -763,7 +969,8 @@ struct FVEventSheet: View {
         let t = FVTicket(
             eventCode: event.code, eventName: event.name, venue: event.venue, address: event.address,
             night: event.night, doors: event.doors, closes: event.closes, image: event.image,
-            productName: p.settle == .table ? "\(p.name ?? "Table") · \(rate?.name ?? "")" : p.name,
+            productName: p.settle == .table ? "\(p.title(locale.locale) ?? "Table") · \(rate?.title(locale.locale) ?? "")"
+                : p.title(locale.locale),
             settle: p.settle.rawValue, unitPrice: unitPrice, heads: heads,
             qrPayload: qr, pdfURL: pdf?.absoluteString)
         FVTicketStore.shared.add(t)
@@ -771,7 +978,7 @@ struct FVEventSheet: View {
         // Onto the account, so it follows the user to another phone and the
         // ticket inbox can fill in the QR when Fourvenues' email lands.
         Task { await FVAccountSync.sync(auth.queries.supabaseService) }
-        Haptics.success()
+        // No success haptic here: it fires when the QR is in hand (waitForQR).
         confirmed = t
         return t
     }

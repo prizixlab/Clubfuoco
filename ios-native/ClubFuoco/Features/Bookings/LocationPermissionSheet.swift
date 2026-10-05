@@ -121,7 +121,7 @@ struct LocationPermissionSheet: View {
         )
         .onPreferenceChange(SheetContentHeightKey.self) { contentHeight = $0 }
         .presentationDetents(detents)
-        .presentationDragIndicator(.visible)
+        .cfSheetGrabber()
     }
 
     // ── Copy keys per mode/step ──────────────────────────────────────────────

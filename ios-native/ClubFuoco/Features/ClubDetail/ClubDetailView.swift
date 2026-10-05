@@ -200,7 +200,7 @@ struct ClubDetailView: View {
         }
         .sheet(item: $planGroup) { ref in
             NavigationStack { GroupDetailView(groupId: ref.id, presentedModally: true) }
-                .presentationDragIndicator(.visible)
+                .cfSheetGrabber()
         }
         .fullScreenCover(item: $photoViewer) { idx in
             PhotoViewer(photos: photos, startIndex: idx.value)

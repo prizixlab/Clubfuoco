@@ -32,14 +32,70 @@ struct FVEvent: Decodable, Identifiable, Hashable {
     let image: String?
     let url: String
     let products: [FVProduct]
+    /// How the night's VIP areas fit together, for the overview map.
+    let vipMap: FVVipMap?
 
     var id: String { code }
 
     enum CodingKeys: String, CodingKey {
         case code, name, venue, address, night, doors, closes, genres, image, url, products
+        case vipMap = "vip_map"
         case startsAt = "starts_at"
         case minAge = "min_age"
         case clubId = "club_id"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        code = try c.decode(String.self, forKey: .code)
+        name = try c.decodeIfPresent(String.self, forKey: .name)
+        venue = try c.decodeIfPresent(String.self, forKey: .venue)
+        clubId = try c.decodeIfPresent(String.self, forKey: .clubId)
+        address = try c.decodeIfPresent(String.self, forKey: .address)
+        night = try c.decode(String.self, forKey: .night)
+        startsAt = try c.decode(String.self, forKey: .startsAt)
+        doors = try c.decodeIfPresent(String.self, forKey: .doors)
+        closes = try c.decodeIfPresent(String.self, forKey: .closes)
+        minAge = try c.decodeIfPresent(Int.self, forKey: .minAge)
+        genres = try c.decode([String].self, forKey: .genres)
+        image = try c.decodeIfPresent(String.self, forKey: .image)
+        url = try c.decode(String.self, forKey: .url)
+        products = FVOffer.curate(try c.decode([FVProduct].self, forKey: .products))
+        vipMap = try c.decodeIfPresent(FVVipMap.self, forKey: .vipMap)
+    }
+}
+
+/// Which of a night's products we sell. One rule for every venue:
+/// - a free guestlist beats paid entry that includes nothing extra;
+/// - among paid entry, an option is dropped when another costs the same or
+///   less and includes at least as much (drinks, shots, bottle, open bar);
+/// - sold-out options are kept only while nothing else in their tier is on sale,
+///   so a fully sold-out tier still reads "sold out" instead of vanishing.
+/// Guestlists and tables are left alone.
+enum FVOffer {
+    static func curate(_ all: [FVProduct]) -> [FVProduct] {
+        let paid: Set<Settle> = [.online, .door]
+        let onSale = all.filter { !$0.soldOut }
+        let freeTonight = onSale.contains { $0.settle == .free }
+        var keep = onSale.filter { p in
+            guard paid.contains(p.settle) else { return true }
+            return !(freeTonight && !p.perks.includesSomething)
+        }
+        keep = keep.filter { p in
+            guard paid.contains(p.settle) else { return true }
+            return !keep.contains { q in
+                q.id != p.id && paid.contains(q.settle) && q.price <= p.price && q.perks.covers(p.perks)
+                    // Equal in price and perks: the first listed stays.
+                    && (q.price < p.price || !p.perks.covers(q.perks)
+                        || all.firstIndex(of: q)! < all.firstIndex(of: p)!)
+            }
+        }
+        // A tier with nothing on sale keeps its sold-out products.
+        for tier in FVTier.allCases where !keep.contains(where: tier.includes) {
+            if tier == .paid && freeTonight { continue }
+            keep += all.filter { tier.includes($0) && $0.soldOut }
+        }
+        return all.filter { keep.contains($0) }
     }
 }
 
@@ -80,6 +136,9 @@ struct FVProduct: Decodable, Identifiable, Hashable {
     let window: FVWindow?
     /// Tables: the zone's floor plan, when the venue publishes one.
     let map: FVZoneMap?
+
+    /// What the price includes, read from the name and the description.
+    var perks: FVPerks { FVPerks([name, detail].compactMap { $0 }.joined(separator: " · ")) }
 
     enum CodingKeys: String, CodingKey {
         case id, source, name, detail, price, settle, min, max, checkout, rates, window, map
@@ -430,6 +489,12 @@ struct FVPerks: Equatable {
 
     var includesSomething: Bool { drinks > 0 || shots > 0 || beerOrSoft || bottle || openBar }
 
+    /// Includes at least everything `o` does. Entry times aren't weighed.
+    func covers(_ o: FVPerks) -> Bool {
+        (openBar || (drinks >= o.drinks && (beerOrSoft || !o.beerOrSoft || drinks > o.drinks)))
+            && (openBar || !o.openBar) && shots >= o.shots && (bottle || !o.bottle)
+    }
+
     init(_ raw: String?) {
         let s = (raw ?? "").folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil).lowercased()
         func first(_ pattern: String) -> [String]? {
@@ -441,7 +506,8 @@ struct FVPerks: Equatable {
         }
         let drinkWord = #"(?:copas?|drinks?|consumicio(?:n|ns|nes)?|bebidas?|cubatas?)"#
         if let m = first(#"(\d+)\s*"# + drinkWord) { drinks = Int(m[1]) ?? 1 }
-        else if first(#"\b"# + drinkWord + #"\b"#) != nil { drinks = 1 }
+        else if first(#"\b"# + drinkWord + #"\b"#) != nil,
+                first(#"\b(?:sin|no incluye|without|no drinks?|sense)\s+(?:\w+\s+)?"# + drinkWord) == nil { drinks = 1 }
         if let m = first(#"(\d+)\s*(?:chupitos?|chupis?|shots?)"#) { shots = Int(m[1]) ?? 1 }
         else if first(#"\b(?:chupitos?|chupis?|shots?)\b"#) != nil { shots = 1 }
         beerOrSoft = first(#"\b(?:cerveza|cervesa|refresco|beer|soft drink)\b"#) != nil
@@ -502,8 +568,21 @@ enum FVTier: String, CaseIterable, Identifiable {
 struct FVZoneMap: Decodable, Hashable {
     let image: String?
     let spaces: [FVSpace]
+    /// The picture already shows the tables — draw tap targets, not shapes,
+    /// or an imprecise position reads as a doubled table.
+    let painted: Bool
+    /// The venue's table positions don't describe this picture — show the
+    /// plan, mark no tables (prices are picked from the chips).
+    let approx: Bool
 
-    enum CodingKeys: String, CodingKey { case image, spaces }
+    enum CodingKeys: String, CodingKey { case image, spaces, painted, approx }
+
+    init(image: String?, spaces: [FVSpace], painted: Bool = false, approx: Bool = false) {
+        self.image = image
+        self.spaces = spaces
+        self.painted = painted
+        self.approx = approx
+    }
 
     /// Never throws: a table we can't read is dropped, not the whole feed —
     /// one unplaced table once made every map (and new night) vanish.
@@ -512,6 +591,8 @@ struct FVZoneMap: Decodable, Hashable {
         image = (try? c?.decodeIfPresent(String.self, forKey: .image)) ?? nil
         spaces = ((try? c?.decodeIfPresent([FVLossy<FVSpace>].self, forKey: .spaces)) ?? nil)?
             .compactMap(\.value) ?? []
+        painted = ((try? c?.decodeIfPresent(Bool.self, forKey: .painted)) ?? nil) ?? false
+        approx = ((try? c?.decodeIfPresent(Bool.self, forKey: .approx)) ?? nil) ?? false
     }
 }
 
@@ -539,6 +620,25 @@ struct FVSpace: Decodable, Hashable, Identifiable {
     /// The rate ids (FVRate.id) this table is sold under.
     let rates: [String]
     let rgb: [Int]?
+    /// The table's real outline in the picture, [x, y, w, h] in percent —
+    /// traced by agentbox on plans that draw their tables.
+    let box: [Double]?
 
     var available: Bool { !off && !taken }
+}
+
+/// "shared": one plan for the whole venue — the overview is that plan with
+/// every area's tables; "areas": close-up crops with no common frame — the
+/// overview is the areas as tiles. Decodes leniently (never fails the feed).
+struct FVVipMap: Decodable, Hashable {
+    let shared: Bool
+    let overview: String?
+
+    enum CodingKeys: String, CodingKey { case layout, overview }
+
+    init(from decoder: Decoder) throws {
+        let c = try? decoder.container(keyedBy: CodingKeys.self)
+        shared = ((try? c?.decodeIfPresent(String.self, forKey: .layout)) ?? nil) == "shared"
+        overview = (try? c?.decodeIfPresent(String.self, forKey: .overview)) ?? nil
+    }
 }

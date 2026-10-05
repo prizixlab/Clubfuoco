@@ -2910,6 +2910,8 @@
  "fv.subtotal": { "ca": "Subtotal", "fr": "Sous-total" },
  "fv.plusFees": { "ca": "+ despeses", "fr": "+ frais" },
  "fv.mapHint": { "ca": "Toca una taula per triar-ne el preu. El local assigna la teva taula exacta aquella nit.", "fr": "Touchez une table pour choisir son tarif. Le club attribue votre table exacte le soir même." },
+ "fv.allAreas": { "ca": "Totes les zones", "fr": "Toutes les zones" },
+ "fv.pickArea": { "ca": "Toca una zona per veure'n les taules", "fr": "Touchez une zone pour voir ses tables" },
  "fv.payChoice": { "ca": "Com pagar", "fr": "Mode de paiement" },
  "fv.payDeposit": { "ca": "Dipòsit %@", "fr": "Acompte %@" },
  "fv.payFull": { "ca": "Pagament total %@", "fr": "Paiement total %@" },
@@ -2949,5 +2951,9 @@
  "fv.phoneLabel": {
   "ca": "Telèfon per a la teva entrada",
   "fr": "Téléphone pour votre billet"
- }
+ },
+ "fv.gettingTicket": { "ca": "Dona'ns un segon per aconseguir la teva entrada", "fr": "Donne-nous une seconde pour obtenir ton billet" },
+ "fv.gettingTicketNote": { "ca": "El teu QR apareixerà aquí mateix.", "fr": "Ton QR apparaîtra ici même." },
+ "fv.ticketSlow": { "ca": "Està trigant més del normal. La teva entrada apareixerà a Entrades tan aviat com estigui llesta; t'enviarem una notificació.", "fr": "C'est plus long que d'habitude. Ton billet apparaîtra dans Billets dès qu'il sera prêt — on t'enverra une notification." },
+ "fv.needsProfile": { "ca": "Afegeix el teu nom al perfil: apareix a l'entrada.", "fr": "Ajoute ton nom à ton profil — il figure sur le billet." }
 }

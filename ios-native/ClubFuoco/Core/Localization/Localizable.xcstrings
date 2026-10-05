@@ -5546,6 +5546,62 @@
         }
       }
     },
+    "fv.allAreas": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All areas"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todas las zonas"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Totes les zones"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toutes les zones"
+          }
+        }
+      }
+    },
+    "fv.pickArea": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap an area to see its tables"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca una zona para ver sus mesas"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca una zona per veure'n les taules"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez une zone pour voir ses tables"
+          }
+        }
+      }
+    },
     "fv.payChoice": {
       "localizations": {
         "en": {
@@ -5766,6 +5822,118 @@
           "stringUnit": {
             "state": "translated",
             "value": "Votre QR est aussi dans l'e-mail de Fourvenues."
+          }
+        }
+      }
+    },
+    "fv.gettingTicket": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give us a second to get your ticket"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Danos un segundo para conseguir tu entrada"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dona'ns un segon per aconseguir la teva entrada"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Donne-nous une seconde pour obtenir ton billet"
+          }
+        }
+      }
+    },
+    "fv.gettingTicketNote": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your QR will appear right here."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu QR aparecerá aquí mismo."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El teu QR apareixerà aquí mateix."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton QR apparaîtra ici même."
+          }
+        }
+      }
+    },
+    "fv.ticketSlow": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This is taking longer than usual. Your ticket will appear in Tickets as soon as it's ready — we'll send you a notification."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Está tardando más de lo normal. Tu entrada aparecerá en Entradas en cuanto esté lista; te enviaremos una notificación."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Està trigant més del normal. La teva entrada apareixerà a Entrades tan aviat com estigui llesta; t'enviarem una notificació."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C'est plus long que d'habitude. Ton billet apparaîtra dans Billets dès qu'il sera prêt — on t'enverra une notification."
+          }
+        }
+      }
+    },
+    "fv.needsProfile": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add your name to your profile — it goes on the ticket."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añade tu nombre a tu perfil: aparece en la entrada."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afegeix el teu nom al perfil: apareix a l'entrada."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajoute ton nom à ton profil — il figure sur le billet."
           }
         }
       }

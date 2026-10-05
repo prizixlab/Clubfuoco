@@ -50,13 +50,22 @@ enum FVFocus: Equatable {
     case server(UUID)   // external_tickets.id, from a push
 }
 
-/// PROTOTYPE persistence: a JSON file on the device. The real version writes to
-/// an owner-only `external_tickets` table so the ticket follows the account.
+/// The device's cache of the signed-in account's tickets; `external_tickets`
+/// is the account's record (FVAccountSync reconciles the two).
+///
+/// ONE FILE PER ACCOUNT. It used to be one file for the whole phone, never
+/// cleared on sign-out — so when someone else signed in on the same phone,
+/// sync removed the first person's synced tickets and pushed their unsynced
+/// ones, door QR and PDF link included, into the second person's account.
+/// AuthStore calls use(owner:) whenever the signed-in user changes; signed out,
+/// the store is empty and writes nothing.
 @MainActor @Observable
 final class FVTicketStore {
     static let shared = FVTicketStore()
 
     private(set) var tickets: [FVTicket] = []
+    /// Whose tickets these are (auth user id). Nil = signed out.
+    private(set) var owner: UUID?
 
     /// The ticket the Tickets page scrolls to and lights up the next time it
     /// is on screen — set the moment a ticket is issued (so it is plainly
@@ -65,16 +74,48 @@ final class FVTicketStore {
     /// Raised by a tapped ticket push; the tab bar switches to Tickets.
     var wantsTicketsTab = false
 
-    private let file: URL = {
+    private static let dir: URL = {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("fourvenues-tickets.json")
+        return dir
     }()
+    /// The pre-per-account file. Adopted once by the first account to sign in.
+    private static let legacyFile = dir.appendingPathComponent("fourvenues-tickets.json")
+    private static func file(for owner: UUID) -> URL {
+        dir.appendingPathComponent("fourvenues-tickets-\(owner.uuidString.lowercased()).json")
+    }
 
-    private init() {
+    /// UserDefaults key for the phone typed for paid checkouts — per account
+    /// too, or the next person's checkout would be pre-filled with it.
+    nonisolated static var phoneKey: String {
+        "fv.phone." + (UserDefaults.standard.string(forKey: "fv.owner") ?? "signed-out")
+    }
+
+    private init() {}
+
+    /// Switch to `owner`'s tickets (nil = signed out). Cheap to call repeatedly.
+    func use(owner new: UUID?) {
+        guard new != owner else { return }
+        owner = new
+        focus = nil
+        UserDefaults.standard.set(new?.uuidString.lowercased(), forKey: "fv.owner")
+        guard let new else { tickets = []; return }
+        let file = Self.file(for: new)
+        let fm = FileManager.default
+        // The tickets saved before this was per account belong to whoever was
+        // using the phone then — almost always the person signing in now.
+        if !fm.fileExists(atPath: file.path), fm.fileExists(atPath: Self.legacyFile.path) {
+            try? fm.moveItem(at: Self.legacyFile, to: file)
+            if let phone = UserDefaults.standard.string(forKey: "fv.phone") {
+                UserDefaults.standard.set(phone, forKey: Self.phoneKey)
+            }
+            UserDefaults.standard.removeObject(forKey: "fv.phone")
+        }
         if let data = try? Data(contentsOf: file),
            let saved = try? JSONDecoder().decode([FVTicket].self, from: data) {
             tickets = saved
+        } else {
+            tickets = []
         }
     }
 
@@ -95,7 +136,8 @@ final class FVTicketStore {
     }
 
     private func save() {
-        guard let data = try? JSONEncoder().encode(tickets) else { return }
+        guard let owner, let data = try? JSONEncoder().encode(tickets) else { return }
+        let file = Self.file(for: owner)
         try? data.write(to: file, options: [.atomic, .completeFileProtection])
     }
 }

@@ -49,7 +49,7 @@ struct EventDetailSheet<DJPage: View>: View {
         }
         .background(Theme.cream)
         .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
+        .cfSheetGrabber()
         .sheet(item: $openDJ) { djPage($0) }
     }
 

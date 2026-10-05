@@ -270,11 +270,12 @@ enum FVJS {
       if (!el) return null;
       const a = el.getAttribute('data-currency-amount');
       if (a != null && a !== '') return Number(a);
-      // "1.50 €" (first render) and "1.234,50 €" (after it localises) both
-      // occur: the LAST separator followed by exactly two digits is decimal.
+      // "1.50 €", "1,5 €" and "1.234,50 €" all occur while it boots and
+      // localises: the LAST separator followed by one or two digits is the
+      // decimal point; any other separator groups thousands.
       const t = (el.innerText || '').replace(/[^0-9.,]/g, '');
       if (!t) return null;
-      const m = t.match(/^(.*?)[.,](\\d{2})$/);
+      const m = t.match(/^(.*?)[.,](\\d{1,2})$/);
       return m ? Number(m[1].replace(/[.,]/g, '') + '.' + m[2]) : Number(t.replace(/[.,]/g, ''));
     };
     // Their summary re-renders a few times while it boots — report only once
@@ -422,6 +423,15 @@ final class FVFormRunner: NSObject, WKNavigationDelegate, WKUIDelegate {
               let data = raw.data(using: .utf8), !raw.isEmpty,
               let q = try? JSONDecoder().decode(FVQuote.self, from: data)
         else { return nil }
+        // A ticket quote must add up, or it was read mid-render (a €1.50 fee
+        // once came back as €150). Better "+ fees" than a wrong number.
+        if q.kind == "ticket", let total = q.total {
+            let sub = q.subtotal ?? total, fee = q.fee ?? 0
+            guard fee >= 0, abs(sub + fee - total) < 0.011, fee <= max(sub * 0.5, 5) else {
+                FVTrace.log("quote rejected: subtotal \(sub) fee \(fee) total \(total)")
+                return nil
+            }
+        }
         return loadedURL == url ? q : nil
     }
 
@@ -685,10 +695,25 @@ private struct FVCheckoutWeb: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         // Default data store: Fourvenues' own session and the guest's Safari
         // autofill behave as they would in a browser.
-        let web = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+        let config = WKWebViewConfiguration()
+        config.userContentController.addUserScript(WKUserScript(
+            source: Self.solid, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = coordinator
         web.uiDelegate = coordinator
         web.allowsBackForwardNavigationGestures = true
+        // Feel like a screen, not a website: no rubber-banding, no pinch-zoom,
+        // no sideways drift on pages a few pixels wider than the phone.
+        let scroll = web.scrollView
+        scroll.bounces = false
+        scroll.alwaysBounceHorizontal = false
+        scroll.showsHorizontalScrollIndicator = false
+        scroll.minimumZoomScale = 1
+        scroll.maximumZoomScale = 1
+        scroll.pinchGestureRecognizer?.isEnabled = false
+        context.coordinator.pin = scroll.observe(\.contentOffset, options: [.new]) { s, _ in
+            if s.contentOffset.x != 0 { s.contentOffset.x = 0 }
+        }
         coordinator.attach(web, paymentExpected: paymentExpected)
         coordinator.prefill = paymentExpected ? nil : prefill
         web.load(URLRequest(url: url))
@@ -696,6 +721,22 @@ private struct FVCheckoutWeb: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
+
+    func makeCoordinator() -> Pin { Pin() }
+    /// Holds the observer that keeps the page from scrolling sideways.
+    final class Pin { var pin: NSKeyValueObservation? }
+
+    /// Locks the page to the phone's width and scale.
+    private static let solid = """
+    (function () {
+      var m = document.querySelector('meta[name=viewport]');
+      if (!m) { m = document.createElement('meta'); m.name = 'viewport'; document.head.appendChild(m); }
+      m.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
+      var s = document.createElement('style');
+      s.textContent = 'html,body{overflow-x:hidden!important;max-width:100%!important;overscroll-behavior:none!important}';
+      document.head.appendChild(s);
+    })();
+    """
 }
 
 /// A step-by-step log of the background sign-up, on the device, so a failure

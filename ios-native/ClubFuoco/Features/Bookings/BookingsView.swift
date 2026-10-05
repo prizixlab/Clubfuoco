@@ -185,7 +185,7 @@ struct BookingsView: View {
             Task { await model.load(api: api, queries: auth.queries) }
         }) { group in
             NavigationStack { GroupDetailView(groupId: group.id, presentedModally: true) }
-                .presentationDragIndicator(.visible)
+                .cfSheetGrabber()
         }
         .sheet(item: $openFourvenues) { FVTicketDetailView(ticket: $0, justIssued: false) }
         .sheet(item: $openInvite, onDismiss: {
@@ -197,7 +197,7 @@ struct BookingsView: View {
                 preclaimedName: inv.fullName
             )
             .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
+            .cfSheetGrabber()
         }
         .sheet(item: Binding(
             get: { savedInviteToken.map(SavedToken.init) },
@@ -207,7 +207,7 @@ struct BookingsView: View {
         }) { wrapped in
             InviteClaimView(token: wrapped.value)
                 .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+                .cfSheetGrabber()
         }
         .sheet(item: $reviewBooking) { booking in
             ReviewSurveySheet(
@@ -222,7 +222,7 @@ struct BookingsView: View {
                     Task { await model.load(api: api, queries: auth.queries) }
                 }
             )
-            .presentationDragIndicator(.visible)
+            .cfSheetGrabber()
         }
         .onReceive(NotificationCenter.default.publisher(for: .cfMorningAfterTapped)) { notif in
             // Notification tap → flip to the Reviews tab and present the sheet

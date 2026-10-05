@@ -43,9 +43,8 @@ struct FVTicketDetailView: View {
     }
 
     @Environment(LocaleStore.self) private var locale
+    @Environment(AuthStore.self) private var auth
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
-    @State private var showFourvenues = false
 
     private static let ink = Color.adaptive(light: 0xF8F5EE, dark: 0x141416)
     private static let text = Color.adaptive(light: 0x221E1A, dark: 0xF5F5F7)
@@ -116,16 +115,6 @@ struct FVTicketDetailView: View {
                         .padding(.init(top: 10, leading: 16, bottom: 10, trailing: 16))
                         .background(Self.veil(0.05), in: .rect(cornerRadius: 14))
 
-                        if let pdf = ticket.pdfURL.flatMap(URL.init(string:)) {
-                            Button { openURL(pdf) } label: {
-                                Label("Fourvenues PDF", systemImage: "doc.richtext")
-                                    .font(.cfSans(14, weight: .medium))
-                                    .foregroundStyle(Self.text)
-                                    .frame(maxWidth: .infinity).frame(height: 46)
-                                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Self.veil(0.18)))
-                            }
-                        }
-
                         #if DEBUG
                         Button("Remove (debug)", role: .destructive) {
                             FVTicketStore.shared.remove(ticket); dismiss()
@@ -139,21 +128,13 @@ struct FVTicketDetailView: View {
             }
         }
         .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-        // Fourvenues' own ticket page, in front of the guest — its bot check is
-        // theirs to pass. The page is read for the PDF once it shows.
-        .fullScreenCover(isPresented: $showFourvenues) {
-            if let url = ticket.successURL.flatMap(URL.init(string:)) {
-                FVCheckoutView(url: url, title: ticket.eventName ?? "", paymentExpected: false) { pdf in
-                    let id = ticket.id
-                    Task {
-                        let read = try? await FVTicketReader.read(pdfURL: pdf)
-                        FVTicketStore.shared.update(id) {
-                            $0.pdfURL = pdf.absoluteString
-                            $0.qrPayload = read?.qrPayload ?? $0.qrPayload
-                        }
-                    }
-                }
+        .cfSheetGrabber()
+        // Never a link out to Fourvenues (their page, their PDF): the QR is
+        // ours to show. While it's pending, pull the account until it lands.
+        .task(id: ticket.qrPayload == nil) {
+            while ticket.qrPayload == nil && !Task.isCancelled {
+                await FVAccountSync.sync(auth.queries.supabaseService)
+                try? await Task.sleep(for: .seconds(3))
             }
         }
     }
@@ -164,20 +145,10 @@ struct FVTicketDetailView: View {
                 QRCodeView(token: qr).frame(width: 230, height: 230)
                 Text(qr).font(.cfMono(14, weight: .semibold)).foregroundStyle(Theme.onQRSurface)
             } else {
-                Image(systemName: "qrcode").font(.system(size: 54))
-                    .foregroundStyle(Theme.onQRSurface.opacity(0.3))
+                ProgressView().controlSize(.large).tint(accent)
                     .frame(height: 120)
-                if ticket.successURL != nil {
-                    Button { showFourvenues = true } label: {
-                        Text(locale.t("fv.viewTicket"))
-                            .font(.cfSans(15, weight: .semibold))
-                            .padding(.horizontal, 20).frame(height: 42)
-                            .background(accent, in: .capsule)
-                            .foregroundStyle(.white)
-                    }
-                }
-                Text(locale.t("fv.qrInEmail"))
-                    .font(.cfSans(11)).foregroundStyle(Theme.onQRSurface.opacity(0.6))
+                Text(locale.t("fv.gettingTicketNote"))
+                    .font(.cfSans(12)).foregroundStyle(Theme.onQRSurface.opacity(0.6))
                     .multilineTextAlignment(.center)
             }
         }

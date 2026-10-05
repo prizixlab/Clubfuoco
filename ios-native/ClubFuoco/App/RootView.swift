@@ -48,7 +48,7 @@ struct RootView: View {
             InviteClaimView(token: wrapped.value,
                             preclaimedGuestId: router.paidGuestId)
                 .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+                .cfSheetGrabber()
         }
         .task { await maybePromptNotifications() }
         // Recover an invite tapped before the app was installed. Runs once per

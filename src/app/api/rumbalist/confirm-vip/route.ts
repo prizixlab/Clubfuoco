@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe'
 import { ok, err, resolveBookingDate } from '@/lib/utils'
 import { generateReferenceCode } from '@/lib/rumbalist-reference'
 import { supplyingBrandId } from '@/lib/partner'
+import { checkVipPrice } from '@/lib/vip-price'
 import { z } from 'zod'
 
 // Verify with Stripe that the Apple Pay confirmation actually succeeded,
@@ -38,6 +39,11 @@ export async function POST(req: Request) {
   if (intent.metadata?.user_id !== user!.id) {
     return err('Payment does not belong to this user', 403)
   }
+  // The table is booked at the club the payment was made for — not whichever
+  // club the confirm request names.
+  if (intent.metadata?.source !== 'rumbalist_vip' || intent.metadata?.club_id !== parsed.data.club_id) {
+    return err('Payment does not match this table', 403)
+  }
 
   // 2. Idempotency — if we already wrote this booking, return it
   const supabase = await createServiceClient()
@@ -51,8 +57,18 @@ export async function POST(req: Request) {
   // 3. Insert booking row — retry on reference-code collision (Postgres unique
   //    violation = 23505). Five attempts is overkill at 1/2.8-trillion odds.
   // Native sends the planner-selected night; web keeps the tomorrow default.
-  const bookingDate = resolveBookingDate(parsed.data.booking_date)
+  // The night create-vip-intent checked wins over the confirm request's.
+  const bookingDate = resolveBookingDate(intent.metadata?.booking_date ?? parsed.data.booking_date)
   if (!bookingDate) return err('booking_date must be today or within the next 14 days')
+  // An intent create-vip-intent didn't price (made before that check
+  // existed) must still be for a real VIP price at this club.
+  if (intent.metadata?.price_checked !== '1') {
+    const price = await checkVipPrice(supabase, parsed.data.club_id, null, intent.amount)
+    if (!price.ok) {
+      console.error('[confirm-vip] unpriced intent refused', intent.id, intent.amount, price.reason)
+      return err('This payment doesn’t match a VIP table price. Contact support for a refund.', 409)
+    }
+  }
   const total = intent.amount / 100   // cents → euros
   // Supplier behind this table, so the ticket brands itself correctly.
   const brandId = await supplyingBrandId(supabase, parsed.data.club_id, 'vip_table', bookingDate)

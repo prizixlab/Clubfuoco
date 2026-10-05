@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { api, C, font, mono } from './_ui'
+import { defaultFeeBpsFor } from '@/lib/platform-fee'
 
 // The rate Club Fuoco takes from a promoter's ticket sales.
 //
@@ -19,9 +20,11 @@ type FeeWrite = { kind: Kind; fee_bps: number; fee_percent: string }
 
 type Kind = 'private' | 'public'
 
-/** bps → "12%", or the 12% default when a promoter has no payout row yet. */
-function pct(bps: number | null | undefined): string {
-  const v = Number.isInteger(bps) ? (bps as number) : 1200
+/** bps → "12%", falling back to the standing default for that kind when the
+ *  promoter has no payout row yet. The two differ (12% private, 50% public),
+ *  so the fallback has to know which one it is showing. */
+function pct(bps: number | null | undefined, kind: Kind): string {
+  const v = Number.isInteger(bps) ? (bps as number) : defaultFeeBpsFor(kind)
   const n = v / 100
   return `${Number.isInteger(n) ? n : Number(n.toFixed(2))}%`
 }
@@ -87,8 +90,8 @@ export function FeeControl({ userId, name, feeBps, publicFeeBps }: {
     // The numbers are ON the button. A control labelled only "Rate", sat among
     // four other small buttons, is one nobody finds — and the rate is worth
     // seeing at a glance across the roster anyway.
-    const priv = pct(feeBps)
-    const pub = pct(publicFeeBps)
+    const priv = pct(feeBps, 'private')
+    const pub = pct(publicFeeBps, 'public')
     const same = priv === pub
     return (
       <button

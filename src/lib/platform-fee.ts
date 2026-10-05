@@ -4,8 +4,28 @@
 // key, or a mock — this is the one calculation in the codebase whose bugs are
 // denominated in other people's money.
 
-/** The rate every promoter starts on: 12%, matching PLATFORM_FEE_PERCENT. */
+// Two standing rates, because a public offer and a private event are two
+// different deals (see 20260822_split_fee_by_event_kind.sql):
+//
+//   PRIVATE EVENT — the promoter's own crowd arriving through their own link.
+//   We supply the rails, so we take 12%.
+//
+//   PUBLIC OFFER — listed in the app, so WE supply the audience and the
+//   discovery. We take 50%.
+//
+// Both are only defaults. A signed deal is written per promoter in the portal
+// and always wins; these are what applies until someone decides otherwise.
+
+/** Private-event rate every promoter starts on: 12%. */
 export const DEFAULT_PLATFORM_FEE_BPS = 1200
+
+/** Public-offer rate every promoter starts on: 50%. */
+export const DEFAULT_PUBLIC_PLATFORM_FEE_BPS = 5000
+
+/** The standing rate for a night, by how it is sold. */
+export function defaultFeeBpsFor(kind: 'private' | 'public'): number {
+  return kind === 'public' ? DEFAULT_PUBLIC_PLATFORM_FEE_BPS : DEFAULT_PLATFORM_FEE_BPS
+}
 
 /** Basis points: 1200 = 12.00%. Integers all the way down, so no float ever
  *  touches a currency amount. */

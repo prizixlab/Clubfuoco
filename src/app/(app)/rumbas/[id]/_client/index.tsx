@@ -4,6 +4,7 @@ import { apiFetch } from '@/lib/api'
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import type { Rumba, RumbaSignup } from '@/types'
+import { VenuePhoto } from '@/components/VenuePhoto'
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-GB', {
@@ -98,7 +99,7 @@ export default function RumbaDetailPage() {
       {/* Hero */}
       <div className="relative w-full h-72 overflow-hidden">
         {rumba.cover_image
-          ? <img src={rumba.cover_image} alt={rumba.title} className="w-full h-full object-cover" />
+          ? <VenuePhoto loading="eager" src={rumba.cover_image} alt={rumba.title} className="w-full h-full object-cover" />
           : <div className="w-full h-full bg-surface-container-high flex items-center justify-center">
               <span className="material-symbols-outlined text-[80px] text-primary/20"
                 style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>

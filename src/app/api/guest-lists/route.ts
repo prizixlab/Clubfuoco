@@ -1,6 +1,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextRequest } from 'next/server'
 import { ok, err } from '@/lib/utils'
+import { requireClubStaff } from '@/lib/guest-lists'
 
 // GET /api/guest-lists?club_id=xxx — get active guest lists for a club
 export async function GET(request: NextRequest) {
@@ -26,10 +27,12 @@ export async function GET(request: NextRequest) {
   return ok(data)
 }
 
-// POST /api/guest-lists — create a new guest list (admin only)
+// POST /api/guest-lists — create a new guest list (the club's staff only)
 export async function POST(request: NextRequest) {
   const supabase = await createServiceClient()
-  const body = await request.json()
+  const body = await request.json().catch(() => ({}))
+  const { response } = await requireClubStaff(supabase, body.club_id)
+  if (response) return response
 
   const { data, error } = await supabase
     .from('guest_lists')

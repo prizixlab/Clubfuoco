@@ -6,6 +6,7 @@ import type { BrandRow } from '@/lib/partner'
 import type { PromoterRow } from '@/app/api/portal/promoters/route'
 import { ActivateButton, HideOffersButton, Badge, Btn, Card, api, C, caps, font, mono } from './_ui'
 import { FeeControl } from './_fee-control'
+import { CredentialControl } from './_credential-control'
 
 // Shared mutation helpers for the promoter roster. Every action targets the
 // promoter's application (grant/revoke access, IG verification) via
@@ -230,6 +231,18 @@ export function PromoterCard({ row, live, actions, onReload }: {
               name={row.full_name || row.email || 'this promoter'}
               feeBps={row.fee_bps}
               publicFeeBps={row.public_fee_bps}
+            />
+          </span>
+        )}
+
+        {/* Same reasoning as the rate above: the credential hangs off the brand
+            behind this user, not off an application, so it sits outside the
+            application gate. */}
+        {row.user_id && (
+          <span style={{ flex: '1 1 100%' }}>
+            <CredentialControl
+              userId={row.user_id}
+              name={row.brand?.name || row.full_name || row.email || 'this promoter'}
             />
           </span>
         )}

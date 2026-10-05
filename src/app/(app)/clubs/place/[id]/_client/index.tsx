@@ -20,6 +20,7 @@ import { loadStripe, type Stripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { ExternalEvent } from '@/lib/tickets'
 import { doorPriceLabel } from '@/lib/door-price'
+import { VenuePhoto } from '@/components/VenuePhoto'
 
 // Lazy-load Stripe only on HTTPS (live keys require it). On HTTP (local dev) we fall back to platform links.
 let stripePromise: Promise<Stripe | null> | null = null
@@ -760,7 +761,7 @@ export default function PlaceDetailPage() {
       {/* ── HERO — full bleed, ~60vh ───────────────────────────────────────── */}
       <div style={{ position: 'relative', height: '62vh', width: '100%' }}>
         {heroImg
-          ? <img src={heroImg} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          ? <VenuePhoto loading="eager" src={heroImg} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           : <div style={{ width: '100%', height: '100%', background: C.bg2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: 64, color: C.ink3, opacity: 0.2 }}>nightlife</span>
             </div>
@@ -931,7 +932,7 @@ export default function PlaceDetailPage() {
             <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingLeft: 20, paddingRight: 12, paddingBottom: 4, scrollbarWidth: 'none' }}>
               {place.photos.map((url, i) => (
                 <div key={i} style={{ flexShrink: 0, width: 140, height: 100, borderRadius: 12, overflow: 'hidden', background: C.bg2 }}>
-                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <VenuePhoto src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 </div>
               ))}
             </div>

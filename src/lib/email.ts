@@ -511,3 +511,72 @@ export async function sendAdminTicketAlert({
     html,
   })
 }
+
+// ── Credential intake email ──────────────────────────────────────────────────
+// Sent from the portal when an operator asks a partner for an API key. The link
+// is single-use and short-lived (see src/lib/credential-intake.ts), which is the
+// whole reason this mail exists: it gives the partner somewhere to put a secret
+// that isn't a reply to this email.
+//
+// The key itself must never come back through this channel, so the copy says so
+// plainly rather than leaving it to good manners.
+export async function sendCredentialIntake({
+  to, displayName, providerLabel, link, expiresAt, fromName,
+}: {
+  to:            string
+  displayName:   string
+  providerLabel: string
+  link:          string
+  expiresAt:     string
+  fromName?:     string
+}): Promise<boolean> {
+  if (!resend) return false
+
+  const expires = new Date(expiresAt).toLocaleDateString('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  })
+  const who = fromName ?? 'Club Fuoco'
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0A0A0A;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0A0A0A;padding:32px 0;">
+<tr><td align="center">
+<table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
+  <tr><td style="padding:0 0 28px;text-align:center;">
+    <p style="margin:0;font-size:11px;letter-spacing:0.25em;text-transform:uppercase;color:#C09950;font-weight:700;">CLUB FUOCO · PARTNER ACCESS</p>
+  </td></tr>
+  <tr><td style="background:#141416;border-radius:16px;border:1px solid rgba(255,255,255,0.1);padding:32px 28px;">
+    <h1 style="margin:0 0 12px;font-size:22px;color:#F5F5F7;font-weight:700;">Your ${providerLabel} API key</h1>
+    <p style="margin:0 0 20px;font-size:15px;color:rgba(245,245,247,0.65);line-height:1.6;">
+      Hi ${displayName}, ${who} needs your ${providerLabel} API key so that bookings made through Club Fuoco produce a real ${providerLabel} ticket for your door.
+    </p>
+    <p style="margin:0 0 24px;font-size:15px;color:rgba(245,245,247,0.65);line-height:1.6;">
+      Use the secure page below to send it. The link works <strong style="color:#F5F5F7;">once</strong> and expires on ${expires}.
+    </p>
+    <a href="${link}" style="display:inline-block;background:#C09950;color:#141416;font-weight:700;font-size:15px;padding:14px 28px;border-radius:8px;text-decoration:none;letter-spacing:0.02em;">
+      Send the key securely
+    </a>
+    <p style="margin:24px 0 0;font-size:13px;color:rgba(245,245,247,0.45);line-height:1.6;">
+      Please don't reply to this email with the key, and don't send it over WhatsApp. An API key is a password, and email keeps a copy forever. If the link has expired, just ask us for a new one.
+    </p>
+  </td></tr>
+  <tr><td style="padding:24px 0 0;text-align:center;">
+    <p style="margin:0;font-size:11px;color:rgba(245,245,247,0.25);line-height:1.6;">Club Fuoco · Barcelona</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+
+  await resend.emails.send({
+    from:    PARTNER_FROM,
+    to,
+    subject: `Your ${providerLabel} API key for Club Fuoco`,
+    html,
+  })
+  return true
+}

@@ -1,6 +1,7 @@
 import { createServiceClient, createClient } from '@/lib/supabase/server'
 import { resolveTokenToAllocation } from '@/lib/promoter-series'
 import { ok, err } from '@/lib/utils'
+import { ladder, livePrice } from '@/lib/releases'
 
 /**
  * Public claim endpoint for promoter invite links.
@@ -47,24 +48,43 @@ export async function POST(
 
   const { data: alloc, error: allocErr } = await sb
     .from('promoter_allocations')
-    .select('id, spots, night:promoter_nights(max_plus_ones), promoter_guests(id, full_name, plus_ones, claimed_by_user)')
+    .select('id, spots, night:promoter_nights(id, max_plus_ones, price_cents), promoter_guests(id, full_name, plus_ones, claimed_by_user)')
     .eq('id', resolved.allocationId)
     .single()
 
   if (allocErr || !alloc) return err('Invite not found', 404)
 
-  // Enforce the per-guest plus-one cap (null = no limit).
-  const nightRow = Array.isArray(alloc.night) ? alloc.night[0] : alloc.night
-  const maxPlus = (nightRow as { max_plus_ones: number | null } | null)?.max_plus_ones
-  const cappedPlusOnes = maxPlus == null ? plusOnes : Math.min(plusOnes, maxPlus)
-
-  // Dedupe: a logged-in user who re-taps their link gets their existing row
-  // back instead of a second claim (which would double-count capacity).
+  // Dedupe: a logged-in user who re-taps their link (or already bought a spot)
+  // gets their existing row back instead of a second claim (which would
+  // double-count capacity).
   if (claimedByUser) {
     const existing = (alloc.promoter_guests ?? []).find(
       (g: { claimed_by_user: string | null }) => g.claimed_by_user === claimedByUser)
     if (existing) return ok({ guest: existing, alreadyClaimed: true })
   }
+
+  const nightRow = (Array.isArray(alloc.night) ? alloc.night[0] : alloc.night) as
+    { id: string; max_plus_ones: number | null; price_cents: number | null } | null
+
+  // A ticketed night is bought through /checkout, never claimed here. This
+  // route used to ignore the price, and the row it writes defaults to
+  // payment_status 'free' — which the door, the QR and the Wallet pass all
+  // admit — so a paid night's invite link was a free ticket for anyone who
+  // POSTed here instead. Price is the LIVE release's (see lib/releases), and a
+  // night whose paid waves have all sold out is sold out, not free.
+  if (nightRow) {
+    const releases = await ladder(sb, nightRow.id)
+    const allWavesGone = releases.length > 0 && !releases.some(r => r.active)
+      && releases.some(r => r.price_cents > 0)
+    if (allWavesGone) return err('Tickets for this event have sold out.', 409)
+    if (livePrice(releases, nightRow.price_cents ?? 0) > 0) {
+      return err('This event is ticketed — buy your spot instead.', 409)
+    }
+  }
+
+  // Enforce the per-guest plus-one cap (null = no limit).
+  const maxPlus = nightRow?.max_plus_ones
+  const cappedPlusOnes = maxPlus == null ? plusOnes : Math.min(plusOnes, maxPlus)
 
   const used = (alloc.promoter_guests ?? []).reduce(
     (s: number, g: { plus_ones: number }) => s + 1 + g.plus_ones, 0)

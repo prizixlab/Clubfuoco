@@ -637,10 +637,12 @@ final class RumbalistOfferModel {
         Task {
             do {
                 // 1. Unconfirmed PaymentIntent
+                // The server prices the table itself and checks the night
+                // BEFORE Apple Pay — `amount` is only checked against it.
                 struct IntentBody: Encodable {
                     let clubId: String
                     let amount: Int
-                    let currency: String
+                    let bookingDate: String
                 }
                 struct IntentResult: Decodable, Sendable {
                     let clientSecret: String
@@ -648,7 +650,7 @@ final class RumbalistOfferModel {
                 }
                 let intent: IntentResult = try await api.post(
                     "/api/rumbalist/create-vip-intent",
-                    body: IntentBody(clubId: clubId, amount: Int((price * 100).rounded()), currency: "eur")
+                    body: IntentBody(clubId: clubId, amount: Int((price * 100).rounded()), bookingDate: bookingDate)
                 )
 
                 // 2. Apple Pay confirms it on-device

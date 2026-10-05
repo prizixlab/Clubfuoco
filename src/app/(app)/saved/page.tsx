@@ -4,6 +4,7 @@ import { getPlaceFavorites, removePlaceFavorite } from '@/lib/supabase/queries'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import NavSpacer from '@/components/NavSpacer'
+import { VenuePhoto } from '@/components/VenuePhoto'
 
 interface PlaceFavorite {
   id:          string
@@ -95,7 +96,7 @@ export default function SavedPage() {
             }}>
               <div style={{ position: 'relative', height: 200, background: C.bg2 }}>
                 {p.cover_photo
-                  ? <img src={p.cover_photo} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  ? <VenuePhoto src={p.cover_photo} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                   : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 48, color: C.ink3, opacity: 0.3, fontVariationSettings: "'FILL' 1" }}>nightlife</span>
                     </div>}

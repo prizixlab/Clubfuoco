@@ -2,6 +2,7 @@
 import { apiFetch } from '@/lib/api'
 
 import { useEffect, useState } from 'react'
+import { VenuePhoto } from '@/components/VenuePhoto'
 
 export default function DJOpeningsPage() {
   const [openings, setOpenings] = useState<any[]>([])
@@ -65,7 +66,7 @@ export default function DJOpeningsPage() {
                 <div className="flex items-center gap-sm">
                   <div className="w-10 h-10 rounded-xl overflow-hidden bg-surface-container-high flex-shrink-0">
                     {o.clubs?.cover_image_url
-                      ? <img src={o.clubs.cover_image_url} alt={o.clubs.name} className="w-full h-full object-cover" />
+                      ? <VenuePhoto src={o.clubs.cover_image_url} alt={o.clubs.name} className="w-full h-full object-cover" />
                       : <span className="material-symbols-outlined text-[20px] text-on-surface-variant/30 block text-center mt-2">nightlife</span>
                     }
                   </div>

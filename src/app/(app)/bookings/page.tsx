@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import type { Booking } from '@/types'
 import SurveySheet from '@/components/SurveySheet'
 import NavSpacer from '@/components/NavSpacer'
+import { VenuePhoto } from '@/components/VenuePhoto'
 
 /** In Capacitor the WebView origin is capacitor://localhost — not a valid HTTPS URL.
  *  Always point wallet pass URLs at the real Vercel backend. */
@@ -86,7 +87,7 @@ function GroupsStrip() {
           >
             <div style={{ position: 'relative', width: 46, height: 46, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: '#EFE9DD' }}>
               {club?.cover_image_url
-                ? <img src={club.cover_image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ? <VenuePhoto src={club.cover_image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#9F9486' }}>group</span>
                   </div>}
@@ -475,7 +476,7 @@ export default function BookingsPage() {
         {/* Hero */}
         <div style={{ position: 'relative', height: 140, overflow: 'hidden' }}>
           {coverImg ? (
-            <img src={coverImg} alt={clubName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <VenuePhoto src={coverImg} alt={clubName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
             <div style={{ width: '100%', height: '100%', background: '#2A1F1A' }} />
           )}
@@ -1244,7 +1245,7 @@ export default function BookingsPage() {
           {/* Hero section */}
           <div style={{ position: 'relative', height: '45vh', flexShrink: 0, background: '#2A1F1A' }}>
             {qrFullscreen.coverImage && (
-              <img src={qrFullscreen.coverImage} alt={qrFullscreen.clubName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <VenuePhoto loading="eager" src={qrFullscreen.coverImage} alt={qrFullscreen.clubName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             )}
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.75))' }} />
 

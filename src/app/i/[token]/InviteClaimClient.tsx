@@ -19,17 +19,6 @@ function isIOS(): boolean {
   return /iPad|iPhone|iPod/.test(navigator.userAgent)
 }
 
-/** Silent deep-link attempt: if the app is installed it takes over and this
- *  page unloads; if not, nothing happens and the branded page stays visible
- *  with its buttons. No App Store fallback here — that's the explicit button. */
-function tryOpenApp(token: string) {
-  try {
-    window.location.href = `clubfuoco://i/${token}`
-  } catch {
-    // unknown-scheme on desktop / older browsers — ignore, buttons remain
-  }
-}
-
 /** Hand the invite across the App Store gap.
  *
  *  A Universal Link only works if the app is already installed, so someone
@@ -147,11 +136,17 @@ export default function InviteClaimClient({
     const ios = isIOS()
     setInWebview(webview)
     setIOS(ios)
-    // Auto-try the app once on iOS outside an in-app browser. If installed it
-    // opens straight to the event; if not, the branded page + buttons remain.
-    if (ios && !webview && !autoTried.current) {
+    // No prompts. With the app installed, iOS opens a tapped
+    // https://clubfuoco.com/i/… link straight in the app (Universal Link) and
+    // this page never loads. So an iPhone that DOES reach this page either has
+    // no app or is inside a webview that ignores Universal Links (Instagram,
+    // TikTok…) — both go straight to the App Store, with the handoff so the
+    // app opens on this event after installing. The old automatic
+    // clubfuoco:// attempt is gone: Safari answered it with "Open in Club
+    // Fuoco?" or, without the app, an "address is invalid" alert.
+    if (ios && !autoTried.current) {
       autoTried.current = true
-      tryOpenApp(token)
+      void goToStore(token)
     }
   }, [token])
 

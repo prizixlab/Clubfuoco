@@ -145,19 +145,27 @@
 
 /* ---------- By the numbers (inside hero) ---------- */
 .hero-stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: flex;
+  justify-content: center;
   width: 100%;
   max-width: 740px;
   margin-top: clamp(58px, 8vh, 80px);
 }
-@media (min-width: 720px) { .hero-stats { grid-template-columns: repeat(4, 1fr); } }
-.hstat { padding: 4px 16px; text-align: center; }
-.hstat + .hstat { border-left: 1px solid rgba(192, 153, 80, 0.24); }
-@media (max-width: 719px) {
-  .hstat:nth-child(odd) { border-left: 0; }
-  .hstat:nth-child(n+3) { margin-top: 30px; }
+.hstat { padding: 4px 16px; text-align: center; }.live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  vertical-align: 1px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: live-pulse 2s ease-in-out infinite;
 }
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(192, 153, 80, 0.5); }
+  50%      { opacity: 0.6; box-shadow: 0 0 0 5px rgba(192, 153, 80, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
 .hstat .num {
   font-family: var(--serif);
   font-style: italic;
@@ -241,7 +249,30 @@
 .app-body { padding: 14px 16px 24px; }
 .app-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--muted); }
 .app-title { font-family: "Bowlby One", var(--serif); color: var(--gold); font-size: 34px; line-height: 0.92; margin-top: 5px; letter-spacing: 0.005em; }
-.venue-list { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.venue-viewport { margin-top: 18px; }
+.venue-viewport.scrolling {
+  height: 382px;   /* five rows */
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 28px), transparent 100%);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 28px), transparent 100%);
+}
+.venue-list { display: flex; flex-direction: column; gap: 10px; }
+/* The list is rendered twice; scrolling by half its height (one copy plus one
+   gap) lands exactly where it started. */
+.venue-viewport.scrolling .venue-list {
+  animation: venue-scroll linear infinite;
+}
+.venue-viewport.scrolling:hover .venue-list { animation-play-state: paused; }
+@keyframes venue-scroll {
+  from { transform: translateY(0); }
+  to   { transform: translateY(calc(-50% - 5px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .venue-viewport.scrolling { overflow-y: auto; }
+  .venue-viewport.scrolling .venue-list { animation: none; }
+}
+.venue-meta { min-width: 0; }
+.venue-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .venue-row { display: flex; align-items: center; gap: 12px; background: #141312; border: 1px solid var(--border); border-radius: 14px; padding: 9px; }
 .venue-thumb { width: 48px; height: 48px; border-radius: 9px; flex: none; border: 1px solid rgba(255,255,255,0.06); }
 .venue-meta { display: flex; flex-direction: column; }
@@ -327,16 +358,16 @@
   margin-left: auto;
   margin-right: auto;
 }
-.venues span {
+.venues .vname {
   font-family: var(--mono);
   font-size: 12px;
   font-variant: small-caps;
   letter-spacing: 0.18em;
   text-transform: lowercase;
-  color: var(--muted);
-  opacity: 0.5;
+  color: var(--ink);
+  opacity: 0.88;
 }
-.venues .sep { margin: 0 14px; opacity: 0.3; color: var(--gold); }
+.venues .sep { margin: 0 14px; color: var(--gold); opacity: 0.7; }
 
 /* ---------- Founder quote ---------- */
 .founder-grid {

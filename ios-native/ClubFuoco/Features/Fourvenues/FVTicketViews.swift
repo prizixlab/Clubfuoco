@@ -1,13 +1,15 @@
 import SwiftUI
 
 extension TicketCardData {
+    @MainActor
     init(fourvenues t: FVTicket) {
         self.init(
             eventTitle: FVText.pretty(t.eventName),
             venueName: t.venue,
             neighborhood: nil,
             address: t.address,
-            hostLine: "HypeList · \(FVText.pretty(t.productName) ?? "")",
+            // The brand that sold it — any brand selling through Fourvenues.
+            hostLine: "\(FVCatalog.shared.brand(forCode: t.eventCode).name) · \(FVText.pretty(t.productName) ?? "")",
             coverImageUrl: t.image,
             date: t.night,
             doorsLabel: t.doors,
@@ -51,7 +53,9 @@ struct FVTicketDetailView: View {
     private static func veil(_ o: Double) -> Color {
         Color.adaptive(light: 0x221E1A, lightAlpha: o, dark: 0xFFFFFF, darkAlpha: o)
     }
-    private var accent: Color { Color(hexString: FVCatalog.brand.color) ?? Theme.ember }
+    /// The brand that sold this ticket.
+    private var seller: PartnerBrand { FVCatalog.shared.brand(forCode: ticket.eventCode) }
+    private var accent: Color { Color(hexString: seller.color) ?? Theme.ember }
 
     private var kicker: String {
         switch ticket.settle {
@@ -67,7 +71,7 @@ struct FVTicketDetailView: View {
             Self.ink.ignoresSafeArea()
             VStack(spacing: 0) {
                 Rectangle().fill(accent).frame(height: 2)
-                SupplierMark(brand: FVCatalog.brand, height: 20, tint: accent)
+                SupplierMark(brand: seller, height: 20, tint: accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                 ScrollView {

@@ -74,7 +74,9 @@ struct FVEventSheet: View {
     }
     private static let ctaFill = Color.adaptive(light: 0x221E1A, dark: 0xF3EEE0)
     private static let ctaLabel = Color.adaptive(light: 0xF8F5EE, dark: 0x141416)
-    private var accent: Color { Color(hexString: FVCatalog.brand.color) ?? Theme.ember }
+    /// The brand selling this night.
+    private var seller: PartnerBrand { FVCatalog.shared.brand(for: event) }
+    private var accent: Color { Color(hexString: seller.color) ?? Theme.ember }
 
     /// Name + email from the account, for filling Fourvenues' form.
     private var account: (name: String, email: String)? {
@@ -144,7 +146,7 @@ struct FVEventSheet: View {
             Self.ink.ignoresSafeArea()
             VStack(spacing: 0) {
                 Rectangle().fill(accent).frame(height: 2)
-                SupplierMark(brand: FVCatalog.brand, height: 22, tint: accent)
+                SupplierMark(brand: seller, height: 22, tint: accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 18)
                 if let confirmed {
@@ -342,7 +344,7 @@ struct FVEventSheet: View {
                     Text(locale.t("fv.credit"))
                         .font(.cfSans(11))
                         .foregroundStyle(Self.text.opacity(0.45))
-                    SupplierMark(brand: FVCatalog.brand, height: 11, animated: false, tint: accent)
+                    SupplierMark(brand: seller, height: 11, animated: false, tint: accent)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.top, 18)

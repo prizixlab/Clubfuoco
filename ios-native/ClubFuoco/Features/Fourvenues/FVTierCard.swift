@@ -70,8 +70,11 @@ struct FVTierCard: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                     Text("with").font(.cfSans(11)).foregroundStyle(fg.opacity(0.75)).fixedSize()
-                    SupplierMark(brand: FVCatalog.brand, height: 11, animated: false,
-                                 tint: Color(hexString: FVCatalog.brand.color) ?? Theme.ember)
+                    // The seller of the rooms this tier sells (HypeList, or any
+                    // brand selling through Fourvenues the same way).
+                    let seller = FVCatalog.shared.brand(for: rooms.first)
+                    SupplierMark(brand: seller, height: 11, animated: false,
+                                 tint: Color(hexString: seller.color) ?? Theme.ember)
                         .layoutPriority(1)
                 }
                 Text(subtitle)

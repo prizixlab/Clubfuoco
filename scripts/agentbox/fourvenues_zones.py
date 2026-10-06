@@ -161,6 +161,7 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
     ap.add_argument("--force", action="store_true", help="refetch even fresh zones")
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--channel", help="the newest run of THIS channel (default: newest run of any)")
     args = ap.parse_args()
     logging.basicConfig(level=logging.WARNING if args.quiet else logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
@@ -204,9 +205,14 @@ def main() -> int:
         );
     """)
 
-    run, channel = con.execute(
+    found = con.execute(
         "select id, channel from runs where finished_at is not null and events_read > 0"
-        " order by id desc limit 1").fetchone()
+        + (" and channel=?" if args.channel else "") + " order by id desc limit 1",
+        (args.channel,) if args.channel else ()).fetchone()
+    if not found:
+        log.info("no finished run for %s", args.channel or "any channel")
+        return 0
+    run, channel = found
 
     # Every zone in the newest run, with the event's slug for the page URL.
     zones: list[tuple[str, str, str]] = []

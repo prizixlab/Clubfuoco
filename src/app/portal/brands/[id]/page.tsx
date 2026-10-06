@@ -141,6 +141,7 @@ function IdentityCard({ brand, onSaved, onDraft }: {
   const [required, setRequired] = useState(brand.attribution_required)
   const [label, setLabel] = useState(brand.attribution_label ?? 'Guestlist by')
   const [loginEmail, setLoginEmail] = useState(brand.login_email ?? '')
+  const [fvChannel, setFvChannel] = useState(brand.fourvenues_channel ?? '')
   const [busy, setBusy]   = useState<'save' | 'logo' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -170,6 +171,9 @@ function IdentityCard({ brand, onSaved, onDraft }: {
       // change (not the untouched default) counts as an edit.
       if ((label.trim() || null) !== (brand.attribution_label ?? 'Guestlist by')) patch.attribution_label = label.trim() || null
       if ((loginEmail.trim() || null) !== (brand.login_email ?? null)) patch.login_email = loginEmail.trim() || null
+      if ((fvChannel.trim().toLowerCase() || null) !== (brand.fourvenues_channel ?? null)) {
+        patch.fourvenues_channel = fvChannel.trim().toLowerCase() || null
+      }
       if (Object.keys(patch).length > 0) {
         await api(`/api/portal/brands/${brand.id}`, { method: 'PATCH', body: JSON.stringify(patch) })
       }
@@ -282,6 +286,12 @@ function IdentityCard({ brand, onSaved, onDraft }: {
       </Field>
 
       <ProvisionAccess brand={brand} emailValue={loginEmail} onChanged={onSaved} />
+
+      <Field label="Fourvenues channel"
+        hint="Sell this brand's Fourvenues events in the app, the way HypeList does. Paste the channel from the link Fourvenues gave them — site.fourvenues.com/en/iframe/<channel>/events. Their nights appear within the hour, under this brand's account. Leave blank if they don't sell through Fourvenues.">
+        <TextInput value={fvChannel} maxLength={60} placeholder="clubfuoco-hype"
+          autoComplete="off" onChange={e => setFvChannel(e.target.value)} />
+      </Field>
 
       <ErrorLine error={error} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 16 }}>

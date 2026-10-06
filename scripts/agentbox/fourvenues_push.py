@@ -62,19 +62,18 @@ def call(url: str, key: str, *, method: str, body: bytes, ctype: str,
         return e.code, e.read().decode()[:300]
 
 
-def brand_hidden(base: str, key: str, brand_key: str) -> bool:
-    """partner_brands.offers_hidden for one brand. Unreadable → False (publish
-    as normal): a failed lookup must not take the whole catalog off sale."""
+def hidden_brands(base: str, key: str) -> set[str]:
+    """Keys of brands switched off in the portal. Unreadable → none (publish as
+    normal): a failed lookup must not take the whole catalog off sale."""
     req = urllib.request.Request(
-        f"{base}/rest/v1/partner_brands?key=eq.{brand_key}&select=offers_hidden",
+        f"{base}/rest/v1/partner_brands?offers_hidden=eq.true&select=key",
         headers={"apikey": key, "Authorization": f"Bearer {key}"})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
-            rows = json.loads(r.read().decode())
-        return bool(rows and rows[0].get("offers_hidden"))
+            return {row["key"] for row in json.loads(r.read().decode())}
     except Exception as e:  # noqa: BLE001
-        print(f"could not read brand switch ({e}) — publishing as normal")
-        return False
+        print(f"could not read brand switches ({e}) — publishing as normal")
+        return set()
 
 
 def main() -> int:
@@ -86,21 +85,22 @@ def main() -> int:
         return 1
     base, key = supabase_env()
 
-    # The portal's switch. HypeList "off" (partner_brands.offers_hidden) must
-    # take its Fourvenues lists, tickets and tables out of the app too, not
-    # just its portal offers. Publish every night with NO products rather than
-    # no nights: the app keeps its last good copy when the feed is empty, so an
-    # empty file would leave everything on sale. No products = no Guestlist
-    # button, no paid entry, no VIP, anywhere.
-    hidden = brand_hidden(base, key, "hypelist")
-    if hidden:
-        for e in data["events"]:
+    # Each brand's portal switch. A brand "off" (partner_brands.offers_hidden)
+    # takes ITS Fourvenues lists, tickets and tables out of the app — other
+    # brands' nights are untouched. Publish its nights with NO products rather
+    # than no nights: the app keeps its last good copy when the feed is empty,
+    # so an empty file would leave everything on sale. No products = no
+    # Guestlist button, no paid entry, no VIP for that brand, anywhere.
+    off = hidden_brands(base, key)
+    for e in data["events"]:
+        if e.get("brand", "hypelist") in off:
             e["products"] = []
             e["vip_map"] = None
+    hidden = sorted(off & {e.get("brand", "hypelist") for e in data["events"]})
 
     body = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode()
     if "--dry-run" in sys.argv:
-        print(f"would publish {len(data['events'])} events, {len(body)} bytes, hypelist hidden={hidden}")
+        print(f"would publish {len(data['events'])} events, {len(body)} bytes, off: {hidden or 'none'}")
         return 0
 
     # Idempotent: 400/409 "already exists" is the normal answer after the first run.
@@ -117,7 +117,7 @@ def main() -> int:
         print(f"upload failed: {status} {text}")
         return 1
     print(f"published {len(data['events'])} events ({len(body)} bytes) run {data.get('run')}"
-          + (" — HypeList OFF in portal: nothing on sale" if hidden else ""))
+          + (f" — OFF in portal, nothing on sale: {', '.join(hidden)}" if hidden else ""))
     return 0
 
 

@@ -121,22 +121,33 @@ def snapshot(e: dict, previous: dict | None = None) -> dict:
 
 
 def main() -> int:
+    """One pass per brand: each brand's nights are filed under its own
+    promoter account, so its portal Events/Revenue and the app credit the
+    right seller. Events with no `brand` (a pre-multi-channel feed) are
+    HypeList's, the only channel there was."""
     dry = "--dry-run" in sys.argv
     feed = json.loads(OFFERS.read_text())
     events = [e for e in feed.get("events", []) if e.get("code") and e.get("night")]
     if not events:
         print("nights: feed has no events — nothing to do")
         return 0
-
     rest = Rest(*supabase_env())
-    st, brands = rest("GET", f"partner_brands?key=eq.{BRAND_KEY}&select=id,owner_user_id")
+    worst = 0
+    for brand_key in sorted({e.get("brand") or BRAND_KEY for e in events}):
+        mine = [e for e in events if (e.get("brand") or BRAND_KEY) == brand_key]
+        worst = max(worst, sync_brand(rest, brand_key, mine, dry))
+    return worst
+
+
+def sync_brand(rest: "Rest", brand_key: str, events: list[dict], dry: bool) -> int:
+    st, brands = rest("GET", f"partner_brands?key=eq.{brand_key}&select=id,owner_user_id")
     if st != 200 or not brands or not brands[0].get("owner_user_id"):
-        print(f"nights: no {BRAND_KEY} brand with an owner ({st}) — skipped")
+        print(f"nights: no {brand_key} brand with an owner ({st}) — skipped")
         return 0
     owner = brands[0]["owner_user_id"]
 
     since = min(e["night"] for e in events)
-    st, rows = rest("GET", "promoter_nights?select=id,club_id,location_name,title,night_date,fourvenues_code,fourvenues"
+    st, rows = rest("GET", "promoter_nights?select=id,club_id,location_name,title,night_date,fourvenues_code,fourvenues,photo_urls"
                     f"&created_by=eq.{owner}&night_date=gte.{since}&limit=5000")
     if st != 200:
         if "fourvenues_code" in str(rows):
@@ -174,6 +185,10 @@ def main() -> int:
             # Duvet): attach the club now.
             if e.get("club_id") and not hit.get("club_id"):
                 fields["club_id"] = e["club_id"]
+            # The poster. Only inserts used to set it, so every night created
+            # before it had one (or matched by name) stayed on the venue photo.
+            if e.get("image") and not hit.get("photo_urls"):
+                fields["photo_urls"] = [e["image"]]
             updates.append((hit["id"], fields, hit.get("fourvenues_code") is None))
         else:
             row = {**fields, "night_date": e["night"], "created_by": owner, "is_published": True,
@@ -189,7 +204,7 @@ def main() -> int:
             inserts.append(row)
 
     linked = sum(1 for _, _, first in updates if first)
-    print(f"nights: {len(events)} feed events → {len(updates)} existing nights "
+    print(f"nights[{brand_key}]: {len(events)} feed events → {len(updates)} existing nights "
           f"({linked} newly linked), {len(inserts)} new")
     if dry:
         for r in inserts[:15]:
@@ -217,7 +232,7 @@ def main() -> int:
     for i in range(0, len(new_ids), 100):
         ids = ",".join(new_ids[i:i + 100])
         rest("PATCH", f"promoter_nights?id=in.({ids})", {"review_status": "approved"}, prefer="return=minimal")
-    print(f"nights: wrote {updated} updates, {len(new_ids)} inserts, {failed} failed")
+    print(f"nights[{brand_key}]: wrote {updated} updates, {len(new_ids)} inserts, {failed} failed")
     return 1 if failed else 0
 
 

@@ -24,8 +24,8 @@ const CONFIGURED =
   !!process.env.APPLE_SIGNER_CERT_PEM &&
   !!process.env.APPLE_SIGNER_KEY_PEM
 
-/** Which partner brand sells through each provider. */
-const PROVIDER_BRAND: Record<string, string> = { fourvenues: 'hypelist' }
+/** Before nights carried their seller: Fourvenues was HypeList's alone. */
+const LEGACY_BRAND: Record<string, string> = { fourvenues: 'hypelist' }
 
 type Ticket = {
   id: string; user_id: string; provider: string; event_code: string
@@ -63,12 +63,17 @@ export async function GET(
     return NextResponse.json({ error: 'Your ticket is still on its way' }, { status: 409 })
   }
 
-  // The promoter whose channel sold it owns the front of the pass.
-  const brandKey = PROVIDER_BRAND[t.provider]
-  const { data: brand } = brandKey
-    ? await sb.from('partner_brands').select('owner_user_id').eq('key', brandKey).maybeSingle()
-    : { data: null }
-  const promoterId = (brand as { owner_user_id: string | null } | null)?.owner_user_id ?? null
+  // The promoter whose channel sold it owns the front of the pass: the
+  // account that owns the night with this Fourvenues code (agentbox files
+  // each brand's nights under its own account), else the legacy seller.
+  const { data: night } = await sb.from('promoter_nights')
+    .select('created_by').eq('fourvenues_code', t.event_code).limit(1).maybeSingle()
+  let promoterId = (night as { created_by: string | null } | null)?.created_by ?? null
+  if (!promoterId && LEGACY_BRAND[t.provider]) {
+    const { data: brand } = await sb.from('partner_brands')
+      .select('owner_user_id').eq('key', LEGACY_BRAND[t.provider]).maybeSingle()
+    promoterId = (brand as { owner_user_id: string | null } | null)?.owner_user_id ?? null
+  }
   const themeRow = promoterId ? await passThemeRow(sb, promoterId) : HOUSE_THEME
   const theme = resolvePassTheme(themeRow)
   const brandName = promoterId ? await promoterDisplayName(sb, promoterId) : 'Club Fuoco'

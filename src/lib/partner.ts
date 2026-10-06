@@ -412,6 +412,9 @@ export interface BrandRow extends PartnerBrand {
   // prospective brand seeded before its promoter has access. Operator-only —
   // used to join a brand to its promoter in the unified portal roster.
   owner_user_id: string | null
+  /** The brand's Fourvenues referral channel ("clubfuoco-hype"), or null when
+   *  it doesn't sell through Fourvenues. agentbox reads every channel set. */
+  fourvenues_channel: string | null
 }
 
 // offer_count counts ACTIVE offers only — it drives the "activating an empty
@@ -435,6 +438,7 @@ export async function listBrands(sb: SB): Promise<BrandRow[]> {
     // Missing column (pre-migration) reads as "not hidden", so the portal
     // renders correctly before the SQL is applied.
     offers_hidden: (r as { offers_hidden?: boolean }).offers_hidden === true,
+    fourvenues_channel: (r as { fourvenues_channel?: string | null }).fourvenues_channel ?? null,
     login_email: ((r as { login_email?: string | null }).login_email) ?? null,
     login_provisioned: !!(r as { owner_user_id?: string | null }).owner_user_id,
     owner_user_id: ((r as { owner_user_id?: string | null }).owner_user_id) ?? null,
@@ -454,6 +458,7 @@ export async function getBrand(sb: SB, id: string): Promise<BrandRow | null> {
     login_email: ((data as { login_email?: string | null }).login_email) ?? null,
     login_provisioned: !!(data as { owner_user_id?: string | null }).owner_user_id,
     owner_user_id: ((data as { owner_user_id?: string | null }).owner_user_id) ?? null,
+    fourvenues_channel: ((data as { fourvenues_channel?: string | null }).fourvenues_channel) ?? null,
   }
 }
 
@@ -479,7 +484,7 @@ export async function createBrand(
     .select('*')
     .single()
   if (error) throw new Error(error.message)
-  return { ...toBrand(data), is_active: false, created_at: (data as { created_at: string }).created_at, offer_count: 0, offers_hidden: false, login_email: null, login_provisioned: false, owner_user_id: null }
+  return { ...toBrand(data), is_active: false, created_at: (data as { created_at: string }).created_at, offer_count: 0, offers_hidden: false, login_email: null, login_provisioned: false, owner_user_id: null, fourvenues_channel: null }
 }
 
 // `key` is deliberately not updatable — it's the stable slug / storage path.
@@ -487,7 +492,7 @@ export async function updateBrand(
   sb: SB,
   id: string,
   patch: Partial<Pick<PartnerBrand, 'name' | 'color' | 'logo_url' | 'attribution_required' | 'attribution_label'>>
-    & { login_email?: string | null; offers_hidden?: boolean },
+    & { login_email?: string | null; offers_hidden?: boolean; fourvenues_channel?: string | null },
 ): Promise<void> {
   const { error } = await sb.from('partner_brands').update(patch).eq('id', id)
   if (error) {
@@ -496,6 +501,12 @@ export async function updateBrand(
       throw new Error(
         'Hiding offers needs a schema change that has not been applied yet — run ' +
         'supabase/migrations/20260721_supplier_hide_offers.sql in the SQL editor.')
+    }
+    if ('fourvenues_channel' in patch && /fourvenues_channel/.test(error.message)) {
+      throw new Error(/duplicate|unique/i.test(error.message)
+        ? 'That Fourvenues channel already belongs to another brand.'
+        : 'Fourvenues channels need a schema change that has not been applied yet — run ' +
+          'supabase/migrations/20261006_partner_brands_fourvenues_channel.sql in the SQL editor.')
     }
     throw new Error(error.message)
   }

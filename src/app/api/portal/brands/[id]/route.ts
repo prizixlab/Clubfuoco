@@ -31,6 +31,12 @@ const PatchBrand = z.object({
   // refuse it at the booking gate. Reversible and non-destructive — the offer
   // rows keep their own is_active, sort_order and skipped_dates.
   offers_hidden:        z.boolean().optional(),
+  // Sell through Fourvenues the HypeList way: the referral channel Fourvenues
+  // gave this brand (site.fourvenues.com/en/iframe/<channel>/events). Empty
+  // → null (stops selling through Fourvenues on the next hourly read).
+  fourvenues_channel:   z.string().trim().toLowerCase()
+    .regex(/^[a-z0-9][a-z0-9-]{1,59}$/, 'Fourvenues channel: letters, numbers and dashes, as in its URL')
+    .nullable().optional(),
 }).strict()   // rejects `key` — the slug is immutable after create
 
 // PATCH /api/portal/brands/:id — edit identity + attribution. Never `key`.

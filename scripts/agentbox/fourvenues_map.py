@@ -634,6 +634,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", type=int)
     ap.add_argument("--out", type=Path, default=DIR / "offers.json")
+    ap.add_argument("--channel", help="the newest run of THIS channel (default: newest run of any)")
     args = ap.parse_args()
 
     con = sqlite3.connect(SQLITE)
@@ -642,9 +643,14 @@ def main() -> int:
     if args.run:
         run, channel = con.execute("select id, channel from runs where id=?", (args.run,)).fetchone()
     else:
-        run, channel = con.execute(
+        found = con.execute(
             "select id, channel from runs where finished_at is not null and events_read > 0"
-            " order by id desc limit 1").fetchone()
+            + (" and channel=?" if args.channel else "") + " order by id desc limit 1",
+            (args.channel,) if args.channel else ()).fetchone()
+        if not found:
+            print(f"no finished run for {args.channel or 'any channel'}")
+            return 1
+        run, channel = found
     codes = [c for (c,) in con.execute(
         "select distinct code from raw where run_id=? and code is not null", (run,))]
 

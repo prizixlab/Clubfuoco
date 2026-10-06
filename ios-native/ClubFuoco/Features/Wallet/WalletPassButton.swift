@@ -79,11 +79,16 @@ struct WalletPassButton: View {
     }
 }
 
-/// Presents PKAddPassesViewController modally from the key window and resolves
-/// when the user finishes (added or cancelled).
+/// Presents PKAddPassesViewController modally from the top-most controller.
 @MainActor
 private enum WalletPresenter {
     static func present(_ pass: PKPass) async throws {
+        // Already in Wallet: open it there instead of a second add sheet.
+        let library = PKPassLibrary()
+        if library.containsPass(pass), let url = pass.passURL {
+            await UIApplication.shared.open(url)
+            return
+        }
         guard
             let scene = UIApplication.shared.connectedScenes
                 .compactMap({ $0 as? UIWindowScene })
@@ -91,29 +96,35 @@ private enum WalletPresenter {
             var top = scene.keyWindow?.rootViewController
         else { throw WalletError.noPresenter }
 
-        while let presented = top.presentedViewController { top = presented }
+        // The top-most controller that is staying on screen: presenting on one
+        // that is mid-dismiss, or already presenting, is an UIKit exception.
+        while let presented = top.presentedViewController, !presented.isBeingDismissed {
+            top = presented
+        }
+        // One add sheet at a time: a second present while the first is up is
+        // what UIKit traps on.
+        if top is PKAddPassesViewController { return }
+        guard !top.isBeingDismissed, top.viewIfLoaded?.window != nil else {
+            throw WalletError.noPresenter
+        }
 
         guard let controller = PKAddPassesViewController(pass: pass) else {
             throw WalletError.invalidPass
         }
 
+        // Fire and forget. This used to await the sheet through a
+        // continuation, which crashes if PassKit reports "finished" twice and
+        // hangs forever if the sheet is torn down without reporting at all.
         let delegate = AddPassesDelegate()
         controller.delegate = delegate
-
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            delegate.onFinish = {
-                continuation.resume()
-            }
-            top.present(controller, animated: true)
-        }
+        top.present(controller, animated: true)
     }
 
     enum WalletError: Error { case noPresenter, invalidPass }
 }
 
-/// Retains itself until the add sheet finishes.
+/// Retains itself until the add sheet finishes; safe to be told more than once.
 private final class AddPassesDelegate: NSObject, PKAddPassesViewControllerDelegate {
-    var onFinish: (() -> Void)?
     private var selfRef: AddPassesDelegate?
 
     override init() {
@@ -122,9 +133,32 @@ private final class AddPassesDelegate: NSObject, PKAddPassesViewControllerDelega
     }
 
     func addPassesViewControllerDidFinish(_ controller: PKAddPassesViewController) {
-        controller.dismiss(animated: true) { [weak self] in
-            self?.onFinish?()
-            self?.selfRef = nil
+        guard selfRef != nil else { return }
+        selfRef = nil
+        if controller.presentingViewController != nil, !controller.isBeingDismissed {
+            controller.dismiss(animated: true)
         }
     }
 }
+
+#if DEBUG
+/// Device test hook: CF_TEST_WALLET=<pass path> presents that pass's add sheet
+/// a few seconds after launch, exactly as the button would.
+@MainActor
+enum WalletDebug {
+    static func runIfRequested(api: APIClient) async {
+        guard let path = ProcessInfo.processInfo.environment["CF_TEST_WALLET"] else { return }
+        try? await Task.sleep(for: .seconds(4))
+        do {
+            let data = try await api.rawData(path)
+            NSLog("CF_TEST_WALLET got %d bytes", data.count)
+            let pass = try PKPass(data: data)
+            NSLog("CF_TEST_WALLET parsed, presenting")
+            try await WalletPresenter.present(pass)
+            NSLog("CF_TEST_WALLET finished")
+        } catch {
+            NSLog("CF_TEST_WALLET error %@", String(describing: error))
+        }
+    }
+}
+#endif

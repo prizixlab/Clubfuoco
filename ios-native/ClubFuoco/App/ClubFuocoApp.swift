@@ -55,6 +55,7 @@ struct ClubFuocoApp: App {
                     }
                 }
             #if DEBUG
+                .task { await WalletDebug.runIfRequested(api: env.api) }
                 // Simulator-only hook so automated runs can exercise the real
                 // sign-in path: pass CF_TEST_EMAIL / CF_TEST_PASSWORD via
                 // `simctl launch` (SIMCTL_CHILD_ prefix). No-op otherwise.

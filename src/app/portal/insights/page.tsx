@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 import { Card, ErrorLine, StatTile, api, C, caps, font, mono, serif } from '../_ui'
 
 interface Insights {
-  totals: { last7: number; last30: number; vip30: number; free30: number; checkedIn30: number }
+  totals: { last7: number; last30: number; vip30: number; free30: number; ticket30: number; checkedIn30: number }
   trend: { date: string; count: number }[]
-  byClub: { club: string; free: number; vip: number; total: number }[]
+  byClub: { club: string; free: number; vip: number; ticket: number; total: number }[]
   recent: { id: string; club: string; kind: string; status: string; created_at: string; checked_in: boolean; amount: number | null }[]
 }
 
@@ -41,6 +41,7 @@ export default function InsightsPage() {
             <StatTile label="Last 7 days" value={d.totals.last7} />
             <StatTile label="Last 30 days" value={d.totals.last30} />
             <StatTile label="Free guestlist" value={d.totals.free30} />
+            <StatTile label="Tickets" value={d.totals.ticket30} />
             <StatTile label="VIP tables" value={d.totals.vip30} />
             <StatTile label="Checked in" value={d.totals.checkedIn30} />
           </div>
@@ -76,6 +77,7 @@ export default function InsightsPage() {
                     </div>
                     <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
                       <div style={{ width: `${(c.free / maxClub) * 100}%`, background: C.green }} />
+                      <div style={{ width: `${(c.ticket / maxClub) * 100}%`, background: TICKET }} />
                       <div style={{ width: `${(c.vip / maxClub) * 100}%`, background: C.gold }} />
                     </div>
                   </div>
@@ -84,6 +86,7 @@ export default function InsightsPage() {
               {d.byClub.length > 0 && (
                 <div style={{ display: 'flex', gap: 16, marginTop: 14 }}>
                   <Legend color={C.green} label="Free" />
+                  <Legend color={TICKET} label="Tickets" />
                   <Legend color={C.gold} label="VIP" />
                 </div>
               )}
@@ -96,10 +99,10 @@ export default function InsightsPage() {
               <div style={{ display: 'grid', gap: 2 }}>
                 {d.recent.map(r => (
                   <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${C.line}` }}>
-                    <span style={{ width: 6, height: 6, borderRadius: 3, background: r.kind === 'VIP Table' ? C.gold : C.green, flexShrink: 0 }} />
+                    <span style={{ width: 6, height: 6, borderRadius: 3, background: r.kind.startsWith('VIP') ? C.gold : r.kind.startsWith('Ticket') ? TICKET : C.green, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ margin: 0, fontSize: 13, fontFamily: font, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.club}</p>
-                      <span style={{ fontSize: 11, color: C.faint, fontFamily: font }}>{r.kind}{r.checked_in ? ' · checked in' : ''}</span>
+                      <span style={{ fontSize: 11, color: C.faint, fontFamily: font }}>{r.kind}{r.amount ? ` · €${r.amount % 1 ? r.amount.toFixed(2) : r.amount}` : ''}{r.checked_in ? ' · checked in' : ''}</span>
                     </div>
                     <span style={{ fontFamily: mono, fontSize: 11, color: C.faint, flexShrink: 0 }}>{timeAgo(r.created_at)}</span>
                   </div>
@@ -112,6 +115,9 @@ export default function InsightsPage() {
     </>
   )
 }
+
+/** Paid entry — event tickets and Fourvenues paid entry. */
+const TICKET = '#9DB4F0'
 
 function Legend({ color, label }: { color: string; label: string }) {
   return (

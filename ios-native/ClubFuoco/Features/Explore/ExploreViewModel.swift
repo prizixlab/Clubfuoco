@@ -11,12 +11,12 @@ import Observation
 /// `feedEvents`, or a venue in `places` (whose `placeId` IS the lowercased
 /// club id). That keeps a featured card byte-identical to the same card
 /// unfeatured, because it IS the same card.
-struct FeaturedRef: Decodable, Sendable, Hashable {
+struct FeaturedRef: Codable, Sendable, Hashable {
     let kind: String        // "event" | "venue" | "auto"
     let id: String
 }
 
-struct FeaturedPayload: Decodable, Sendable {
+struct FeaturedPayload: Codable, Sendable {
     let tier1: [FeaturedRef]
     let tier2: [FeaturedRef]
 }
@@ -240,7 +240,10 @@ final class ExploreViewModel {
 
         places = snap.places
         saved = Set(snap.saved)
-        if snap.planDate == planDate {
+        featured = snap.featured ?? FeaturedPayload(tier1: [], tier2: [])
+        feedEvents = Self.showEventsOnExplore ? (snap.events ?? []) : []
+        if snap.planDate == planDate, snap.featured != nil {
+            lastPlanDate = planDate
             shelves = snap.shelves
         } else {
             rebuildShelves(planDate: planDate, t: t)
@@ -337,7 +340,8 @@ final class ExploreViewModel {
         // Persist for the next cold launch (stale-while-revalidate).
         FeedCache.save(FeedSnapshot(
             places: places, shelves: shelves, saved: Array(saved),
-            planDate: planDate, savedAt: Date()
+            planDate: planDate, savedAt: Date(),
+            featured: featured, events: feedEvents
         ))
     }
 

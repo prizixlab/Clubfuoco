@@ -390,10 +390,16 @@ struct ClubDetailView: View {
     // ── Fact strip ────────────────────────────────────────────────────────────
 
     private var factStrip: some View {
+        // A tile we have no answer for ("?", "—") is dropped rather than shown
+        // empty; the rest widen to fill the row.
         HStack(spacing: 4) {
-            factTile(label: locale.t("detail.door"), value: doorLabel)
+            if entryPrice != nil {
+                factTile(label: locale.t("detail.door"), value: doorLabel)
+            }
             factTile(label: locale.t("detail.reviewsLabel"), value: reviewsLabel, sub: ratingsTotal > 0 ? locale.t("detail.onGoogle") : nil)
-            factTile(label: locale.t("detail.statusLabel"), value: statusValue, valueColor: statusColor)
+            if openStatus != nil {
+                factTile(label: locale.t("detail.statusLabel"), value: statusValue, valueColor: statusColor)
+            }
             factTile(label: locale.t("detail.ratingLabel"), value: rating.map { String(format: "%.1f", $0) } ?? "—", sub: ratingResult.boosted ? locale.t("detail.fuocoScore") : nil, star: rating != nil)
         }
     }

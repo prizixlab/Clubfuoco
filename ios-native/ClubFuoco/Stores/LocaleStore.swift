@@ -24,25 +24,26 @@ final class LocaleStore {
 
     init() {
         let stored = UserDefaults.standard.string(forKey: Self.storageKey)
-        // Default to English on a fresh install (the web app auto-detects the
-        // device language, but the native app ships English-first). Users can
-        // switch to Spanish or device-language in Settings.
-        let initial = Setting(rawValue: stored ?? "") ?? .en
+        // No choice made yet → follow the phone: its language when we have it,
+        // English when we don't. A language picked in Settings is stored and
+        // always wins.
+        let initial = Setting(rawValue: stored ?? "") ?? .device
         self.setting = initial
         self.locale = Self.resolve(initial)
     }
 
-    /// Mirrors detectDeviceLocale(): first preferred language that is Catalan,
-    /// Spanish or French wins (in device order), otherwise English.
+    /// The phone's language if the app has it, else English. Walks the
+    /// preferred languages IN ORDER and stops at the first one we support —
+    /// English included — so an English phone with Spanish as a second
+    /// language stays English (the old loop skipped English and picked es).
     private static func resolve(_ setting: Setting) -> String {
         switch setting {
         case .en, .es, .ca, .fr:
             return setting.rawValue
         case .device:
             for lang in Locale.preferredLanguages {
-                if lang.hasPrefix("ca") { return "ca" }
-                if lang.hasPrefix("es") { return "es" }
-                if lang.hasPrefix("fr") { return "fr" }
+                let code = String(lang.prefix(2)).lowercased()
+                if ["en", "es", "ca", "fr"].contains(code) { return code }
             }
             return "en"
         }

@@ -1,6 +1,6 @@
 // Shared top nav for every marketing page (clubfuoco.com surface only).
 
-type Active = '' | 'about' | 'partners' | 'press' | 'staff'
+type Active = '' | 'about' | 'promoters' | 'staff'
 
 export default function SiteNav({ active }: { active: Active }) {
   return (
@@ -11,8 +11,7 @@ export default function SiteNav({ active }: { active: Active }) {
         <label htmlFor="navtoggle" className="nav-burger" aria-label="Menu"><span /></label>
         <div className="nav-links">
           <a href="/about"    className={active === 'about'    ? 'active' : ''}>About</a>
-          <a href="/partners" className={active === 'partners' ? 'active' : ''}>For Partners</a>
-          <a href="/press"    className={active === 'press'    ? 'active' : ''}>Press</a>
+          <a href="/promoters" className={active === 'promoters' ? 'active' : ''}>Promoters</a>
           <a
             href="https://apps.apple.com/us/app/club-fuoco/id6770632084"
             target="_blank"

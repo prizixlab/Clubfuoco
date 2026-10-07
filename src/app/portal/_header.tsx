@@ -13,6 +13,7 @@ const TABS = [
   { href: '/portal/events',    label: 'Events',   match: (p: string) => p.startsWith('/portal/events') },
   { href: '/portal/calendar',  label: 'Calendar', match: (p: string) => p.startsWith('/portal/calendar') },
   { href: '/portal/conflicts', label: 'Conflicts', match: (p: string) => p.startsWith('/portal/conflicts') },
+  { href: '/portal/tables',    label: 'Tables',   match: (p: string) => p.startsWith('/portal/tables') },
   { href: '/portal/insights',  label: 'Insights', match: (p: string) => p.startsWith('/portal/insights') },
   { href: '/portal/activity',  label: 'Activity', match: (p: string) => p.startsWith('/portal/activity') },
   { href: '/portal/notifications', label: 'Notify', match: (p: string) => p.startsWith('/portal/notifications') },

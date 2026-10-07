@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok } from '@/lib/utils'
-import { getActiveBrand, getPartnerOffersByClub } from '@/lib/partner'
+import { getActiveBrand, getPartnerOffersByClub, getPublicTables } from '@/lib/partner'
 
 // GET /api/partner — every LIVE guestlist offer, grouped by club id, each
 // carrying its own supplying brand. Public (shown to guests / at first launch,
@@ -11,11 +11,19 @@ import { getActiveBrand, getPartnerOffersByClub } from '@/lib/partner'
 // their first one). Attribution therefore rides on each offer — `brand` below
 // is only the primary/featured supplier, kept for older clients that still read
 // a single app-wide brand.
+//
+// `tables` (club id → table decisions, lib/table-products): every VIP table is
+// its own product. offersByClub already reflects them for our listings; the app
+// uses `tables` to hide Fourvenues zones whose table went to someone else, and
+// its mere presence tells a newer app this server sells per table — so it
+// stops hiding all of our tables whenever Fourvenues sells one. Older apps
+// don't decode the key and behave exactly as before.
 export async function GET() {
   const sb = await createServiceClient()
-  const [brand, offersByClub] = await Promise.all([
+  const [brand, offersByClub, tables] = await Promise.all([
     getActiveBrand(sb),
     getPartnerOffersByClub(sb),
+    getPublicTables(sb),
   ])
 
   // Distinct brands actually referenced by live offers — lets a client resolve
@@ -42,5 +50,6 @@ export async function GET() {
       : null,
     brands,
     offersByClub,
+    tables,
   })
 }

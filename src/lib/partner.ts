@@ -1,6 +1,10 @@
 import type { createServiceClient } from '@/lib/supabase/server'
 import { parseValidDays, weekdayOf } from '@/lib/valid-days'
 import { isFourvenuesOnlyBrandKey } from '@/lib/fourvenues-only'
+import {
+  isTableKind, loadTables, offerSellsTable, publicTablesByClub,
+  type PublicTable, type TableMap,
+} from '@/lib/table-products'
 
 type SB = Awaited<ReturnType<typeof createServiceClient>>
 
@@ -47,6 +51,12 @@ export interface PartnerOffer {
   // Max tickets the offer issues per night; null/absent = no limit. Enforced
   // server-side at join time; clients may show "spots left".
   capacity?: number | null
+  // The listing's own id, so a client can book EXACTLY the table the guest
+  // tapped (create-vip-intent offer_id). Optional: older clients ignore it.
+  id?: string
+  // VIP only: the club_tables row this listing sells, when the operator has
+  // grouped it with other listings of the same table. null = its own product.
+  table_id?: string | null
 }
 
 // Archived offers (20260711_partner_offer_archive.sql) keep their data but
@@ -70,6 +80,9 @@ function toOffer(r: Record<string, unknown>, brand?: PartnerBrand & { id: string
     skipped_dates: (r.skipped_dates as string[] | null) ?? [],
     featured:      r.featured === true,
     capacity:      r.capacity == null ? null : Number(r.capacity),
+    ...(r.id ? { id: String(r.id) } : {}),
+    // Only when the column exists, so the shape is unchanged before migration.
+    ...(r.table_id !== undefined ? { table_id: (r.table_id as string | null) ?? null } : {}),
     ...(brand ? { brand } : {}),
   }
 }
@@ -316,6 +329,27 @@ async function brandsById(sb: SB): Promise<{
   return { brands, hidden }
 }
 
+/**
+ * The table rule for vip_table listings (lib/table-products): each table is its
+ * own product, so VIP never goes through the per-venue contest below — only an
+ * operator's grouping of listings into one table decides who sells it.
+ *
+ * Returns the predicate for one vip_table row. `rows` is every offer row the
+ * caller holds; the live ones (active, supplier not muted) are what an 'offer'
+ * decision is judged against.
+ */
+function tableGate(
+  rows: Record<string, unknown>[], hidden: Set<string>, tables: TableMap,
+): (row: Record<string, unknown>) => boolean {
+  const liveIds = new Set(
+    rows
+      .filter(isActiveOffer)
+      .filter(r => !hidden.has(String(r.brand_id ?? '')))
+      .map(r => String(r.id ?? '')),
+  )
+  return row => offerSellsTable(row, tables, liveIds)
+}
+
 // Every LIVE offer across EVERY brand, grouped by club id, each carrying its
 // own brand for attribution.
 //
@@ -326,21 +360,26 @@ async function brandsById(sb: SB): Promise<{
 // longer decides what consumers see — gating on it would mean a promoter's
 // approved offer passed review and still never appeared.
 export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, PartnerOffer[]>> {
-  const { brands, hidden } = await brandsById(sb)
-  const rules = await visibilityByClub(sb)
-  const { data } = await sb
-    .from('partner_offers')
-    .select('*')
-    .order('club_id', { ascending: true })
-    .order('sort_order', { ascending: true })
+  const [{ brands, hidden }, rules, tables, { data }] = await Promise.all([
+    brandsById(sb),
+    visibilityByClub(sb),
+    loadTables(sb),
+    sb.from('partner_offers')
+      .select('*')
+      .order('club_id', { ascending: true })
+      .order('sort_order', { ascending: true }),
+  ])
   // Who is in play per night, computed over the SAME rows the gate will see:
   // archived offers and muted suppliers are not contenders, so they can never
   // make a night look contested and suppress somebody who is actually selling.
+  // VIP tables are never contenders — each table is its own product.
   const live = (data ?? []).filter(r => isActiveOffer(r as Record<string, unknown>))
   const contenders = contendersFor(
-    live as unknown as { club_id: string; kind?: unknown; brand_id: string; valid_days?: unknown }[],
+    live.filter(r => !isTableKind((r as Record<string, unknown>).kind)) as unknown as
+      { club_id: string; kind?: unknown; brand_id: string; valid_days?: unknown }[],
     id => !hidden.has(id),
   )
+  const sellsTable = tableGate((data ?? []) as Record<string, unknown>[], hidden, tables)
 
   const map: Record<string, PartnerOffer[]> = {}
   for (const r of data ?? []) {
@@ -350,6 +389,12 @@ export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, Par
     // don't surface. A club whose ONLY offers come from a hidden supplier
     // drops out of the map entirely, so the feed re-tiers it as no-deal.
     if (hidden.has(row.brand_id)) continue
+    // A VIP table: shown unless the operator gave this table to another seller.
+    if (isTableKind(row.kind)) {
+      if (!sellsTable(row)) continue
+      ;(map[row.club_id] ??= []).push(toOffer(row, brands.get(row.brand_id)))
+      continue
+    }
     // Operator's per-venue, per-kind, per-DAY supplier choice: narrow the
     // offer's nights to those the rule permits (null = blocked every night).
     // The clients already filter by valid_days, so per-day conflicts take
@@ -363,28 +408,58 @@ export async function getPartnerOffersByClub(sb: SB): Promise<Record<string, Par
   return map
 }
 
+/**
+ * The operator's table decisions, per club, for /api/partner. The feed above
+ * already applies them to OUR listings; this is what lets the app apply them
+ * to Fourvenues zones too (hide a zone whose table went to one of ours), which
+ * live in a catalog the server doesn't serve.
+ */
+export async function getPublicTables(sb: SB): Promise<Record<string, PublicTable[]>> {
+  const tables = await loadTables(sb)
+  if (tables.size === 0) return {}
+  const [{ hidden }, { data }] = await Promise.all([
+    brandsById(sb),
+    sb.from('partner_offers').select('*').eq('kind', 'vip_table'),
+  ])
+  const liveIds = new Set(
+    ((data ?? []) as Record<string, unknown>[])
+      .filter(isActiveOffer)
+      .filter(r => !hidden.has(String(r.brand_id ?? '')))
+      .map(r => String(r.id ?? '')),
+  )
+  return publicTablesByClub(tables, liveIds)
+}
+
 // Every live offer for one club, across all brands.
 export async function getPartnerOffers(sb: SB, clubId: string | null | undefined): Promise<PartnerOffer[]> {
   if (!clubId) return []
-  const { brands, hidden } = await brandsById(sb)
-  const rule = await visibilityForClub(sb, clubId)
-  const { data } = await sb
-    .from('partner_offers')
-    .select('*')
-    .eq('club_id', clubId)
-    .order('sort_order', { ascending: true })
+  const [{ brands, hidden }, rule, tables, { data }] = await Promise.all([
+    brandsById(sb),
+    visibilityForClub(sb, clubId),
+    loadTables(sb, clubId),
+    sb.from('partner_offers')
+      .select('*')
+      .eq('club_id', clubId)
+      .order('sort_order', { ascending: true }),
+  ])
   // Same contest basis as the feed: every live offer AT THIS VENUE, across all
-  // brands, is what decides whether a night is contested.
+  // brands, is what decides whether a night is contested. VIP tables excepted.
   const contenders = contendersFor(
-    (data ?? []).filter(r => isActiveOffer(r as Record<string, unknown>)) as unknown as
+    (data ?? [])
+      .filter(r => isActiveOffer(r as Record<string, unknown>))
+      .filter(r => !isTableKind((r as Record<string, unknown>).kind)) as unknown as
       { club_id: string; kind?: unknown; brand_id: string; valid_days?: unknown }[],
     id => !hidden.has(id),
   )
+  const sellsTable = tableGate((data ?? []) as Record<string, unknown>[], hidden, tables)
   return (data ?? [])
     .filter(isActiveOffer)
     .filter(r => !hidden.has((r as unknown as { brand_id: string }).brand_id))
     .flatMap(r => {
       const row = r as Record<string, unknown> & { brand_id: string; kind?: string; valid_days?: string }
+      if (isTableKind(row.kind)) {
+        return sellsTable(row) ? [toOffer(row, brands.get(row.brand_id))] : []
+      }
       const nv = narrowValidDays(rule, contenders, clubId, String(row.kind ?? ''), row.brand_id, String(row.valid_days ?? ''))
       if (nv === null) return []
       const offer = toOffer(row, brands.get(row.brand_id))
@@ -661,7 +736,9 @@ export async function duplicateOffers(sb: SB, fromBrandId: string, toBrandId: st
     // club_name/club_active are RESOLVED fields, not columns — they ride along
     // on the read for the editor's benefit and must be stripped before this
     // row goes back into the table.
-    .map(({ id: _id, brand_id: _b, club_name: _n, club_active: _a, ...rest }) =>
+    // table_id too: a table grouping is the operator's decision about THAT
+    // listing, and the column may not exist yet.
+    .map(({ id: _id, brand_id: _b, club_name: _n, club_active: _a, table_id: _t, ...rest }) =>
       ({ ...rest, brand_id: toBrandId }))
   if (!rows.length) return 0
   const { error } = await sb.from('partner_offers').insert(rows)
@@ -694,8 +771,31 @@ export async function supplyingBrandId(
   if (error || !data?.length) return null
 
   const { hidden } = await brandsById(sb)
-  const rule = await visibilityForClub(sb, clubId)
   const weekday = weekdayOf(date)
+  if (isTableKind(kind)) {
+    // Each table is its own product, so there is no venue contest to apply —
+    // just the table rule. Several tables from several sellers still answer
+    // null (the caller can't know which was tapped); clients that send the
+    // offer_id never get here.
+    const rows = data as Record<string, unknown>[]
+    const sellsTable = tableGate(rows, hidden, await loadTables(sb, clubId))
+    const ids = new Set(
+      rows
+        .filter(isActiveOffer)
+        .filter(r => !hidden.has(String(r.brand_id ?? '')))
+        .filter(sellsTable)
+        .filter(r => {
+          if (weekday === null) return true
+          const days = parseValidDays(String(r.valid_days ?? ''))
+          return days.size === 0 || days.has(weekday)
+        })
+        .filter(r => !((r.skipped_dates as string[] | null) ?? []).includes(date))
+        .map(r => String(r.brand_id ?? ''))
+        .filter(Boolean),
+    )
+    return ids.size === 1 ? [...ids][0] : null
+  }
+  const rule = await visibilityForClub(sb, clubId)
   // How many suppliers actually run this kind here on this night — the test for
   // whether a resolution rule applies at all.
   const rivals = new Set(
@@ -732,9 +832,10 @@ export async function supplyingBrandId(
 export async function offerRunsOn(
   sb: SB, clubId: string, kind: string, date: string,
 ): Promise<boolean> {
+  // select('*'): the table gate needs id + table_id, which may not exist yet.
   const { data, error } = await sb
     .from('partner_offers')
-    .select('skipped_dates, brand_id, valid_days')
+    .select('*')
     .eq('club_id', clubId)
     .eq('kind', kind)
   // Column/table not applied yet, or no such offer — don't block the booking.
@@ -744,9 +845,29 @@ export async function offerRunsOn(
   // switch would be cosmetic: the offer would vanish from the feed but a
   // stale client (or a native app that hasn't refreshed) could still book it.
   const { hidden } = await brandsById(sb)
+  const weekday = weekdayOf(date)   // used by both the visibility gate and valid_days below
+
+  // VIP: one table, one product — no venue contest, only the table rule. A
+  // table given to someone else (or to Fourvenues) can't be booked here.
+  if (isTableKind(kind)) {
+    const all = data as Record<string, unknown>[]
+    const sellsTable = tableGate(all, hidden, await loadTables(sb, clubId))
+    const permitted = all
+      .filter(isActiveOffer)
+      .filter(r => !hidden.has(String(r.brand_id ?? '')))
+      .filter(sellsTable)
+      .filter(r => {
+        if (weekday === null) return true
+        const days = parseValidDays(String(r.valid_days ?? ''))
+        return days.size === 0 || days.has(weekday)
+      })
+    // Each table skips its own nights: one table off tonight doesn't close the
+    // others, which a per-venue "any skipped → refuse" would.
+    return permitted.some(r => !((r.skipped_dates as string[] | null) ?? []).includes(date))
+  }
+
   const rule = await visibilityForClub(sb, clubId)
   const rows = data as { skipped_dates?: string[] | null; brand_id?: string; valid_days?: string | null }[]
-  const weekday = weekdayOf(date)   // used by both the visibility gate and valid_days below
   // Both operator gates apply here, not just in the feed: a supplier the
   // operator muted (brand-wide) or deselected (at this venue, on this DAY)
   // must be unbookable, or a client that hasn't refreshed could still put

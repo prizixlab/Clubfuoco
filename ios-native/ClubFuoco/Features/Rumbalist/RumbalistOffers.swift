@@ -31,6 +31,10 @@ struct RumbalistOffer: Identifiable, Hashable {
     /// channel. It runs on exactly one night, and booking it goes through the
     /// background sign-up (FVEventSheet), not /api/rumbalist/join-guestlist.
     var fourvenues: FVOfferRef? = nil
+    /// The listing's id (partner_offers.id), sent with a VIP payment so the
+    /// server prices and credits exactly this table. nil = bundled fallback or
+    /// a server that predates per-table products.
+    var offerId: String? = nil
 
     var isVip: Bool { kind == .vipTable }
     /// Is this offer actually running on `date` ("yyyy-MM-dd")?
@@ -182,12 +186,16 @@ enum RumbalistOffers {
     nonisolated(unsafe) static var fourvenuesByClub: [String: [RumbalistOffer]] = [:]
 
     /// The offers to show for a club on one night. NEVER the same product
-    /// twice: where Fourvenues sells a kind of entry that night, it is the
-    /// only one shown and our internal offer of that kind is dropped —
-    ///   free guestlist on Fourvenues → no internal free guestlist,
-    ///   tables on Fourvenues        → no internal VIP table.
+    /// twice: where Fourvenues sells a free guestlist that night, it is the
+    /// only one shown and our internal free guestlist is dropped.
     /// (This used to be the other way round for free lists, which is how a
     /// HypeList portal "Free Guestlist" sat under HypeList's Fourvenues one.)
+    ///
+    /// VIP tables are per TABLE, not per venue: each table is its own product
+    /// and the server decides who sells it (`TableSellers`). A server that
+    /// sends those decisions has already removed every listing of ours that
+    /// lost its table, so ours show beside Fourvenues'. Against an older
+    /// server the old rule stands: tables on Fourvenues → none of ours.
     @MainActor
     static func live(for clubId: String, on date: String) -> [RumbalistOffer] {
         let live = offers(for: clubId).filter { $0.liveOn(date) }
@@ -197,9 +205,10 @@ enum RumbalistOffers {
         let fvFree = fvNight.contains { $0.products.contains { $0.settle == .free } }
             || live.contains { $0.fourvenues != nil }
         let fvTables = fvNight.contains { $0.products.contains { $0.settle == .table } }
+        let perTable = TableSellers.serverDecides
         return live.filter { o in
             guard o.fourvenues == nil else { return true }
-            return o.isVip ? !fvTables : !fvFree
+            return o.isVip ? (perTable || !fvTables) : !fvFree
         }
     }
 
@@ -210,6 +219,9 @@ enum RumbalistOffers {
     private struct Response: Decodable, Sendable {
         let brand: BrandDTO?          // primary supplier (legacy field)
         let offersByClub: [String: [OfferDTO]]
+        /// Per-table seller decisions, club id → tables. Absent from servers
+        /// that predate per-table products — nil keeps the old venue rule.
+        let tables: [String: [TableSellers.Table]]?
     }
     private struct BrandDTO: Decodable, Sendable {
         let key: String
@@ -248,13 +260,17 @@ enum RumbalistOffers {
         // Paid front-screen promotion. Optional so an API deploy predating the
         // feature still decodes (reads as not featured).
         let featured: Bool?
+        // The listing's id. Optional: older servers don't send it.
+        let id: String?
 
         var model: RumbalistOffer {
-            RumbalistOffer(
+            var offer = RumbalistOffer(
                 kind: kind == "vip_table" ? .vipTable : .freeGuestlist,
                 title: title, subtitle: subtitle, priceEur: priceEur, partySize: partySize,
                 timeWindow: timeWindow, validDays: validDays, dressCode: dressCode, music: music,
                 brand: brand?.model, skippedDates: skippedDates ?? [], featured: featured ?? false)
+            offer.offerId = id
+            return offer
         }
     }
 
@@ -276,6 +292,7 @@ enum RumbalistOffers {
         _ = FVCatalog.shared
         guard let resp: Response = try? await api.get("/api/partner") else { return nil }
         brand = resp.brand?.model
+        TableSellers.update(resp.tables)
         let mapped = resp.offersByClub.reduce(into: [String: [RumbalistOffer]]()) { acc, pair in
             acc[pair.key.lowercased()] = pair.value.map(\.model)
         }

@@ -47,11 +47,16 @@ export async function writeVipBooking(
   if (!bookingDate) return { ok: false, error: 'booking_date must be today or within the next 14 days', status: 400 }
 
   const total = intent.amount / 100   // cents → euros
-  const brandId = await supplyingBrandId(sb, m.club_id, 'vip_table', bookingDate)
+  // The table the guest tapped, when their app said (create-vip-intent checked
+  // it). Otherwise the old per-venue best effort, which is null whenever two
+  // sellers have tables there that night.
+  const offerId = m.offer_id || null
+  const brandId = m.brand_id || await supplyingBrandId(sb, m.club_id, 'vip_table', bookingDate)
 
   let booking: Record<string, unknown> | null = null
   let insertErr: { code?: string; message?: string } | null = null
   let withBrand = true
+  let withOffer = true
   for (let attempt = 0; attempt < 5; attempt++) {
     const res = await sb
       .from('bookings')
@@ -68,6 +73,7 @@ export async function writeVipBooking(
         stripe_payment_intent_id: intent.id,
         qr_code_token:            generateReferenceCode(),
         ...(withBrand && brandId ? { brand_id: brandId } : {}),
+        ...(withOffer && offerId ? { offer_id: offerId } : {}),
       })
       .select('*')
       .single()
@@ -76,6 +82,8 @@ export async function writeVipBooking(
     if (!insertErr) break
     // Attribution must never cost someone a table they just paid for.
     if (/brand_id/.test(insertErr.message ?? '') && withBrand) { withBrand = false; continue }
+    // bookings.offer_id ships in 20261008_table_products.sql — same rule.
+    if (/offer_id/.test(insertErr.message ?? '') && withOffer) { withOffer = false; continue }
     if (insertErr.code === '23505') {
       // Lost the race to the other caller — theirs is the booking.
       const winner = await byIntent(sb, intent.id)

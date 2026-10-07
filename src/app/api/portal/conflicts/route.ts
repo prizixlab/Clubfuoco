@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
 import { logAudit } from '@/lib/portal-audit'
 import { ANY_KIND, ANY_DAY } from '@/lib/partner'
+import { isTableKind } from '@/lib/table-products'
 import { ok, err } from '@/lib/utils'
 
 // Every venue + product that has a supplier, the operator's default rule, and
@@ -16,6 +17,9 @@ import { ok, err } from '@/lib/utils'
 //
 // Suppliers muted brand-wide (offers_hidden) are excluded — they aren't
 // showing anywhere, so they aren't a choice here.
+//
+// VIP tables are NOT here: each table is its own product and is never decided
+// per venue (lib/table-products). Who sells a table is set on /portal/tables.
 
 interface Row { club_id: string; brand_id: string; kind: string; is_active?: boolean }
 interface Rule { mode: string; brand_ids: string[] }
@@ -49,6 +53,7 @@ export async function GET() {
   const byClubKind = new Map<string, Set<string>>()
   for (const o of (offers ?? []) as Row[]) {
     if (o.is_active === false) continue
+    if (isTableKind(o.kind)) continue
     const brand = brandById.get(o.brand_id)
     if (!brand || brand.hidden) continue
     const key = `${o.club_id}|${o.kind}`

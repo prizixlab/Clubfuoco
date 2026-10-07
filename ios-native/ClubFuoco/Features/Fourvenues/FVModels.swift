@@ -46,7 +46,9 @@ struct FVEvent: Decodable, Identifiable, Hashable {
     let genres: [String]
     let image: String?
     let url: String
-    let products: [FVProduct]
+    /// `var` only so FVCatalog can take out table zones the server gave to
+    /// another seller (TableSellers); never edited anywhere else.
+    var products: [FVProduct]
     /// How the night's VIP areas fit together, for the overview map.
     let vipMap: FVVipMap?
     /// The brand selling this night (partner_brands.key). Nil on a
@@ -292,9 +294,28 @@ final class FVCatalog {
     private(set) var brandMeta: [String: FVBrandMeta] = [:]
 
     /// Every Fourvenues night the app may show — none from a brand that's
-    /// switched off. Club pages, the Guestlist offers, event pages and Explore
-    /// all read this.
-    var events: [FVEvent] { allEvents.filter { brandOn[$0.seller] ?? true } }
+    /// switched off, and no table zone the server gave to another seller
+    /// (each VIP table is its own product — see TableSellers). Club pages, the
+    /// Guestlist offers, event pages and Explore all read this.
+    var events: [FVEvent] {
+        _ = tableRulesRev   // re-read when the server's table decisions change
+        return allEvents.filter { brandOn[$0.seller] ?? true }.map { e in
+            guard e.products.contains(where: { $0.settle == .table }) else { return e }
+            var e = e
+            e.products = e.products.filter {
+                $0.settle != .table || TableSellers.fourvenuesMaySell(clubId: e.clubId, zone: $0.name)
+            }
+            return e
+        }
+    }
+
+    /// Bumped by `tableRulesChanged()` so views reading `events` refresh when
+    /// /api/partner brings new table decisions.
+    private(set) var tableRulesRev = 0
+    func tableRulesChanged() {
+        tableRulesRev += 1
+        publishOffers()
+    }
 
     /// The brand that sells a night, as the UI credits it. Falls back to
     /// HypeList, which was the only seller before brands were tagged.

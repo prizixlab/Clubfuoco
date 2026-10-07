@@ -25,6 +25,9 @@ const schema = z.object({
   booking_date: z.string().optional(),      // older app builds don't send it
   venue_name:   z.string().max(200).optional(),
   product_name: z.string().max(200).optional(),
+  // The exact table tapped (PartnerOffer.id). Newer clients only — each VIP
+  // table is its own product, so this prices and attributes that one.
+  offer_id:     z.string().uuid().optional(),
 })
 
 export async function POST(req: Request) {
@@ -47,7 +50,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const price = await checkVipPrice(supabase, clubId, bookingDate, amount)
+  const price = await checkVipPrice(supabase, clubId, bookingDate, amount, parsed.data.offer_id)
   if (!price.ok) return err(VIP_PRICE_MESSAGES[price.reason], 409)
 
   // Look up the user's stripe customer (if any) so the payment appears in
@@ -76,6 +79,10 @@ export async function POST(req: Request) {
         ...(bookingDate ? { booking_date: bookingDate } : {}),
         ...(parsed.data.venue_name ? { venue_name: parsed.data.venue_name } : {}),
         ...(parsed.data.product_name ? { product_name: parsed.data.product_name } : {}),
+        // The table bought and who sells it, checked above — lib/vip-booking
+        // records these instead of guessing a seller for the venue.
+        ...(price.offer?.id ? { offer_id: price.offer.id } : {}),
+        ...(price.offer?.brand?.id ? { brand_id: price.offer.brand.id } : {}),
       },
     })
     return ok({

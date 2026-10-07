@@ -2974,7 +2974,6 @@
  "tickets.howMany": { "ca": "Quantes entrades?", "fr": "Combien de billets ?" },
  "tickets.another": { "ca": "Compra una altra entrada", "fr": "Acheter un autre billet" },
  "tickets.anotherShort": { "ca": "Una altra entrada", "fr": "Un autre billet" },
- "tickets.you": { "ca": "Tu", "fr": "Vous" },
  "tickets.theirName": { "ca": "El seu nom complet", "fr": "Son nom complet" },
  "tickets.ticketN": { "ca": "Entrada %d", "fr": "Billet %d" },
  "tickets.namesHint": { "ca": "Cada entrada porta el seu nom i el seu QR. Les tens a Entrades i pots enviar-ne cadascuna.", "fr": "Chaque billet a son nom et son QR. Vous les gardez dans Billets et pouvez envoyer chacun." },

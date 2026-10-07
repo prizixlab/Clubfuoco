@@ -555,7 +555,7 @@ struct InviteClaimView: View {
         VStack(spacing: 14) {
             if count > 1 {
                 HStack {
-                    Text(p.held == nil ? "\(p.name) · \(locale.t("tickets.you"))" : p.name)
+                    Text(p.name)
                         .font(.cfSans(15, weight: .semibold))
                         .foregroundStyle(Theme.ink)
                         .lineLimit(1)
@@ -908,7 +908,7 @@ struct InviteClaimView: View {
             }
 
             // Me
-            partyRow(name: "\(name) (you)", trailing: myGuest(guestId)?.checkedInAt != nil ? .checkedIn : .going)
+            partyRow(name: name, trailing: myGuest(guestId)?.checkedInAt != nil ? .checkedIn : .going)
 
             // Tickets bought for friends — their own QR above, sent from there.
             ForEach(otherHeld(guestId)) { inv in

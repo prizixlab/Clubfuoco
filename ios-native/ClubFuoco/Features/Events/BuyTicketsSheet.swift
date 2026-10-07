@@ -64,7 +64,7 @@ struct BuyTicketsSheet: View {
                 VStack(spacing: 10) {
                     if case .withMe(let buyer) = mode {
                         row(label: String(format: locale.t("tickets.ticketN"), 1)) {
-                            Text("\(buyer) · \(locale.t("tickets.you"))")
+                            Text(buyer)
                                 .font(.cfSans(15))
                                 .foregroundStyle(Explore.ink2)
                                 .frame(maxWidth: .infinity, alignment: .leading)

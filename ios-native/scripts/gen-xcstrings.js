@@ -349,7 +349,6 @@ const NATIVE_KEYS = {
   'tickets.howMany': { en: "How many tickets?", es: "¿Cuántas entradas?" },
   'tickets.another': { en: "Buy another ticket", es: "Comprar otra entrada" },
   'tickets.anotherShort': { en: "Another ticket", es: "Otra entrada" },
-  'tickets.you': { en: "You", es: "Tú" },
   'tickets.theirName': { en: "Their full name", es: "Su nombre completo" },
   'tickets.ticketN': { en: "Ticket %d", es: "Entrada %d" },
   'tickets.namesHint': { en: "Each ticket has its own name and QR. You hold them in Tickets and can send each one on.", es: "Cada entrada lleva su nombre y su QR. Las tienes en Entradas y puedes enviar cada una." },

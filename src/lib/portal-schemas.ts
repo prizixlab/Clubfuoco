@@ -20,8 +20,12 @@ export const OfferSchema = z.object({
   featured:    z.boolean().optional(),   // true = paid front-screen promotion
   capacity:    z.number().int().positive().max(100000).nullable().optional(), // null = no ticket limit
 }).superRefine((o, ctx) => {
-  if (o.kind === 'vip_table' && o.price_eur == null) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price_eur'], message: 'VIP tables need a price' })
+  // Single-price VIP offers aren't products: VIP is the club's saved tables,
+  // sold by ranked promoters (lib/vip-products). Kept in the enum so a stored
+  // row still parses; refused for anything written.
+  if (o.kind === 'vip_table') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['kind'],
+      message: 'VIP is sold from the club’s saved tables now, not as an offer. Ask Club Fuoco to add you as a seller.' })
   }
   if (o.kind === 'free_guestlist' && o.price_eur != null) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price_eur'], message: 'Free guestlist offers cannot have a price' })

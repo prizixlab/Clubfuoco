@@ -10,6 +10,7 @@ import {
 import OffersEditor from './_offers'
 import EventsPanel from './_events'
 import RevenuePanel from './_revenue'
+import VipPanel from './_vip'
 
 const LABEL_PRESETS = ['Guestlist by', 'Powered by', 'via']
 
@@ -24,13 +25,13 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
   // preview is live — the operator sees the credit before committing it.
   const [draft, setDraft] = useState<{ attribution_required: boolean; attribution_label: string | null } | null>(null)
   // Which of the two panels the shared card is showing.
-  const [section, setSection] = useState<'offers' | 'events' | 'revenue'>('offers')
+  const [section, setSection] = useState<'offers' | 'vip' | 'events' | 'revenue'>('offers')
 
   const sectionTabs = (
     <SectionTabs
       active={section}
       onChange={setSection}
-      tabs={[{ id: 'offers', label: 'Offers & venues' }, { id: 'events', label: 'Events' }, { id: 'revenue', label: 'Revenue' }]}
+      tabs={[{ id: 'offers', label: 'Offers & venues' }, { id: 'vip', label: 'VIP tables' }, { id: 'events', label: 'Events' }, { id: 'revenue', label: 'Revenue' }]}
     />
   )
 
@@ -79,6 +80,7 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
           question about a promoter, so they share a place on the page rather
           than stacking into a scroll. */}
       {section === 'offers' && <OffersEditor brand={brand} onOffersChanged={load} tabs={sectionTabs} />}
+      {section === 'vip' && <VipPanel brand={brand} tabs={sectionTabs} />}
       {section === 'events' && <EventsPanel brand={brand} tabs={sectionTabs} />}
       {section === 'revenue' && <RevenuePanel brand={brand} tabs={sectionTabs} />}
     </>
@@ -171,8 +173,8 @@ function IdentityCard({ brand, onSaved, onDraft }: {
       // change (not the untouched default) counts as an edit.
       if ((label.trim() || null) !== (brand.attribution_label ?? 'Guestlist by')) patch.attribution_label = label.trim() || null
       if ((loginEmail.trim() || null) !== (brand.login_email ?? null)) patch.login_email = loginEmail.trim() || null
-      if ((fvChannel.trim().toLowerCase() || null) !== (brand.fourvenues_channel ?? null)) {
-        patch.fourvenues_channel = fvChannel.trim().toLowerCase() || null
+      if ((fvChannel.trim() || null) !== (brand.fourvenues_channel ?? null)) {
+        patch.fourvenues_channel = fvChannel.trim() || null
       }
       if (Object.keys(patch).length > 0) {
         await api(`/api/portal/brands/${brand.id}`, { method: 'PATCH', body: JSON.stringify(patch) })
@@ -287,9 +289,9 @@ function IdentityCard({ brand, onSaved, onDraft }: {
 
       <ProvisionAccess brand={brand} emailValue={loginEmail} onChanged={onSaved} />
 
-      <Field label="Fourvenues channel"
-        hint="Sell this brand's Fourvenues events in the app, the way HypeList does. Paste the channel from the link Fourvenues gave them — site.fourvenues.com/en/iframe/<channel>/events. Their nights appear within the hour, under this brand's account. Leave blank if they don't sell through Fourvenues.">
-        <TextInput value={fvChannel} maxLength={60} placeholder="clubfuoco-hype"
+      <Field label="Fourvenues link"
+        hint="The same set-up as HypeList, for every promoter. Paste the link Fourvenues gave them (site.fourvenues.com/en/iframe/<channel>/events) or just the channel name. With a link, their tables and tickets check out on Fourvenues through it, and their nights appear within the hour. Without one, the tables they sell check out with Fuoco.">
+        <TextInput value={fvChannel} maxLength={300} placeholder="https://site.fourvenues.com/en/iframe/clubfuoco-hype/events"
           autoComplete="off" onChange={e => setFvChannel(e.target.value)} />
       </Field>
 

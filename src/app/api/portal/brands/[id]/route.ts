@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
+import { parseFourvenuesChannel } from '@/lib/vip-products'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
 import { getBrand, updateBrand } from '@/lib/partner'
@@ -34,9 +35,20 @@ const PatchBrand = z.object({
   // Sell through Fourvenues the HypeList way: the referral channel Fourvenues
   // gave this brand (site.fourvenues.com/en/iframe/<channel>/events). Empty
   // → null (stops selling through Fourvenues on the next hourly read).
-  fourvenues_channel:   z.string().trim().toLowerCase()
-    .regex(/^[a-z0-9][a-z0-9-]{1,59}$/, 'Fourvenues channel: letters, numbers and dashes, as in its URL')
-    .nullable().optional(),
+  // Accepts the bare channel or any Fourvenues link carrying it — the same
+  // standard field for every promoter (lib/vip-products parseFourvenuesChannel).
+  fourvenues_channel:   z.string().trim().nullable().optional()
+    .transform((v, ctx) => {
+      if (v === undefined) return undefined
+      if (v === null || v === '') return null
+      const slug = parseFourvenuesChannel(v)
+      if (!slug) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom,
+          message: 'Fourvenues link: paste the link Fourvenues gave them, e.g. site.fourvenues.com/en/iframe/<channel>/events' })
+        return z.NEVER
+      }
+      return slug
+    }),
 }).strict()   // rejects `key` — the slug is immutable after create
 
 // PATCH /api/portal/brands/:id — edit identity + attribution. Never `key`.

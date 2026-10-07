@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok } from '@/lib/utils'
-import { getActiveBrand, getPartnerOffersByClub, getPublicTables } from '@/lib/partner'
+import { getActiveBrand, getPartnerOffersByClub } from '@/lib/partner'
+import { indexCatalog, loadCatalog, loadVipState, publicSellers, type PublicSellers } from '@/lib/vip-products'
 
 // GET /api/partner — every LIVE guestlist offer, grouped by club id, each
 // carrying its own supplying brand. Public (shown to guests / at first launch,
@@ -12,24 +13,17 @@ import { getActiveBrand, getPartnerOffersByClub, getPublicTables } from '@/lib/p
 // is only the primary/featured supplier, kept for older clients that still read
 // a single app-wide brand.
 //
-// `tables` (club id → table decisions, lib/table-products): every VIP table is
-// its own product. offersByClub already reflects them for our listings; the app
-// uses `tables` to hide Fourvenues zones whose table went to someone else, and
-// its mere presence tells a newer app this server sells per table — so it
-// stops hiding all of our tables whenever Fourvenues sells one. Older apps
-// don't decode the key and behave exactly as before.
-//
-// Two audiences (lib/partner OfferMode): builds that ask ?tables=1 get VIP per
-// TABLE plus `tables`; every build released before that asks without it and
-// gets VIP per VENUE, the rule it was built for — and no `tables`, which is
-// also how a new build knows it is talking to an old server.
+// `vipSellers` (only with ?tables=1 — builds that sell VIP per table): club →
+// night → table zone → which promoter holds that table's buy button and how
+// it checks out (lib/vip-products). Builds released before don't ask, don't
+// get it, and keep showing the Fourvenues listing as they always have.
 export async function GET(request: Request) {
   const perTable = new URL(request.url).searchParams.get('tables') === '1'
   const sb = await createServiceClient()
-  const [brand, offersByClub, tables] = await Promise.all([
+  const [brand, offersByClub, vipSellers] = await Promise.all([
     getActiveBrand(sb),
-    getPartnerOffersByClub(sb, perTable ? 'table' : 'venue'),
-    perTable ? getPublicTables(sb) : Promise.resolve(null),
+    getPartnerOffersByClub(sb),
+    perTable ? sellers(sb) : Promise.resolve(null),
   ])
 
   // Distinct brands actually referenced by live offers — lets a client resolve
@@ -56,6 +50,13 @@ export async function GET(request: Request) {
       : null,
     brands,
     offersByClub,
-    ...(tables ? { tables } : {}),
+    ...(vipSellers ? { vipSellers } : {}),
   })
+}
+
+/** Empty when the catalog can't be read — the app then keeps its own listing. */
+async function sellers(sb: Awaited<ReturnType<typeof createServiceClient>>): Promise<PublicSellers> {
+  const events = await loadCatalog()
+  if (!events) return {}
+  return publicSellers(await loadVipState(sb), indexCatalog(events))
 }

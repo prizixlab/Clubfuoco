@@ -66,8 +66,6 @@ export default function ConflictsPage() {
   }, [])
   useEffect(load, [load])
 
-  const vipCount = items?.filter(c => c.kind === 'vip_table').length ?? null
-
   return (
     <>
       <h1 style={{ margin: 0, fontFamily: serif, fontSize: 30, fontWeight: 400, color: C.text }}>
@@ -75,8 +73,8 @@ export default function ConflictsPage() {
       </h1>
       <p style={{ margin: '8px 0 18px', fontSize: 14, color: C.dim, fontFamily: font, maxWidth: 680, lineHeight: 1.55 }}>
         Two app generations decide VIP differently, so each has its own panel. Builds already
-        out treat a venue&rsquo;s VIP as one product. Newer builds sell every table on its own.
-        Each panel only changes what its own builds see.
+        out only show tables on their Fourvenues listing. Newer builds sell every saved table as its
+        own product, through the promoters you rank. Each panel only changes what its own builds see.
       </p>
 
       <SectionTabs<Panel>
@@ -93,10 +91,9 @@ export default function ConflictsPage() {
           <Card style={{ margin: '16px 0', background: C.lifted }}>
             <p style={{ margin: 0, fontSize: 13.5, color: C.dim, fontFamily: font, lineHeight: 1.55 }}>
               <strong style={{ color: C.goldHi, fontWeight: 500 }}>Per venue.</strong> Pick which promoters show for each
-              venue and product, then override any night that should differ. <strong style={{ color: C.goldHi, fontWeight: 500 }}>Guestlist</strong> rules
-              apply to every app version. <strong style={{ color: C.goldHi, fontWeight: 500 }}>VIP table</strong> rules here apply only to builds already
-              in the App Store. Those builds also hide all of our tables on any night Fourvenues sells one,
-              and nothing set here can change that.
+              venue, then override any night that should differ. These <strong style={{ color: C.goldHi, fontWeight: 500 }}>guestlist</strong> rules
+              apply to every app version. On builds already in the App Store, VIP tables only show on
+              their Fourvenues listing, and nothing set here changes that.
             </p>
           </Card>
 
@@ -115,11 +112,6 @@ export default function ConflictsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {items?.map(c => <ConflictCard key={`${c.club_id}|${c.kind}`} item={c} onSaved={load} />)}
           </div>
-          {vipCount === 0 && items && items.length > 0 && (
-            <p style={{ fontFamily: font, fontSize: 13, color: C.faint, marginTop: 14 }}>
-              No live VIP offers of ours, so there are no VIP venue rules to set.
-            </p>
-          )}
         </>
       )}
 
@@ -127,9 +119,9 @@ export default function ConflictsPage() {
         <div style={{ marginTop: 16 }}>
           <Card style={{ marginBottom: 16, background: C.lifted }}>
             <p style={{ margin: 0, fontSize: 13.5, color: C.dim, fontFamily: font, lineHeight: 1.55 }}>
-              <strong style={{ color: C.goldHi, fontWeight: 500 }}>Per table.</strong> Builds from this release on show our
-              tables beside Fourvenues&rsquo; and decide every table on its own. Guestlists still follow the
-              per-venue rules in the other panel.
+              <strong style={{ color: C.goldHi, fontWeight: 500 }}>Per table.</strong> From this release on, every saved
+              table is its own product, sold by the promoters you rank. Guestlists still follow the per-venue rules
+              in the other panel.
             </p>
           </Card>
           <TablesBoard compact />
@@ -231,7 +223,6 @@ function ConflictCard({ item, onSaved }: { item: Conflict; onSaved: () => void }
         </span>
       }>
         {item.club_name} · <span style={{ color: C.goldHi }}>{item.kind_label}</span>
-        {item.kind === 'vip_table' && <span style={{ color: C.faint }}> · current app versions only</span>}
       </SectionLabel>
 
       {item.inherited && (

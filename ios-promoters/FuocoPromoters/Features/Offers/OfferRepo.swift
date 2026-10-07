@@ -42,6 +42,28 @@ struct Offer: Decodable, Identifiable, Hashable {
     func isSkipped(_ date: String) -> Bool { (skippedDates ?? []).contains(date) }
 }
 
+/// The promoter's VIP set-up (GET/PATCH /api/offers/vip). Promoters don't
+/// price VIP: the club's saved Fourvenues tables are the products and Club
+/// Fuoco ranks who sells which. This is what the promoter controls.
+struct VipSetup: Decodable, Hashable {
+    struct Venue: Decodable, Hashable, Identifiable {
+        let clubId: String
+        let clubName: String
+        let validDays: String
+        let skippedDates: [String]
+        let paused: Bool
+        var id: String { clubId }
+    }
+    let migrated: Bool
+    let vipPaused: Bool
+    /// "both" | "deposit" | "full"
+    let vipPayment: String
+    /// "fourvenues" | "fuoco"
+    let checkout: String
+    let fourvenuesChannel: String?
+    let venues: [Venue]
+}
+
 struct OfferClub: Decodable, Identifiable, Hashable {
     let id: UUID
     let name: String
@@ -188,6 +210,21 @@ final class OfferRepo {
         } catch OfferError.message(let m) where m.contains("No brand") || m.contains("Unauthorized") {
             return nil
         }
+    }
+
+    // MARK: - VIP (selling the club's saved tables)
+
+    /// This promoter's VIP set-up, or nil when they have no brand yet.
+    func vip() async throws -> VipSetup? {
+        struct Env: Decodable { let vip: VipSetup? }
+        return try decode(try await request("/api/offers/vip", method: "GET"), as: Env.self).vip
+    }
+
+    /// Change what the promoter controls: VIP on/off, the payment limit, and
+    /// per venue — suspended nights and pausing. Returns the saved set-up.
+    func updateVip(_ body: [String: Any]) async throws -> VipSetup? {
+        struct Env: Decodable { let vip: VipSetup? }
+        return try decode(try await request("/api/offers/vip", method: "PATCH", body: body), as: Env.self).vip
     }
 
     func offers() async throws -> [Offer] {

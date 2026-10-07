@@ -16,10 +16,6 @@ import { ok, err } from '@/lib/utils'
 //
 // Suppliers muted brand-wide (offers_hidden) are excluded — they aren't
 // showing anywhere, so they aren't a choice here.
-//
-// VIP here is the per-VENUE rule, which only app builds released before
-// per-table products follow (lib/partner OfferMode). Newer builds decide VIP
-// per table — /api/portal/tables.
 
 interface Row { club_id: string; brand_id: string; kind: string; is_active?: boolean }
 interface Rule { mode: string; brand_ids: string[] }
@@ -53,6 +49,8 @@ export async function GET() {
   const byClubKind = new Map<string, Set<string>>()
   for (const o of (offers ?? []) as Row[]) {
     if (o.is_active === false) continue
+    // Single-price VIP offers aren't products (VIP is per saved table now).
+    if (o.kind === 'vip_table') continue
     const brand = brandById.get(o.brand_id)
     if (!brand || brand.hidden) continue
     const key = `${o.club_id}|${o.kind}`

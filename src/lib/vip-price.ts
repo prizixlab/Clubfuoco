@@ -1,5 +1,5 @@
 import type { createServiceClient } from '@/lib/supabase/server'
-import { getPartnerOffers, type PartnerOffer } from '@/lib/partner'
+import { getPartnerOffers } from '@/lib/partner'
 import { offerLiveOn } from '@/lib/valid-days'
 
 type SB = Awaited<ReturnType<typeof createServiceClient>>
@@ -30,24 +30,9 @@ export async function vipPricesCents(sb: SB, clubId: string, date: string | null
     .map(o => Math.round((o.price_eur as number) * 100))
 }
 
-/**
- * `offerId` (newer clients) pins the check to the ONE table the guest tapped:
- * each table is its own product, so its own price is the only right one, and
- * the booking can then be credited to that table's seller without guessing.
- * Without it (older clients) any live VIP price at the club passes, as before.
- * On success the matched offer comes back, so the caller can record it.
- */
 export async function checkVipPrice(
-  sb: SB, clubId: string, date: string | null, amountCents: number, offerId?: string,
-): Promise<VipPriceCheck & { offer?: PartnerOffer }> {
-  if (offerId) {
-    const offer = (await getPartnerOffers(sb, clubId, 'table'))
-      .find(o => o.id === offerId && o.kind === 'vip_table' && (o.price_eur ?? 0) > 0)
-    if (!offer || (date && !offerLiveOn(offer, date))) return { ok: false, reason: 'unavailable' }
-    return Math.round((offer.price_eur as number) * 100) === amountCents
-      ? { ok: true, offer }
-      : { ok: false, reason: 'price_changed' }
-  }
+  sb: SB, clubId: string, date: string | null, amountCents: number,
+): Promise<VipPriceCheck> {
   const prices = await vipPricesCents(sb, clubId, date)
   if (prices.length === 0) return { ok: false, reason: 'unavailable' }
   return prices.includes(amountCents) ? { ok: true } : { ok: false, reason: 'price_changed' }

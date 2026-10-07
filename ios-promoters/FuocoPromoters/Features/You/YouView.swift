@@ -97,6 +97,25 @@ struct YouView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     profileCard
+                    // Selling the club's saved VIP tables: suspend nights,
+                    // pause a venue, switch VIP off, deposit/full limit.
+                    NavigationLink { VipView() } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "wineglass").foregroundStyle(Theme.gold)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("VIP tables").font(.cfSans(16, weight: .semibold))
+                                    .foregroundStyle(Theme.parchment)
+                                Text("Your nights, venues and payment limit")
+                                    .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundStyle(Theme.parchmentFaint)
+                        }
+                        .padding(16)
+                        .background(Theme.nightLift, in: .rect(cornerRadius: Theme.radiusCard))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.radiusCard).stroke(Theme.hairline))
+                    }
+                    .buttonStyle(.plain)
                     if let b = model.billing, b.status != "active" {
                         pastDueBanner(b)
                     }

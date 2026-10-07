@@ -457,7 +457,10 @@ function OfferForm({ initial, onSave, onCancel }: {
     <div style={{ background: 'rgba(0,0,0,0.3)', border: `1px dashed rgba(255,255,255,0.18)`, borderRadius: 8, padding: 16 }}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <Btn small kind={!isVip ? 'primary' : 'ghost'} onClick={() => switchKind('free_guestlist')}>Free Guestlist</Btn>
-        <Btn small kind={isVip ? 'primary' : 'ghost'} onClick={() => switchKind('vip_table')}>VIP Table</Btn>
+        {/* No single-price VIP offers: VIP is the club's saved tables, sold
+            from the brand's VIP tab and ranked on the portal's VIP page. An old
+            VIP row still opens here so it can be archived. */}
+        {isVip && <Btn small kind="primary" onClick={() => {}}>VIP Table (retired)</Btn>}
       </div>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>

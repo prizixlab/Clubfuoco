@@ -50,6 +50,8 @@ struct FVEventSheet: View {
     @State private var confirmed: FVTicket?
     /// The QR didn't arrive within waitForQR's window.
     @State private var waitedOut = false
+    /// A table sold on Fuoco checkout, paid and booked (VipSellers).
+    @State private var fuocoBooked: RumbalistBookingResult?
     /// Phone for paid checkouts when the profile has none — asked once, kept.
     @State private var phoneInput: String = UserDefaults.standard.string(forKey: FVTicketStore.phoneKey) ?? ""
     /// Where Fourvenues mails the ticket: the private ticket inbox when it's
@@ -75,7 +77,19 @@ struct FVEventSheet: View {
     private static let ctaFill = Color.adaptive(light: 0x221E1A, dark: 0xF3EEE0)
     private static let ctaLabel = Color.adaptive(light: 0xF8F5EE, dark: 0x141416)
     /// The brand selling this night.
-    private var seller: PartnerBrand { FVCatalog.shared.brand(for: event) }
+    private var seller: PartnerBrand { fuoco?.brand ?? FVCatalog.shared.brand(for: event) }
+    /// The promoter selling the selected table on Fuoco checkout, if any.
+    private var fuoco: VipSellers.Seller? { selected?.settle == .table ? selected?.soldBy : nil }
+    /// Deposit / full for a Fuoco-checkout table, under the promoter's limit.
+    private var fuocoModes: [VipSellers.Pay] {
+        guard let fuoco, let rate else { return [] }
+        return VipSellers.modes(rate, limit: fuoco.payment)
+    }
+    private var fuocoPay: VipSellers.Pay {
+        let m = fuocoModes
+        if m.count == 1 { return m[0] }
+        return payInFull ? .full : .deposit
+    }
     private var accent: Color { Color(hexString: seller.color) ?? Theme.ember }
 
     /// Name + email from the account, for filling Fourvenues' form.
@@ -93,7 +107,7 @@ struct FVEventSheet: View {
     }
 
     private var needsPhoneField: Bool {
-        guard let p = selected, p.settle == .online || p.settle == .table else { return false }
+        guard let p = selected, p.settle == .online || p.settle == .table, p.soldBy == nil else { return false }
         return FVPhone.normalize(auth.profile?.phone ?? "") == nil
     }
 
@@ -115,6 +129,8 @@ struct FVEventSheet: View {
     /// full), else our estimate. The button used to show the feed price while
     /// the summary above it showed the real, higher total.
     private func chargeNow(_ p: FVProduct) -> (amount: Double, exact: Bool) {
+        // Fuoco checkout: our own price, no Fourvenues fees.
+        if p.settle == .table, p.soldBy != nil, let rate { return (VipSellers.amount(rate, fuocoPay), true) }
         if p.settle == .table, let q = quote, let total = q.total {
             let canSplit = rate?.offersFullPayment == true || (q.deposit ?? total) < total
             let inFull = payInFull || !canSplit || q.deposit == nil
@@ -149,7 +165,9 @@ struct FVEventSheet: View {
                 SupplierMark(brand: seller, height: 22, tint: accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 18)
-                if let confirmed {
+                if let fuocoBooked {
+                    fuocoBookedStep(fuocoBooked)
+                } else if let confirmed {
                     passStep(confirmed)
                 } else {
                     review
@@ -331,6 +349,8 @@ struct FVEventSheet: View {
 
                     // We accept Fourvenues' and the organiser's terms on the
                     // guest's behalf in both flows, so the notice shows for both.
+                    // A Fuoco-checkout table never goes near Fourvenues.
+                    if p.soldBy == nil {
                     Text(p.signsUpInBackground ? locale.t("fv.termsNote")
                          : locale.t("fv.termsNote") + " " + locale.t("fv.payNote"))
                         .font(.cfSans(11))
@@ -338,6 +358,7 @@ struct FVEventSheet: View {
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 12)
+                    }
                 }
 
                 HStack(spacing: 6) {
@@ -604,7 +625,18 @@ struct FVEventSheet: View {
                 row(locale.t("fv.doors")) { Text([doors, event.closes].compactMap { $0 }.joined(separator: " – ")) }
             }
             if let age = p.minAge ?? event.minAge { row(locale.t("fv.age")) { Text("\(age)+") } }
-            if p.settle == .table, let rate {
+            if p.settle == .table, p.soldBy != nil, let rate {
+                if let d = rate.info(locale.locale), !d.isEmpty { row(rate.title(locale.locale) ?? "", small: true) { Text(d).opacity(0.7) } }
+                if fuocoModes.count > 1, let dep = rate.depositAmount {
+                    HStack(spacing: 8) {
+                        payChoice(String(format: locale.t("fv.payDeposit"), dep.euros), full: false)
+                        payChoice(String(format: locale.t("fv.payFull"), rate.price.euros), full: true)
+                    }
+                    .accessibilityLabel(locale.t("fv.payChoice"))
+                    .padding(.vertical, 8)
+                    .disabled(working)
+                }
+            } else if p.settle == .table, let rate {
                 if let d = rate.info(locale.locale), !d.isEmpty { row(rate.title(locale.locale) ?? "", small: true) { Text(d).opacity(0.7) } }
                 if rate.offersFullPayment, let dep = quote?.deposit ?? rate.depositAmount {
                     let full = quote?.full ?? quote?.total ?? rate.price
@@ -633,7 +665,14 @@ struct FVEventSheet: View {
     /// Subtotal, fees and the total actually charged — Fourvenues' figures
     /// once the page has reported them; our estimate (marked "+ fees") until.
     @ViewBuilder private func priceRows(_ p: FVProduct) -> some View {
-        if p.settle == .table, let q = quote, let total = q.total {
+        if p.settle == .table, p.soldBy != nil, let rate {
+            let now = VipSellers.amount(rate, fuocoPay)
+            row(locale.t("fv.tableTotal")) { Text(rate.price.euros) }
+            row(locale.t("fv.payNow"), bold: true) { Text(now.euros) }
+            if rate.price - now > 0.009 {
+                row(locale.t("fv.restLater"), small: true) { Text((rate.price - now).euros).opacity(0.7) }
+            }
+        } else if p.settle == .table, let q = quote, let total = q.total {
             let canSplit = rate?.offersFullPayment == true || (q.deposit ?? total) < total
             let inFull = payInFull || !canSplit || q.deposit == nil
             let now = inFull ? (q.full ?? total) : (q.deposit ?? total)
@@ -731,6 +770,79 @@ struct FVEventSheet: View {
                 .overlay(Circle().stroke(Self.veil(0.18)))
         }
         .opacity(enabled ? 1 : 0.35)
+    }
+
+    /// A saved table sold by a promoter on Fuoco checkout: the server prices it
+    /// from the catalog (create-vip-intent checks seller, rate, party, deposit
+    /// or full, and the amount), Apple Pay confirms, confirm-vip books it.
+    private func payFuoco(_ p: FVProduct, seller s: VipSellers.Seller) async {
+        guard let rate, let zone = p.name else { return }
+        let pay = fuocoPay
+        let amount = VipSellers.amount(rate, pay)
+        working = true
+        defer { working = false }
+        do {
+            struct Table: Encodable { let zone: String; let rate: String; let pax: Int; let pay: String }
+            struct IntentBody: Encodable {
+                let clubId: String; let amount: Int; let bookingDate: String
+                let venueName: String; let table: Table
+            }
+            struct IntentResult: Decodable, Sendable { let clientSecret: String; let paymentIntentId: String }
+            guard let clubId = event.clubId else { return }
+            let intent: IntentResult = try await api.post(
+                "/api/rumbalist/create-vip-intent",
+                body: IntentBody(clubId: clubId, amount: Int((amount * 100).rounded()), bookingDate: event.night,
+                                 venueName: event.venue ?? "",
+                                 table: Table(zone: zone, rate: rate.id, pax: quantity, pay: pay.rawValue)))
+            try await ApplePayService.confirmIntent(amount: amount, label: event.venue ?? s.brandName,
+                                                    clientSecret: intent.clientSecret)
+            struct ConfirmBody: Encodable {
+                let paymentIntentId: String; let clubId: String; let venueName: String
+                let productName: String; let bookingDate: String
+            }
+            let result: RumbalistBookingResult = try await api.post(
+                "/api/rumbalist/confirm-vip",
+                body: ConfirmBody(paymentIntentId: intent.paymentIntentId, clubId: clubId,
+                                  venueName: event.venue ?? "",
+                                  productName: [p.title(locale.locale), rate.title(locale.locale)]
+                                    .compactMap { $0 }.joined(separator: " · "),
+                                  bookingDate: event.night))
+            Haptics.success()
+            fuocoBooked = result
+        } catch let error as ApplePayError where error == .cancelled {
+            // Closed the Apple Pay sheet — nothing charged.
+        } catch {
+            Haptics.error()
+            errorText = error.localizedDescription
+        }
+    }
+
+    private func fuocoBookedStep(_ r: RumbalistBookingResult) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 44)).foregroundStyle(accent)
+            Text(locale.t("rumbalist.tableBooked"))
+                .font(.cfSerif(28, italic: true)).foregroundStyle(Self.text)
+            VStack(spacing: 0) {
+                row(locale.t("rumbalist.venue")) { Text(event.venue ?? "—") }
+                row(locale.t("rumbalist.date")) { Text(FVFormat.night(event.night)) }
+                if let p = selected { row(locale.t("rumbalist.offer")) { Text(p.title(locale.locale) ?? "") } }
+                if let ref = r.qrCodeToken { row(locale.t("rumbalist.reference")) { Text(ref).font(.cfMono(13)) } }
+            }
+            .padding(.init(top: 10, leading: 16, bottom: 10, trailing: 16))
+            .background(Self.veil(0.05), in: .rect(cornerRadius: 14))
+            Text(locale.t("rumbalist.savedToTickets"))
+                .font(.cfSans(12)).foregroundStyle(Self.text.opacity(0.55))
+                .multilineTextAlignment(.center)
+            Button { dismiss() } label: {
+                Text(locale.t("common.done"))
+                    .font(.cfSans(16, weight: .semibold)).foregroundStyle(Self.ctaLabel)
+                    .frame(maxWidth: .infinity).frame(height: 54)
+                    .background(Self.ctaFill, in: .rect(cornerRadius: 12))
+            }
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 8)
     }
 
     private func ctaLabel(_ p: FVProduct) -> some View {
@@ -911,6 +1023,14 @@ struct FVEventSheet: View {
     private func go(_ p: FVProduct) async {
         errorText = nil
         Haptics.tap()
+        if p.settle == .table, let s = p.soldBy {
+            if FVAge.tooYoung(birthday: auth.profile?.birthday, minAge: p.minAge ?? event.minAge, night: event.night) {
+                errorText = String(format: locale.t("fv.underAge"), p.minAge ?? event.minAge ?? 18)
+                return
+            }
+            await payFuoco(p, seller: s)
+            return
+        }
         if let why = blocker(p) {
             errorText = why
             return
@@ -1048,7 +1168,8 @@ struct FVEventSheet: View {
     /// Warm the hidden page for the free/door product the guest has selected,
     /// so tapping Join only has to fill and submit.
     private func preload() {
-        guard let p = selected else { return }
+        // A Fuoco-checkout table never touches Fourvenues' pages.
+        guard let p = selected, p.soldBy == nil else { quote = nil; return }
         let url: URL? = p.settle == .table
             ? rate.flatMap { p.tableURL(rate: $0, pax: quantity) }
             : p.checkoutURL(quantity: quantity)

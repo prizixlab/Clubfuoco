@@ -643,9 +643,6 @@ final class RumbalistOfferModel {
                     let clubId: String
                     let amount: Int
                     let bookingDate: String
-                    /// The exact table tapped — each table is its own product.
-                    /// Omitted when unknown (bundled offer / older server).
-                    let offerId: String?
                 }
                 struct IntentResult: Decodable, Sendable {
                     let clientSecret: String
@@ -653,8 +650,7 @@ final class RumbalistOfferModel {
                 }
                 let intent: IntentResult = try await api.post(
                     "/api/rumbalist/create-vip-intent",
-                    body: IntentBody(clubId: clubId, amount: Int((price * 100).rounded()), bookingDate: bookingDate,
-                                     offerId: offer.offerId)
+                    body: IntentBody(clubId: clubId, amount: Int((price * 100).rounded()), bookingDate: bookingDate)
                 )
 
                 // 2. Apple Pay confirms it on-device

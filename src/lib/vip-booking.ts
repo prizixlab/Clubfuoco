@@ -47,16 +47,18 @@ export async function writeVipBooking(
   if (!bookingDate) return { ok: false, error: 'booking_date must be today or within the next 14 days', status: 400 }
 
   const total = intent.amount / 100   // cents → euros
-  // The table the guest tapped, when their app said (create-vip-intent checked
-  // it). Otherwise the old per-venue best effort, which is null whenever two
-  // sellers have tables there that night.
-  const offerId = m.offer_id || null
+  // A saved table on Fuoco checkout carries its seller and the table itself
+  // (create-vip-intent priced both); an older single-price intent falls back
+  // to the per-venue guess.
+  const isTable = !!m.table_zone
   const brandId = m.brand_id || await supplyingBrandId(sb, m.club_id, 'vip_table', bookingDate)
+  const tablePrice = isTable ? Number(m.table_price) || total : total
+  const productId = m.vip_product_id || null
 
   let booking: Record<string, unknown> | null = null
   let insertErr: { code?: string; message?: string } | null = null
   let withBrand = true
-  let withOffer = true
+  let withProduct = true
   for (let attempt = 0; attempt < 5; attempt++) {
     const res = await sb
       .from('bookings')
@@ -64,16 +66,18 @@ export async function writeVipBooking(
         user_id:                  m.user_id,
         club_id:                  m.club_id,
         booking_type:             'vip',
-        party_size:               1,
+        party_size:               isTable ? Math.max(1, Number(m.table_pax) || 1) : 1,
         booking_date:             bookingDate,
         status:                   'confirmed',
-        unit_price:               total,
+        // The table's price; total_amount is what was paid now (a deposit
+        // leaves the rest to settle at the club).
+        unit_price:               tablePrice,
         total_amount:             total,
         platform_fee:             0,
         stripe_payment_intent_id: intent.id,
         qr_code_token:            generateReferenceCode(),
         ...(withBrand && brandId ? { brand_id: brandId } : {}),
-        ...(withOffer && offerId ? { offer_id: offerId } : {}),
+        ...(withProduct && productId ? { vip_product_id: productId } : {}),
       })
       .select('*')
       .single()
@@ -82,8 +86,7 @@ export async function writeVipBooking(
     if (!insertErr) break
     // Attribution must never cost someone a table they just paid for.
     if (/brand_id/.test(insertErr.message ?? '') && withBrand) { withBrand = false; continue }
-    // bookings.offer_id ships in 20261008_table_products.sql — same rule.
-    if (/offer_id/.test(insertErr.message ?? '') && withOffer) { withOffer = false; continue }
+    if (/vip_product_id/.test(insertErr.message ?? '') && withProduct) { withProduct = false; continue }
     if (insertErr.code === '23505') {
       // Lost the race to the other caller — theirs is the booking.
       const winner = await byIntent(sb, intent.id)
@@ -109,7 +112,7 @@ export async function writeVipBooking(
       phone:                    profile?.phone ?? null,
       venue_id:                 m.club_id,
       venue_name:               m.venue_name || fallback.venueName || 'Unknown venue',
-      product_name:             m.product_name || fallback.productName || 'VIP Table',
+      product_name:             m.product_name || m.table_zone || fallback.productName || 'VIP Table',
       product_kind:             'vip_table',
       price_eur:                total,
       event_date:               bookingDate,

@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe'
 import { ok, err, resolveBookingDate } from '@/lib/utils'
 import { offerRunsOn } from '@/lib/partner'
 import { checkVipPrice, VIP_PRICE_MESSAGES } from '@/lib/vip-price'
+import { quoteTable, TABLE_QUOTE_MESSAGES } from '@/lib/vip-products'
 import { z } from 'zod'
 
 // Create — but do NOT confirm — a PaymentIntent for a Rumbalist VIP table.
@@ -25,9 +26,15 @@ const schema = z.object({
   booking_date: z.string().optional(),      // older app builds don't send it
   venue_name:   z.string().max(200).optional(),
   product_name: z.string().max(200).optional(),
-  // The exact table tapped (PartnerOffer.id). Newer clients only — each VIP
-  // table is its own product, so this prices and attributes that one.
-  offer_id:     z.string().uuid().optional(),
+  // A table from the club's saved Fourvenues tables, sold on Fuoco checkout by
+  // the promoter who holds its buy button tonight (lib/vip-products). Newer
+  // builds only; booking_date is then required.
+  table: z.object({
+    zone:  z.string().min(1).max(120),     // the zone's name; normalised server-side
+    rate:  z.string().min(1).max(64),
+    pax:   z.number().int().min(1).max(50),
+    pay:   z.enum(['deposit', 'full']),
+  }).optional(),
 })
 
 export async function POST(req: Request) {
@@ -41,27 +48,69 @@ export async function POST(req: Request) {
 
   const supabase = await createServiceClient()
 
+  // ── A saved table, on Fuoco checkout ──────────────────────────────────────
+  if (parsed.data.table) {
+    const night = resolveBookingDate(parsed.data.booking_date)
+    if (!night) return err('booking_date must be today or within the next 14 days')
+    const t = parsed.data.table
+    const quote = await quoteTable(supabase, {
+      clubId, night, zoneKey: t.zone, rateId: t.rate, pax: t.pax, mode: t.pay, amountCents: amount,
+    })
+    if (!quote.ok) return err(TABLE_QUOTE_MESSAGES[quote.reason], 409)
+    return createIntent(supabase, user!.id, amount, {
+      user_id:       user!.id,
+      club_id:       clubId,
+      source:        'rumbalist_vip',
+      price_checked: '1',
+      booking_date:  night,
+      brand_id:      quote.seller.brand_id,
+      table_zone:    quote.zoneName,
+      table_rate:    t.rate,
+      table_pax:     String(t.pax),
+      table_pay:     t.pay,
+      table_price:   String(quote.tablePrice),
+      ...(quote.productId ? { vip_product_id: quote.productId } : {}),
+      ...(parsed.data.venue_name ? { venue_name: parsed.data.venue_name } : {}),
+      product_name:  [quote.zoneName, quote.rate.name].filter(Boolean).join(' · ').slice(0, 200),
+    })
+  }
+
   let bookingDate: string | null = null
   if (parsed.data.booking_date !== undefined) {
     bookingDate = resolveBookingDate(parsed.data.booking_date)
     if (!bookingDate) return err('booking_date must be today or within the next 14 days')
-    // A booking that names its table comes from a per-table build; one that
-    // doesn't is judged as the venue rule its (older) app showed it.
-    const mode = parsed.data.offer_id ? 'table' : 'venue'
-    if (!(await offerRunsOn(supabase, clubId, 'vip_table', bookingDate, mode))) {
+    if (!(await offerRunsOn(supabase, clubId, 'vip_table', bookingDate))) {
       return err('VIP tables aren’t available on that night.', 409)
     }
   }
 
-  const price = await checkVipPrice(supabase, clubId, bookingDate, amount, parsed.data.offer_id)
+  const price = await checkVipPrice(supabase, clubId, bookingDate, amount)
   if (!price.ok) return err(VIP_PRICE_MESSAGES[price.reason], 409)
 
+  return createIntent(supabase, user!.id, amount, {
+    user_id:       user!.id,
+    club_id:       clubId,
+    source:        'rumbalist_vip',
+    // confirm-vip trusts an intent only when this route priced it.
+    price_checked: '1',
+    // Everything the webhook needs to write the booking if the app never
+    // calls confirm-vip (see lib/vip-booking).
+    ...(bookingDate ? { booking_date: bookingDate } : {}),
+    ...(parsed.data.venue_name ? { venue_name: parsed.data.venue_name } : {}),
+    ...(parsed.data.product_name ? { product_name: parsed.data.product_name } : {}),
+  })
+}
+
+type SB = Awaited<ReturnType<typeof createServiceClient>>
+
+/** An unconfirmed card PaymentIntent; the app confirms it with Apple Pay. */
+async function createIntent(sb: SB, userId: string, amount: number, metadata: Record<string, string>) {
   // Look up the user's stripe customer (if any) so the payment appears in
   // their billing history. Optional — Stripe creates a guest one if absent.
-  const { data: profile } = await supabase
+  const { data: profile } = await sb
     .from('users')
     .select('stripe_customer_id, email')
-    .eq('id', user!.id)
+    .eq('id', userId)
     .single()
 
   try {
@@ -71,22 +120,7 @@ export async function POST(req: Request) {
       customer: profile?.stripe_customer_id ?? undefined,
       // Apple Pay sends `card` payment methods.
       payment_method_types: ['card'],
-      metadata: {
-        user_id:       user!.id,
-        club_id:       clubId,
-        source:        'rumbalist_vip',
-        // confirm-vip trusts an intent only when this route priced it.
-        price_checked: '1',
-        // Everything the webhook needs to write the booking if the app never
-        // calls confirm-vip (see lib/vip-booking).
-        ...(bookingDate ? { booking_date: bookingDate } : {}),
-        ...(parsed.data.venue_name ? { venue_name: parsed.data.venue_name } : {}),
-        ...(parsed.data.product_name ? { product_name: parsed.data.product_name } : {}),
-        // The table bought and who sells it, checked above — lib/vip-booking
-        // records these instead of guessing a seller for the venue.
-        ...(price.offer?.id ? { offer_id: price.offer.id } : {}),
-        ...(price.offer?.brand?.id ? { brand_id: price.offer.brand.id } : {}),
-      },
+      metadata,
     })
     return ok({
       client_secret: intent.client_secret,

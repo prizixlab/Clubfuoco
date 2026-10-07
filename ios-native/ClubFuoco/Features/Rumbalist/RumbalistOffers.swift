@@ -31,10 +31,6 @@ struct RumbalistOffer: Identifiable, Hashable {
     /// channel. It runs on exactly one night, and booking it goes through the
     /// background sign-up (FVEventSheet), not /api/rumbalist/join-guestlist.
     var fourvenues: FVOfferRef? = nil
-    /// The listing's id (partner_offers.id), sent with a VIP payment so the
-    /// server prices and credits exactly this table. nil = bundled fallback or
-    /// a server that predates per-table products.
-    var offerId: String? = nil
 
     var isVip: Bool { kind == .vipTable }
     /// Is this offer actually running on `date` ("yyyy-MM-dd")?
@@ -91,14 +87,6 @@ enum RumbalistOffers {
                        validDays: days, dressCode: dress, music: music)
     }
 
-    private static func vip(_ price: Double, _ music: String,
-                            days: String = "Any night", size: Int = 5) -> RumbalistOffer {
-        RumbalistOffer(kind: .vipTable, title: "VIP Table",
-                       subtitle: "From €\(Int(price)) · \(size) people · Fully consumable on bottles",
-                       priceEur: price, partySize: size, timeWindow: "Reservation for the night",
-                       validDays: days, dressCode: "Smart casual", music: music)
-    }
-
     /// clubs.id (lowercased) → offers.
     /// Bundled fallback so offers render instantly / offline on first launch.
     /// Replaced at runtime by `refresh(api:)` with the live set from the backend.
@@ -106,12 +94,10 @@ enum RumbalistOffers {
         // Opium Barcelona
         "b3f7747f-d911-490d-a688-d04add6a1c8b": [
             free("Free till 1:00 AM", "R&B · Hip Hop · Commercial House · Reggaeton", "Elegant — no sneakers or sportswear", days: "Every night"),
-            vip(300, "Reggaeton · Commercial · Hits · Pop", days: "Every night"),
         ],
         // Pacha Barcelona
         "d184f2f1-8db3-4d03-ae11-ad19b650894d": [
             free("Free till 02:30 AM", "Reggaeton · Hip Hop · Top Hits · Techno · House", "Smart casual — no sportswear", days: "Every night"),
-            vip(300, "Reggaeton · Hip Hop · Top Hits · R&B · Techno · House · Electronic", days: "Every night"),
         ],
         // Jamboree
         "a83428e5-5c7f-4f55-99e5-3f329f7c3210": [
@@ -124,29 +110,14 @@ enum RumbalistOffers {
         // Twenties Barcelona
         "3c3716e0-0361-4a62-b4d2-ec1eb5d00bbb": [
             free("Free till 1:00 AM", "Reggaeton · Top Hits · House", "Casual — no sportswear or sneakers", days: "Tue, Thu – Sun"),
-            vip(300, "Hits · Reggaeton · R&B · Commercial House · Top Hits", days: "Tue, Thu – Sun"),
         ],
         // Shôko
         "ddca5d10-9b4f-47c4-81a2-2c36bef77e49": [
             free("Free till 01:00 AM", "Hip Hop · R&B · Reggaeton · Electro · Commercial House · EDM", "Casual — no sneakers or sportswear", days: "Tue, Wed, Sun"),
-            vip(300, "Hip Hop · R&B · Reggaeton · Electro · Commercial House · EDM", days: "Tue, Wed, Sun"),
         ],
         // CDLC (Carpe Diem)
         "d649395c-d3db-4397-b200-42b575d1738a": [
             free("Free till 1:00 AM", "Top Hits · Reggaeton", "Casual elegant — no sportswear", days: "Tue, Wed, Sun"),
-            vip(400, "Deep House · Tech House · Hip Hop · R&B · Pop", days: "Tue, Wed, Sun"),
-        ],
-        // Bling Bling
-        "07ce6a58-ceee-48e4-89ce-3c3e6b6ff2b2": [
-            vip(250, "Reggaeton · Commercial House · R&B · Top Hits", days: "Wed"),
-        ],
-        // Downtown Barcelona
-        "60d6f94e-26cc-4d24-bacc-8a255e1c7924": [
-            vip(300, "Reggaeton · R&B · Top Hits", days: "Thu, Fri"),
-        ],
-        // Sutton Club
-        "e0cf6310-28e5-4117-ad5f-01179f87d8fd": [
-            vip(300, "Reggaeton · House · Top Hits", days: "Thu – Sat"),
         ],
     ]
 
@@ -186,16 +157,12 @@ enum RumbalistOffers {
     nonisolated(unsafe) static var fourvenuesByClub: [String: [RumbalistOffer]] = [:]
 
     /// The offers to show for a club on one night. NEVER the same product
-    /// twice: where Fourvenues sells a free guestlist that night, it is the
-    /// only one shown and our internal free guestlist is dropped.
+    /// twice: where Fourvenues sells a kind of entry that night, it is the
+    /// only one shown and our internal offer of that kind is dropped —
+    ///   free guestlist on Fourvenues → no internal free guestlist,
+    ///   tables on Fourvenues        → no internal VIP table.
     /// (This used to be the other way round for free lists, which is how a
     /// HypeList portal "Free Guestlist" sat under HypeList's Fourvenues one.)
-    ///
-    /// VIP tables are per TABLE, not per venue: each table is its own product
-    /// and the server decides who sells it (`TableSellers`). A server that
-    /// sends those decisions has already removed every listing of ours that
-    /// lost its table, so ours show beside Fourvenues'. Against an older
-    /// server the old rule stands: tables on Fourvenues → none of ours.
     @MainActor
     static func live(for clubId: String, on date: String) -> [RumbalistOffer] {
         let live = offers(for: clubId).filter { $0.liveOn(date) }
@@ -205,10 +172,9 @@ enum RumbalistOffers {
         let fvFree = fvNight.contains { $0.products.contains { $0.settle == .free } }
             || live.contains { $0.fourvenues != nil }
         let fvTables = fvNight.contains { $0.products.contains { $0.settle == .table } }
-        let perTable = TableSellers.serverDecides
         return live.filter { o in
             guard o.fourvenues == nil else { return true }
-            return o.isVip ? (perTable || !fvTables) : !fvFree
+            return o.isVip ? !fvTables : !fvFree
         }
     }
 
@@ -219,9 +185,9 @@ enum RumbalistOffers {
     private struct Response: Decodable, Sendable {
         let brand: BrandDTO?          // primary supplier (legacy field)
         let offersByClub: [String: [OfferDTO]]
-        /// Per-table seller decisions, club id → tables. Absent from servers
-        /// that predate per-table products — nil keeps the old venue rule.
-        let tables: [String: [TableSellers.Table]]?
+        /// Who sells each saved VIP table on each night (VipSellers). Only
+        /// sent to ?tables=1 — absent from older servers.
+        let vipSellers: [String: [String: [String: VipSellers.Seller]]]?
     }
     private struct BrandDTO: Decodable, Sendable {
         let key: String
@@ -260,17 +226,13 @@ enum RumbalistOffers {
         // Paid front-screen promotion. Optional so an API deploy predating the
         // feature still decodes (reads as not featured).
         let featured: Bool?
-        // The listing's id. Optional: older servers don't send it.
-        let id: String?
 
         var model: RumbalistOffer {
-            var offer = RumbalistOffer(
+            RumbalistOffer(
                 kind: kind == "vip_table" ? .vipTable : .freeGuestlist,
                 title: title, subtitle: subtitle, priceEur: priceEur, partySize: partySize,
                 timeWindow: timeWindow, validDays: validDays, dressCode: dressCode, music: music,
                 brand: brand?.model, skippedDates: skippedDates ?? [], featured: featured ?? false)
-            offer.offerId = id
-            return offer
         }
     }
 
@@ -290,12 +252,12 @@ enum RumbalistOffers {
         // Make sure HypeList's nights are loaded (from cache/bundle) before
         // they're merged below — Explore can ask before anything else has.
         _ = FVCatalog.shared
-        // tables=1: this build sells VIP per table (TableSellers). Without it
-        // the server answers with the per-venue VIP rule older builds follow.
+        // tables=1: this build sells the saved VIP tables through ranked
+        // promoters (VipSellers); older builds don't ask and aren't sent it.
         guard let resp: Response = try? await api.get(
             "/api/partner", query: [URLQueryItem(name: "tables", value: "1")]) else { return nil }
         brand = resp.brand?.model
-        TableSellers.update(resp.tables)
+        VipSellers.update(resp.vipSellers)
         let mapped = resp.offersByClub.reduce(into: [String: [RumbalistOffer]]()) { acc, pair in
             acc[pair.key.lowercased()] = pair.value.map(\.model)
         }

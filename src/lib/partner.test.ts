@@ -47,13 +47,13 @@ describe('offerRunsOn — valid_days enforcement', () => {
 
   it('allows an "Every night" offer on any night', async () => {
     const sb = fakeSb([{ valid_days: 'Every night', skipped_dates: [] }])
-    expect(await offerRunsOn(sb, 'club', 'vip_table', SATURDAY)).toBe(true)
+    expect(await offerRunsOn(sb, 'club', 'free_guestlist', SATURDAY)).toBe(true)
   })
 
   it('refuses a single-day offer on the wrong day', async () => {
     const sb = fakeSb([{ valid_days: 'Wed', skipped_dates: [] }])
-    expect(await offerRunsOn(sb, 'club', 'vip_table', SATURDAY)).toBe(false)
-    expect(await offerRunsOn(fakeSb([{ valid_days: 'Wed', skipped_dates: [] }]), 'club', 'vip_table', WEDNESDAY)).toBe(true)
+    expect(await offerRunsOn(sb, 'club', 'free_guestlist', SATURDAY)).toBe(false)
+    expect(await offerRunsOn(fakeSb([{ valid_days: 'Wed', skipped_dates: [] }]), 'club', 'free_guestlist', WEDNESDAY)).toBe(true)
   })
 
   it('treats unparseable valid_days as "no restriction" rather than refusing', async () => {
@@ -101,5 +101,12 @@ describe('offerRunsOn — drift tolerance', () => {
 
   it('does not block when the club has no offer of that kind', async () => {
     expect(await offerRunsOn(fakeSb([]), 'club', 'free_guestlist', SATURDAY)).toBe(true)
+  })
+})
+
+describe('offerRunsOn — single-price VIP offers are not products', () => {
+  it('never books one, live or not', async () => {
+    expect(await offerRunsOn(fakeSb([{ valid_days: 'Every night', skipped_dates: [] }]), 'club', 'vip_table', SATURDAY)).toBe(false)
+    expect(await offerRunsOn(fakeSb([]), 'club', 'vip_table', SATURDAY)).toBe(false)
   })
 })

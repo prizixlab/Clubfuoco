@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { getPartnerOffersByClub } from '@/lib/partner'
 
 // Drives the real consumer gate, so these assert what guests actually see.
+//
+// Rumba's vip_table row stays in the fixture on purpose: single-price VIP
+// offers are not products any more (VIP is the club's saved tables — see
+// lib/vip-products), so whatever a rule says, it must never surface.
 
 const CLUB = 'club-1'
 const RUMBA = 'rumba-id', AASHI = 'aashi-id'
@@ -50,32 +54,32 @@ const shown = async (rules: Record<string, unknown>[]) => {
 describe('per-kind conflict rules', () => {
   it('shows everything when there is no rule', async () => {
     expect(await shown([])).toEqual(
-      ['aashi:free_guestlist', 'rumba:free_guestlist', 'rumba:vip_table'])
+      ['aashi:free_guestlist', 'rumba:free_guestlist'])
   })
 
   it('a venue-wide rule still governs every kind (pre-migration rows)', async () => {
     // No `kind` column on the row — exactly what an existing rule looks like.
     expect(await shown([{ club_id: CLUB, mode: 'selected', brand_ids: [RUMBA] }]))
-      .toEqual(['rumba:free_guestlist', 'rumba:vip_table'])
+      .toEqual(['rumba:free_guestlist'])
   })
 
-  it('splits the products: Rumba on tables, Aashi on the door', async () => {
+  it('a VIP rule can’t bring back a single-price VIP offer', async () => {
     expect(await shown([
       { club_id: CLUB, kind: 'vip_table',      mode: 'selected', brand_ids: [RUMBA] },
       { club_id: CLUB, kind: 'free_guestlist', mode: 'selected', brand_ids: [AASHI] },
-    ])).toEqual(['aashi:free_guestlist', 'rumba:vip_table'])
+    ])).toEqual(['aashi:free_guestlist'])
   })
 
   it('a kind rule wins over the venue-wide one, which still covers the rest', async () => {
     expect(await shown([
       { club_id: CLUB, kind: '*',              mode: 'selected', brand_ids: [RUMBA] },
       { club_id: CLUB, kind: 'free_guestlist', mode: 'selected', brand_ids: [AASHI] },
-    ])).toEqual(['aashi:free_guestlist', 'rumba:vip_table'])
+    ])).toEqual(['aashi:free_guestlist'])
   })
 
-  it("'none' on one kind leaves the other kind alone", async () => {
+  it("'none' on guestlists hides them, and VIP offers never show", async () => {
     expect(await shown([{ club_id: CLUB, kind: 'free_guestlist', mode: 'none', brand_ids: [] }]))
-      .toEqual(['rumba:vip_table'])
+      .toEqual([])
   })
 
   it('a hidden supplier stays hidden even when a kind rule selects it', async () => {
@@ -103,6 +107,6 @@ describe('per-kind conflict rules', () => {
     // shows — under the old whitelist it was dropped for not being named in a
     // rule that existed only to pick between the two, leaving the venue with
     // no guestlist at all.
-    expect(visible.sort()).toEqual(['rumba:free_guestlist', 'rumba:vip_table'])
+    expect(visible.sort()).toEqual(['rumba:free_guestlist'])
   })
 })

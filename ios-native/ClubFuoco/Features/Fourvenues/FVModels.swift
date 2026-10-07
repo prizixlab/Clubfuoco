@@ -46,8 +46,8 @@ struct FVEvent: Decodable, Identifiable, Hashable {
     let genres: [String]
     let image: String?
     let url: String
-    /// `var` only so FVCatalog can take out table zones the server gave to
-    /// another seller (TableSellers); never edited anywhere else.
+    /// `var` only so FVCatalog can apply who sells each saved VIP table
+    /// tonight (VipSellers); never edited anywhere else.
     var products: [FVProduct]
     /// How the night's VIP areas fit together, for the overview map.
     let vipMap: FVVipMap?
@@ -161,6 +161,10 @@ struct FVProduct: Decodable, Identifiable, Hashable {
     let window: FVWindow?
     /// Tables: the zone's floor plan, when the venue publishes one.
     let map: FVZoneMap?
+    /// Tables: set when a promoter sells this table tonight on FUOCO checkout
+    /// (VipSellers) — FVEventSheet then charges with Apple Pay through us
+    /// instead of opening Fourvenues. Not in the feed; set by FVCatalog.
+    var soldBy: VipSellers.Seller? = nil
 
     /// What the price includes, read from the name and the description.
     var perks: FVPerks { FVPerks([name, detail].compactMap { $0 }.joined(separator: " · ")) }
@@ -294,16 +298,28 @@ final class FVCatalog {
     private(set) var brandMeta: [String: FVBrandMeta] = [:]
 
     /// Every Fourvenues night the app may show — none from a brand that's
-    /// switched off, and no table zone the server gave to another seller
-    /// (each VIP table is its own product — see TableSellers). Club pages, the
-    /// Guestlist offers, event pages and Explore all read this.
+    /// switched off — with each saved VIP table shown ONCE, by whoever holds
+    /// its buy button tonight (VipSellers):
+    ///   • a Fourvenues seller → only that promoter's own listing of it;
+    ///   • a Fuoco seller → the first listing of it, marked `soldBy`.
+    /// A table the server says nothing about stays as the catalog has it.
+    /// Club pages, the Guestlist offers, event pages and Explore all read this.
     var events: [FVEvent] {
-        _ = tableRulesRev   // re-read when the server's table decisions change
+        _ = tableRulesRev   // re-read when the server's decisions change
+        var claimed = Set<String>()   // club|night|zone already given a Fuoco listing
         return allEvents.filter { brandOn[$0.seller] ?? true }.map { e in
             guard e.products.contains(where: { $0.settle == .table }) else { return e }
             var e = e
-            e.products = e.products.filter {
-                $0.settle != .table || TableSellers.fourvenuesMaySell(clubId: e.clubId, zone: $0.name)
+            e.products = e.products.compactMap { p in
+                guard p.settle == .table,
+                      let s = VipSellers.seller(clubId: e.clubId, night: e.night, zone: p.name)
+                else { return p }
+                if !s.isFuoco { return s.brandKey == e.seller ? p : nil }
+                let key = "\(e.clubId?.lowercased() ?? "")|\(e.night)|\(VipSellers.norm(p.name ?? ""))"
+                guard claimed.insert(key).inserted else { return nil }
+                var sold = p
+                sold.soldBy = s
+                return sold
             }
             return e
         }

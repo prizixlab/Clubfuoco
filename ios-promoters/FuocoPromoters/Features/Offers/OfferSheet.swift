@@ -141,15 +141,12 @@ struct OfferSheet: View {
                 Theme.night.ignoresSafeArea()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
-                        Picker("Kind", selection: $isVip) {
-                            Text("Free Guestlist").tag(false)
-                            Text("VIP Table").tag(true)
-                        }
-                        .pickerStyle(.segmented)
-                        .onChange(of: isVip) { _, vip in
-                            if title == "Free Guestlist" || title == "VIP Table" {
-                                title = vip ? "VIP Table" : "Free Guestlist"
-                            }
+                        // No single-price VIP offers: VIP is the club's own
+                        // tables, sold from You → VIP tables. An old VIP
+                        // offer still opens here so it can be archived.
+                        if isVip {
+                            Text("Single-price VIP offers are retired. You now sell the club’s own tables from You → VIP tables. Archive this one.")
+                                .font(.cfSans(13)).foregroundStyle(Theme.ember)
                         }
 
                         field("Title", $title)

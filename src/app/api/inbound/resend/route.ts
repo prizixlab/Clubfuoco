@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server'
 import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
-import { allowedSenders, decodeHtml, isAllowedSender, isAuthenticated, parseTicketEmail, senderDomain, tokenFromRecipients } from '@/lib/ticket-inbox'
+import { allowedSenders, decodeHtml, isAllowedSender, isAuthenticated, kindFromPdf, parseTicketEmail, senderDomain, settleFromFeed, settlesForKind, tokenFromRecipients, type FeedEvent } from '@/lib/ticket-inbox'
+import { currentNight } from '@/lib/hours'
 import { notify } from '@/lib/notify'
 
 // POST /api/inbound/resend
@@ -135,7 +136,7 @@ export async function POST(req: NextRequest) {
     let ticketId: string | null = null
     let fresh = false
     if (parsed.codes.length && parsed.eventCode) {
-      ({ id: ticketId, fresh } = await fileTicket(sb, userId, parsed, from))
+      ({ id: ticketId, fresh } = await fileTicket(sb, userId, parsed, from, `${subject}\n${text || html}`))
     }
 
     // The QR just reached the account — tell the guest, once per ticket.
@@ -175,12 +176,18 @@ export async function POST(req: NextRequest) {
 /**
  * 5. Merge into the app's own row for this event when it exists (written at
  * sign-up, QR not yet known); otherwise file a new one from the email alone.
+ *
+ * The PDF's name says what kind of ticket this is (list / ticket / table), so
+ * a guest with a guestlist AND a table on one night gets each QR on the right
+ * card (BK-20). An email-only ticket takes its night, venue, settle and price
+ * from our own feed for that event, not from guesses (BK-12, BK-24).
  */
 async function fileTicket(
-  sb: Sb, userId: string, p: ReturnType<typeof parseTicketEmail>, from: string,
+  sb: Sb, userId: string, p: ReturnType<typeof parseTicketEmail>, from: string, emailText: string,
 ): Promise<{ id: string; fresh: boolean }> {
   const code = p.codes[0]
   const pdf = p.pdfUrls.find(u => u.toUpperCase().includes(code)) ?? p.pdfUrls[0] ?? null
+  const kind = kindFromPdf(pdf)
 
   // Already filed with this exact code (a second email, or the app read it).
   const { data: same } = await sb.from('external_tickets')
@@ -190,9 +197,12 @@ async function fileTicket(
     return { id: same.id as string, fresh: false }
   }
 
-  // The app's row for this event, still waiting for its QR — newest first.
-  const { data: pending } = await sb.from('external_tickets')
+  // The app's row for this event AND this kind, still waiting for its QR —
+  // newest first. Kind unknown (an unfamiliar PDF name) → any pending row.
+  let pendingQ = sb.from('external_tickets')
     .select('id').eq('user_id', userId).eq('event_code', p.eventCode!).is('qr_payload', null)
+  if (kind) pendingQ = pendingQ.in('settle', settlesForKind(kind))
+  const { data: pending } = await pendingQ
     .order('created_at', { ascending: false }).limit(1).maybeSingle()
   if (pending) {
     await sb.from('external_tickets').update({ qr_payload: code, pdf_url: pdf }).eq('id', pending.id)
@@ -200,16 +210,26 @@ async function fileTicket(
   }
 
   // Email only (booked on another device before this existed, or the app was
-  // closed mid-flow): file what the email tells us.
-  const venue = from.match(/^\s*"?([^"<]+?)"?\s*</)?.[1]?.trim() ?? null
+  // closed mid-flow): file what the email and our feed tell us.
+  const ev = await feedEvent(p.eventCode!)
+  const money = settleFromFeed(ev, kind, emailText)
+  if (!money) {
+    // Can't tell free from pay-at-the-door. Logged so support can see it; the
+    // card shows as a plain guestlist entry.
+    console.warn('[inbound/resend] settle ambiguous for', p.eventCode, kind)
+  }
+  const venue = ev?.venue ?? from.match(/^\s*"?([^"<]+?)"?\s*</)?.[1]?.trim() ?? null
   const { data: row, error } = await sb.from('external_tickets').insert({
     user_id: userId,
     provider: 'fourvenues',
     event_code: p.eventCode,
-    event_name: p.eventName,
+    event_name: p.eventName ?? ev?.name ?? null,
     venue,
-    night: p.night ?? new Date().toISOString().slice(0, 10),
-    settle: p.isGuestlist ? 'free' : 'online',
+    // The email's own date, else the feed's night, else tonight (Madrid
+    // night, not the UTC arrival date — BK-24).
+    night: p.night ?? ev?.night ?? currentNight(),
+    settle: money?.settle ?? (kind === 'table' ? 'table' : kind === 'ticket' ? 'online' : 'free'),
+    unit_price: money?.price ?? 0,
     heads: p.heads ?? 1,
     qr_payload: code,
     pdf_url: pdf,
@@ -217,6 +237,22 @@ async function fileTicket(
   }).select('id').single()
   if (error) throw new Error(`file ticket: ${error.message}`)
   return { id: row.id as string, fresh: true }
+}
+
+/** One event from the app's offers feed (agentbox publishes it hourly). */
+async function feedEvent(code: string): Promise<FeedEvent | null> {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!base) return null
+  try {
+    const res = await fetch(`${base}/storage/v1/object/public/fourvenues/offers.json`, {
+      cache: 'no-store', signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) return null
+    const feed = await res.json() as { events?: FeedEvent[] }
+    return feed.events?.find(e => e.code?.toUpperCase() === code.toUpperCase()) ?? null
+  } catch {
+    return null
+  }
 }
 
 /** A copy to the account's real address, from our verified domain. */

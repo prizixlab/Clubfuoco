@@ -91,7 +91,7 @@ struct ScanView: View {
             // shouldn't have to reinstall.
             Button { showVenue = true } label: {
                 VStack(alignment: .leading, spacing: 2) {
-                    Kicker("Fuoco Door")
+                    Kicker("Fuoco Scanner")
                     HStack(spacing: 6) {
                         Text(session.venueName).font(.cfSerif(24)).foregroundStyle(Theme.parchment)
                         Image(systemName: "chevron.down")

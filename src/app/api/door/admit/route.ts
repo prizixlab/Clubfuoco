@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
-import { billableForKind, isoNoMs, usedForToken, type CredentialKind } from '@/lib/door'
+import { billableForKind, isoNoMs, isTonight, usedForToken, type CredentialKind } from '@/lib/door'
 import { eventAccessDenied } from '@/lib/door-events'
 import { NON_ADMITTING_PAYMENT } from '@/lib/refunds'
 
@@ -31,8 +31,12 @@ export async function POST(req: NextRequest) {
 
   // Derive club/night from the token itself — never trust the client for the
   // fields the overscan ledger is keyed on.
+  // Refusals answer 200 with recorded:false, never a 4xx: installed door
+  // builds retry ANY failed record from the head of their queue forever, so
+  // one refused scan used to block every scan behind it. (Builds from
+  // 2026-10-05 drop a 4xx instead — see SyncManager.flushQueue.)
   const ctx = await tokenContext(supabase, token_ref)
-  if (!ctx) return err('Unknown token_ref', 404)
+  if (!ctx) return ok({ recorded: false, refused: 'unknown_or_unpaid', token_ref })
 
   // The gate that actually stops someone walking guests into a private party.
   // /resolve refuses to identify them; this refuses to admit them.
@@ -46,6 +50,16 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // An entry is only recorded for a live credential on its own night. The
+  // door's UI already refuses these (cancelled / WRONG NIGHT); this stops a
+  // stale pack or a hand-made request from writing an admission — and an
+  // overscan charge — anyway. A bouncer's deliberate override carries a
+  // reason and is let through, logged. Voids always go through.
+  if (action === 'admit' && !body.reason) {
+    if (ctx.status === 'cancelled') return ok({ recorded: false, refused: 'cancelled', token_ref })
+    if (!isTonight(ctx.night)) return ok({ recorded: false, refused: 'wrong_night', token_ref })
+  }
+
   const kind = (body.kind ?? 'paid_entry') as CredentialKind
   const row = {
     scan_id,
@@ -55,7 +69,9 @@ export async function POST(req: NextRequest) {
     token_ref,
     credential_kind: kind,
     action,
-    count: Math.max(1, Math.floor(body.count ?? 1)),
+    // A party is at most a few dozen heads; anything bigger is a bad request,
+    // not a group, and would land straight on a club's overscan bill.
+    count: Math.min(50, Math.max(1, Math.floor(body.count ?? 1))),
     billable: billableForKind(kind),
     holder_name: body.holder_name ?? null,
     reason: body.reason ?? null,

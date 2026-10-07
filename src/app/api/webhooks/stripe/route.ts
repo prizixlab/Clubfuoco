@@ -5,6 +5,7 @@ import { sendTicketConfirmation, sendAdminTicketAlert } from '@/lib/email'
 import { pushWalletUpdate } from '@/lib/wallet/push'
 import { applyCardVerification } from '@/lib/promoter-billing'
 import { syncAccount } from '@/lib/connect'
+import { writeVipBooking } from '@/lib/vip-booking'
 import { revokeForCharge } from '@/lib/refunds'
 import type Stripe from 'stripe'
 
@@ -231,6 +232,34 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'could not record payment' }, { status: 500 })
           }
           break
+        }
+
+        // ---- A Rumbalist VIP table paid by Apple Pay ----
+        // The backstop for the app never reaching /confirm-vip: book the table
+        // from the intent alone (lib/vip-booking — idempotent with confirm-vip).
+        // Its own try outside the catch-all, like event_spot: the guest has
+        // paid, so a failure must make Stripe retry, not be logged and dropped.
+        // Only intents create-vip-intent priced; an older unpriced one is left
+        // to confirm-vip, which re-checks the price.
+        if (pi.metadata?.source === 'rumbalist_vip' && pi.metadata?.price_checked === '1') {
+          const res = await writeVipBooking(supabase, pi)
+          if (!res.ok && res.status >= 500) {
+            console.error('[webhook] vip booking failed —', pi.id, res.error)
+            return NextResponse.json({ error: 'could not record booking' }, { status: 500 })
+          }
+          if (!res.ok) console.error('[webhook] vip booking refused —', pi.id, res.error)
+          break
+        }
+
+        // ---- A club booking (/api/bookings) ----
+        // The route writes the row as 'pending' before charging and confirms
+        // it after; if that last write never happened, confirm it here by id.
+        if (pi.metadata?.booking_id) {
+          await supabase
+            .from('bookings')
+            .update({ status: 'confirmed', stripe_payment_intent_id: pi.id, stripe_charge_id: pi.latest_charge as string })
+            .eq('id', pi.metadata.booking_id)
+            .eq('status', 'pending')
         }
         if (pi.metadata?.qr_token) {
           await supabase

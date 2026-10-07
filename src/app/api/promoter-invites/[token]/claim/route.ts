@@ -2,6 +2,7 @@ import { createServiceClient, createClient } from '@/lib/supabase/server'
 import { resolveTokenToAllocation } from '@/lib/promoter-series'
 import { ok, err } from '@/lib/utils'
 import { ladder, livePrice } from '@/lib/releases'
+import { rateLimit, clientIp } from '@/lib/ratelimit'
 
 /**
  * Public claim endpoint for promoter invite links.
@@ -40,6 +41,12 @@ export async function POST(
     const cookieClient = await createClient()
     const { data: { user } } = await cookieClient.auth.getUser()
     claimedByUser = user?.id ?? null
+  }
+
+  // Free claims write real door-list rows; don't let a script mint them.
+  const who = claimedByUser ? `u:${claimedByUser}` : `ip:${clientIp(req)}`
+  if (!rateLimit(`claim:${who}`, 10, 10 * 60_000)) {
+    return err('Too many attempts. Wait a few minutes and try again.', 429)
   }
 
   // Resolve one-off OR permanent series token → the concrete night's allocation.

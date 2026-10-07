@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { allowedSenders, decodeHtml, inboxAddress, isAllowedSender, isAuthenticated, newInboxToken, parseTicketEmail, senderDomain, tokenFromRecipients } from './ticket-inbox'
+import { allowedSenders, decodeHtml, inboxAddress, isAllowedSender, isAuthenticated, newInboxToken, parseTicketEmail, senderDomain, tokenFromRecipients, kindFromPdf, settleFromFeed } from './ticket-inbox'
 
 // Shaped on the real Fourvenues guestlist email (Opium, Jet Lag, 1 Oct 2026).
 const HTML = `
@@ -100,5 +100,32 @@ describe('sender checks', () => {
     expect(isAuthenticated({ spf: 'pass', dkim: 'pass', dmarc: 'fail' })).toBe(true)
     expect(isAuthenticated({ spf: 'pass', dkim: 'fail', dmarc: 'fail' })).toBe(false)
     expect(isAuthenticated(null)).toBe(false)
+  })
+})
+
+describe('kindFromPdf / settleFromFeed', () => {
+  const ev = {
+    code: 'XBQO', night: '2026-10-05', venue: 'Opium Barcelona',
+    products: [
+      { source: 'guestlist', settle: 'free', price: 0, name: 'LISTA GRATIS ANTES 01H' },
+      { source: 'guestlist', settle: 'door', price: 15, name: 'LISTA 15€ CON COPA' },
+      { source: 'ticket', settle: 'online', price: 20, name: 'Entrada + copa' },
+      { source: 'zone', settle: 'table', price: 300, name: 'VIP' },
+    ],
+  }
+  it('reads the kind off the PDF name', () => {
+    expect(kindFromPdf('https://connector-service.fourvenues.com/tickets/ab/listas-XBQO19.pdf')).toBe('list')
+    expect(kindFromPdf('https://connector-service.fourvenues.com/tickets/ab/reservas-XBQO2.pdf')).toBe('table')
+    expect(kindFromPdf('https://x/other.pdf')).toBeNull()
+  })
+  it('a named product decides an ambiguous list', () => {
+    expect(settleFromFeed(ev, 'list', 'Your ticket: LISTA 15€ con copa — see you')).toEqual({ settle: 'door', price: 15 })
+  })
+  it('refuses to guess when the lists disagree and none is named', () => {
+    expect(settleFromFeed(ev, 'list', 'Guest list confirmed')).toBeNull()
+  })
+  it('an unambiguous kind needs no name', () => {
+    expect(settleFromFeed(ev, 'table', '')).toEqual({ settle: 'table', price: 300 })
+    expect(settleFromFeed(ev, 'ticket', '')).toEqual({ settle: 'online', price: 20 })
   })
 })

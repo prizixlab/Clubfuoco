@@ -23,6 +23,8 @@ const schema = z.object({
   club_id:      z.string().min(1),
   amount:       z.number().int().min(50),   // cents — checked against the offer, never trusted
   booking_date: z.string().optional(),      // older app builds don't send it
+  venue_name:   z.string().max(200).optional(),
+  product_name: z.string().max(200).optional(),
 })
 
 export async function POST(req: Request) {
@@ -69,7 +71,11 @@ export async function POST(req: Request) {
         source:        'rumbalist_vip',
         // confirm-vip trusts an intent only when this route priced it.
         price_checked: '1',
+        // Everything the webhook needs to write the booking if the app never
+        // calls confirm-vip (see lib/vip-booking).
         ...(bookingDate ? { booking_date: bookingDate } : {}),
+        ...(parsed.data.venue_name ? { venue_name: parsed.data.venue_name } : {}),
+        ...(parsed.data.product_name ? { product_name: parsed.data.product_name } : {}),
       },
     })
     return ok({

@@ -203,3 +203,28 @@ export function bookingWindow(
   }
   return { earliest, latest: endOfPresence }
 }
+
+/** Hour (Madrid) at which "tonight" becomes the next night. */
+export const NIGHT_ROLLOVER_HOUR = 6
+
+/**
+ * The venue night `instant` belongs to, as YYYY-MM-DD in Europe/Madrid: until
+ * 06:00 it is still the previous evening's night (a 02:00 scan on Saturday is
+ * Friday's party). The one definition of "tonight" for the door, cancellation
+ * and booking-date checks — UTC dates were a day off for half of every night.
+ */
+export function currentNight(instant: Date = new Date()): string {
+  const p: Record<string, string> = {}
+  for (const part of new Intl.DateTimeFormat('en-US', {
+    timeZone: VENUE_TZ, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit',
+  }).formatToParts(instant)) p[part.type] = part.value
+  const hour = Number(p.hour) % 24
+  const d = new Date(Date.UTC(+p.year, +p.month - 1, +p.day))
+  if (hour < NIGHT_ROLLOVER_HOUR) d.setUTCDate(d.getUTCDate() - 1)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Whole days from night `a` to night `b` (both YYYY-MM-DD). */
+export function nightsBetween(a: string, b: string): number {
+  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000)
+}

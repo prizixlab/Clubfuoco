@@ -111,7 +111,7 @@ export async function GET(
   for (let from = 0; ; from += 1000) {
     const { data, error } = await sb.from('bookings')
       .select('id, user_id, booking_date, party_size, total_amount, status, created_at, clubs(name)')
-      .eq('brand_id', id).not('status', 'in', '(cancelled,payment_failed,refunded)')
+      .eq('brand_id', id).not('status', 'in', '(cancelled,payment_failed,refunded,disputed)')
       .order('id').range(from, from + 999)
     if (error) return err(error.message, 500)
     for (const b of (data ?? []) as unknown as {

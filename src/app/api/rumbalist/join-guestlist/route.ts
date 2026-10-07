@@ -38,6 +38,19 @@ export async function POST(req: Request) {
     return err('This guestlist isn\'t running on that night.', 409)
   }
 
+  // One spot per guest per club per night. Joining again (a re-tap, or a
+  // script) hands back the spot they already have instead of minting another
+  // with up to 9 more guests on it — which is how one account could eat a
+  // capped list.
+  const { data: already } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('user_id', user!.id).eq('club_id', clubId).eq('booking_date', bookingDate)
+    .eq('booking_type', 'general').eq('status', 'confirmed')
+    .eq('total_amount', 0)
+    .limit(1).maybeSingle()
+  if (already) return ok(already)
+
   // 1. Booking row — retry on the (vanishingly rare) reference-code collision.
   //    Postgres unique violation = code 23505. Five attempts is plenty since
   //    each attempt re-rolls 8 chars from a 36-char alphabet.

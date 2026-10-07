@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'crypto'
 import { headers } from 'next/headers'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { NON_ADMITTING_PAYMENT } from '@/lib/refunds'
+import { currentNight } from '@/lib/hours'
 
 // ── Fuoco Door — server helpers ──────────────────────────────────────────────
 // Shared by the /api/door/* routes. Devices authenticate with a bearer token
@@ -330,8 +331,10 @@ export async function resolveDescriptor(
     const club = b.clubs as { name?: string } | null
     const allowed = b.admissions_allowed ?? b.party_size ?? 1
     const tokenRef = `bk_${b.id}`
-    const used = await usedForToken(supabase, tokenRef)
-    const status = b.status === 'cancelled' ? 'cancelled' : (used >= allowed && used > 0 ? 'over' : 'ok')
+    const used = parsed.token === REVIEW_DEMO_SCAN_TOKEN ? 0 : await usedForToken(supabase, tokenRef)
+    const status = b.status === 'cancelled' ? 'cancelled'
+      : !isTonight(b.booking_date) && parsed.token !== REVIEW_DEMO_SCAN_TOKEN ? 'wrong_night'
+      : (used >= allowed && used > 0 ? 'over' : 'ok')
     return {
       holder_name: user?.full_name ?? 'Guest',
       holder_avatar_url: user?.avatar_url ?? null,
@@ -351,6 +354,23 @@ export async function resolveDescriptor(
     }
   }
   return resolveGuest(supabase, parsed.token)
+}
+
+/**
+ * App Review's demo ticket for Fuoco Scanner (a booking on the
+ * appletester@clubfuoco.com account, attached to the review notes as a QR).
+ * A reviewer can scan it on any day, so it must never read as wrong-night.
+ */
+const REVIEW_DEMO_SCAN_TOKEN = '143838FEAC5340C5A8E346C15C5E3B6B'
+
+/**
+ * Is this credential for tonight's party? Madrid nights with the 06:00
+ * rollover (lib/hours.currentNight). The door app has always had a WRONG
+ * NIGHT screen, but nothing sent it — a booking for next Saturday scanned OK
+ * tonight. `wrong_night` is already in every installed build's AccessStatus.
+ */
+export function isTonight(night: string | null | undefined, now: Date = new Date()): boolean {
+  return !!night && night.slice(0, 10) === currentNight(now)
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -397,7 +417,9 @@ async function resolveGuest(supabase: SupabaseClient, guestId: string): Promise<
       extras: [],
     },
     allowance: { used, allowed },
-    status: !paid ? 'cancelled' : (used >= allowed && used > 0 ? 'over' : 'ok'),
+    status: !paid ? 'cancelled'
+      : !isTonight(night?.night_date) ? 'wrong_night'
+      : (used >= allowed && used > 0 ? 'over' : 'ok'),
     venue: night?.club_id ?? '',
     // A custom-location night has no club row to name it. Falling back to the
     // night's own location keeps the door from displaying a bare "Venue" for

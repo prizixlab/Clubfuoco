@@ -19,7 +19,7 @@ struct EnrollView: View {
                 VStack(spacing: 10) {
                     Image(systemName: "qrcode.viewfinder")
                         .font(.system(size: 48)).foregroundStyle(Theme.gold)
-                    Text("Fuoco Door").font(.cfSerif(38)).foregroundStyle(Theme.parchment)
+                    Text("Fuoco Scanner").font(.cfSerif(38)).foregroundStyle(Theme.parchment)
                     Text("Enroll this device to a venue to start scanning tonight's door.")
                         .font(.cfSans(14)).foregroundStyle(Theme.parchmentDim)
                         .multilineTextAlignment(.center).padding(.horizontal, 40)

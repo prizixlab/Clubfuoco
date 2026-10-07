@@ -1,5 +1,6 @@
 import { createAuthedClient, createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
+import { currentNight } from '@/lib/hours'
 import { requireAuth } from '@/lib/auth'
 import { stripe } from '@/lib/stripe'
 
@@ -26,7 +27,7 @@ export async function GET(
 }
 
 // DELETE /api/bookings/:id — cancel a booking.
-//   • Free bookings cancel cleanly, no refund, no time restriction.
+//   • Free bookings cancel cleanly, no refund, until the night is over.
 //   • Paid bookings refund everything the guest paid EXCEPT the payment-
 //     processing fee Stripe charged us on the original charge (which Stripe
 //     keeps on refunds), so a cancellation never costs us money.
@@ -50,6 +51,10 @@ export async function DELETE(
   if (fetchError || !booking) return err('Booking not found', 404)
   if (booking.status === 'used')      return err('Cannot cancel a used booking', 400)
   if (booking.status === 'cancelled') return err('Booking is already cancelled', 400)
+  // Once the night is over there is nothing to cancel — and a door that
+  // never marked the booking 'used' must not turn into a refund after the guest
+  // went in. (Madrid nights, 06:00 rollover.)
+  if (booking.booking_date < currentNight()) return err('This night has already passed.', 400)
 
   const totalCents = Math.round((booking.total_amount ?? 0) * 100)
   const isFree = !booking.stripe_payment_intent_id || totalCents <= 0
@@ -86,6 +91,19 @@ export async function DELETE(
         // Log but don't block — still cancel the booking so the user isn't stuck
         refundError = stripeErr.message
         console.error('Stripe refund error (booking still cancelled):', stripeErr.message)
+        // Record what is owed, so "processed manually" has something behind
+        // it (refund_failures, 20261005_booking_hardening.sql). Never let the
+        // record-keeping block the cancel.
+        try {
+          const admin = await createServiceClient()
+          await admin.from('refund_failures').insert({
+            booking_id: booking.id, user_id: user!.id,
+            payment_intent_id: booking.stripe_payment_intent_id,
+            amount_cents: refundCents, error: String(stripeErr.message ?? '').slice(0, 500),
+          })
+        } catch (logErr) {
+          console.error('refund_failures insert failed:', logErr)
+        }
       }
     }
   }
@@ -112,6 +130,6 @@ export async function DELETE(
   return ok({
     cancelled:     true,
     refund_amount: refundAmountEuros.toFixed(2),
-    refund_note:   refundError ? 'Refund will be processed manually' : null,
+    refund_note:   refundError ? 'Cancelled. Your refund is delayed — we’ll email you when it’s sent.' : null,
   })
 }

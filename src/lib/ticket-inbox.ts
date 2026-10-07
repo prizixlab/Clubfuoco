@@ -142,3 +142,53 @@ export function parseTicketEmail(subject: string, html: string, text: string): P
     isGuestlist: /guest ?list|lista/i.test(subject) || pdfUrls.some(u => /\/listas-/.test(u)),
   }
 }
+
+// ── What kind of ticket an email is for ──────────────────────────────────────
+//
+// The PDF's filename says what Fourvenues sold: listas- (a guest list — free
+// or pay-at-the-door), entradas- (a ticket — paid online, or a €0 ticket),
+// reservas- (a table). The email never says how money moves, so settle and
+// price come from OUR feed (offers.json) for that event — guessing "free" for
+// every list used to drop the money owed at the door (BK-12).
+
+export type TicketKind = 'list' | 'ticket' | 'table'
+
+export function kindFromPdf(url: string | null | undefined): TicketKind | null {
+  const m = url?.match(/\/(listas|entradas|reservas)-[A-Z0-9]+\.pdf$/i)?.[1]?.toLowerCase()
+  return m === 'listas' ? 'list' : m === 'entradas' ? 'ticket' : m === 'reservas' ? 'table' : null
+}
+
+/** The external_tickets.settle values a kind can be. */
+export function settlesForKind(kind: TicketKind): string[] {
+  return kind === 'list' ? ['free', 'door'] : kind === 'ticket' ? ['online', 'free'] : ['table']
+}
+
+/** offers.json product source for a kind. */
+const SOURCE: Record<TicketKind, string> = { list: 'guestlist', ticket: 'ticket', table: 'zone' }
+
+export interface FeedProduct { source: string; settle: string; price: number; name?: string | null }
+export interface FeedEvent { code: string; night: string; venue?: string | null; name?: string | null; products: FeedProduct[] }
+
+/**
+ * Settle + unit price for an emailed ticket, from the feed. A product whose
+ * name appears in the email wins; otherwise the kind's products must agree on
+ * one settle. Ambiguous (a free AND a pay-at-door list that night, and the
+ * email names neither) → null: the caller says so rather than guess.
+ */
+export function settleFromFeed(
+  ev: FeedEvent | null, kind: TicketKind | null, emailText: string,
+): { settle: string; price: number } | null {
+  if (!ev || !kind) return null
+  const products = ev.products.filter(p => p.source === SOURCE[kind])
+  if (products.length === 0) return null
+  const hay = emailText.toLowerCase()
+  const named = products.filter(p => p.name && p.name.trim().length >= 4 && hay.includes(p.name.trim().toLowerCase()))
+  const pool = named.length ? named : products
+  const settles = new Set(pool.map(p => p.settle))
+  if (settles.size !== 1) return null
+  const settle = [...settles][0]
+  const prices = new Set(pool.map(p => p.price))
+  // One settle but several prices (two door lists at different prices): the
+  // money owed is unknown — report the settle, price 0, and let the caller flag it.
+  return { settle, price: prices.size === 1 ? [...prices][0] : 0 }
+}

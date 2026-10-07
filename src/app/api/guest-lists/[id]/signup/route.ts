@@ -5,6 +5,7 @@ import { ok, err } from '@/lib/utils'
 import { getUser } from '@/lib/auth'
 import { notify } from '@/lib/notify'
 import { requireListStaff } from '@/lib/guest-lists'
+import { rateLimit, clientIp } from '@/lib/ratelimit'
 
 // Public on purpose (a guest can sign up without an account), so everything in
 // the body is untrusted: a negative party size used to lower signups_count and
@@ -28,6 +29,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Optionally attach the signed-in user (cookie on web, Bearer on native).
   const user = await getUser()
   const userId = user?.id ?? null
+  if (!rateLimit(`gl-signup:${userId ?? clientIp(request)}`, 10, 10 * 60_000)) {
+    return err('Too many attempts. Wait a few minutes and try again.', 429)
+  }
 
   const { data: list, error: listError } = await supabase
     .from('guest_lists')

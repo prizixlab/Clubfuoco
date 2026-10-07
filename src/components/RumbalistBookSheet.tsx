@@ -150,6 +150,10 @@ export default function RumbalistBookSheet({
           club_id:      clubId,
           venue_name:   venueName,
           product_name: offer.title,
+          // The night this sheet shows. Without it the server defaulted to
+          // "tomorrow" — a different night from the one on screen, which the
+          // door now refuses as WRONG NIGHT.
+          booking_date: plan.date,
         }),
       })
       if (res.status === 401) {

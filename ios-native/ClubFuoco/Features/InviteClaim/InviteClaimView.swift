@@ -55,6 +55,9 @@ struct InviteClaimView: View {
     @State private var partyBusy = false
     @State private var showTicketFriendPicker = false
     @State private var confirmRefund = false
+    /// Tickets this account bought for other people on this night and still
+    /// holds (/mine?include=held). Each has its own QR and a Send link.
+    @State private var heldTickets: [InviteSummary] = []
 
     struct InvitedFriend: Identifiable, Hashable { let id: UUID; let name: String }
 
@@ -475,11 +478,49 @@ struct InviteClaimView: View {
     /// My own guest row (to read my open plus-ones + check-in state).
     private func loadPaidAmount(guestId: String) async {
         guard auth.hasAccount,
-              let resp: InvitesResponse = try? await api.get("/api/promoter-invites/mine")
+              let resp: InvitesResponse = try? await api.get(
+                "/api/promoter-invites/mine", query: [URLQueryItem(name: "include", value: "held")])
         else { return }
         paidAmount = resp.invites
             .first { $0.id.uuidString.lowercased() == guestId.lowercased() }?
             .paidAmount
+        heldTickets = resp.invites.filter { $0.isHeldForOther && $0.inviteToken == token }
+    }
+
+    /// The other tickets held on this night — never the one already on screen.
+    private func otherHeld(_ guestId: String) -> [InviteSummary] {
+        heldTickets.filter { $0.id.uuidString.lowercased() != guestId.lowercased() }
+    }
+
+    private func sendLink(_ inv: InviteSummary) -> some View {
+        ShareLink(
+            item: InviteLinkRouter.ticketURL(token: token, guestId: inv.id.uuidString.lowercased()),
+            subject: Text(inv.eventTitle),
+            message: Text(String(format: locale.t("tickets.shareMessage"), inv.eventTitle))
+        ) {
+            HStack(spacing: 8) {
+                Image(systemName: "paperplane.fill").font(.system(size: 13))
+                Text(String(format: locale.t("tickets.send"), inv.fullName))
+                    .font(.cfSans(14, weight: .semibold))
+            }
+            .foregroundStyle(Theme.cream)
+            .frame(maxWidth: .infinity)
+            .frame(height: 46)
+            .background(Theme.ink, in: .capsule)
+        }
+    }
+
+    /// A ticket bought for someone else, shown under the buyer's own: whose it
+    /// is, its own QR (it scans on its own at the door), and the link to send it.
+    private func heldTicketBlock(_ inv: InviteSummary) -> some View {
+        VStack(spacing: 14) {
+            Text(String(format: locale.t("tickets.forName"), inv.fullName).uppercased())
+                .font(.cfMono(9)).kerning(1.5)
+                .foregroundStyle(Theme.ink.opacity(0.55))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            TicketQRCard(token: "fuoco-invite:\(inv.id.uuidString.lowercased())", printed: nil)
+            sendLink(inv)
+        }
     }
 
     private func myGuest(_ guestId: String) -> InviteGuest? {
@@ -550,8 +591,16 @@ struct InviteClaimView: View {
                         passPath: "/api/promoter-invites/guest/\(guestId)/wallet",
                         fullWidth: true)
 
-                    // ── Your party — editable: adjust open spots, invite friends ──
-                    partyCard(guestId: guestId)
+                    if let mine = heldTickets.first(where: { $0.id.uuidString.lowercased() == guestId.lowercased() }) {
+                        // Somebody else's ticket that this account bought: send it.
+                        sendLink(mine)
+                    } else {
+                        // Every other ticket from the purchase, each with its own QR.
+                        ForEach(otherHeld(guestId)) { heldTicketBlock($0) }
+
+                        // ── Your party — editable: adjust open spots, invite friends ──
+                        partyCard(guestId: guestId)
+                    }
 
                     // ── Who's going: the roster (when the promoter makes it visible)
                     if !guests.isEmpty {
@@ -759,6 +808,11 @@ struct InviteClaimView: View {
 
             // Me
             partyRow(name: "\(name) (you)", trailing: myGuest(guestId)?.checkedInAt != nil ? .checkedIn : .going)
+
+            // Tickets bought for friends — their own QR above, sent from there.
+            ForEach(otherHeld(guestId)) { inv in
+                partyRow(name: inv.fullName, trailing: .going)
+            }
 
             // Friend slots — invited/going, removable while pending.
             ForEach(invitedList) { friend in

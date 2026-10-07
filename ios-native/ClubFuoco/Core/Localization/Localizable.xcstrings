@@ -10082,30 +10082,30 @@
         }
       }
     },
-    "tickets.refund": {
+    "tickets.refundTicket": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Refund %@"
+            "value": "Refund ticket"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reembolsar %@"
+            "value": "Reembolsar entrada"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reemborsa %@"
+            "value": "Reemborsa l’entrada"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rembourser %@"
+            "value": "Rembourser le billet"
           }
         }
       }

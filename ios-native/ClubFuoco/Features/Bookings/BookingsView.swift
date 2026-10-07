@@ -15,8 +15,6 @@ struct BookingsView: View {
     @State private var openGroup: GroupListItem?
     @State private var reviewBooking: Booking?
     @State private var openInvite: InviteSummary?
-    /// The ticket whose Refund was tapped, awaiting confirmation.
-    @State private var refundTarget: InviteSummary?
     @State private var openFourvenues: FVTicket?
     /// The card lit up after a reveal (see revealFocus).
     @State private var highlighted: UUID?
@@ -196,7 +194,12 @@ struct BookingsView: View {
             InviteClaimView(
                 token: inv.inviteToken,
                 preclaimedGuestId: inv.id.uuidString.lowercased(),
-                preclaimedName: inv.fullName
+                preclaimedName: inv.fullName,
+                refundCents: inv.refundCents,
+                onRefund: {
+                    openInvite = nil
+                    Task { await model.refund(inv, api: api, queries: auth.queries, locale: locale) }
+                }
             )
             .presentationDetents([.large])
             .cfSheetGrabber()
@@ -263,18 +266,6 @@ struct BookingsView: View {
             }
         }
         .animation(.spring(duration: 0.3), value: model.toast)
-        .alert(locale.t("tickets.refundConfirmTitle"), isPresented: Binding(
-            get: { refundTarget != nil },
-            set: { if !$0 { refundTarget = nil } }
-        ), presenting: refundTarget) { inv in
-            Button(String(format: locale.t("tickets.refund"), Self.euros(inv.refundCents ?? 0)),
-                   role: .destructive) {
-                Task { await model.refund(inv, api: api, queries: auth.queries, locale: locale) }
-            }
-            Button(locale.t("common.cancel"), role: .cancel) {}
-        } message: { inv in
-            Text(String(format: locale.t("tickets.refundConfirmBody"), Self.euros(inv.refundCents ?? 0)))
-        }
     }
 
     static func euros(_ cents: Int) -> String {
@@ -728,11 +719,7 @@ struct BookingsView: View {
                             name: inv.fullName,
                             url: InviteLinkRouter.ticketURL(token: inv.inviteToken,
                                                             guestId: inv.id.uuidString.lowercased()),
-                            eventTitle: inv.eventTitle) : nil,
-                        refund: inv.refundCents.map { cents in
-                            (label: String(format: locale.t("tickets.refund"), Self.euros(cents)),
-                             action: { refundTarget = inv })
-                        }
+                            eventTitle: inv.eventTitle) : nil
                     )
                     .padding(.horizontal, 20)
                 }

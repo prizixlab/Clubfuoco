@@ -40,9 +40,6 @@ struct TicketCard: View {
     /// for, and the link that hands it to them (/i/<token>?ticket=<id> — the
     /// app attaches it to their account when they open it).
     var sendTo: Send? = nil
-    /// Refund button: its label ("Refund €6.30") and what it does. The caller
-    /// confirms before any money moves.
-    var refund: (label: String, action: () -> Void)? = nil
 
     struct Send {
         let name: String
@@ -293,21 +290,6 @@ struct TicketCard: View {
                 }
                 .simultaneousGesture(TapGesture().onEnded { Haptics.tap() })
                 .padding(.top, 14)
-            }
-
-            if let refund, !isCancelled, !isCheckedIn {
-                Button {
-                    Haptics.tap()
-                    refund.action()
-                } label: {
-                    Text(refund.label)
-                        .font(.cfSans(13, weight: .medium))
-                        .foregroundStyle(Explore.ink2)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 40)
-                        .overlay(Capsule().stroke(Explore.lineStrong, lineWidth: 1))
-                }
-                .padding(.top, 10)
             }
 
             if showWallet && !isCancelled && !isCheckedIn {

@@ -14,9 +14,16 @@ struct InviteClaimView: View {
     /// sent them (/i/<token>?ticket=<id>). Signed in, it is attached to their
     /// account on open; signed out, the save card below does it after sign-in.
     var receivingSentTicket = false
+    /// Set when this account may refund this ticket now (server's rules, via
+    /// /mine). The button sits at the very bottom of the ticket, deliberately
+    /// out of the way; the amount is only shown in the confirmation.
+    var refundCents: Int? = nil
+    /// Performs the refund (the Tickets tab owns the reload and the toast).
+    var onRefund: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthStore.self) private var auth
+    @Environment(LocaleStore.self) private var locale
     @Environment(\.api) private var api
     @State private var loading = true
     @State private var error: String?
@@ -47,6 +54,7 @@ struct InviteClaimView: View {
     @State private var partyLoaded = false
     @State private var partyBusy = false
     @State private var showTicketFriendPicker = false
+    @State private var confirmRefund = false
 
     struct InvitedFriend: Identifiable, Hashable { let id: UUID; let name: String }
 
@@ -548,6 +556,28 @@ struct InviteClaimView: View {
                     // ── Who's going: the roster (when the promoter makes it visible)
                     if !guests.isEmpty {
                         rosterCard
+                    }
+
+                    if let refundCents, let onRefund {
+                        Button {
+                            Haptics.tap()
+                            confirmRefund = true
+                        } label: {
+                            Text(locale.t("tickets.refundTicket"))
+                                .font(.cfSans(15, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(Color(hex: 0xC62828), in: .capsule)
+                        }
+                        .padding(.top, 18)
+                        .alert(locale.t("tickets.refundConfirmTitle"), isPresented: $confirmRefund) {
+                            Button(locale.t("tickets.refundTicket"), role: .destructive) { onRefund() }
+                            Button(locale.t("common.cancel"), role: .cancel) {}
+                        } message: {
+                            Text(String(format: locale.t("tickets.refundConfirmBody"),
+                                        BookingsView.euros(refundCents)))
+                        }
                     }
                 }
                 .padding(.horizontal, 20)

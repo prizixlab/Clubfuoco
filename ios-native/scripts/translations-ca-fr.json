@@ -2983,7 +2983,7 @@
  "tickets.forName": { "ca": "Per a %@", "fr": "Pour %@" },
  "tickets.send": { "ca": "Envia a %@", "fr": "Envoyer à %@" },
  "tickets.shareMessage": { "ca": "La teva entrada per a %@ — obre-la a Club Fuoco per tenir el teu QR.", "fr": "Ton billet pour %@ — ouvre-le dans Club Fuoco pour avoir ton QR." },
- "tickets.refund": { "ca": "Reemborsa %@", "fr": "Rembourser %@" },
+ "tickets.refundTicket": { "ca": "Reemborsa l’entrada", "fr": "Rembourser le billet" },
  "tickets.refundConfirmTitle": { "ca": "Vols reemborsar aquesta entrada?", "fr": "Rembourser ce billet ?" },
  "tickets.refundConfirmBody": { "ca": "%@ torna a la teva targeta (90%% del preu). L’entrada deixa de funcionar de seguida.", "fr": "%@ revient sur ta carte (90 %% du prix). Le billet cesse de fonctionner tout de suite." },
  "tickets.refundDone": { "ca": "%@ reemborsats a la teva targeta", "fr": "%@ remboursés sur ta carte" }

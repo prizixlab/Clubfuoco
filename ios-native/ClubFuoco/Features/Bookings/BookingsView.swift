@@ -195,11 +195,7 @@ struct BookingsView: View {
                 token: inv.inviteToken,
                 preclaimedGuestId: inv.id.uuidString.lowercased(),
                 preclaimedName: inv.fullName,
-                refundCents: inv.refundCents,
-                onRefund: {
-                    openInvite = nil
-                    Task { await model.refund(inv, api: api, queries: auth.queries, locale: locale) }
-                }
+                onRefunded: { message in model.flash(message) }
             )
             .presentationDetents([.large])
             .cfSheetGrabber()
@@ -709,17 +705,15 @@ struct BookingsView: View {
                     // Its detail screen differs (InviteClaimView, which owns the
                     // party and the friend slots), and that is what onOpenDetail
                     // is for.
+                    // One card per night's purchase: the buyer's ticket stands
+                    // for the tickets they hold for friends on the same night,
+                    // which are pages of it once opened.
                     TicketCard(
-                        data: TicketCardData(invite: inv),
+                        data: model.cardData(for: inv),
                         group: nil,
                         showWallet: false,
                         onOpenGroup: {},
-                        onOpenDetail: { openInvite = inv },
-                        sendTo: inv.isHeldForOther ? TicketCard.Send(
-                            name: inv.fullName,
-                            url: InviteLinkRouter.ticketURL(token: inv.inviteToken,
-                                                            guestId: inv.id.uuidString.lowercased()),
-                            eventTitle: inv.eventTitle) : nil
+                        onOpenDetail: { openInvite = inv }
                     )
                     .padding(.horizontal, 20)
                 }
@@ -1117,7 +1111,17 @@ final class BookingsViewModel {
 
     private func unbooked(_ list: [InviteSummary]) -> [InviteSummary] {
         let booked = bookedNightIDs
-        return list.filter { !booked.contains($0.allocation.night.id.uuidString.lowercased()) }
+        let kept = list.filter { !booked.contains($0.allocation.night.id.uuidString.lowercased()) }
+        // One card per night's purchase. Tickets held for friends fold into
+        // the buyer's own ticket on that night; with no own ticket (bought only
+        // for others), the first held one stands for the rest.
+        let ownNights = Set(kept.filter { !$0.isHeldForOther }.map(\.inviteToken))
+        var shownHeld = Set<String>()
+        return kept.filter { inv in
+            guard inv.isHeldForOther else { return true }
+            if ownNights.contains(inv.inviteToken) { return false }
+            return shownHeld.insert(inv.inviteToken).inserted
+        }
     }
 
     // Invites are filed by DATE alone, exactly like bookings. They used to drop
@@ -1285,26 +1289,31 @@ final class BookingsViewModel {
         }
     }
 
-    /// Refund one event ticket (90%, until doors open — the server's rules).
-    func refund(_ inv: InviteSummary, api: APIClient, queries: Queries, locale: LocaleStore) async {
-        struct Resp: Decodable, Sendable { let refunded: Bool; let refundCents: Int? }
-        let message: String
-        do {
-            let r: Resp = try await api.post("/api/promoter-invites/guest/\(inv.id.uuidString.lowercased())/refund")
-            Haptics.success()
-            message = String(format: locale.t("tickets.refundDone"),
-                             BookingsView.euros(r.refundCents ?? inv.refundCents ?? 0))
-        } catch {
-            Haptics.error()
-            if case let .http(_, m) = error as? APIError ?? .emptyData, !m.isEmpty { message = m }
-            else { message = "Couldn't refund this ticket. Try again." }
-        }
-        await load(api: api, queries: queries)
+    /// A short message at the bottom of Tickets (e.g. after a refund).
+    func flash(_ message: String) {
         toast = message
         Task {
             try? await Task.sleep(for: .seconds(3.5))
             toast = nil
         }
+    }
+
+    /// The tickets on the same night as `inv` that this account holds for
+    /// other people — the extra pages behind its one card.
+    func heldSiblings(of inv: InviteSummary) -> [InviteSummary] {
+        invites.filter { $0.isHeldForOther && $0.inviteToken == inv.inviteToken && $0.id != inv.id }
+    }
+
+    /// The card for a night's purchase: every ticket's head and every ticket's
+    /// price, so two tickets read as "2 guests · €14" on one card.
+    func cardData(for inv: InviteSummary) -> TicketCardData {
+        var data = TicketCardData(invite: inv)
+        let siblings = heldSiblings(of: inv)
+        guard !siblings.isEmpty else { return data }
+        data.guests += siblings.count
+        let total = ([inv] + siblings).compactMap(\.paidAmount).reduce(0, +)
+        if total > 0 { data.totalAmount = total }
+        return data
     }
 
     func cancel(_ booking: Booking, api: APIClient, queries: Queries, locale: LocaleStore) async {

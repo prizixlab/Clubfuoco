@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Badge, Btn, Card, ErrorLine, SectionLabel, api, C, caps, font, serif } from '../_ui'
 import { shownSuppliers, toggleSupplier } from '@/lib/conflict-rule'
+import { TablesBoard } from '../tables/_board'
 
 // Who shows what, at every venue — one card per venue + product, with an
 // optional per-NIGHT override.
@@ -54,6 +55,7 @@ export default function ConflictsPage() {
         Who <em style={{ fontStyle: 'italic', color: C.goldHi }}>shows</em> where
       </h1>
       <p style={{ margin: '8px 0 24px', fontSize: 14, color: C.dim, fontFamily: font, maxWidth: 640, lineHeight: 1.55 }}>
+        Guestlists, decided per venue. VIP tables are decided per table — scroll down.
         Every venue and product with a promoter behind it. Set a default for each, then
         override any night that should differ — Rumba on the door Mon–Fri, Aashi on Saturday.
         <strong style={{ color: C.goldHi, fontWeight: 500 }}> Clash</strong> marks the ones where
@@ -75,6 +77,13 @@ export default function ConflictsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {items?.map(c => <ConflictCard key={`${c.club_id}|${c.kind}`} item={c} onSaved={load} />)}
       </div>
+
+      {/* VIP is settled per TABLE, never per venue — each table is its own
+          product, so its conflicts live here rather than in the cards above. */}
+      <h2 style={{ margin: '40px 0 6px', fontFamily: serif, fontSize: 24, fontWeight: 400, color: C.text }}>
+        VIP <em style={{ fontStyle: 'italic', color: C.goldHi }}>tables</em>, per table
+      </h2>
+      <TablesBoard compact />
     </>
   )
 }

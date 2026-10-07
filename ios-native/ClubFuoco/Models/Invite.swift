@@ -29,6 +29,9 @@ struct InviteSummary: Decodable, Identifiable, Hashable, Sendable {
     /// (only listed when /mine is asked for ?include=held). Its name is the
     /// friend's; the card offers "Send" instead of treating it as the user's own.
     let heldForOther: Bool?
+    /// What tapping Refund would give back (90% of this ticket), when this
+    /// account may refund it right now — the server decides. nil = no button.
+    let refundCents: Int?
 
     var isHeldForOther: Bool { heldForOther == true }
 

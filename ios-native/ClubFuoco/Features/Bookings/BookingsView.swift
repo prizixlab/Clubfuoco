@@ -15,6 +15,8 @@ struct BookingsView: View {
     @State private var openGroup: GroupListItem?
     @State private var reviewBooking: Booking?
     @State private var openInvite: InviteSummary?
+    /// The ticket whose Refund was tapped, awaiting confirmation.
+    @State private var refundTarget: InviteSummary?
     @State private var openFourvenues: FVTicket?
     /// The card lit up after a reveal (see revealFocus).
     @State private var highlighted: UUID?
@@ -261,6 +263,22 @@ struct BookingsView: View {
             }
         }
         .animation(.spring(duration: 0.3), value: model.toast)
+        .alert(locale.t("tickets.refundConfirmTitle"), isPresented: Binding(
+            get: { refundTarget != nil },
+            set: { if !$0 { refundTarget = nil } }
+        ), presenting: refundTarget) { inv in
+            Button(String(format: locale.t("tickets.refund"), Self.euros(inv.refundCents ?? 0)),
+                   role: .destructive) {
+                Task { await model.refund(inv, api: api, queries: auth.queries, locale: locale) }
+            }
+            Button(locale.t("common.cancel"), role: .cancel) {}
+        } message: { inv in
+            Text(String(format: locale.t("tickets.refundConfirmBody"), Self.euros(inv.refundCents ?? 0)))
+        }
+    }
+
+    static func euros(_ cents: Int) -> String {
+        cents % 100 == 0 ? "€\(cents / 100)" : String(format: "€%.2f", Double(cents) / 100)
     }
 
     private var emptyState: some View {
@@ -710,7 +728,11 @@ struct BookingsView: View {
                             name: inv.fullName,
                             url: InviteLinkRouter.ticketURL(token: inv.inviteToken,
                                                             guestId: inv.id.uuidString.lowercased()),
-                            eventTitle: inv.eventTitle) : nil
+                            eventTitle: inv.eventTitle) : nil,
+                        refund: inv.refundCents.map { cents in
+                            (label: String(format: locale.t("tickets.refund"), Self.euros(cents)),
+                             action: { refundTarget = inv })
+                        }
                     )
                     .padding(.horizontal, 20)
                 }
@@ -1273,6 +1295,28 @@ final class BookingsViewModel {
             } else {
                 refundAmount = try? c.decode(Double.self, forKey: .refundAmount)
             }
+        }
+    }
+
+    /// Refund one event ticket (90%, until doors open — the server's rules).
+    func refund(_ inv: InviteSummary, api: APIClient, queries: Queries, locale: LocaleStore) async {
+        struct Resp: Decodable, Sendable { let refunded: Bool; let refundCents: Int? }
+        let message: String
+        do {
+            let r: Resp = try await api.post("/api/promoter-invites/guest/\(inv.id.uuidString.lowercased())/refund")
+            Haptics.success()
+            message = String(format: locale.t("tickets.refundDone"),
+                             BookingsView.euros(r.refundCents ?? inv.refundCents ?? 0))
+        } catch {
+            Haptics.error()
+            if case let .http(_, m) = error as? APIError ?? .emptyData, !m.isEmpty { message = m }
+            else { message = "Couldn't refund this ticket. Try again." }
+        }
+        await load(api: api, queries: queries)
+        toast = message
+        Task {
+            try? await Task.sleep(for: .seconds(3.5))
+            toast = nil
         }
     }
 

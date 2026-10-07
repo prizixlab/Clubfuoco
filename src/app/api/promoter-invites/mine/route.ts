@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
 import { NON_ADMITTING_PAYMENT_LIST } from '@/lib/refunds'
+import { refundQuote } from '@/lib/ticket-refund'
 
 /**
  * Returns every promoter-invite this user has claimed (joined to allocation
@@ -16,6 +17,7 @@ export async function GET(req: Request) {
 
   const select = `
       id, full_name, plus_ones, checked_in_at, created_at, payment_status, amount_cents,
+      claimed_by_user, purchased_by_user,
       allocation:promoter_allocations (
         id, invite_token, spots,
         night:promoter_nights (
@@ -56,5 +58,17 @@ export async function GET(req: Request) {
     held = (rows ?? []).map(r => ({ ...(r as object), held_for_other: true }))
   }
 
-  return ok({ invites: [...(data ?? []), ...held] })
+  // What the Refund button would give back, when this account may refund
+  // this ticket right now (lib/ticket-refund). Absent = no button.
+  const userId = userResp.user.id
+  const invites = [...(data ?? []), ...held].map(r => {
+    const row = r as Parameters<typeof refundQuote>[0] & {
+      allocation?: { night?: { night_date: string; open_time: string | null } | null } | null
+    }
+    const night = row.allocation?.night
+    const quote = night ? refundQuote(row, night, userId) : null
+    return { ...(r as object), refund_cents: quote?.ok ? quote.refundCents : null }
+  })
+
+  return ok({ invites })
 }

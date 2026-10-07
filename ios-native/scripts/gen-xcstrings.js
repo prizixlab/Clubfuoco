@@ -329,6 +329,9 @@ const NATIVE_KEYS = {
   // "%d venues →" header link. Cards carry no CTA label — the card itself is
   // the tap target — so there is no join/view string here.
   'explore.seeAll': { en: 'See all', es: 'Ver todo' },
+  'explore.offersCount': { en: "%d offers", es: "%d ofertas" },
+  'explore.bookableCount': { en: "%d bookable", es: "%d reservables" },
+  'explore.bookableTag': { en: "Bookable", es: "Reservable" },
   'explore.city': { en: 'Barcelona', es: 'Barcelona' },
 
   // Events tab — our own nights (promoter + house). `pickTag` is the editorial

@@ -2985,5 +2985,8 @@
  "tickets.refundTicket": { "ca": "Reemborsa l’entrada", "fr": "Rembourser le billet" },
  "tickets.refundConfirmTitle": { "ca": "Vols reemborsar aquesta entrada?", "fr": "Rembourser ce billet ?" },
  "tickets.refundConfirmBody": { "ca": "%@ torna a la teva targeta (90%% del preu). L’entrada deixa de funcionar de seguida.", "fr": "%@ revient sur ta carte (90 %% du prix). Le billet cesse de fonctionner tout de suite." },
- "tickets.refundDone": { "ca": "%@ reemborsats a la teva targeta", "fr": "%@ remboursés sur ta carte" }
+ "tickets.refundDone": { "ca": "%@ reemborsats a la teva targeta", "fr": "%@ remboursés sur ta carte" },
+ "explore.offersCount": { "ca": "%d ofertes", "fr": "%d offres" },
+ "explore.bookableCount": { "ca": "%d reservables", "fr": "%d réservables" },
+ "explore.bookableTag": { "ca": "Reservable", "fr": "Réservable" }
 }

@@ -20,7 +20,11 @@ struct FVClubNights: View {
         FVCatalog.shared.upcoming(clubId: clubId).filter(hasPaidWay)
     }
 
-    private var accent: Color { Color(hexString: FVCatalog.brand.color) ?? Theme.ember }
+    /// The colour of the brand selling a night — nights here can come from
+    /// different Fourvenues sellers.
+    private func accent(_ e: FVEvent) -> Color {
+        Color(hexString: FVCatalog.shared.brand(for: e).color) ?? Theme.ember
+    }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -65,7 +69,7 @@ struct FVClubNights: View {
                             Label([doors, e.closes].compactMap { $0 }.joined(separator: " – "), systemImage: "clock")
                         }
                         if let age = e.minAge { Text("\(age)+") }
-                        SupplierMark(brand: FVCatalog.brand, height: 9, animated: false, tint: accent)
+                        SupplierMark(brand: FVCatalog.shared.brand(for: e), height: 9, animated: false, tint: accent(e))
                     }
                     .font(.cfSans(12))
                     .foregroundStyle(Theme.fadedSand)

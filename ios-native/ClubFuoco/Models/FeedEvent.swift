@@ -16,7 +16,7 @@ import Foundation
 /// A route is stored on the night itself (`promoter_nights.stops`) rather than
 /// as separate events, so the guest reserves once and carries one pass. See
 /// supabase/migrations/20260908_event_stops.sql.
-struct EventStop: Decodable, Sendable, Hashable, Identifiable {
+struct EventStop: Codable, Sendable, Hashable, Identifiable {
     /// Set when the stop is one of our venues, which is what lets the row open
     /// that club's page. Null for a free-text location.
     let clubId: String?
@@ -42,7 +42,7 @@ struct EventStop: Decodable, Sendable, Hashable, Identifiable {
     }
 }
 
-struct FeedEvent: Decodable, Sendable, Identifiable, Hashable {
+struct FeedEvent: Codable, Sendable, Identifiable, Hashable {
     let id: String
     let title: String?
     let nightDate: String            // yyyy-MM-dd, the listing day
@@ -163,6 +163,16 @@ struct FeedEvent: Decodable, Sendable, Identifiable, Hashable {
         let out = DateFormatter()
         out.timeZone = Self.madrid
         out.locale = Locale(identifier: locale.locale == "es" ? "es_ES" : "en_GB")
+        out.dateFormat = "EEE d MMM"
+        return out.string(from: parsed)
+    }
+
+    /// "Sat 17 Oct" — always the date itself, never "Tonight"/"Tomorrow".
+    @MainActor func dateLabel(locale: LocaleStore) -> String {
+        guard let parsed = parsedDate else { return nightDate }
+        let out = DateFormatter()
+        out.timeZone = Self.madrid
+        out.locale = Locale(identifier: ["es": "es_ES", "ca": "ca_ES", "fr": "fr_FR"][locale.locale] ?? "en_GB")
         out.dateFormat = "EEE d MMM"
         return out.string(from: parsed)
     }

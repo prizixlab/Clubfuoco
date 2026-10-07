@@ -85,7 +85,6 @@ struct HeroCard: View {
     let isSaved: Bool
     let onSave: () -> Void
     @Environment(LocaleStore.self) private var locale
-    @Environment(PlanStore.self) private var plan
     @Environment(\.pushPlace) private var pushPlace
 
     var body: some View {
@@ -134,14 +133,13 @@ struct HeroCard: View {
                 .frame(height: 220)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("\(locale.t("explore.featured")) \(plan.nightPhrase(locale: locale))".uppercased())
+                    Text(locale.t("explore.featured").uppercased())
                         .font(.cfSans(9))
                         .kerning(1.3)
                         .foregroundStyle(Theme.fadedSand)
 
-                    // Venue name alone — the kicker above already carries the
-                    // night, and a "Tonight:" prefix forced long names into an
-                    // awkward two-line wrap.
+                    // Venue name alone — a "Tonight:" prefix forced long names
+                    // into an awkward two-line wrap.
                     Text(place.name)
                         .font(.cfSerif(30, italic: true))
                         .foregroundStyle(Theme.accent)
@@ -343,6 +341,19 @@ enum FeaturedItem: Identifiable, Hashable {
         case .event(let e): return "e:\(e.id)"
         }
     }
+
+    /// What makes two cards the same thing to a guest. An event can exist as
+    /// two rows (an old import beside the HypeList sync: two "MONEY MONDAYS"
+    /// at Ku on one night), so events compare by venue + night + name, not id.
+    var dedupeKey: String {
+        switch self {
+        case .place(let p): return "p:\(p.placeId.lowercased())"
+        case .event(let e):
+            let name = e.displayTitle.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)
+                .lowercased().filter { $0.isLetter || $0.isNumber }
+            return "e:\((e.clubId ?? e.venueName ?? "").lowercased())|\(e.nightDate)|\(name)"
+        }
+    }
 }
 
 struct ShelfRowView: View {
@@ -359,7 +370,6 @@ struct ShelfRowView: View {
     /// Tier 2 from /portal/featured: what leads the line under the hero.
     var featuredRow: [FeaturedItem] = []
     @Environment(LocaleStore.self) private var locale
-    @Environment(PlanStore.self) private var plan
 
     // The featured deal shelf is grouped inside a soft gold-framed box so it
     // reads as one distinct section; everything else flows edge-to-edge.
@@ -371,26 +381,22 @@ struct ShelfRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(shelf.subtitle.uppercased())
-                    .font(.cfSans(9))
-                    .kerning(1.3)
-                    .foregroundStyle(Theme.fadedSand)
+                // The featured box carries no heading — no "Tonight", no
+                // "Free guestlists & VIP tables": the cards say it (5 Oct 2026).
+                if !isRumba {
+                    Text(shelf.subtitle.uppercased())
+                        .font(.cfSans(9))
+                        .kerning(1.3)
+                        .foregroundStyle(Theme.fadedSand)
+                }
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    if isRumba {
-                        // Featured header — tracks the When planner date
-                        // (e.g. "Tonight", "Next Thursday").
-                        Text(plan.nightPhrase(locale: locale))
-                            .font(.cfSans(18, weight: .medium))
-                            .foregroundStyle(Theme.ink)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.6)
-                            .layoutPriority(1)
-                    } else {
+                    if !isRumba {
                         Text(shelf.title)
                             .font(.cfSans(shelf.featured ? 18 : 16, weight: .medium))
                             .foregroundStyle(Theme.ink)
                     }
                     Spacer(minLength: 6)
+                    if !shelf.places.isEmpty {
                     NavigationLink(value: shelf) {
                         Text(String(format: locale.t("explore.venuesArrow"), shelf.places.count))
                             .font(.cfSans(12))
@@ -405,6 +411,7 @@ struct ShelfRowView: View {
                             .padding(.leading, -12)
                     }
                     .buttonStyle(.plain)
+                    }
                 }
             }
             .padding(.horizontal, hPad)
@@ -470,9 +477,11 @@ struct ShelfRowView: View {
         let automatic = mixed(
             places: featuredHero == nil ? Array(shelf.places.dropFirst()) : shelf.places,
             events: events)
-        var seen = Set([featuredHero?.id].compactMap { $0 })
+        // Nothing twice in the box — including the hero, and including the
+        // same night arriving as two different rows.
+        var seen = Set([featuredHero?.dedupeKey].compactMap { $0 })
         var items: [FeaturedItem] = []
-        for item in featuredRow + automatic where seen.insert(item.id).inserted {
+        for item in featuredRow + automatic where seen.insert(item.dedupeKey).inserted {
             items.append(item)
         }
         return items

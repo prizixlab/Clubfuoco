@@ -11,6 +11,12 @@ struct FeedSnapshot: Codable, Sendable {
     var saved: [String]
     var planDate: String
     var savedAt: Date
+    /// The portal's featured picks and our events as of the snapshot. Without
+    /// them a cold launch painted the cached VENUE hero (whoever had a live
+    /// offer last time — Ku, Opium) until /api/featured landed and replaced
+    /// it. Optional so a snapshot written before they existed still decodes.
+    var featured: FeaturedPayload?
+    var events: [FeedEvent]?
 }
 
 enum FeedCache {

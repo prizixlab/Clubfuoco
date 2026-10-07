@@ -11,8 +11,23 @@ import Foundation
 // see `Settle`.
 
 struct FVFeed: Decodable {
-    let channel: String
+    let channel: String?
     let events: [FVEvent]
+    /// Every brand selling in this feed, keyed by brand key (agentbox's
+    /// fourvenues_all.py). Absent on a single-channel (HypeList-only) feed.
+    let brands: [String: FVBrandMeta]?
+}
+
+/// A brand that sells through Fourvenues — partner_brands as the feed carries it.
+struct FVBrandMeta: Decodable, Hashable {
+    let name: String
+    let color: String?
+    let logoUrl: String?
+    let channel: String?
+    enum CodingKeys: String, CodingKey {
+        case name, color, channel
+        case logoUrl = "logo_url"
+    }
 }
 
 struct FVEvent: Decodable, Identifiable, Hashable {
@@ -34,12 +49,16 @@ struct FVEvent: Decodable, Identifiable, Hashable {
     let products: [FVProduct]
     /// How the night's VIP areas fit together, for the overview map.
     let vipMap: FVVipMap?
+    /// The brand selling this night (partner_brands.key). Nil on a
+    /// single-channel feed, where every night was HypeList's.
+    let brandKey: String?
 
     var id: String { code }
 
     enum CodingKeys: String, CodingKey {
         case code, name, venue, address, night, doors, closes, genres, image, url, products
         case vipMap = "vip_map"
+        case brandKey = "brand"
         case startsAt = "starts_at"
         case minAge = "min_age"
         case clubId = "club_id"
@@ -62,7 +81,11 @@ struct FVEvent: Decodable, Identifiable, Hashable {
         url = try c.decode(String.self, forKey: .url)
         products = FVOffer.curate(try c.decode([FVProduct].self, forKey: .products))
         vipMap = try c.decodeIfPresent(FVVipMap.self, forKey: .vipMap)
+        brandKey = try c.decodeIfPresent(String.self, forKey: .brandKey)
     }
+
+    /// The seller's key, HypeList on a feed that predates brand tags.
+    var seller: String { brandKey ?? FVCatalog.brand.key }
 }
 
 /// Which of a night's products we sell. One rule for every venue:
@@ -243,10 +266,63 @@ extension Double {
 final class FVCatalog {
     static let shared = FVCatalog()
 
-    private(set) var events: [FVEvent] = [] {
-        didSet { RumbalistOffers.fourvenuesByClub = Self.guestlistOffers(events) }
+    /// The feed as downloaded. Never read directly — `events` applies the
+    /// portal switch on top of it.
+    private var allEvents: [FVEvent] = [] {
+        didSet { publishOffers() }
+    }
+
+    /// Each seller's portal switch (brand key → on sale). The catalog file
+    /// knows nothing of the switches and the phone keeps it up to an hour, so
+    /// a brand turned off used to stay bookable until the copy aged out. Asked
+    /// of the server on launch, on every foreground and every minute
+    /// (checkSwitch); remembered across launches so a cold start doesn't flash
+    /// a switched-off brand back on. A brand missing here is on sale.
+    private(set) var brandOn: [String: Bool] =
+        (UserDefaults.standard.dictionary(forKey: "fv.brandOn") as? [String: Bool])
+        ?? ["hypelist": UserDefaults.standard.object(forKey: "fv.onSale") as? Bool ?? true] {
+        didSet {
+            guard brandOn != oldValue else { return }
+            UserDefaults.standard.set(brandOn, forKey: "fv.brandOn")
+            publishOffers()
+        }
+    }
+
+    /// The brands in the current feed (name, colour, logo), by key.
+    private(set) var brandMeta: [String: FVBrandMeta] = [:]
+
+    /// Every Fourvenues night the app may show — none from a brand that's
+    /// switched off. Club pages, the Guestlist offers, event pages and Explore
+    /// all read this.
+    var events: [FVEvent] { allEvents.filter { brandOn[$0.seller] ?? true } }
+
+    /// The brand that sells a night, as the UI credits it. Falls back to
+    /// HypeList, which was the only seller before brands were tagged.
+    func brand(for event: FVEvent?) -> PartnerBrand { brand(key: event?.seller) }
+
+    /// The brand behind a ticket, found through its Fourvenues event code.
+    func brand(forCode code: String?) -> PartnerBrand {
+        brand(key: allEvents.first { $0.code == code }?.seller)
+    }
+
+    func brand(key: String?) -> PartnerBrand {
+        guard let key, key != Self.brand.key, let m = brandMeta[key] else { return Self.brand }
+        return PartnerBrand(key: key, name: m.name, logoURL: m.logoUrl.flatMap(URL.init(string:)),
+                            color: m.color ?? Self.brand.color,
+                            attributionRequired: false, attributionLabel: nil)
+    }
+
+    private func publishOffers() {
+        RumbalistOffers.fourvenuesByClub = Self.guestlistOffers(events) { self.brand(for: $0) }
     }
     private(set) var fetchedAt: Date?
+    /// When agentbox last PUBLISHED the feed (the object's Last-Modified), as
+    /// opposed to when this phone downloaded it. If the hourly job stalls, the
+    /// phone keeps happily re-downloading an old file; this is what tells.
+    private(set) var publishedAt: Date? = UserDefaults.standard.object(forKey: "fv.feed.publishedAt") as? Date
+
+    /// Availability may be out of date: the feed is over 3 hours old.
+    var isStale: Bool { publishedAt.map { Date().timeIntervalSince($0) > 3 * 3600 } ?? false }
 
     /// HypeList, as it appears in partner_brands — credited on its offers.
     static let brand = PartnerBrand(
@@ -257,7 +333,9 @@ final class FVCatalog {
     /// Every FREE product on a club night becomes a Free Guestlist offer for
     /// that club and that night. Pay-at-the-door and paid products are not free
     /// and stay out of the Guestlist button.
-    static func guestlistOffers(_ events: [FVEvent]) -> [String: [RumbalistOffer]] {
+    static func guestlistOffers(
+        _ events: [FVEvent], brandFor: (FVEvent) -> PartnerBrand = { _ in brand }
+    ) -> [String: [RumbalistOffer]] {
         // ONE Guestlist per club per night. A club running two rooms (Otto
         // Zutz's main room + Sala 2, Ku + Red Room) has a free list on each,
         // and two identical "Free Guestlist" cards read as a duplicate. The
@@ -288,7 +366,7 @@ final class FVCatalog {
                 validDays: e.night,
                 dressCode: e.minAge.map { "\($0)+" } ?? "",
                 music: e.genres.joined(separator: " · "),
-                brand: brand)
+                brand: brandFor(e))
             // Stable across rebuilds of the same feed (club + night).
             offer.id = UUID(fvSeed: key)
             offer.fourvenues = FVOfferRef(event: e, product: p, rooms: rooms.map(\.0))
@@ -309,18 +387,28 @@ final class FVCatalog {
 
     private init() {
         if let data = try? Data(contentsOf: cacheFile), let feed = Self.decode(data) {
-            events = feed.events
+            brandMeta = feed.brands ?? [:]
+            allEvents = feed.events
             fetchedAt = (try? cacheFile.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate
         } else if let url = Bundle.main.url(forResource: "FourvenuesSample", withExtension: "json"),
                   let data = try? Data(contentsOf: url), let feed = Self.decode(data) {
-            events = feed.events
+            brandMeta = feed.brands ?? [:]
+            allEvents = feed.events
         }
         // didSet doesn't run during init — publish the offers explicitly.
-        RumbalistOffers.fourvenuesByClub = Self.guestlistOffers(events)
+        publishOffers()
     }
 
     /// Download if the copy we hold is over an hour old (or `force`).
+    private static let httpDate: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "GMT")
+        f.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        return f
+    }()
+
     func refresh(force: Bool = false) async {
         if inFlight { return }
         if !force, let fetchedAt, Date().timeIntervalSince(fetchedAt) < Self.maxAge { return }
@@ -332,18 +420,43 @@ final class FVCatalog {
               (resp as? HTTPURLResponse)?.statusCode == 200,
               let feed = Self.decode(data), !feed.events.isEmpty
         else { return }   // keep what we have
-        events = feed.events
+        brandMeta = feed.brands ?? [:]
+        allEvents = feed.events
         fetchedAt = Date()
+        if let lm = (resp as? HTTPURLResponse)?.value(forHTTPHeaderField: "Last-Modified"),
+           let d = Self.httpDate.date(from: lm) {
+            publishedAt = d
+            UserDefaults.standard.set(d, forKey: "fv.feed.publishedAt")
+        }
         try? data.write(to: cacheFile, options: .atomic)
     }
 
-    /// Checks every 15 minutes while the app is open; refresh() only downloads
-    /// when the copy is an hour old, so this is an hourly pull in practice.
+    /// The portal switch, every minute while the app is open; the catalog
+    /// itself still only downloads when the copy is an hour old.
     func keepFresh() async {
         while !Task.isCancelled {
+            await checkSwitch()
             await refresh()
-            try? await Task.sleep(for: .seconds(15 * 60))
+            try? await Task.sleep(for: .seconds(60))
         }
+    }
+
+    /// Ask the server which sellers are on sale (GET /api/fourvenues/status:
+    /// `brands`, or just HypeList's `on_sale` from an older server).
+    /// No answer (offline, outage) keeps the last known state.
+    func checkSwitch() async {
+        struct Resp: Decodable {
+            struct D: Decodable { let on_sale: Bool; let brands: [String: Bool]? }
+            let data: D?
+        }
+        var req = URLRequest(url: APIClient.defaultBaseURL.appending(path: "api/fourvenues/status"))
+        req.cachePolicy = .reloadIgnoringLocalCacheData
+        req.timeoutInterval = 10
+        guard let (data, resp) = try? await URLSession.shared.data(for: req),
+              (resp as? HTTPURLResponse)?.statusCode == 200,
+              let r = try? JSONDecoder().decode(Resp.self, from: data), let d = r.data
+        else { return }
+        brandOn = d.brands ?? ["hypelist": d.on_sale]
     }
 
     /// Upcoming nights at one of our clubs, soonest first.

@@ -11,12 +11,12 @@ import Observation
 /// `feedEvents`, or a venue in `places` (whose `placeId` IS the lowercased
 /// club id). That keeps a featured card byte-identical to the same card
 /// unfeatured, because it IS the same card.
-struct FeaturedRef: Decodable, Sendable, Hashable {
+struct FeaturedRef: Codable, Sendable, Hashable {
     let kind: String        // "event" | "venue" | "auto"
     let id: String
 }
 
-struct FeaturedPayload: Decodable, Sendable {
+struct FeaturedPayload: Codable, Sendable {
     let tier1: [FeaturedRef]
     let tier2: [FeaturedRef]
 }
@@ -72,10 +72,10 @@ final class ExploreViewModel {
     /// failure: the venue feed must still render.
     private(set) var feedEvents: [FeedEvent] = []
 
-    /// Whether our events appear on Explore at all. Off for now — see where
-    /// `feedEvents` is assigned. One flag, deliberately, so putting them back
-    /// is one edit rather than an archaeology exercise.
-    static let showEventsOnExplore = false
+    /// Whether our events appear on Explore at all — back on for 1.14 (was
+    /// off from 17 Sep). See where `feedEvents` is assigned. One flag,
+    /// deliberately, so switching them is one edit.
+    static let showEventsOnExplore = true
 
     /// The editorial featured shelf from /portal/featured. Empty when nothing
     /// is featured or the request failed, which is what makes the automatic
@@ -178,11 +178,25 @@ final class ExploreViewModel {
     /// so an unpinned event mixes in with the venues instead of displacing
     /// one. The old behaviour fell back to the soonest event, which meant the
     /// feed always led with an event whether or not anyone had chosen it.
-    var leadEvent: FeedEvent? { feedEvents.first { $0.pinned } }
+    var leadEvent: FeedEvent? { nightEvents.first { $0.pinned } }
+
+    /// The events on the night being planned. The feed carries every upcoming
+    /// night (hundreds), while the venues beside them are already filtered to
+    /// this one — unfiltered, next week's events would bury tonight's shelf.
+    /// expand() still searches all of `feedEvents`, so a desk pick resolves
+    /// whatever its date.
+    /// One card per night: a night present as two rows (see
+    /// FeaturedItem.dedupeKey) keeps only its first.
+    var nightEvents: [FeedEvent] {
+        var seen = Set<String>()
+        return feedEvents.filter {
+            $0.nightDate == lastPlanDate && seen.insert(FeaturedItem.event($0).dedupeKey).inserted
+        }
+    }
 
     /// The events that mix into the featured shelf alongside the venues —
-    /// everything except whichever one is leading it.
-    var mixedEvents: [FeedEvent] { feedEvents.filter { $0.id != leadEvent?.id } }
+    /// everything on the night except whichever one is leading it.
+    var mixedEvents: [FeedEvent] { nightEvents.filter { $0.id != leadEvent?.id } }
 
     // Personalisation inputs (nil for guests / on error → unpersonalised feed).
     private(set) var userPrefs: UserPreferences?
@@ -226,7 +240,10 @@ final class ExploreViewModel {
 
         places = snap.places
         saved = Set(snap.saved)
-        if snap.planDate == planDate {
+        featured = snap.featured ?? FeaturedPayload(tier1: [], tier2: [])
+        feedEvents = Self.showEventsOnExplore ? (snap.events ?? []) : []
+        if snap.planDate == planDate, snap.featured != nil {
+            lastPlanDate = planDate
             shelves = snap.shelves
         } else {
             rebuildShelves(planDate: planDate, t: t)
@@ -299,7 +316,7 @@ final class ExploreViewModel {
         // everything); the feed must still render, never block on offers.
         offersByClub = await liveOffers ?? [:]
         events = await upcoming
-        // Events are OFF on Explore for now (17 Sep 2026, operator's call).
+        // Events on Explore: off 17 Sep 2026, back on 5 Oct 2026 for 1.14.
         //
         // Gated here rather than at each render site because this one array is
         // what every path reads: the weave under the hero, and expand() when a
@@ -323,7 +340,8 @@ final class ExploreViewModel {
         // Persist for the next cold launch (stale-while-revalidate).
         FeedCache.save(FeedSnapshot(
             places: places, shelves: shelves, saved: Array(saved),
-            planDate: planDate, savedAt: Date()
+            planDate: planDate, savedAt: Date(),
+            featured: featured, events: feedEvents
         ))
     }
 

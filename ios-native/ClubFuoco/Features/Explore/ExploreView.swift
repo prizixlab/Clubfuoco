@@ -269,9 +269,13 @@ struct ExploreView: View {
             // them in front of the featured venues rather than among them.
             // They are now inside it, woven through the same scroller, while
             // the hero card stays the venue's. One section, one header.
-            if let first = shelves.first, first.featured {
+            // The hero shows on EVERY night: with no featured venues on the
+            // planned date, a portal pick still gets the box (empty venue row).
+            if let first = (shelves.first.flatMap { $0.featured ? $0 : nil })
+                ?? (model.featuredHero != nil
+                    ? Shelf(id: "hero", title: "", subtitle: "", places: [], featured: true) : nil) {
                 ShelfRowView(shelf: first, index: 0, saved: model.saved, onSave: save,
-                             events: model.feedEvents,
+                             events: model.nightEvents,
                              featuredHero: model.featuredHero,
                              featuredRow: model.featuredRow)
             } else {
@@ -348,7 +352,7 @@ struct ExploreView: View {
     /// ShelfRowView and this never renders.
     @ViewBuilder
     private var eventsOnlySection: some View {
-        if !model.feedEvents.isEmpty {
+        if !model.nightEvents.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
                 if let lead = model.leadEvent {
                     NavigationLink(value: lead) { EventHeroCard(event: lead) }

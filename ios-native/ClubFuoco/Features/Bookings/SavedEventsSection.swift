@@ -25,6 +25,11 @@ struct SavedEventsSection: View {
                     ForEach(events) { e in
                         Button { onOpen(e.inviteToken) } label: { row(e) }
                             .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(role: .destructive) { Task { await clear(e) } } label: {
+                                    Label("Remove", systemImage: "xmark")
+                                }
+                            }
                     }
                 }
             }
@@ -37,15 +42,30 @@ struct SavedEventsSection: View {
     }
 
     private func row(_ e: SavedEvent) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
+            // Clear it — the only way off this list short of paying.
+            Button { Task { await clear(e) } } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.stone)
+                    .frame(width: 26, height: 26)
+                    .background(Theme.ink.opacity(0.06), in: .circle)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove saved event")
+
+            // Adaptive ink, not the fixed parchment this had: parchment is the
+            // cream for dark hero panels, and on the light Tickets page the
+            // whole row read as empty — "Save it, pay later" seemed to do
+            // nothing.
             VStack(alignment: .leading, spacing: 3) {
                 Text(e.title ?? e.venueName)
                     .font(.cfSans(15, weight: .medium))
-                    .foregroundStyle(Theme.parchment)
+                    .foregroundStyle(Theme.ink)
                     .lineLimit(1)
                 Text("\(e.venueName) · \(SavedEvent.formatDate(e.nightDate))")
                     .font(.cfSans(12))
-                    .foregroundStyle(Theme.parchment.opacity(0.6))
+                    .foregroundStyle(Theme.stone)
             }
             Spacer(minLength: 8)
             // The price reads as the thing left to do, not as a label.
@@ -59,9 +79,23 @@ struct SavedEventsSection: View {
         .background(
             RoundedRectangle(cornerRadius: 14)
                 .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
-                .foregroundStyle(Theme.gold.opacity(0.35))
+                .foregroundStyle(Theme.gold.opacity(0.7))
         )
         .contentShape(Rectangle())
+    }
+
+    /// Un-save. Optimistic: the row goes at once and comes back on failure.
+    private func clear(_ e: SavedEvent) async {
+        Haptics.tap()
+        let before = events
+        withAnimation(.snappy(duration: 0.2)) { events.removeAll { $0.id == e.id } }
+        struct Resp: Decodable, Sendable { let saved: Bool }
+        do {
+            let _: Resp = try await api.delete("/api/promoter-invites/\(e.inviteToken)/save")
+        } catch {
+            withAnimation { events = before }
+            Haptics.error()
+        }
     }
 
     private func load() async {

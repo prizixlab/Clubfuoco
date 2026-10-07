@@ -48,7 +48,6 @@ struct FVEventSheet: View {
     @State private var errorText: String?
     @State private var checkout: CheckoutTarget?
     @State private var confirmed: FVTicket?
-    @State private var openTicket: FVTicket?
     /// The QR didn't arrive within waitForQR's window.
     @State private var waitedOut = false
     /// Phone for paid checkouts when the profile has none — asked once, kept.
@@ -75,7 +74,9 @@ struct FVEventSheet: View {
     }
     private static let ctaFill = Color.adaptive(light: 0x221E1A, dark: 0xF3EEE0)
     private static let ctaLabel = Color.adaptive(light: 0xF8F5EE, dark: 0x141416)
-    private var accent: Color { Color(hexString: FVCatalog.brand.color) ?? Theme.ember }
+    /// The brand selling this night.
+    private var seller: PartnerBrand { FVCatalog.shared.brand(for: event) }
+    private var accent: Color { Color(hexString: seller.color) ?? Theme.ember }
 
     /// Name + email from the account, for filling Fourvenues' form.
     private var account: (name: String, email: String)? {
@@ -84,20 +85,46 @@ struct FVEventSheet: View {
         return name.isEmpty || email.isEmpty ? nil : (name, email)
     }
 
-    /// Phone in international form for Fourvenues' paid form: the profile's
-    /// (with +34 assumed when it carries no country code), else what the
-    /// guest typed here.
+    /// Phone in international form for Fourvenues' paid form: the profile's,
+    /// else what the guest typed here (FVPhone — never a guessed prefix).
     private var phone: String? {
-        let raw = (auth.profile?.phone?.isEmpty == false ? auth.profile?.phone : nil) ?? phoneInput
-        let t = raw.trimmingCharacters(in: .whitespaces)
-        let digits = t.filter(\.isNumber)
-        guard digits.count >= 8 else { return nil }
-        return t.hasPrefix("+") ? t : "+34 " + digits
+        if let p = auth.profile?.phone, let n = FVPhone.normalize(p) { return n }
+        return FVPhone.normalize(phoneInput)
     }
 
     private var needsPhoneField: Bool {
         guard let p = selected, p.settle == .online || p.settle == .table else { return false }
-        return auth.profile?.phone?.filter(\.isNumber).count ?? 0 < 8
+        return FVPhone.normalize(auth.profile?.phone ?? "") == nil
+    }
+
+    /// Why this way in can't be booked right now, before Fourvenues is even
+    /// asked — shown in place of an error after the tap.
+    private func blocker(_ p: FVProduct) -> String? {
+        if FVAge.tooYoung(birthday: auth.profile?.birthday, minAge: p.minAge ?? event.minAge, night: event.night) {
+            return String(format: locale.t("fv.underAge"), p.minAge ?? event.minAge ?? 18)
+        }
+        // The QR reaches a guestlist only by email; a relay address never gets
+        // it unless the private inbox is in use.
+        if let email = account?.email, FVRelay.unreachable(email) { return locale.t("fv.relayNoInbox") }
+        if FVUnconfirmedLock.isLocked(p.id) { return locale.t("fv.checkingWithFV") }
+        return nil
+    }
+
+    /// What tapping the button will actually charge now: Fourvenues' own figure
+    /// once the page reported it (fees, table supplements, deposit or in
+    /// full), else our estimate. The button used to show the feed price while
+    /// the summary above it showed the real, higher total.
+    private func chargeNow(_ p: FVProduct) -> (amount: Double, exact: Bool) {
+        if p.settle == .table, let q = quote, let total = q.total {
+            let canSplit = rate?.offersFullPayment == true || (q.deposit ?? total) < total
+            let inFull = payInFull || !canSplit || q.deposit == nil
+            let now = inFull ? (q.full ?? total) : (q.deposit ?? total)
+            let fee = (inFull ? q.fullFee : q.depositFee) ?? 0
+            return (now + fee, true)
+        }
+        if p.settle == .online, let total = quote?.total { return (total, true) }
+        if p.settle == .table { return (rate?.price ?? p.price, false) }
+        return (p.price * Double(quantity), false)
     }
 
     /// Every way in, cheapest-to-commit first: free, door, ticket, table.
@@ -119,7 +146,7 @@ struct FVEventSheet: View {
             Self.ink.ignoresSafeArea()
             VStack(spacing: 0) {
                 Rectangle().fill(accent).frame(height: 2)
-                SupplierMark(brand: FVCatalog.brand, height: 22, tint: accent)
+                SupplierMark(brand: seller, height: 22, tint: accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 18)
                 if let confirmed {
@@ -166,11 +193,17 @@ struct FVEventSheet: View {
         .fullScreenCover(item: $checkout) { target in
             FVCheckoutView(url: target.url, title: event.name ?? "Checkout",
                            paymentExpected: target.paymentExpected,
-                           prefill: target.paymentExpected ? nil : account) { pdf in
+                           prefill: target.paymentExpected ? nil : account,
+                           onTicket: { pdf in
                 Task { await capture(pdf: pdf, product: target.product, heads: target.heads, unitPrice: target.unitPrice, paidNow: target.paidNow) }
-            }
+            }, onPaidWithoutTicket: {
+                // Paid, no PDF: file it now without a QR. Fourvenues' email
+                // reaches the ticket inbox, which fills the QR in — the pass
+                // step waits for it exactly as it does for a guestlist.
+                let t = issue(product: target.product, heads: target.heads, unitPrice: target.unitPrice, pdf: nil, qr: nil)
+                if let paidNow = target.paidNow { FVTicketStore.shared.update(t.id) { $0.paidNow = paidNow } }
+            })
         }
-        .sheet(item: $openTicket) { FVTicketDetailView(ticket: $0, justIssued: false) }
     }
 
     private func choose(_ p: FVProduct) {
@@ -249,6 +282,17 @@ struct FVEventSheet: View {
 
                 if let p = selected { stepper(p).padding(.top, 16) }
 
+                // The hourly feed has stalled: what's shown may have sold out.
+                // Fourvenues is still asked live at the tap.
+                if FVCatalog.shared.isStale, let at = FVCatalog.shared.publishedAt {
+                    Text(String(format: locale.t("fv.feedStale"), at.formatted(date: .omitted, time: .shortened)))
+                        .font(.cfSans(11))
+                        .foregroundStyle(Self.text.opacity(0.5))
+                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 10)
+                }
+
                 if let errorText {
                     Text(errorText)
                         .font(.cfSans(12))
@@ -270,6 +314,12 @@ struct FVEventSheet: View {
                             .padding(.horizontal, 14).frame(height: 46)
                             .background(Self.veil(0.05), in: .rect(cornerRadius: 12))
                             .onChange(of: phoneInput) { _, v in UserDefaults.standard.set(v, forKey: FVTicketStore.phoneKey) }
+                        // Typed, but not a number Fourvenues will take.
+                        if !phoneInput.isEmpty && phone == nil {
+                            Text(locale.t("fv.phoneHint"))
+                                .font(.cfSans(11))
+                                .foregroundStyle(Color.adaptive(light: 0x8C2A2A, dark: 0xFFB4A2))
+                        }
                     }
                     .padding(.top, 16)
                 }
@@ -294,14 +344,18 @@ struct FVEventSheet: View {
                     Text(locale.t("fv.credit"))
                         .font(.cfSans(11))
                         .foregroundStyle(Self.text.opacity(0.45))
-                    SupplierMark(brand: FVCatalog.brand, height: 11, animated: false, tint: accent)
+                    SupplierMark(brand: seller, height: 11, animated: false, tint: accent)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.top, 18)
             }
             .padding(.horizontal, 22)
             .padding(.bottom, 28)
+            // Never wider than the screen: a child that won't shrink then
+            // clips on its own instead of shoving the whole sheet sideways.
+            .containerRelativeFrame(.horizontal)
         }
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
     }
 
     /// One chip per room; switching keeps the guest on the same kind of
@@ -501,6 +555,24 @@ struct FVEventSheet: View {
         }
     }
 
+    private func payChoice(_ label: String, full: Bool) -> some View {
+        let on = payInFull == full
+        return Button {
+            Haptics.tap()
+            payInFull = full
+        } label: {
+            Text(label)
+                .font(.cfSans(13, weight: .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .padding(.horizontal, 10)
+                .frame(maxWidth: .infinity).frame(height: 36)
+                .background(on ? Self.ctaFill : Self.veil(0.05), in: .capsule)
+                .foregroundStyle(on ? Self.ctaLabel : Self.text)
+        }
+        .buttonStyle(.plain)
+    }
+
     private func rateChips(_ rates: [FVRate]) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -536,11 +608,15 @@ struct FVEventSheet: View {
                 if let d = rate.info(locale.locale), !d.isEmpty { row(rate.title(locale.locale) ?? "", small: true) { Text(d).opacity(0.7) } }
                 if rate.offersFullPayment, let dep = quote?.deposit ?? rate.depositAmount {
                     let full = quote?.full ?? quote?.total ?? rate.price
-                    Picker(locale.t("fv.payChoice"), selection: $payInFull) {
-                        Text(String(format: locale.t("fv.payDeposit"), dep.euros)).tag(false)
-                        Text(String(format: locale.t("fv.payFull"), full.euros)).tag(true)
+                    // Two buttons, not a segmented Picker: UISegmentedControl
+                    // won't shrink below its labels, and "Pay in full €1,240"
+                    // made it wider than a small iPhone — the whole sheet then
+                    // sat off-centre and panned sideways.
+                    HStack(spacing: 8) {
+                        payChoice(String(format: locale.t("fv.payDeposit"), dep.euros), full: false)
+                        payChoice(String(format: locale.t("fv.payFull"), full.euros), full: true)
                     }
-                    .pickerStyle(.segmented)
+                    .accessibilityLabel(locale.t("fv.payChoice"))
                     .padding(.vertical, 8)
                     .disabled(working)
                 } else if quote == nil, let dep = rate.depositLabel {
@@ -669,11 +745,13 @@ struct FVEventSheet: View {
                 case .door:
                     Text(String(format: locale.t("fv.ctaDoor"), (p.price * Double(quantity)).euros))
                 case .online:
+                    let c = chargeNow(p)
                     Image(systemName: "lock.fill").font(.system(size: 13))
-                    Text(String(format: locale.t("fv.ctaPay"), (p.price * Double(quantity)).euros))
+                    Text(String(format: locale.t("fv.ctaPay"), c.amount.euros) + (c.exact ? "" : " " + locale.t("fv.plusFees")))
                 case .table:
+                    let c = chargeNow(p)
                     Image(systemName: "lock.fill").font(.system(size: 13))
-                    Text(String(format: locale.t("fv.ctaTable"), (rate?.price ?? p.price).euros))
+                    Text(String(format: locale.t("fv.ctaTable"), c.amount.euros) + (c.exact ? "" : " " + locale.t("fv.plusFees")))
                 }
             }
         }
@@ -771,6 +849,11 @@ struct FVEventSheet: View {
             .frame(maxWidth: .infinity)
             .background(Theme.qrSurface, in: .rect(cornerRadius: 18))
 
+            if let sid = FVTicketStore.shared.tickets.first(where: { $0.id == t.id })?.serverId ?? t.serverId {
+                WalletPassButton(passPath: "/api/external-tickets/\(sid.uuidString.lowercased())/wallet",
+                                 fullWidth: true)
+            }
+
             if let owed = t.owedAtDoor {
                 HStack(spacing: 10) {
                     Image(systemName: "eurosign.circle.fill").font(.system(size: 20))
@@ -783,14 +866,8 @@ struct FVEventSheet: View {
                 .background(Theme.ember, in: .rect(cornerRadius: 14))
             }
 
-            Button { openTicket = t } label: {
-                Text(locale.t("fv.viewTicket"))
-                    .font(.cfSans(15, weight: .medium))
-                    .foregroundStyle(Self.text)
-                    .frame(maxWidth: .infinity).frame(height: 48)
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Self.veil(0.18)))
-                    .contentShape(.rect(cornerRadius: 12))
-            }
+            // No "View ticket": this screen IS the ticket — the QR above is what
+            // the door scans, and the Tickets tab holds the same card later.
             Button { dismiss() } label: {
                 Text(locale.t("fv.done"))
                     .font(.cfSans(16, weight: .semibold))
@@ -834,6 +911,10 @@ struct FVEventSheet: View {
     private func go(_ p: FVProduct) async {
         errorText = nil
         Haptics.tap()
+        if let why = blocker(p) {
+            errorText = why
+            return
+        }
         if p.settle == .table || p.settle == .online {
             let formURL: URL?
             let unit: Double
@@ -848,8 +929,12 @@ struct FVEventSheet: View {
             // confirm email, phone, the two required terms — and press Proceed
             // to payment there. Only the payment page itself is shown, in a
             // fresh web view with no script run in it, so Apple Pay works.
-            guard let (name, email) = account, let phone else {
-                errorText = locale.t("fv.cantComplete")
+            guard let (name, email) = account else {
+                errorText = locale.t("fv.needsProfile")
+                return
+            }
+            guard let phone else {
+                errorText = locale.t("fv.phoneHint")
                 return
             }
             let r = runner ?? FVFormRunner()
@@ -869,7 +954,7 @@ struct FVEventSheet: View {
                                           paymentExpected: true, paidNow: paidNow)
             } catch FVFormRunner.Failure.rejected(let why) {
                 working = false
-                errorText = why.isEmpty ? locale.t("fv.rejected") : why
+                await refused(why)
             } catch {
                 // Never hand the guest Fourvenues' details form — say so in
                 // ours; the trace names the field that blocked it.
@@ -901,14 +986,15 @@ struct FVEventSheet: View {
             // guess — a refused list looks just like this. If it did go
             // through, their email reaches the ticket inbox, which files the
             // ticket on the account and the next sync brings it to the phone.
-            FVTrace.log("sent, unconfirmed — no ticket issued")
+            FVTrace.log("sent, unconfirmed — no ticket issued; locked 10 min")
             working = false
+            FVUnconfirmedLock.lock(p.id)
             errorText = locale.t("fv.unconfirmed")
             return
         } catch FVFormRunner.Failure.rejected(let why) {
             FVTrace.log("rejected by Fourvenues")
             working = false
-            errorText = why.isEmpty ? locale.t("fv.rejected") : why
+            await refused(why)
             return
         } catch {
             // Never hand the guest Fourvenues' form — say so in ours; the
@@ -931,6 +1017,22 @@ struct FVEventSheet: View {
                 let read = try? await FVTicketReader.read(pdfURL: pdf)
                 FVTicketStore.shared.update(t.id) { $0.qrPayload = read?.qrPayload }
             }
+        }
+    }
+
+    /// Fourvenues said no: show our sentence for it, never their page text, and
+    /// act on what it means (sold out → fresh feed; already on → their ticket).
+    private func refused(_ raw: String) async {
+        FVTrace.log("refusal: \(raw.prefix(200))")
+        let key = FVReject.key(for: raw)
+        errorText = locale.t(key)
+        switch key {
+        case "fv.justSoldOut":
+            await FVCatalog.shared.refresh(force: true)
+        case "fv.alreadyOnList":
+            await FVAccountSync.sync(auth.queries.supabaseService)
+        default:
+            break
         }
     }
 

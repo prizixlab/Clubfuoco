@@ -34,6 +34,9 @@ struct InviteClaimView: View {
     @State private var savingEvent = false
     @State private var checkoutURL: URL?
     @State private var guests: [InviteGuest] = []
+    /// What this guest actually paid, from their own spots (/mine) — the
+    /// public invite payload carries no amounts.
+    @State private var paidAmount: Double?
     // Post-claim party management (on the ticket).
     @State private var partyPlusOnes = 0
     @State private var invitedList: [InvitedFriend] = []
@@ -455,6 +458,15 @@ struct InviteClaimView: View {
     private var claimedUserIds: Set<UUID> { Set(guests.compactMap { $0.claimedByUser }) }
 
     /// My own guest row (to read my open plus-ones + check-in state).
+    private func loadPaidAmount(guestId: String) async {
+        guard auth.hasAccount,
+              let resp: InvitesResponse = try? await api.get("/api/promoter-invites/mine")
+        else { return }
+        paidAmount = resp.invites
+            .first { $0.id.uuidString.lowercased() == guestId.lowercased() }?
+            .paidAmount
+    }
+
     private func myGuest(_ guestId: String) -> InviteGuest? {
         guests.first { $0.id.uuidString.lowercased() == guestId.lowercased() }
     }
@@ -475,13 +487,13 @@ struct InviteClaimView: View {
             closesLabel: night.closesLabel,
             credits: [],
             guests: (myGuest(guestId)?.plusOnes ?? 0) + 1,
-            totalAmount: nil,
+            totalAmount: paidAmount,
             status: myGuest(guestId)?.checkedInAt != nil ? "used" : "confirmed",
             checkedInAt: myGuest(guestId)?.checkedInAt,
             doorToken: "fuoco-invite:\(guestId)",
             reference: nil,
             walletPath: "/api/promoter-invites/guest/\(guestId)/wallet",
-            ticketTypeKey: "bookings.guestlistTag"
+            ticketTypeKey: paidAmount != nil ? "bookings.general" : "bookings.guestlistTag"
         )
     }
 
@@ -498,10 +510,11 @@ struct InviteClaimView: View {
             VStack(spacing: 0) {
                 TicketHero(
                     data: ticketData(guestId: guestId, night: night),
-                    attribution: night.locationName?.uppercased(),
+                    attribution: night.title == nil ? night.locationName?.uppercased() : night.venueName.uppercased(),
                     codeLabel: nil,
                     onBack: { dismiss() },
-                    onHelp: nil
+                    onHelp: nil,
+                    headline: night.title
                 )
                 VStack(spacing: 26) {
                     TicketQRCard(token: "fuoco-invite:\(guestId)", printed: nil)
@@ -544,6 +557,7 @@ struct InviteClaimView: View {
             // Ask Stripe directly rather than leaving them holding a receipt and
             // no way in.
             await confirmPaymentIfNeeded(guestId: guestId)
+            await loadPaidAmount(guestId: guestId)
             await refreshRoster()
             if !partyLoaded {
                 partyPlusOnes = myGuest(guestId)?.plusOnes ?? 0

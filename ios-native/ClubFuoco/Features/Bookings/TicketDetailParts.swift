@@ -26,6 +26,9 @@ struct TicketHero: View {
     var onBack: () -> Void
     /// Nil hides the help button — not every ticket has a help sheet.
     var onHelp: (() -> Void)?
+    /// The big title. Defaults to the venue; an event ticket passes the
+    /// event's own name, since "D9 Aribau" doesn't say which night it is.
+    var headline: String? = nil
 
     @Environment(LocaleStore.self) private var locale
 
@@ -114,7 +117,7 @@ struct TicketHero: View {
                 Spacer(minLength: 6)
                 statusBadge
             }
-            Text(data.venueName ?? data.eventTitle ?? "—")
+            Text(headline ?? data.venueName ?? data.eventTitle ?? "—")
                 .font(.cfSerif(34, italic: true))
                 .foregroundStyle(.white)
                 .lineLimit(2)
@@ -205,11 +208,23 @@ struct TicketStatsStrip: View {
                 cell(locale.t("bookings.factDate"), TicketFormat.dateLabel(data.date, locale: locale))
                 cell(locale.t("bookings.factDoors"), data.doorsLabel ?? "23:00")
                 cell(locale.t("bookings.factGuests"), "\(data.guests)")
-                cell(locale.t("bookings.factTicket"), locale.t(data.ticketTypeKey))
+                cell(locale.t("bookings.factTicket"), ticketValue)
             }
             .padding(.vertical, 16)
             Rectangle().fill(Theme.hairline).frame(height: 1)
         }
+    }
+
+    /// What was paid, when something was ("€7", "€12.50") — a bought ticket
+    /// labelled "Guestlist" or "General" reads as if it was free. A VIP
+    /// booking keeps its tier name.
+    private var ticketValue: String {
+        if let total = data.totalAmount, total > 0, data.ticketTypeKey != "bookings.vip" {
+            return total == total.rounded()
+                ? "€\(Int(total))"
+                : String(format: "€%.2f", total)
+        }
+        return locale.t(data.ticketTypeKey)
     }
 
     private func cell(_ label: String, _ value: String) -> some View {

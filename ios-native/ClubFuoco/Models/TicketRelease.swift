@@ -6,7 +6,7 @@ import Foundation
 /// selling out. The server decides which one is live (see lib/releases.ts) and
 /// says so in `state` — nothing here re-derives it, because a client clock that
 /// disagrees with the server's would show a price the till would not honour.
-struct TicketRelease: Decodable, Hashable, Identifiable {
+struct TicketRelease: Codable, Hashable, Identifiable {
     let id: String
     let position: Int
     let name: String?

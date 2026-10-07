@@ -45,6 +45,19 @@ struct EventDetailView: View {
     @State private var stopPlaces: [String: Place] = [:]
     /// How far the flow has scrolled, for the collapsing bar.
     @State private var scrollY: CGFloat = 0
+    /// The HypeList tier being booked, and the sign-in prompt in front of it.
+    @State private var fvTarget: FVTier?
+    /// The guest's PAID spot on this night (a promoter_guests row) — set the
+    /// moment Apple Pay succeeds, or found on load. The ticket is the invite
+    /// screen's, opened straight onto the QR + Wallet.
+    @State private var paidGuestId: String?
+    @State private var showPaidTicket = false
+    @State private var showFVGate = false
+
+    /// A HypeList night is booked through HypeList: the same three buttons as
+    /// the club page (free guestlist / paid entry / VIP) replace our own
+    /// reserve dock, which would only put the guest on a list nobody checks.
+    private var fvTiers: [FVTier] { FVTier.offered(in: event.fvRooms) }
 
     private var state: ReserveState {
         if working { return .working }
@@ -56,7 +69,7 @@ struct EventDetailView: View {
 
     /// An event with no photo has no hero to scroll past, so its bar is always
     /// there — matching the artboard's `.ev-body--nophoto` case.
-    private var barShown: Bool { event.image == nil || scrollY > 300 }
+    private var barShown: Bool { event.posterURL == nil || scrollY > 300 }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -64,13 +77,13 @@ struct EventDetailView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    if event.image != nil { hero }
+                    if event.posterURL != nil { hero }
                     sheet
                 }
                 .background(scrollTracker)
             }
             .coordinateSpace(name: "evScroll")
-            .ignoresSafeArea(edges: event.image != nil ? .top : [])
+            .ignoresSafeArea(edges: event.posterURL != nil ? .top : [])
 
             if barShown { collapsedBar.transition(.opacity) }
             topControls
@@ -81,6 +94,22 @@ struct EventDetailView: View {
         .animation(.easeOut(duration: 0.18), value: barShown)
         .sheet(isPresented: $showGuestGate) {
             GuestGateView(reason: .save).presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showPaidTicket) {
+            if let token = event.inviteToken, let gid = paidGuestId {
+                InviteClaimView(token: token, preclaimedGuestId: gid)
+                    .presentationDetents([.large])
+                    .cfSheetGrabber()
+            }
+        }
+        .sheet(isPresented: $showFVGate) {
+            GuestGateView(reason: .guestlist).presentationDetents([.medium])
+        }
+        .sheet(item: $fvTarget) { tier in
+            let rooms = tier.rooms(in: event.fvRooms)
+            if let first = rooms.first {
+                FVEventSheet(event: first, rooms: rooms.count > 1 ? rooms : [], tier: tier)
+            }
         }
         .sheet(isPresented: $showPass) {
             if let bookingId {
@@ -248,7 +277,7 @@ struct EventDetailView: View {
         ZStack(alignment: .bottomLeading) {
             Explore.photoPlaceholder
                 .overlay {
-                    if let url = event.image.flatMap(URL.init(string:)) {
+                    if let url = event.posterURL.flatMap(URL.init(string:)) {
                         CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) }
                             placeholder: { Explore.photoPlaceholder }
                     }
@@ -336,7 +365,9 @@ struct EventDetailView: View {
             // Price, and where it is going. On a night that sells in waves this
             // is the only place a guest can see that waiting costs them more —
             // so it sits above the line-up, not buried under it.
-            if !event.ladder.isEmpty || (event.priceCents ?? 0) > 0 {
+            if !fvTiers.isEmpty {
+                section(locale.t("fv.waysIn")) { fvButtons.padding(.top, 10) }
+            } else if !event.ladder.isEmpty || (event.priceCents ?? 0) > 0 {
                 section("Tickets") { ticketLadder }
             }
 
@@ -381,7 +412,22 @@ struct EventDetailView: View {
         )
         // The sheet rides up over the hero's lower edge; with no hero it just
         // clears the always-present bar.
-        .padding(.top, event.image != nil ? -26 : 96)
+        .padding(.top, event.posterURL != nil ? -26 : 96)
+    }
+
+    private var fvButtons: some View {
+        VStack(spacing: 10) {
+            ForEach(fvTiers) { tier in
+                Button {
+                    Haptics.tap()
+                    if !auth.hasAccount { showFVGate = true; return }
+                    fvTarget = tier
+                } label: {
+                    FVTierCard(tier: tier, rooms: tier.rooms(in: event.fvRooms))
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     /// Venue · Free entry · Room of N — the facts that decide whether to read on.
@@ -391,7 +437,7 @@ struct EventDetailView: View {
             // it starts, and printing that alone claims the night happens in
             // one place.
             event.placeLine,
-            event.isFree ? locale.t("events.free") : nil,
+            event.isFree && fvTiers.isEmpty ? locale.t("events.free") : nil,
             event.totalCapacity.map { String(format: locale.t("events.roomOf"), $0) },
         ].compactMap { $0 }
 
@@ -581,7 +627,7 @@ struct EventDetailView: View {
             }
             detailRow(locale.t("events.when"),
                       event.dayLabel(locale: locale), sub: event.timeLabel)
-            if event.isFree {
+            if event.isFree, fvTiers.isEmpty {
                 detailRow(locale.t("events.entry"),
                           locale.t("events.free"), sub: locale.t("events.entryNote"))
             }
@@ -688,7 +734,7 @@ struct EventDetailView: View {
         // Hidden entirely where a reservation is impossible: `bookings.club_id`
         // is NOT NULL, so a night at a free-text address has nothing to book
         // against, and a button that always errors is worse than none.
-        if event.clubId != nil {
+        if event.clubId != nil, fvTiers.isEmpty {
             VStack(spacing: 0) {
                 if let errorText {
                     Text(errorText)
@@ -739,6 +785,23 @@ struct EventDetailView: View {
     }
 
     @ViewBuilder private var dockButton: some View {
+        // Bought: the only thing left to do is show the ticket. Never "Buy"
+        // again — that read as if the payment hadn't gone through.
+        if paidGuestId != nil {
+            Button { Haptics.tap(); showPaidTicket = true } label: {
+                dockShell(fill: Explore.accentSoft, stroke: Explore.accentDim, text: Explore.ink) {
+                    HStack(spacing: 9) {
+                        Image(systemName: "checkmark").font(.system(size: 14, weight: .bold))
+                        Text(locale.t("events.viewPass"))
+                    }
+                }
+            }
+        } else {
+            dockStateButton
+        }
+    }
+
+    @ViewBuilder private var dockStateButton: some View {
         switch state {
         case .working:
             dockShell(fill: Explore.accent, stroke: nil, text: Explore.onAccent) {
@@ -824,10 +887,13 @@ struct EventDetailView: View {
         do {
             switch try await SpotPayment.buy(
                 api: api, token: token, fullName: buyerName, plusOnes: 0, label: event.displayTitle) {
-            case .paid:
+            case .paid(let guestId):
+                // Straight onto the ticket — the QR, Wallet, the party. A
+                // haptic alone left a paying guest unsure it had worked.
                 Haptics.success()
+                paidGuestId = guestId
+                showPaidTicket = true
                 NotificationCenter.default.post(name: .cfInviteClaimed, object: nil)
-                await loadState()
             case .openCheckout(let url):
                 await UIApplication.shared.open(url)
             case .cancelled:
@@ -860,11 +926,12 @@ struct EventDetailView: View {
     }
 
     private var dockNote: String {
+        if paidGuestId != nil { return locale.t("rumbalist.savedToTickets") }
         switch state {
         case .working:   return locale.t("events.holdingSpot")
         case .full:      return String(format: locale.t("events.fullNote"), event.totalCapacity ?? 0)
         case .signedOut: return locale.t("events.joinNote")
-        default:         return locale.t("events.reserveHint")
+        default:         return locale.t(event.isFree ? "events.reserveHint" : "events.buyHint")
         }
     }
 
@@ -908,7 +975,18 @@ struct EventDetailView: View {
         return djByName[credit.name]
     }
 
+    /// A spot already bought on this night (paid or free promoter_guests row,
+    /// never an unpaid hold — /mine filters those).
+    private func loadPaidSpot() async {
+        guard auth.hasAccount, let token = event.inviteToken else { return }
+        guard let resp: InvitesResponse = try? await api.get("/api/promoter-invites/mine") else { return }
+        if let mine = resp.invites.first(where: { $0.allocation.inviteToken == token }) {
+            paidGuestId = mine.id.uuidString.lowercased()
+        }
+    }
+
     private func loadState() async {
+        await loadPaidSpot()
         // Public for the capacity answer, so this runs for guests too.
         guard let result: StateResult = try? await api.get("/api/events/\(event.id)/reserve")
         else { return }

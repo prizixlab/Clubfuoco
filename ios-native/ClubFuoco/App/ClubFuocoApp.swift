@@ -46,12 +46,16 @@ struct ClubFuocoApp: App {
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
                         Task { await RumbalistOffers.refresh(api: env.api) }
-                        Task { await FVCatalog.shared.refresh() }
+                        Task {
+                            await FVCatalog.shared.checkSwitch()
+                            await FVCatalog.shared.refresh()
+                        }
                         // A QR the ticket inbox filed while the app was away.
                         Task { await FVAccountSync.sync(env.authStore.queries.supabaseService) }
                     }
                 }
             #if DEBUG
+                .task { await WalletDebug.runIfRequested(api: env.api) }
                 // Simulator-only hook so automated runs can exercise the real
                 // sign-in path: pass CF_TEST_EMAIL / CF_TEST_PASSWORD via
                 // `simctl launch` (SIMCTL_CHILD_ prefix). No-op otherwise.

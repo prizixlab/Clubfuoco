@@ -9,7 +9,7 @@ import Foundation
 /// One billed artist on an event, from `events.lineup`. `id` is RA's artist id
 /// — the same key `djs.ra_artist_id` uses — so a credit joins to a DJ page
 /// exactly. nil on rows scraped before the lineup field existed.
-struct LineupCredit: Decodable, Sendable, Hashable, Identifiable {
+struct LineupCredit: Codable, Sendable, Hashable, Identifiable {
     let id: String?
     let name: String
 

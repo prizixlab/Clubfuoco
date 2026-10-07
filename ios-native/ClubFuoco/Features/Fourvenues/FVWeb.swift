@@ -581,9 +581,15 @@ struct FVCheckoutView: View {
     /// guest just taps the button. Never set when payment is expected.
     var prefill: (name: String, email: String)? = nil
     let onTicket: (URL) -> Void
+    /// The guest says they paid but no ticket PDF was caught: the caller files
+    /// the booking without a QR, and the ticket inbox fills it in from
+    /// Fourvenues' email. Nil = just close.
+    var onPaidWithoutTicket: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(LocaleStore.self) private var locale
     @State private var coordinator = FVCheckoutCoordinator()
+    @State private var askPaid = false
 
     var body: some View {
         NavigationStack {
@@ -593,7 +599,16 @@ struct FVCheckoutView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Close") { dismiss() }
+                        Button("Close") {
+                            // Past the payment page, closing may mean "I paid and
+                            // the ticket never showed". Ask, rather than lose the
+                            // booking (it used to vanish with no record but email).
+                            if paymentExpected && coordinator.visitedPayment && onPaidWithoutTicket != nil {
+                                askPaid = true
+                            } else {
+                                dismiss()
+                            }
+                        }
                     }
                     ToolbarItem(placement: .principal) {
                         HStack(spacing: 5) {
@@ -618,6 +633,19 @@ struct FVCheckoutView: View {
         .onChange(of: coordinator.ticketPDF) { _, pdf in
             if let pdf { onTicket(pdf); dismiss() }
         }
+        .onChange(of: coordinator.noTicketAfterPay) { _, gave in
+            if gave, onPaidWithoutTicket != nil { askPaid = true }
+        }
+        .confirmationDialog(locale.t("fv.didYouPay"), isPresented: $askPaid, titleVisibility: .visible) {
+            Button(locale.t("fv.paidYes")) {
+                FVTrace.log("checkout closed after payment — filing without QR")
+                onPaidWithoutTicket?()
+                dismiss()
+            }
+            Button(locale.t("fv.paidNo"), role: .cancel) { dismiss() }
+        } message: {
+            Text(locale.t("fv.didYouPayNote"))
+        }
     }
 }
 
@@ -629,7 +657,11 @@ final class FVCheckoutCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate 
 
     /// Set once the guest has been to the payment page. From then on — and
     /// ONLY then — we may read the page, because Apple Pay is behind us.
-    private var visitedPayment = false
+    private(set) var visitedPayment = false
+    /// Back on Fourvenues' confirmation page, but no ticket PDF could be read
+    /// off it. The guest has paid; the view asks them, and the ticket comes by
+    /// email instead.
+    var noTicketAfterPay = false
     var prefill: (name: String, email: String)?
     private weak var webView: WKWebView?
 
@@ -672,17 +704,21 @@ final class FVCheckoutCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate 
         guard let webView, ticketPDF == nil, !reading else { return }
         reading = true
         defer { reading = false }
+        var sawConfirmation = false
         for attempt in 0..<30 {
             if ticketPDF != nil { return }
             if let s = try? await webView.evaluateJavaScript(FVJS.probe) as? String,
                let probe = s.data(using: .utf8).flatMap({ try? JSONDecoder().decode(FVProbe.self, from: $0) }) {
                 if let pdf = probe.pdf.flatMap(URL.init(string:)) { ticketPDF = pdf; return }
+                if probe.done { sawConfirmation = true }
                 if probe.done && attempt % 5 == 2 {
                     _ = try? await webView.evaluateJavaScript(FVJS.pressDownload)
                 }
             }
             try? await Task.sleep(for: .milliseconds(700))
         }
+        // Paid (their "Process completed" page), but the PDF never showed.
+        if ticketPDF == nil && sawConfirmation { noTicketAfterPay = true }
     }
 }
 

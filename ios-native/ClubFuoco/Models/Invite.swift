@@ -16,7 +16,21 @@ struct InviteSummary: Decodable, Identifiable, Hashable, Sendable {
     let fullName: String
     let plusOnes: Int
     let checkedInAt: String?
+    /// When the spot was claimed or bought — what "sort by date booked" uses.
+    /// Without it every invite sorted as the oldest thing on Tickets, so a
+    /// ticket bought a minute ago sat at the very bottom.
+    let createdAt: String?
+    /// "paid" for a bought spot, "free"/nil for a guestlist one (older
+    /// servers don't send these).
+    let paymentStatus: String?
+    let amountCents: Int?
     let allocation: InviteAllocation
+
+    /// What the guest paid, when they paid for it.
+    var paidAmount: Double? {
+        guard paymentStatus == "paid", let c = amountCents, c > 0 else { return nil }
+        return Double(c) / 100
+    }
 
     // Convenience accessors for the merged Tickets list.
     var nightDate: String { allocation.night.nightDate }

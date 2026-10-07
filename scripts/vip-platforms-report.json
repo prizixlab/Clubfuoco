@@ -1,0 +1,5335 @@
+{
+  "generated_at": "2026-08-30T02:03:02.132Z",
+  "totals": {
+    "probed": 331,
+    "reachable": 288,
+    "bookable_engine": 56,
+    "mentions_vip": 160
+  },
+  "platform_counts": [
+    [
+      "woocommerce",
+      66
+    ],
+    [
+      "covermanager",
+      44
+    ],
+    [
+      "whatsapp",
+      33
+    ],
+    [
+      "wix",
+      21
+    ],
+    [
+      "fourvenues",
+      12
+    ],
+    [
+      "dice",
+      7
+    ],
+    [
+      "shopify",
+      5
+    ],
+    [
+      "squarespace",
+      4
+    ],
+    [
+      "notikumi",
+      2
+    ],
+    [
+      "typeform",
+      2
+    ],
+    [
+      "opentable",
+      2
+    ],
+    [
+      "sevenrooms",
+      1
+    ],
+    [
+      "jotform",
+      1
+    ],
+    [
+      "tickettailor",
+      1
+    ]
+  ],
+  "primary_counts": [
+    [
+      "(none)",
+      178
+    ],
+    [
+      "woocommerce",
+      49
+    ],
+    [
+      "covermanager",
+      40
+    ],
+    [
+      "wix",
+      21
+    ],
+    [
+      "whatsapp",
+      14
+    ],
+    [
+      "fourvenues",
+      12
+    ],
+    [
+      "dice",
+      6
+    ],
+    [
+      "squarespace",
+      3
+    ],
+    [
+      "shopify",
+      3
+    ],
+    [
+      "notikumi",
+      2
+    ],
+    [
+      "sevenrooms",
+      1
+    ],
+    [
+      "tickettailor",
+      1
+    ],
+    [
+      "opentable",
+      1
+    ]
+  ],
+  "venues": [
+    {
+      "name": "Cerveceria",
+      "club_id": "e83b88fe-202d-4464-bdf3-86670c2de7dd",
+      "ratings_total": 24099,
+      "rating": 4.5,
+      "website": "https://www.laflautagroup.com/",
+      "host": "laflautagroup.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Razzmatazz",
+      "club_id": "dadeacfd-ccec-4cb0-82d0-f597bf3229f5",
+      "ratings_total": 22881,
+      "rating": 4.2,
+      "website": "http://www.salarazzmatazz.com/",
+      "host": "salarazzmatazz.com",
+      "http": 200,
+      "platforms": [
+        "fourvenues",
+        "dice",
+        "whatsapp"
+      ],
+      "primary": "fourvenues",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://site.fourvenues.com/es/gira-camin/events/camin-en-barcelona-razzmatazz-05-09-2026-2BWW",
+        "https://site.fourvenues.com/es/sala-uni/events/kamada-en-barcelona---razzmatazz-06-09-2026-4QTD",
+        "https://www.salarazzmatazz.com/info/"
+      ]
+    },
+    {
+      "name": "El Bosc de Les Fades",
+      "club_id": "f28ea5dd-dc85-4243-a159-52be7f5b71c7",
+      "ratings_total": 17329,
+      "rating": 4.4,
+      "website": "https://www.boscdelesfades.com/",
+      "host": "boscdelesfades.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Territori Blau",
+      "club_id": "79ba79da-382c-4a26-8963-5fae6e6aaef3",
+      "ratings_total": 17184,
+      "rating": 4.4,
+      "website": "http://www.mirablaubcn.com/",
+      "host": "mirablaubcn.com",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Vinitus",
+      "club_id": "c23691ea-ad94-4f65-b322-cf35eb883971",
+      "ratings_total": 16994,
+      "rating": 4.5,
+      "website": "https://www.laflautagroup.com/",
+      "host": "laflautagroup.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Ocaña",
+      "club_id": "04316c0a-febb-44e6-ba4e-a7e3cfee2d77",
+      "ratings_total": 15727,
+      "rating": 4.6,
+      "website": "http://www.ocana.cat/",
+      "host": "ocana.cat",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Wolf Barcelona",
+      "club_id": "72615f2e-26aa-4db8-8e7a-5b7af95d472a",
+      "ratings_total": 13029,
+      "rating": 4.5,
+      "website": "http://wolfbarcelona.com/",
+      "host": "wolfbarcelona.com",
+      "http": 200,
+      "platforms": [
+        "fourvenues"
+      ],
+      "primary": "fourvenues",
+      "bookable_engine": true,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://www.fourvenues.com/wolf-barcelona/KFVP",
+        "https://www.fourvenues.com/wolf-barcelona/CZMM",
+        "https://www.fourvenues.com/wolf-barcelona/69E7"
+      ]
+    },
+    {
+      "name": "La Tapa",
+      "club_id": "d572fbd5-eb4d-480b-9210-c738a2d82aab",
+      "ratings_total": 12732,
+      "rating": 4.2,
+      "website": "https://tapataparestaurant.com/",
+      "host": "tapataparestaurant.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Mendrugo",
+      "club_id": "6f6c13bd-5194-4d6d-85cf-84c3953338f9",
+      "ratings_total": 12511,
+      "rating": 4.7,
+      "website": "http://casadelmendrugo.com/",
+      "host": "casadelmendrugo.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Sala Apolo",
+      "club_id": "81246c15-024d-4fc2-b7f4-f2cc6a62e528",
+      "ratings_total": 12013,
+      "rating": 4.2,
+      "website": "https://www.sala-apolo.com/es/?utm_source=Google+Maps&utm_medium=Google+Maps&utm_campaign=Ficha+Maps",
+      "host": "sala-apolo.com",
+      "http": 200,
+      "platforms": [
+        "notikumi"
+      ],
+      "primary": "notikumi",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Makamaka | Barcelona",
+      "club_id": "0a3fe9d3-1e09-4349-bcb6-c74c88151149",
+      "ratings_total": 10939,
+      "rating": 4.6,
+      "website": "http://www.makamaka.es/",
+      "host": "makamaka.es",
+      "http": 200,
+      "platforms": [
+        "covermanager",
+        "typeform"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "La tasqueta de Can Felipa",
+      "club_id": "226df06b-3b5f-4fc0-80e0-45cb70e28169",
+      "ratings_total": 10617,
+      "rating": 4.5,
+      "website": "https://www.latasquetadeblai.com/",
+      "host": "latasquetadeblai.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Shôko",
+      "club_id": "ddca5d10-9b4f-47c4-81a2-2c36bef77e49",
+      "ratings_total": 10405,
+      "rating": 3.7,
+      "website": "https://shoko.biz/es/collections/eventos-shoko-barcelona",
+      "host": "shoko.biz",
+      "http": 200,
+      "platforms": [
+        "notikumi",
+        "shopify",
+        "whatsapp"
+      ],
+      "primary": "notikumi",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://wa.me/34663701082",
+        "https://shoko.biz/es/collections/eventos-shoko-barcelona",
+        "https://shoko.biz/collections/frontpage",
+        "https://shoko.biz/es/products/tardeo-reggaeton-old-school-25-by-theperreo-saturday-6-6-2026"
+      ]
+    },
+    {
+      "name": "L'Ovella Negra",
+      "club_id": "acfe5fb3-707b-4dde-8ca7-95a416a415a2",
+      "ratings_total": 9547,
+      "rating": 4.2,
+      "website": "http://www.ovellanegra.com/",
+      "host": "ovellanegra.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "whatsapp"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://api.whatsapp.com/send/?phone=34626315371&text&type=phone_number&app_absent=0",
+        "https://ovellanegramarina.com/reservas/"
+      ]
+    },
+    {
+      "name": "Malalts de Festa",
+      "club_id": "ee8acd09-b197-439c-b0fd-d1d44a1ef367",
+      "ratings_total": 9390,
+      "rating": 4.5,
+      "website": "https://www.malaltsdefesta.com/",
+      "host": "malaltsdefesta.com",
+      "http": 200,
+      "platforms": [
+        "fourvenues",
+        "woocommerce",
+        "whatsapp"
+      ],
+      "primary": "fourvenues",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://malaltsdefesta.com/"
+      ]
+    },
+    {
+      "name": "Taverna Chrison",
+      "club_id": "22494e99-8f1d-4234-b84b-693a14103b2f",
+      "ratings_total": 8967,
+      "rating": 4.7,
+      "website": "https://www.latavernadelcoure.com/",
+      "host": "latavernadelcoure.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Ku (formerly Pacha)",
+      "club_id": "d184f2f1-8db3-4d03-ae11-ad19b650894d",
+      "ratings_total": 8950,
+      "rating": 3.2,
+      "website": "http://www.kubarcelona.com/",
+      "host": "kubarcelona.com",
+      "http": 200,
+      "platforms": [
+        "fourvenues"
+      ],
+      "primary": "fourvenues",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Generator Barcelona",
+      "club_id": "d44782a2-2784-4a52-abef-7f625ea8ea58",
+      "ratings_total": 8642,
+      "rating": 4.4,
+      "website": "https://staygenerator.com/hostels/barcelona?utm_source=google-my-business&utm_medium=organic&utm_campaign=hostel-Barcelona",
+      "host": "staygenerator.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Opium Barcelona Restaurant and Club",
+      "club_id": "b3f7747f-d911-490d-a688-d04add6a1c8b",
+      "ratings_total": 8478,
+      "rating": 3.5,
+      "website": "https://opiumbarcelona.com/",
+      "host": "opiumbarcelona.com",
+      "http": 200,
+      "platforms": [
+        "fourvenues",
+        "covermanager"
+      ],
+      "primary": "fourvenues",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://opiumbarcelona.com/vip/"
+      ]
+    },
+    {
+      "name": "Bar Jai-Ca Barceloneta",
+      "club_id": "0c461c83-e999-4f90-adea-a199a54268d1",
+      "ratings_total": 8347,
+      "rating": 4.3,
+      "website": "https://www.barjaica.com/",
+      "host": "barjaica.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "100 Montaditos",
+      "club_id": "105b360f-71f0-49b1-a63c-0b81ebfcc2ea",
+      "ratings_total": 8081,
+      "rating": 3.8,
+      "website": "http://spain.100montaditos.com/",
+      "host": "spain.100montaditos.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Michael Collins",
+      "club_id": "828338c6-c83f-42f4-863e-8ea8c6ea7c47",
+      "ratings_total": 7496,
+      "rating": 4.2,
+      "website": "https://michaelcollinspubs.com/",
+      "host": "michaelcollinspubs.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "El Vaso de Oro",
+      "club_id": "acafab6b-0cfd-4117-a640-8fcd59a8cb88",
+      "ratings_total": 7346,
+      "rating": 4.5,
+      "website": "https://cerveseriavasodeoro.shop/",
+      "host": "cerveseriavasodeoro.shop",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Paradiso",
+      "club_id": "0674fa6a-1674-4883-a8bc-bbb88e1658bb",
+      "ratings_total": 7300,
+      "rating": 4.3,
+      "website": "https://paradiso.cat/",
+      "host": "paradiso.cat",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://paradiso.cat/"
+      ]
+    },
+    {
+      "name": "La Bombeta",
+      "club_id": "5742de19-c35f-452b-9a5a-2f19d431ea50",
+      "ratings_total": 7225,
+      "rating": 4.3,
+      "website": "https://www.facebook.com/pages/La-Bombeta/118622454870779",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Milk",
+      "club_id": "f278a226-d394-4dac-b07b-e28152789f4b",
+      "ratings_total": 7217,
+      "rating": 4.7,
+      "website": "http://www.milkbarcelona.com/",
+      "host": "milkbarcelona.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "BAR TOMAS",
+      "club_id": "77c2e4a9-ebe7-4e68-90d4-352a6a22f6b9",
+      "ratings_total": 7190,
+      "rating": 4.3,
+      "website": "http://www.eltomasdesarria.com/",
+      "host": "eltomasdesarria.com",
+      "http": 202,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Nuria",
+      "club_id": "4ffad8e4-a43d-4572-a481-124f3dae6bee",
+      "ratings_total": 6967,
+      "rating": 4.3,
+      "website": "http://www.nuria.com/",
+      "host": "nuria.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Ilusion",
+      "club_id": "27b8c01a-ff7e-437c-b746-bb03d7ee67ee",
+      "ratings_total": 6913,
+      "rating": 4,
+      "website": "http://www.luzdegas.com/",
+      "host": "luzdegas.com",
+      "http": 200,
+      "platforms": [
+        "fourvenues"
+      ],
+      "primary": "fourvenues",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "The George Payne",
+      "club_id": "14e90b3e-b231-4c4a-8a88-9db1bdaefad3",
+      "ratings_total": 6901,
+      "rating": 4.1,
+      "website": "https://thegeorgepayne.com/",
+      "host": "thegeorgepayne.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://thegeorgepayne.com/group-bookings/",
+        "https://thegeorgepayne.com/vip-barcelona/"
+      ]
+    },
+    {
+      "name": "Bar Bona Sort",
+      "club_id": "07fbb3da-33e4-41f6-b121-84b247936cf8",
+      "ratings_total": 6666,
+      "rating": 4.4,
+      "website": "https://www.tapaslabonasort.com/?utm_source=GMB",
+      "host": "tapaslabonasort.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://www.tapaslabonasort.com/reservas/"
+      ]
+    },
+    {
+      "name": "BAR AGUA MARINA",
+      "club_id": "ceea6ad7-d4a9-4574-9c24-2e8df53aef40",
+      "ratings_total": 6590,
+      "rating": 4.1,
+      "website": "http://marinabay.monchos.com/",
+      "host": "marinabay.monchos.com",
+      "http": 200,
+      "platforms": [
+        "whatsapp",
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://marinabay.monchos.com/reservar/",
+        "https://marinabay.monchos.com/reservar"
+      ]
+    },
+    {
+      "name": "Malquerida",
+      "club_id": "d81d3a58-c8d5-4250-b746-0e60820f0422",
+      "ratings_total": 6506,
+      "rating": 4.4,
+      "website": "http://www.lamalquerida.es/",
+      "host": "lamalquerida.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Sports Bar Menjar Italià",
+      "club_id": "90cf1a10-de76-4ee5-a817-550fb50874c5",
+      "ratings_total": 6450,
+      "rating": 4.6,
+      "website": "http://www.sportsbaritalianfood.it/",
+      "host": "sportsbaritalianfood.it",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bodega Ani",
+      "club_id": "ec83da41-be39-4468-b0e5-2c70bb5268de",
+      "ratings_total": 6152,
+      "rating": 4.3,
+      "website": "http://www.bodegajoan.com/",
+      "host": "bodegajoan.com",
+      "http": 200,
+      "platforms": [
+        "covermanager",
+        "opentable"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.covermanager.com/reserve/module_restaurant/restaurante-bodegajoan/spanish",
+        "https://www.bodegajoan.com/reservas"
+      ]
+    },
+    {
+      "name": "Paco",
+      "club_id": "68f1d6d8-9127-4b0f-9aaf-06aa73b21e3b",
+      "ratings_total": 5977,
+      "rating": 4.5,
+      "website": "http://www.restaurantpacomeralgo.com/",
+      "host": "restaurantpacomeralgo.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://restaurantpacomeralgo.com/reservar-mesa/"
+      ]
+    },
+    {
+      "name": "Kahiki Barcelona, Tiki bar, pub, cocteleria",
+      "club_id": "1a1a81fb-22ea-4291-8edd-8a2bb5593a98",
+      "ratings_total": 5972,
+      "rating": 4.7,
+      "website": "https://kahiki.es/",
+      "host": "kahiki.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Doña Rosa",
+      "club_id": "7c592306-54dd-4568-a48c-0111552bd676",
+      "ratings_total": 5951,
+      "rating": 4.4,
+      "website": "https://rosanegrarestaurantes.com/bcn-raval/menus-es/",
+      "host": "rosanegrarestaurantes.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar del Pla",
+      "club_id": "c342d671-0daf-4908-a4eb-15804fa2215a",
+      "ratings_total": 5898,
+      "rating": 4.4,
+      "website": "http://www.bardelpla.cat/",
+      "host": "bardelpla.cat",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Blanca Paloma",
+      "club_id": "532008b7-3167-4309-a838-8dc7fde65b4a",
+      "ratings_total": 5853,
+      "rating": 4.5,
+      "website": "https://blancapalomarestaurante.com/",
+      "host": "blancapalomarestaurante.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Jacqueline Barcelona",
+      "club_id": "6b6a169a-4945-44dc-806e-8577de189ba6",
+      "ratings_total": 5828,
+      "rating": 4.6,
+      "website": "https://www.jacquelinebarcelona.com/",
+      "host": "jacquelinebarcelona.com",
+      "http": 200,
+      "platforms": [
+        "sevenrooms",
+        "woocommerce",
+        "typeform",
+        "whatsapp"
+      ],
+      "primary": "sevenrooms",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.jacquelinebarcelona.com/reservas/"
+      ]
+    },
+    {
+      "name": "Bar Espanya",
+      "club_id": "40638ba4-a66f-42bc-bb25-1123d3bc6cbb",
+      "ratings_total": 5730,
+      "rating": 4.6,
+      "website": "https://www.barespanya.es/",
+      "host": "barespanya.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "La tavern de barcelona",
+      "club_id": "533b89c6-3e78-4fd4-b9da-b05acdc8a805",
+      "ratings_total": 5691,
+      "rating": 4.4,
+      "website": "https://www.instagram.com/latavernadebarcelona",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "La Cova Fumada",
+      "club_id": "abbe6464-92fb-42a1-9e3d-c92d786ecd28",
+      "ratings_total": 5588,
+      "rating": 4.6,
+      "website": "https://lacovafumada.shop/",
+      "host": "lacovafumada.shop",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Anita",
+      "club_id": "f4d07c99-7dcd-4eeb-b315-1f04f4fa2978",
+      "ratings_total": 5513,
+      "rating": 4.5,
+      "website": "https://baranitabcn.com/",
+      "host": "baranitabcn.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://baranitabcn.com/"
+      ]
+    },
+    {
+      "name": "Torre Rosa",
+      "club_id": "e3591643-5069-4ef2-8a8b-ba613dafadaa",
+      "ratings_total": 5414,
+      "rating": 4.4,
+      "website": "https://www.torrerosa.com/",
+      "host": "torrerosa.com",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Otto Zutz Club",
+      "club_id": "b9bc5258-4349-4f05-af59-6556d961524a",
+      "ratings_total": 5326,
+      "rating": 3.3,
+      "website": "https://www.ottozutz.com/",
+      "host": "ottozutz.com",
+      "http": 200,
+      "platforms": [
+        "wix",
+        "whatsapp"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.ottozutz.com/events/la-casita-club-2026-08-29-23-59",
+        "https://www.ottozutz.com/events/thursday-2026-09-03-23-59",
+        "https://www.ottozutz.com/events/friday-by-otto-zutz-2026-09-04-23-59"
+      ]
+    },
+    {
+      "name": "Bar Delicias",
+      "club_id": "70834c94-c5fb-434f-aa53-ea26c0f13232",
+      "ratings_total": 5178,
+      "rating": 4.3,
+      "website": "http://www.barrestaurantedelicias.com/",
+      "host": "barrestaurantedelicias.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Jamboree",
+      "club_id": "a83428e5-5c7f-4f55-99e5-3f329f7c3210",
+      "ratings_total": 5174,
+      "rating": 4.2,
+      "website": "http://www.jamboreejazz.com/",
+      "host": "jamboreejazz.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Sutton Club Barcelona",
+      "club_id": "e0cf6310-28e5-4117-ad5f-01179f87d8fd",
+      "ratings_total": 5145,
+      "rating": 3.1,
+      "website": "https://www.suttonbarcelona.com/",
+      "host": "suttonbarcelona.com",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://suttonbarcelona.com/eventos/"
+      ]
+    },
+    {
+      "name": "La Alcoba Azul",
+      "club_id": "21064d96-5538-4534-b627-e972b04abf5e",
+      "ratings_total": 5129,
+      "rating": 4.7,
+      "website": "https://la-alcoba.com/la-alcoba-azul/?utm_source=gmb&utm_medium=organic&utm_campaign=gmb_azul_gotico",
+      "host": "la-alcoba.com",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Eme",
+      "club_id": "0a132273-e7e8-46ac-8eb8-96994d8f0d84",
+      "ratings_total": 5086,
+      "rating": 4.2,
+      "website": "https://www.baremebilbao.com/",
+      "host": "baremebilbao.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "PinchoJ",
+      "club_id": "cf61ca20-2b48-4f7f-8fd9-10b620a661b0",
+      "ratings_total": 5060,
+      "rating": 4,
+      "website": "https://www.facebook.com/pinchoj/",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Frankfurt",
+      "club_id": "4b1b5ce8-1d77-45e6-b128-07e9c57bf00c",
+      "ratings_total": 5015,
+      "rating": 4.1,
+      "website": "https://celona.de/cafe-bar-celona-frankfurt",
+      "host": "celona.de",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "L‘OW Boqueria",
+      "club_id": "c2c19a08-a19f-46e8-9bbe-468b82e06c30",
+      "ratings_total": 4913,
+      "rating": 4.8,
+      "website": "https://www.barboqueria.com/",
+      "host": "barboqueria.com",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Gats",
+      "club_id": "e29dd671-6121-4daf-a77f-f1b01b580a4d",
+      "ratings_total": 4895,
+      "rating": 4.6,
+      "website": "https://grupotragaluz.com/restaurantes/gats/",
+      "host": "grupotragaluz.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://grupotragaluz.com/reserva/bar-lobo-rambles/",
+        "https://grupotragaluz.com/reserva/bar-tomate/",
+        "https://grupotragaluz.com/reserva/camping-mar/"
+      ]
+    },
+    {
+      "name": "Mariposa Negra Cocktail Bar - Cocteleria artesana",
+      "club_id": "008357fd-38ef-4954-a363-94a45883d63f",
+      "ratings_total": 4882,
+      "rating": 4.8,
+      "website": "http://www.mariposanegrabar.com/",
+      "host": "mariposanegrabar.com",
+      "http": 202,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Muth",
+      "club_id": "bab96c74-86d9-456e-9a2d-7755b7105635",
+      "ratings_total": 4878,
+      "rating": 4.1,
+      "website": "https://www.bormuthbarcelona.com/",
+      "host": "bormuthbarcelona.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://www.bormuthbarcelona.com/blank"
+      ]
+    },
+    {
+      "name": "Sonora Sport Tavern",
+      "club_id": "430deb83-a00f-46c6-9be0-e88c0df38e06",
+      "ratings_total": 4871,
+      "rating": 4.2,
+      "website": "https://tabernasonora.com/",
+      "host": "tabernasonora.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bonna Boca",
+      "club_id": "3b21fec0-fc48-4654-bccf-3da140895c21",
+      "ratings_total": 4771,
+      "rating": 4.1,
+      "website": "http://www.bocagrande.cat/?utm_source=google&utm_medium=organic&utm_campaign=gbp",
+      "host": "bocagrande.cat",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Casa Rufo's",
+      "club_id": "1632093f-86c3-445a-b577-2e37f15351a6",
+      "ratings_total": 4763,
+      "rating": 4.4,
+      "website": "https://www.casarafols.com/",
+      "host": "casarafols.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Garage Beer Co",
+      "club_id": "de1e4cac-77c4-4c9d-95cb-729aea7092e6",
+      "ratings_total": 4701,
+      "rating": 4.6,
+      "website": "https://garagebeer.co/",
+      "host": "garagebeer.co",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "CDLC Barcelona (Carpe Diem)",
+      "club_id": "d649395c-d3db-4397-b200-42b575d1738a",
+      "ratings_total": 4641,
+      "rating": 4.1,
+      "website": "http://www.cdlcbarcelona.com/",
+      "host": "cdlcbarcelona.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "fourvenues",
+        "covermanager"
+      ],
+      "primary": "fourvenues",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://cdlcbarcelona.com/sales/",
+        "https://cdlcbarcelona.com/reservas/",
+        "https://cdlcbarcelona.com/"
+      ]
+    },
+    {
+      "name": "bar Celia pulperia",
+      "club_id": "e6d8ae52-896c-4536-b0c9-f075961cdd7a",
+      "ratings_total": 4624,
+      "rating": 4,
+      "website": "http://www.barcelta.com/",
+      "host": "barcelta.com",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "ALIMENTACIÓ MONK",
+      "club_id": "66cbf739-95f4-4fed-96e9-f9274e69c5d4",
+      "ratings_total": 4586,
+      "rating": 4.4,
+      "website": "https://grupconfiteria.com/en/group/monk/",
+      "host": "grupconfiteria.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://www.covermanager.com/reservation/module_restaurant/restaurante-monk/english"
+      ]
+    },
+    {
+      "name": "Tapas,24 de Carles Abellàn",
+      "club_id": "eb0286ab-6b4a-48db-8b22-b11b565a6ea4",
+      "ratings_total": 4583,
+      "rating": 3.8,
+      "website": "https://tapas24.es/",
+      "host": "tapas24.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar L'antic Teatre",
+      "club_id": "bc162133-5b02-4134-bc96-5a3336c2be5c",
+      "ratings_total": 4543,
+      "rating": 4.3,
+      "website": "http://www.anticteatre.com/",
+      "host": "anticteatre.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Sports bar",
+      "club_id": "ff35be95-0473-4c19-99c5-f3307c443945",
+      "ratings_total": 4525,
+      "rating": 4.7,
+      "website": "http://www.sportsbaritalianfood.it/",
+      "host": "sportsbaritalianfood.it",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Eleven Shisha Lounge Barcelona & Cocktails",
+      "club_id": "5dbc19ed-6f1d-44f0-992d-b45565b94e01",
+      "ratings_total": 4401,
+      "rating": 4.9,
+      "website": "https://elevenshishalounge.com/",
+      "host": "elevenshishalounge.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "BierCaB",
+      "club_id": "39519423-8e69-4d66-858d-9313329e0abb",
+      "ratings_total": 4337,
+      "rating": 4.6,
+      "website": "http://biercab.com/",
+      "host": "biercab.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bobby's Free",
+      "club_id": "cf079f57-1272-4fb2-a17e-ef7159f06979",
+      "ratings_total": 4333,
+      "rating": 4.6,
+      "website": "http://www.bobbysfree.com/",
+      "host": "bobbysfree.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Flaherty's Irish Pub",
+      "club_id": "6f5a90fa-67a8-45ba-ad9d-70519bebfbad",
+      "ratings_total": 4298,
+      "rating": 4.3,
+      "website": "http://www.pflaherty.com/",
+      "host": "pflaherty.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "CocoVail - WINGS",
+      "club_id": "af298dfb-3086-4169-a6ba-c2721c7710b6",
+      "ratings_total": 4172,
+      "rating": 4.4,
+      "website": "http://www.cocovailbeerhall.com/",
+      "host": "cocovailbeerhall.com",
+      "http": 200,
+      "platforms": [
+        "covermanager",
+        "woocommerce"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.covermanager.com/reservation/module_restaurant/restaurante-cocovail/spanish",
+        "https://www.covermanager.com/reservation/module_restaurant/restaurante-cocovail/english"
+      ]
+    },
+    {
+      "name": "Bar Hamburg",
+      "club_id": "3c16b013-55a5-4a74-87e6-151311c428d9",
+      "ratings_total": 4118,
+      "rating": 3.9,
+      "website": "https://celona.de/cafe-bar-celona-hamburg-wandsbek",
+      "host": "celona.de",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "KAHALA - Tiki Bar | Barcelona",
+      "club_id": "49c62a25-1c64-40b3-8253-19392ef01c32",
+      "ratings_total": 4084,
+      "rating": 4.5,
+      "website": "http://www.kahalabarcelona.com/",
+      "host": "kahalabarcelona.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "L'Artesà",
+      "club_id": "3deff481-d4d6-43b7-9697-d441bf30b2cc",
+      "ratings_total": 4054,
+      "rating": 4.3,
+      "website": "https://www.teatrelartesa.cat/teatre-lartesa/cafe-lartesa",
+      "host": "teatrelartesa.cat",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Wookah Lounge Barcelona",
+      "club_id": "f925c048-abdc-498f-9c44-fd6b11727bcc",
+      "ratings_total": 4040,
+      "rating": 4.8,
+      "website": "http://www.wookah.es/",
+      "host": "wookah.es",
+      "http": 202,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "El Manolo",
+      "club_id": "ab3334bc-ef27-46b4-9f97-6d0fa0242fd7",
+      "ratings_total": 4033,
+      "rating": 4.1,
+      "website": "http://elmanolo.bar/",
+      "host": "elmanolo.bar",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "whatsapp"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://elmanolo.bar/",
+        "https://elmanolo.bar/reservas/"
+      ]
+    },
+    {
+      "name": "Gaudi",
+      "club_id": "05bfe4d2-88a6-47dc-b2e9-68ea8767ecf5",
+      "ratings_total": 3996,
+      "rating": 4.4,
+      "website": "https://paelleriagaudi.com/",
+      "host": "paelleriagaudi.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.paelleriagaudi.com/reservas-menu-de-grupos/",
+        "https://www.paelleriagaudi.com/en/reservas-menu-de-grupos/",
+        "https://www.paelleriagaudi.com/fr/reservas-menu-de-grupos/"
+      ]
+    },
+    {
+      "name": "Cañas y Tapas",
+      "club_id": "46960368-f870-47e1-bec5-2e1a91d0d42e",
+      "ratings_total": 3964,
+      "rating": 3.7,
+      "website": "https://canasytapas.es/?utm_source=google&utm_medium=organic&utm_campaign=google-my-business&utm_content=perfil-diagonal",
+      "host": "canasytapas.es",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://canasytapas.es/reservar/"
+      ]
+    },
+    {
+      "name": "La Plata",
+      "club_id": "65817ce3-691e-4350-a2be-c21ed97207be",
+      "ratings_total": 3911,
+      "rating": 4.7,
+      "website": "http://barlaplata.com/",
+      "host": "barlaplata.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Slow Barcelona",
+      "club_id": "055e07ef-1799-43bd-932d-6484ca045319",
+      "ratings_total": 3889,
+      "rating": 4.5,
+      "website": "https://www.slowbarcelona.es/",
+      "host": "slowbarcelona.es",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.slowbarcelona.es/reservas/mesas-en-cocteleria/",
+        "https://www.slowbarcelona.es/reservas/reserva-tu-taller/",
+        "https://www.slowbarcelona.es/reservas/cata-de-licores/"
+      ]
+    },
+    {
+      "name": "Los Cachitos",
+      "club_id": "d61d1e73-fd83-4a0b-a37f-cca10710e282",
+      "ratings_total": 3856,
+      "rating": 4,
+      "website": "https://cachitosbcn.com/rambla/",
+      "host": "cachitosbcn.com",
+      "http": 200,
+      "platforms": [
+        "fourvenues",
+        "covermanager"
+      ],
+      "primary": "fourvenues",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://cachitosbcn.com/rambla/reservas/"
+      ]
+    },
+    {
+      "name": "El manantial",
+      "club_id": "629b74ef-c79c-49bd-92d7-f2003c929acd",
+      "ratings_total": 3831,
+      "rating": 4.2,
+      "website": "https://www.elmanantialdelacerveza.com/",
+      "host": "elmanantialdelacerveza.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.elmanantialdelacerveza.com/contacto/"
+      ]
+    },
+    {
+      "name": "IT - Italian Trattoria Barcelona",
+      "club_id": "96053ce4-a1fd-481a-a06f-1051685b7e41",
+      "ratings_total": 3826,
+      "rating": 4.6,
+      "website": "https://restaurants.it-trattoria.fr/barcelone-place-de-catalogne/?utm_source=google&utm_medium=organic&utm_campaign=mybusiness-website",
+      "host": "restaurants.it-trattoria.fr",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Gatsby",
+      "club_id": "e1224533-c643-4096-aab2-b9126dc1ab65",
+      "ratings_total": 3810,
+      "rating": 4.1,
+      "website": "https://gatsbybarcelona.com/",
+      "host": "gatsbybarcelona.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Celler Miquel",
+      "club_id": "cb2298bc-20e7-4843-9a77-ed23876a1e4e",
+      "ratings_total": 3742,
+      "rating": 4.3,
+      "website": "https://www.facebook.com/pages/Celler-den-Miquel/126915310702447?sk=timeline",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Dr. Stravinsky cocktail bar",
+      "club_id": "a7a3eaca-d978-43f7-a51a-8e7c4a44929e",
+      "ratings_total": 3667,
+      "rating": 4.6,
+      "website": "https://drstravinsky.cat/",
+      "host": "drstravinsky.cat",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "La Croquetería",
+      "club_id": "052339e2-d38c-42c4-b6d9-b618a682c0f8",
+      "ratings_total": 3609,
+      "rating": 4.5,
+      "website": "http://www.croqandroll.com/",
+      "host": "croqandroll.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bling Bling Barcelona",
+      "club_id": "07ce6a58-ceee-48e4-89ce-3c3e6b6ff2b2",
+      "ratings_total": 3590,
+      "rating": 3.2,
+      "website": "http://www.blingblingbcn.com/",
+      "host": "blingblingbcn.com",
+      "http": 200,
+      "platforms": [
+        "fourvenues",
+        "covermanager"
+      ],
+      "primary": "fourvenues",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Velabcn Restaurante & Lounge Bar",
+      "club_id": "88b6948c-5796-46e4-82b8-16941afaf6a2",
+      "ratings_total": 3574,
+      "rating": 4.6,
+      "website": "http://velabcn.es/",
+      "host": "velabcn.es",
+      "http": 404,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Jardinet del Mar",
+      "club_id": "24128ba8-2a87-4249-ada8-f0d837c2a2b2",
+      "ratings_total": 3544,
+      "rating": 4.1,
+      "website": "https://www.jardinetaribau.com/",
+      "host": "jardinetaribau.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.jardinetaribau.com/reserva-tu-mesa-en-el-jardinet/"
+      ]
+    },
+    {
+      "name": "Moog",
+      "club_id": "21e54b7e-0e71-42fa-a78e-d6b80454448f",
+      "ratings_total": 3530,
+      "rating": 4,
+      "website": "https://moogbarcelona.com/",
+      "host": "moogbarcelona.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://moogbarcelona.com/agenda/"
+      ]
+    },
+    {
+      "name": "Latin Palace",
+      "club_id": "2f71227b-17f2-4b74-b237-1eb7c8937915",
+      "ratings_total": 3471,
+      "rating": 4.4,
+      "website": "https://www.latinpalacebarcelona.com/",
+      "host": "latinpalacebarcelona.com",
+      "http": 404,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Albaycin",
+      "club_id": "ab007c91-a867-4c0b-b423-bf13d90041e3",
+      "ratings_total": 3441,
+      "rating": 4.3,
+      "website": "https://instagram.com/albayzincerveceria",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bambú Beach Bar",
+      "club_id": "69c4712f-79ca-41ac-aff3-7f95f06c0dec",
+      "ratings_total": 3439,
+      "rating": 4.2,
+      "website": "https://www.vaimoanabcn.com/",
+      "host": "vaimoanabcn.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.vaimoanabcn.com/alquiler-tumbona-y-hamacas-playa-del-bogatell/"
+      ]
+    },
+    {
+      "name": "Abirradero",
+      "club_id": "1035ba72-5baf-468c-b3b2-88a62a290895",
+      "ratings_total": 3412,
+      "rating": 4.3,
+      "website": "http://www.abirradero.com/",
+      "host": "abirradero.com",
+      "http": 200,
+      "platforms": [
+        "covermanager",
+        "squarespace"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Dionisos",
+      "club_id": "2d4c31c8-3808-4189-a95d-757bb71bc412",
+      "ratings_total": 3387,
+      "rating": 4.2,
+      "website": "https://www.dionisos.com/",
+      "host": "dionisos.com",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://dionisos.com/"
+      ]
+    },
+    {
+      "name": "Bar Las Tapas",
+      "club_id": "2f3bd120-0a97-4910-afbf-5d0e08d3c5f9",
+      "ratings_total": 3320,
+      "rating": 4.7,
+      "website": "https://restaurantelastapas.com/",
+      "host": "restaurantelastapas.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "el chigre 1769",
+      "club_id": "b92def07-735c-4893-8902-053492f3639c",
+      "ratings_total": 3304,
+      "rating": 4.5,
+      "website": "https://elchigre1769.com/",
+      "host": "elchigre1769.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Dry Martini",
+      "club_id": "65d06763-fa95-4a2c-8dfa-f953fed6d133",
+      "ratings_total": 3298,
+      "rating": 4.4,
+      "website": "https://www.drymartinibarcelona.com/",
+      "host": "drymartinibarcelona.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.drymartinibarcelona.com/Reservas/",
+        "https://www.drymartinibarcelona.com/reservas/",
+        "https://www.drymartinibarcelona.com/the-suntory-experience/"
+      ]
+    },
+    {
+      "name": "Go Beach Club Barcelona",
+      "club_id": "83dbf48a-2a60-416a-98eb-0f3aec7e0363",
+      "ratings_total": 3276,
+      "rating": 4.1,
+      "website": "http://www.gobeachclub.com/",
+      "host": "gobeachclub.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://www.seaseaclub.com/reservar/",
+        "https://www.seaseaclub.com/"
+      ]
+    },
+    {
+      "name": "Brew Wild",
+      "club_id": "e73ab957-72b9-4ed8-84cf-629d3857f2b0",
+      "ratings_total": 3263,
+      "rating": 4.7,
+      "website": "https://www.brewwildpizzabar.com/",
+      "host": "brewwildpizzabar.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Backdoor",
+      "club_id": "4810ae48-ec8a-457c-972c-d81961eeb474",
+      "ratings_total": 3250,
+      "rating": 4.3,
+      "website": "http://www.alsurcafe.com/backdoor-bar",
+      "host": "alsurcafe.com",
+      "http": 200,
+      "platforms": [
+        "squarespace"
+      ],
+      "primary": "squarespace",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Calders",
+      "club_id": "e931a514-939b-41cb-91eb-a803cb979a5c",
+      "ratings_total": 3232,
+      "rating": 4.3,
+      "website": "https://www.barcalders.cat/",
+      "host": "barcalders.cat",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Can Ros",
+      "club_id": "3d10b994-cc42-487a-be08-5fc9548038c9",
+      "ratings_total": 3226,
+      "rating": 4.4,
+      "website": "http://barbodegacanros.com/",
+      "host": "barbodegacanros.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Rias do Miño",
+      "club_id": "3d7a8645-0d27-4c33-ab2d-3aa5b88c02c7",
+      "ratings_total": 3184,
+      "rating": 4.7,
+      "website": "https://minorestaurant.es/",
+      "host": "minorestaurant.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Twenties Barcelona",
+      "club_id": "3c3716e0-0361-4a62-b4d2-ec1eb5d00bbb",
+      "ratings_total": 3182,
+      "rating": 3.3,
+      "website": "http://www.twentiesbarcelona.com/",
+      "host": "twentiesbarcelona.com",
+      "http": 200,
+      "platforms": [
+        "whatsapp",
+        "fourvenues"
+      ],
+      "primary": "fourvenues",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://twentiesbarcelona.com/vip-experience/",
+        "https://twentiesbarcelona.com/tickets/",
+        "https://twentiesbarcelona.com/tickets"
+      ]
+    },
+    {
+      "name": "Craft Barcelona",
+      "club_id": "e8e15ff0-0c8e-4328-a75c-416b2eb31cf4",
+      "ratings_total": 3179,
+      "rating": 4.4,
+      "website": "http://www.craftbarcelona.com/",
+      "host": "craftbarcelona.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://www.craftbarcelona.com/book-online"
+      ]
+    },
+    {
+      "name": "Trikini",
+      "club_id": "c76fc517-4dc9-4e5d-a8aa-415cbc22a6b9",
+      "ratings_total": 3179,
+      "rating": 4.8,
+      "website": "http://www.bartrikini.com/",
+      "host": "bartrikini.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar barcelona",
+      "club_id": "b13481d0-c1b9-4d39-84ae-027349ab7855",
+      "ratings_total": 3146,
+      "rating": 4.5,
+      "website": "https://www.barcelonawinebar.com/location/inmanpark/?utm_source=yext&utm_medium=localsearch&utm_campaign=landing-page&utm_content=inman-park",
+      "host": "barcelonawinebar.com",
+      "http": 200,
+      "platforms": [
+        "shopify"
+      ],
+      "primary": "shopify",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://barcelonawinebar.com/reservations/"
+      ]
+    },
+    {
+      "name": "Tapazia",
+      "club_id": "d442694b-0e20-41cf-bc79-bb6d3ada6e36",
+      "ratings_total": 3125,
+      "rating": 4.5,
+      "website": "http://www.lostortillez.com/",
+      "host": "lostortillez.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.lostortillez.com/reservas"
+      ]
+    },
+    {
+      "name": "Salts",
+      "club_id": "09cfefc0-dc10-4f14-ad81-047279226f78",
+      "ratings_total": 3074,
+      "rating": 4.3,
+      "website": "https://www.saltsmontjuic.com/ca/",
+      "host": "saltsmontjuic.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "La Rovira",
+      "club_id": "6abc702c-a3a9-48aa-ab8a-cbd5a659b637",
+      "ratings_total": 3056,
+      "rating": 4.4,
+      "website": "https://larovira.shop/",
+      "host": "larovira.shop",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Cèntric",
+      "club_id": "0019efce-8e45-461a-b2d3-69b6745470ea",
+      "ratings_total": 3048,
+      "rating": 4.6,
+      "website": "https://www.centricbar.com/",
+      "host": "centricbar.com",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Belushi's",
+      "club_id": "4fbca440-ccad-4989-a7af-b0f972fe5d38",
+      "ratings_total": 2976,
+      "rating": 4.3,
+      "website": "https://www.belushis.com/bars/barcelona",
+      "host": "belushis.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "jotform"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://belushis.com/barcelona-las-ramblas"
+      ]
+    },
+    {
+      "name": "Mescladís Bostik",
+      "club_id": "2edc71d5-329d-4993-8319-3a155c7bdf37",
+      "ratings_total": 2949,
+      "rating": 4.5,
+      "website": "http://www.mescladis.org/",
+      "host": "mescladis.org",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://mescladis.org/"
+      ]
+    },
+    {
+      "name": "Mr Robinson",
+      "club_id": "e713c1f7-fd71-4370-8d17-f925f3f95d4e",
+      "ratings_total": 2915,
+      "rating": 4.3,
+      "website": "http://www.mr-robinson.es/",
+      "host": "mr-robinson.es",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "MONARQ Tapas & Grill Barceloneta",
+      "club_id": "2ec4042c-15c2-44ff-ab55-4ae7e32f0b62",
+      "ratings_total": 2909,
+      "rating": 4.8,
+      "website": "https://tapasymar.es/",
+      "host": "tapasymar.es",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://tapasymar.es/"
+      ]
+    },
+    {
+      "name": "Bar Frankfurt Jaime",
+      "club_id": "c2a9a03e-3e59-4c2c-abe3-1b88f838b1bd",
+      "ratings_total": 2896,
+      "rating": 4.2,
+      "website": "http://www.casajaime.cat/",
+      "host": "casajaime.cat",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Disco City Hall",
+      "club_id": "bdafd62c-2543-4238-9951-e4a1a17bb7eb",
+      "ratings_total": 2839,
+      "rating": 3.9,
+      "website": "https://cityhallbarcelona.com/",
+      "host": "cityhallbarcelona.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Morryssom",
+      "club_id": "ac9f1858-9f82-4136-b336-49963e4a21c4",
+      "ratings_total": 2834,
+      "rating": 4.2,
+      "website": "https://www.barmorryssom.com/",
+      "host": "barmorryssom.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Cerveceria La Surena",
+      "club_id": "112454f8-f19e-445c-a9e8-34d9688182f3",
+      "ratings_total": 2817,
+      "rating": 3.8,
+      "website": "https://lasurena.es/",
+      "host": "lasurena.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Dunne's Irish Bar & Restaurant",
+      "club_id": "23f36615-da49-40c6-9a52-07143b33e7d2",
+      "ratings_total": 2815,
+      "rating": 4.1,
+      "website": "http://dunnesirishbar.com/",
+      "host": "dunnesirishbar.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "San Pedrito",
+      "club_id": "26b16f54-dcd0-450b-83fa-d4e7ad1923f0",
+      "ratings_total": 2800,
+      "rating": 4.6,
+      "website": "https://www.instagram.com/licoreriasanpedritocholula/?hl=es",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Aloha",
+      "club_id": "8fe18719-f283-4218-9ec0-134c826a3b5d",
+      "ratings_total": 2781,
+      "rating": 4.5,
+      "website": "https://alohapolinesianbar.com/",
+      "host": "alohapolinesianbar.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "whatsapp"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Mono",
+      "club_id": "588140d1-3f22-46cb-8fbf-6930db8e5fdf",
+      "ratings_total": 2764,
+      "rating": 4.1,
+      "website": "https://barmono.es/es/",
+      "host": "barmono.es",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://barmono.es/es/reserva-es/reserva-barcelona",
+        "https://barmono.es/es/reserva-es/reserva-sant-cugat"
+      ]
+    },
+    {
+      "name": "ESPECIARIUM BAR | Barcelona",
+      "club_id": "bd4d4815-8e82-477b-8850-f8cad1a7631b",
+      "ratings_total": 2757,
+      "rating": 4.9,
+      "website": "https://www.especiariumbar.com/",
+      "host": "especiariumbar.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "El Rabipelao",
+      "club_id": "cb69c5cd-79b3-4f89-84e4-eb215b5badb2",
+      "ratings_total": 2757,
+      "rating": 4.4,
+      "website": "http://www.elrabipelao.com/",
+      "host": "elrabipelao.com",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://elrabipelao.com/reserva",
+        "https://elrabipelao.com/reservar/",
+        "https://elrabipelao.com/restaurante-para-grupos-en-barcelona/"
+      ]
+    },
+    {
+      "name": "Bar Americano",
+      "club_id": "fc50fc09-f31d-46e7-b8f1-da75e9e9dbd2",
+      "ratings_total": 2751,
+      "rating": 4.7,
+      "website": "http://redgarter1962.com/es/barcelona",
+      "host": "redgarter1962.com",
+      "http": 200,
+      "platforms": [
+        "covermanager",
+        "woocommerce",
+        "whatsapp"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Temple Bar",
+      "club_id": "d5c07037-ddc6-4d08-84a9-efb6a7630f4c",
+      "ratings_total": 2715,
+      "rating": 4.3,
+      "website": "https://templebarbcn.com/es/cms/venues/temple-bar-ferran",
+      "host": "templebarbcn.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Mimo",
+      "club_id": "01db38f9-45de-4859-b106-3308043104de",
+      "ratings_total": 2704,
+      "rating": 4.5,
+      "website": "https://mimosborn.shop/",
+      "host": "mimosborn.shop",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Icebarcelona",
+      "club_id": "5b3a7760-85f4-472f-8303-f7e5293e21e3",
+      "ratings_total": 2684,
+      "rating": 4.1,
+      "website": "http://www.icebarcelona.com/",
+      "host": "icebarcelona.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://icebarcelona.com/tickets/"
+      ]
+    },
+    {
+      "name": "Safari Disco Club",
+      "club_id": "b41ac26c-2a52-4753-aa57-0520d6f91eac",
+      "ratings_total": 2682,
+      "rating": 3.8,
+      "website": "https://www.safaridiscoclub.com/",
+      "host": "safaridiscoclub.com",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Barroko's",
+      "club_id": "8d662e23-78e0-4cba-8355-863188ad453f",
+      "ratings_total": 2638,
+      "rating": 3.5,
+      "website": "http://www.discotecabarrokos.com/",
+      "host": "discotecabarrokos.com",
+      "http": 200,
+      "platforms": [
+        "fourvenues"
+      ],
+      "primary": "fourvenues",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://site.fourvenues.com/es/barrokos-barcelona"
+      ]
+    },
+    {
+      "name": "Bubita Sangria Bar",
+      "club_id": "704ab43c-f2c1-4c0c-be40-bae8f1246b39",
+      "ratings_total": 2593,
+      "rating": 4.5,
+      "website": "http://www.bubita.es/",
+      "host": "bubita.es",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "33/45",
+      "club_id": "ce83a8a4-1b89-44a5-921f-37cdd3b81a1c",
+      "ratings_total": 2590,
+      "rating": 4.3,
+      "website": "http://www.3345.es/",
+      "host": "3345.es",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Quillo",
+      "club_id": "955ea9c3-570a-4a05-ab88-6a1606b3b3da",
+      "ratings_total": 2589,
+      "rating": 4,
+      "website": "https://quillo-bar.com/?utm=google-my-business",
+      "host": "quillo-bar.com",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Collonut",
+      "club_id": "8a8b3eae-2536-43e9-8cf0-ddc371aae0a5",
+      "ratings_total": 2550,
+      "rating": 4.4,
+      "website": "https://www.collonut.com/els-nostres-collonuts/maragall/",
+      "host": "collonut.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "La Cala",
+      "club_id": "f477e2a1-95fd-4d12-86e1-192180824059",
+      "ratings_total": 2528,
+      "rating": 4.2,
+      "website": "https://www.restaurantlacala.com/",
+      "host": "restaurantlacala.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.restaurantlacala.com/reservas/"
+      ]
+    },
+    {
+      "name": "SNOOKER - Cocteles y Billarea",
+      "club_id": "3a0a5464-a42e-44cb-84b0-ea2d062c4bda",
+      "ratings_total": 2527,
+      "rating": 4.2,
+      "website": "http://www.snookerbarcelona.com/",
+      "host": "snookerbarcelona.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Akelarre",
+      "club_id": "e1618279-7826-43ee-a37d-9487287d8393",
+      "ratings_total": 2504,
+      "rating": 4.1,
+      "website": "https://www.instagram.com/akelarresantcugat/",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "5o pino",
+      "club_id": "61fd2de3-3b92-46c8-a5e6-8f8d83fc1ac5",
+      "ratings_total": 2498,
+      "rating": 3.9,
+      "website": "http://quintopino.es/",
+      "host": "quintopino.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "La Deliciosa",
+      "club_id": "78c8dcad-8c71-41de-9096-3da7bc9291e7",
+      "ratings_total": 2495,
+      "rating": 4.2,
+      "website": "https://www.panteabeach.com/en/la-deliciosa/",
+      "host": "panteabeach.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Lugo",
+      "club_id": "5f5214ce-d7c2-4277-9caa-32aa7e4e7baa",
+      "ratings_total": 2483,
+      "rating": 4.1,
+      "website": "https://www.restauranteasadordelugo.com/",
+      "host": "restauranteasadordelugo.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.restauranteasadordelugo.com/reservar/"
+      ]
+    },
+    {
+      "name": "Bar Plaza Reloj",
+      "club_id": "665747b5-fd0b-4625-b0c0-26511fc07ecb",
+      "ratings_total": 2453,
+      "rating": 4,
+      "website": "https://www.restauranteelreloj.com/",
+      "host": "restauranteelreloj.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.restauranteelreloj.com/reservas/"
+      ]
+    },
+    {
+      "name": "Milanesa",
+      "club_id": "3edc3656-7c70-4211-a0ab-b0f9e9408ec8",
+      "ratings_total": 2422,
+      "rating": 4.6,
+      "website": "https://parodiabar.com/",
+      "host": "parodiabar.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://parodiabar.com/contacto-reservas/"
+      ]
+    },
+    {
+      "name": "Sala Bóveda",
+      "club_id": "9e66e2db-03b9-4184-8ee1-dd728a5c1397",
+      "ratings_total": 2397,
+      "rating": 4.2,
+      "website": "http://www.salaboveda.com/",
+      "host": "salaboveda.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Kumhara",
+      "club_id": "8ed0dc77-098a-4f35-b7ef-7705f6cd4942",
+      "ratings_total": 2388,
+      "rating": 4.4,
+      "website": "http://kumharas.org/",
+      "host": "kumharas.org",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://kumharas.org/experiencias-3/"
+      ]
+    },
+    {
+      "name": "Creps al Born",
+      "club_id": "299e26e0-727d-4e01-9e63-45df0f95dd4e",
+      "ratings_total": 2386,
+      "rating": 4.6,
+      "website": "https://www.crepsalborn.com/",
+      "host": "crepsalborn.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bonavida",
+      "club_id": "022aa4d8-2605-4806-87b7-b7a5ee5c3e33",
+      "ratings_total": 2348,
+      "rating": 4.4,
+      "website": "https://bonavidabcn.com/",
+      "host": "bonavidabcn.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "La Cervesaria Clandestina",
+      "club_id": "e852fb57-c91e-4f2d-844a-6be91e84825a",
+      "ratings_total": 2347,
+      "rating": 4.3,
+      "website": "http://lacerveseriaclandestina.cat/",
+      "host": "lacerveseriaclandestina.cat",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bauma",
+      "club_id": "134e0f47-eecb-4b9d-9f79-74a516c7ec77",
+      "ratings_total": 2335,
+      "rating": 4.5,
+      "website": "https://www.somosesencia.es/restaurante/bauma?utm_source=google&utm_medium=organic&utm_campaign=gbp-bauma&utm_content=web",
+      "host": "somosesencia.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Boro Bar",
+      "club_id": "6b09974f-a13f-4e88-ad11-56f8dd691f78",
+      "ratings_total": 2329,
+      "rating": 4.7,
+      "website": "http://www.borobar.es/",
+      "host": "borobar.es",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.borobar.es/reservas/"
+      ]
+    },
+    {
+      "name": "Bassy",
+      "club_id": "209fd017-513b-4e67-a908-a0e9e190e517",
+      "ratings_total": 2314,
+      "rating": 4.1,
+      "website": "https://m.facebook.com/pages/Bar-Snack-Bassy/378537602251037",
+      "host": "m.facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Estudiantil",
+      "club_id": "605138af-c51e-4ee6-be05-5d1c8d43924d",
+      "ratings_total": 2299,
+      "rating": 3.9,
+      "website": "https://barestudiantil.net/",
+      "host": "barestudiantil.net",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "La Crema",
+      "club_id": "d3f23438-d6dc-4f79-bbe2-cb82a54a18fe",
+      "ratings_total": 2296,
+      "rating": 3.9,
+      "website": "https://www.lacremadehorta.com/",
+      "host": "lacremadehorta.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Steam City Cocktail Bar | by COBA",
+      "club_id": "a5d17d71-229d-4396-8e2a-4bb22009007b",
+      "ratings_total": 2279,
+      "rating": 4.7,
+      "website": "http://groupcoba.com/",
+      "host": "groupcoba.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Chill Bar",
+      "club_id": "c74f4726-5fb8-44aa-8624-326587eee530",
+      "ratings_total": 2273,
+      "rating": 4.4,
+      "website": "http://www.chillbarcelona.com/",
+      "host": "chillbarcelona.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Dux Gin & Cocktail Bar Barcelona",
+      "club_id": "084cc5f7-2cbe-4aa0-b5a0-83195bfd82f3",
+      "ratings_total": 2262,
+      "rating": 4.8,
+      "website": "http://duxborne.com/",
+      "host": "duxborne.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Bitàcora",
+      "club_id": "ed5c3ab7-449d-461a-8b5e-71e235f36fb5",
+      "ratings_total": 2252,
+      "rating": 4.4,
+      "website": "http://www.instagram.com/bitacorabcn",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bitacora",
+      "club_id": "9e7f2be1-2394-4420-ae14-28cdb54e450e",
+      "ratings_total": 2238,
+      "rating": 4.4,
+      "website": "https://bitacorapoblenou.wixsite.com/menus",
+      "host": "bitacorapoblenou.wixsite.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Candela",
+      "club_id": "5fe74046-de21-4f34-b792-29f443b10559",
+      "ratings_total": 2236,
+      "rating": 4.4,
+      "website": "https://www.candelagastrobar.es/",
+      "host": "candelagastrobar.es",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Casa Ángel",
+      "club_id": "48709d8b-a26b-400b-8c3b-cb7cebde69b2",
+      "ratings_total": 2226,
+      "rating": 4.2,
+      "website": "http://www.casaangelabcn.com/",
+      "host": "casaangelabcn.com",
+      "http": 200,
+      "platforms": [
+        "wix",
+        "whatsapp"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.casaangelabcn.com/reservas"
+      ]
+    },
+    {
+      "name": "Sala Plataforma Barcelona",
+      "club_id": "9fee2253-3ff7-49c1-981e-784f54df83c0",
+      "ratings_total": 2205,
+      "rating": 3.5,
+      "website": "https://salaplataforma.com/",
+      "host": "salaplataforma.com",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Central Park Barcelona",
+      "club_id": "f83122e5-68ee-432d-b4d5-36d9f5e4fa2f",
+      "ratings_total": 2197,
+      "rating": 4.1,
+      "website": "https://centralparkbcn.com/?utm_source=google-my-business",
+      "host": "centralparkbcn.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://centralparkbcn.com/reservar/",
+        "https://centralparkbcn.com/reservar"
+      ]
+    },
+    {
+      "name": "Harlem Jazz Club",
+      "club_id": "9ec660d1-38cc-4a8f-ad8a-4770a4acea8b",
+      "ratings_total": 2192,
+      "rating": 4.4,
+      "website": "http://www.harlemjazzclub.es/",
+      "host": "harlemjazzclub.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Granja",
+      "club_id": "70b770e4-8c56-4f9a-a2ab-7753e473a440",
+      "ratings_total": 2187,
+      "rating": 4.6,
+      "website": "http://www.granjaelena.com/",
+      "host": "granjaelena.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Brutal",
+      "club_id": "9f3f4181-e9f2-4209-856b-fa48d63d2aa1",
+      "ratings_total": 2174,
+      "rating": 4.2,
+      "website": "http://www.barbrutal.com/",
+      "host": "barbrutal.com",
+      "http": 200,
+      "platforms": [
+        "shopify",
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://barbrutal.com/es/pages/bar-brutal",
+        "https://barbrutal.com/es/pages/a-cookbook-of-revelations",
+        "https://barbrutal.com/pages/bar-brutal"
+      ]
+    },
+    {
+      "name": "Hogan's",
+      "club_id": "8963d238-44c4-4fe6-ada0-7d5b7205d451",
+      "ratings_total": 2155,
+      "rating": 4.3,
+      "website": "http://www.hoganspalma.com/",
+      "host": "hoganspalma.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Hemingway",
+      "club_id": "e446aea9-73df-458d-ae3a-b3f9223d1fd8",
+      "ratings_total": 2137,
+      "rating": 4.7,
+      "website": "http://hemingwaybcn.com/",
+      "host": "hemingwaybcn.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Alaire Rooftop Bar",
+      "club_id": "6416a9b8-a8e7-4163-82e5-e259cd9eb2a1",
+      "ratings_total": 2134,
+      "rating": 4.4,
+      "website": "https://www.condesdebarcelona.com/es/terraza-alaire-paseo-gracia/?utm_medium=organic&utm_source=google&utm_campaign=google-my-business&utm_term=google-local",
+      "host": "condesdebarcelona.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "The Old Irish Pub",
+      "club_id": "405a3b2e-5b1f-45eb-81f5-dadfff920c15",
+      "ratings_total": 2103,
+      "rating": 4.3,
+      "website": "http://www.oldirishpub.es/",
+      "host": "oldirishpub.es",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bodega La Peninsular",
+      "club_id": "722feb05-e5d1-4ffd-b664-60d90e1c2e48",
+      "ratings_total": 2063,
+      "rating": 4.7,
+      "website": "http://www.tabernaycafetin.es/la-peninsular/",
+      "host": "tabernaycafetin.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bronzo",
+      "club_id": "4a1a09cd-0df0-4614-80cd-ba25e44e95af",
+      "ratings_total": 2045,
+      "rating": 4.4,
+      "website": "https://bronzo.es/eixample",
+      "host": "bronzo.es",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://bronzo.es/eixample/reserva"
+      ]
+    },
+    {
+      "name": "Bar Córdoba",
+      "club_id": "4a6f4d11-a772-48ef-815f-3ec2053b4a75",
+      "ratings_total": 2040,
+      "rating": 4.2,
+      "website": "https://barcordoba.com/",
+      "host": "barcordoba.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Ogham",
+      "club_id": "9d18fdc5-3a59-4cb4-97d2-ecf98f86b499",
+      "ratings_total": 2038,
+      "rating": 4.4,
+      "website": "https://www.privateaser.es/local/53312-cerveceria-ogham",
+      "host": "privateaser.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "El Bar de la Tere",
+      "club_id": "ea05cf7e-4564-4025-970c-8238015bb536",
+      "ratings_total": 1989,
+      "rating": 4.6,
+      "website": "http://www.lateregastrobar.com/",
+      "host": "lateregastrobar.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Canigó",
+      "club_id": "60c6d373-3573-421f-b1c7-f8b49c1b1251",
+      "ratings_total": 1966,
+      "rating": 4.3,
+      "website": "http://www.barcanigo.com/",
+      "host": "barcanigo.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Balius",
+      "club_id": "00f0f674-9595-4ab2-bcdd-3309226cd8cb",
+      "ratings_total": 1966,
+      "rating": 4.3,
+      "website": "https://baliusbar.com/",
+      "host": "baliusbar.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Scobies Irish Pub",
+      "club_id": "f9b86b79-e3a5-4afc-961e-75a1a14d0c83",
+      "ratings_total": 1962,
+      "rating": 4.3,
+      "website": "http://www.scobiesirishpubs.com/",
+      "host": "scobiesirishpubs.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "4 latas",
+      "club_id": "018e3c22-f309-4555-82da-19e425c927fd",
+      "ratings_total": 1956,
+      "rating": 4.4,
+      "website": "https://galeragroup.com/restaurantes/barcelona/4-latas/4-latas-diagonal/",
+      "host": "galeragroup.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bar del Mercat",
+      "club_id": "a246df2f-c475-483c-a73e-db3a55dc990f",
+      "ratings_total": 1947,
+      "rating": 3.3,
+      "website": "https://www.be-rayangroup.com/mercat",
+      "host": "be-rayangroup.com",
+      "http": 200,
+      "platforms": [
+        "wix",
+        "whatsapp"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://www.be-rayangroup.com/contacto"
+      ]
+    },
+    {
+      "name": "Piñol",
+      "club_id": "c6f076bb-f442-42fb-8213-eb297ff3b160",
+      "ratings_total": 1936,
+      "rating": 4.4,
+      "website": "https://barpinyol.shop/",
+      "host": "barpinyol.shop",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Wild Rover",
+      "club_id": "170454cb-4626-48b6-a07c-70f65500bb33",
+      "ratings_total": 1931,
+      "rating": 4.4,
+      "website": "https://barwildrover.com/",
+      "host": "barwildrover.com",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Afterlife E-sport Bar",
+      "club_id": "486e568e-a6f9-40e8-bf98-3941f0e90c9b",
+      "ratings_total": 1921,
+      "rating": 4.6,
+      "website": "http://www.afterlifebar.com/",
+      "host": "afterlifebar.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://afterlifebar.com/reserva/"
+      ]
+    },
+    {
+      "name": "Bar Do",
+      "club_id": "5f39b034-ad0e-416b-8d5c-a03c53450e89",
+      "ratings_total": 1917,
+      "rating": 4.5,
+      "website": "https://www.barcelonawinebar.com/location/westside-ironworks/?utm_source=yext&utm_medium=localsearch&utm_campaign=landing-page&utm_content=westside-ironworks",
+      "host": "barcelonawinebar.com",
+      "http": 200,
+      "platforms": [
+        "shopify"
+      ],
+      "primary": "shopify",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://barcelonawinebar.com/reservations/"
+      ]
+    },
+    {
+      "name": "Sala Bikini",
+      "club_id": "c608e5fc-7c4e-4300-8d17-b99d5def9023",
+      "ratings_total": 1914,
+      "rating": 3.9,
+      "website": "https://www.bikinibcn.com/",
+      "host": "bikinibcn.com",
+      "http": 200,
+      "platforms": [
+        "dice"
+      ],
+      "primary": "dice",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://bikinibcn.com/club/"
+      ]
+    },
+    {
+      "name": "Marula Cafè",
+      "club_id": "4462180a-5a6e-45ef-9900-52840f6a8f99",
+      "ratings_total": 1909,
+      "rating": 4.3,
+      "website": "http://www.marulacafe.com/",
+      "host": "marulacafe.com",
+      "http": 200,
+      "platforms": [
+        "dice"
+      ],
+      "primary": "dice",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Manchester",
+      "club_id": "f442d8a0-50d5-4d54-9ab0-c0fa819bccf5",
+      "ratings_total": 1899,
+      "rating": 4.4,
+      "website": "http://www.manchesterbar.com/",
+      "host": "manchesterbar.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Sidecar Club",
+      "club_id": "75b41a33-3b73-488b-8bd8-387d15cf0969",
+      "ratings_total": 1891,
+      "rating": 4.1,
+      "website": "http://www.sidecar.es/",
+      "host": "sidecar.es",
+      "http": 200,
+      "platforms": [
+        "dice"
+      ],
+      "primary": "dice",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "CACHO",
+      "club_id": "2992de64-c159-49c4-a3e2-c315734e0882",
+      "ratings_total": 1890,
+      "rating": 4.4,
+      "website": "https://wearecacho.com/",
+      "host": "wearecacho.com",
+      "http": 200,
+      "platforms": [
+        "covermanager",
+        "whatsapp"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://wearecacho.com/reservas.html"
+      ]
+    },
+    {
+      "name": "El Delta",
+      "club_id": "12a1886b-7e50-4cdf-ab28-e7946140949f",
+      "ratings_total": 1885,
+      "rating": 4,
+      "website": "https://deltarestaurantelprat.com/",
+      "host": "deltarestaurantelprat.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "nevermind",
+      "club_id": "7313addc-cc03-4eb2-ae71-f40330116d3f",
+      "ratings_total": 1882,
+      "rating": 4.5,
+      "website": "http://nevermindbcn.es/",
+      "host": "nevermindbcn.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Antoxo",
+      "club_id": "10935144-4e42-43c8-89a6-ebf0d3477ba0",
+      "ratings_total": 1882,
+      "rating": 4.5,
+      "website": "https://awards.infcdn.net/rect_v2.css",
+      "host": "awards.infcdn.net",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Barna Beach Bar",
+      "club_id": "e09cb85d-aca6-4fbc-85a7-01f289568163",
+      "ratings_total": 1882,
+      "rating": 4.6,
+      "website": "https://www.instagram.com/barnabeachbar/",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Navia",
+      "club_id": "87480117-dbb1-4309-92fe-a4a9b1f9145a",
+      "ratings_total": 1874,
+      "rating": 3.8,
+      "website": "https://www.naviarestaurante.com/",
+      "host": "naviarestaurante.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Espit Chupitos",
+      "club_id": "e438ee4f-e7f0-4eb0-9af3-fea17d0645ec",
+      "ratings_total": 1870,
+      "rating": 4.2,
+      "website": "http://www.espitchupitos.com/",
+      "host": "espitchupitos.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Hyde Club Barcelona",
+      "club_id": "1f32b951-0baa-4703-bccf-49ff91118cab",
+      "ratings_total": 1853,
+      "rating": 3.8,
+      "website": "https://www.hydebcn.com/",
+      "host": "hydebcn.com",
+      "http": 200,
+      "platforms": [
+        "squarespace"
+      ],
+      "primary": "squarespace",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bollocks",
+      "club_id": "751fcb31-dde2-4fea-a79f-05d67ad341b0",
+      "ratings_total": 1843,
+      "rating": 4.4,
+      "website": "https://www.motoroilbcn.com/",
+      "host": "motoroilbcn.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Sincopa",
+      "club_id": "c4130200-adb9-49c5-87bc-00f64e732059",
+      "ratings_total": 1840,
+      "rating": 4.5,
+      "website": "http://www.facebook.com/sincopa.barcelona",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Entrepanes Díaz",
+      "club_id": "5315c72f-3878-4dcf-8ad3-5c6350b387bf",
+      "ratings_total": 1831,
+      "rating": 4.3,
+      "website": "https://entrepanesdiaz.com/es/",
+      "host": "entrepanesdiaz.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://entrepanesdiaz.com/es/reservas/"
+      ]
+    },
+    {
+      "name": "The Alchemix",
+      "club_id": "e4d7fd83-513c-4ca9-bde6-3d04fd1ce4bd",
+      "ratings_total": 1822,
+      "rating": 4.8,
+      "website": "http://www.thealchemix.com/",
+      "host": "thealchemix.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "La Whiskeria",
+      "club_id": "384d4b60-fb1f-4317-ad38-447e427d9415",
+      "ratings_total": 1811,
+      "rating": 4.7,
+      "website": "https://lawhiskeria.es/",
+      "host": "lawhiskeria.es",
+      "http": 200,
+      "platforms": [
+        "tickettailor"
+      ],
+      "primary": "tickettailor",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Shenanigans Irish Pub",
+      "club_id": "b230926d-4dae-4021-bd80-2f01ba8434b0",
+      "ratings_total": 1810,
+      "rating": 4.3,
+      "website": "http://shenaniganslb.com/",
+      "host": "shenaniganslb.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Sala Vivaldi",
+      "club_id": "e250a72b-4531-4f4a-b96a-ea71dd40fce8",
+      "ratings_total": 1803,
+      "rating": 4.2,
+      "website": "https://www.salavivaldi.com/",
+      "host": "salavivaldi.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "whatsapp"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://salavivaldi.com/reservas",
+        "https://salavivaldi.com/sala-vip",
+        "https://salavivaldi.com/reservas/"
+      ]
+    },
+    {
+      "name": "Cabo",
+      "club_id": "cce775a6-4c24-4a06-bc6a-d03f89b55409",
+      "ratings_total": 1801,
+      "rating": 4.1,
+      "website": "https://grupocabo.es/cabo-nou/",
+      "host": "grupocabo.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Xòcala Bar",
+      "club_id": "28617bab-227e-4cee-b575-ff562e266334",
+      "ratings_total": 1790,
+      "rating": 4.2,
+      "website": "https://www.xocalasantacoloma.com/",
+      "host": "xocalasantacoloma.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://www.xocalasantacoloma.com/ca/reserva"
+      ]
+    },
+    {
+      "name": "Mendizábal",
+      "club_id": "3df850ec-454a-41d0-9907-bd6acbb1564c",
+      "ratings_total": 1779,
+      "rating": 4.2,
+      "website": "https://www.facebook.com/Bar-Mendizabal-954179351342511/",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "V de Vermut",
+      "club_id": "d7727f5a-0cb4-49b0-be59-b7f9456b1c67",
+      "ratings_total": 1773,
+      "rating": 4.6,
+      "website": "https://www.vdevermut.es/",
+      "host": "vdevermut.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "La Guapa",
+      "club_id": "b3795bba-7ac7-4587-95bb-ae08c243983a",
+      "ratings_total": 1761,
+      "rating": 4.4,
+      "website": "http://www.laguapaylamala.com/",
+      "host": "laguapaylamala.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://www.covermanager.com/reservation/module_group/vermuteria-guapa-mala"
+      ]
+    },
+    {
+      "name": "23 Robadors",
+      "club_id": "0feba81c-13af-4a3b-bfd4-f3788eded354",
+      "ratings_total": 1744,
+      "rating": 4.4,
+      "website": "https://23robadors.com/",
+      "host": "23robadors.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://23robadors.com/tickets-checkout/"
+      ]
+    },
+    {
+      "name": "Bar de La Salut",
+      "club_id": "0e9d3a9a-eb70-430d-92f7-7ea61ab2d557",
+      "ratings_total": 1743,
+      "rating": 4.3,
+      "website": "http://www.lasalutrestaurant.com/",
+      "host": "lasalutrestaurant.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Green Room poblenou",
+      "club_id": "ee5d0319-930a-48c2-a591-1345b993cc77",
+      "ratings_total": 1739,
+      "rating": 4.4,
+      "website": "http://www.greenroombarcelona.com/",
+      "host": "greenroombarcelona.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://www.greenroombarcelona.com/"
+      ]
+    },
+    {
+      "name": "Polaroid bar",
+      "club_id": "3af186a0-7ec2-401a-91bf-318a94596bb3",
+      "ratings_total": 1739,
+      "rating": 4.3,
+      "website": "https://www.instagram.com/pepino.bar",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Old fashioned",
+      "club_id": "ef6db028-8f0d-408c-83ec-ee46b969c4cc",
+      "ratings_total": 1733,
+      "rating": 4.6,
+      "website": "http://www.theoriginaloldfashioned.com/",
+      "host": "theoriginaloldfashioned.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Downtown Barcelona",
+      "club_id": "60d6f94e-26cc-4d24-bacc-8a255e1c7924",
+      "ratings_total": 1731,
+      "rating": 3.2,
+      "website": "https://downtownbarcelona.es/",
+      "host": "downtownbarcelona.es",
+      "http": 200,
+      "platforms": [
+        "fourvenues",
+        "woocommerce",
+        "whatsapp"
+      ],
+      "primary": "fourvenues",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.fourvenues.com/es/downtown-barcelona",
+        "https://wa.me/34676243907",
+        "https://downtownbarcelona.es/reservas/"
+      ]
+    },
+    {
+      "name": "Retruc",
+      "club_id": "4b586540-cf61-45ff-96b5-ed5d4f7490fc",
+      "ratings_total": 1724,
+      "rating": 4.1,
+      "website": "http://www.retruc.es/",
+      "host": "retruc.es",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://retrucbcn.com/reservas/"
+      ]
+    },
+    {
+      "name": "Sips",
+      "club_id": "4b88417b-98e3-47fd-8085-ed65dab37d94",
+      "ratings_total": 1716,
+      "rating": 4,
+      "website": "http://sips.barcelona/",
+      "host": "sips.barcelona",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Sasha Bar 1968",
+      "club_id": "51178a4f-8b53-4719-b0d1-2d1088c7b0a7",
+      "ratings_total": 1711,
+      "rating": 4.5,
+      "website": "https://chamako.es/?utm_source=gmb&utm_medium=organic&utm_campaign=gmb_website",
+      "host": "chamako.es",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://chamako.es/reservas_2-0/"
+      ]
+    },
+    {
+      "name": "Bodega Mistral",
+      "club_id": "c200890a-8e0f-487a-a0a2-64bc236132f7",
+      "ratings_total": 1709,
+      "rating": 4,
+      "website": "http://www.cubadejaneiro.com/",
+      "host": "cubadejaneiro.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bestiari",
+      "club_id": "e0043e23-82b7-41a9-8998-30ab999ca046",
+      "ratings_total": 1704,
+      "rating": 4.9,
+      "website": "https://www.elbestiari.com/",
+      "host": "elbestiari.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://elbestiari.com/reserva-eventos-y-experiencias/",
+        "https://elbestiari.com/"
+      ]
+    },
+    {
+      "name": "Marcelino",
+      "club_id": "6926d82a-d585-4ae9-a0d1-480eecbc7ae6",
+      "ratings_total": 1703,
+      "rating": 4.3,
+      "website": "http://www.marcelino1968.restaurant/?utm_source=gmb&utm_medium=organic&utm_campaign=gmb_website",
+      "host": "marcelino1968.restaurant",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.marcelino1968.restaurant/reservas"
+      ]
+    },
+    {
+      "name": "Costa Breve",
+      "club_id": "dbf8342b-e7b8-4f27-97d2-5982bc4a3947",
+      "ratings_total": 1678,
+      "rating": 3,
+      "website": "https://grupocostabreve.com/",
+      "host": "grupocostabreve.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "303 Audiophile Bar",
+      "club_id": "35c4e5f8-ad40-4764-919e-9e9aa473b303",
+      "ratings_total": 1670,
+      "rating": 4.1,
+      "website": "https://latextil.beer/",
+      "host": "latextil.beer",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "My Bar",
+      "club_id": "59b8e100-07b3-45ef-9972-936801742957",
+      "ratings_total": 1668,
+      "rating": 4.4,
+      "website": "https://mybar.es/",
+      "host": "mybar.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Kælderkold",
+      "club_id": "3df88c02-7b3a-4c30-960b-18a18445b7b6",
+      "ratings_total": 1661,
+      "rating": 4.5,
+      "website": "http://www.kaelderkold.com/",
+      "host": "kaelderkold.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Plata Cocktail Bar",
+      "club_id": "c50cbb82-ffe0-4076-b766-69cc8a827231",
+      "ratings_total": 1638,
+      "rating": 4.6,
+      "website": "https://www.platabar.com/",
+      "host": "platabar.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Raspall",
+      "club_id": "c7e4e02a-3e94-4892-a32a-6fbadf3275f1",
+      "ratings_total": 1624,
+      "rating": 4.5,
+      "website": "http://www.facebook.com/Raspall-172558146493904/",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "La Cervesera Artesana",
+      "club_id": "4b6faf77-80ce-4ab0-bd43-b97089ea514a",
+      "ratings_total": 1624,
+      "rating": 4.4,
+      "website": "https://lacervesera.net/",
+      "host": "lacervesera.net",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "whatsapp"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "La Viblioteca",
+      "club_id": "8d86f221-b2c5-4827-8866-b39079ce5cf9",
+      "ratings_total": 1616,
+      "rating": 4.6,
+      "website": "https://viblioteca.com/",
+      "host": "viblioteca.com",
+      "http": 200,
+      "platforms": [
+        "covermanager",
+        "woocommerce"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bombay Cocktail&Snack",
+      "club_id": "feea07b8-edb5-49d1-8f29-8213f91986c5",
+      "ratings_total": 1610,
+      "rating": 4.3,
+      "website": "https://restaurantebombaystk.com/",
+      "host": "restaurantebombaystk.com",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Petit Montjuic",
+      "club_id": "a0a0452d-d77e-4cc8-8219-f6482ab621c9",
+      "ratings_total": 1610,
+      "rating": 4.4,
+      "website": "http://www.petitcomite.cat/",
+      "host": "petitcomite.cat",
+      "http": 202,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "la Caseta del Migdia",
+      "club_id": "e999b69c-288f-4d2a-916e-b709d86c335d",
+      "ratings_total": 1604,
+      "rating": 3.8,
+      "website": "http://www.lacaseta.org/",
+      "host": "lacaseta.org",
+      "http": 202,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Casa Pedro",
+      "club_id": "deddb009-8b3b-4067-a239-d753f8d76137",
+      "ratings_total": 1604,
+      "rating": 4.2,
+      "website": "https://www.restaurantecasapedro.es/",
+      "host": "restaurantecasapedro.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Ølgod",
+      "club_id": "8598ea0b-c50c-4c99-81b3-057fd08cfc9f",
+      "ratings_total": 1591,
+      "rating": 4.5,
+      "website": "https://www.olgodbcn.com/",
+      "host": "olgodbcn.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Torpedo",
+      "club_id": "cda55528-247a-4d6f-a92d-b36b545f13d1",
+      "ratings_total": 1587,
+      "rating": 4.2,
+      "website": "https://bartorpedo.com/",
+      "host": "bartorpedo.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Bodega Bartolí",
+      "club_id": "9c97b26a-7320-4094-a260-c661061c67dd",
+      "ratings_total": 1585,
+      "rating": 4.5,
+      "website": "https://www.bodegamontferrysants.com/",
+      "host": "bodegamontferrysants.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "La Fourmi",
+      "club_id": "f68dd75e-f361-4449-8e34-8659530a3d9e",
+      "ratings_total": 1585,
+      "rating": 4.7,
+      "website": "https://www.instagram.com/lafourmibarcelona/?hl=es",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Hell awaits",
+      "club_id": "21a93e66-8d57-44ef-b854-e12b07fab187",
+      "ratings_total": 1584,
+      "rating": 4.7,
+      "website": "https://www.hellawaitsmetalbar.com/",
+      "host": "hellawaitsmetalbar.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Dow Jones",
+      "club_id": "1703eb33-1399-47aa-81e0-d42f172f1573",
+      "ratings_total": 1576,
+      "rating": 4,
+      "website": "http://www.dowjonesbar.com/",
+      "host": "dowjonesbar.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "El Nou Buddha",
+      "club_id": "66504c59-bd59-442b-9465-d706a94ef134",
+      "ratings_total": 1569,
+      "rating": 4.1,
+      "website": "https://funkybuddhabanus.com/",
+      "host": "funkybuddhabanus.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "El Sabor",
+      "club_id": "5b9d5eee-3eef-4517-8f8f-9c43ab99c707",
+      "ratings_total": 1569,
+      "rating": 4.5,
+      "website": "https://www.elsaborcubano.es/",
+      "host": "elsaborcubano.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Chiqui",
+      "club_id": "e3c0746e-ad92-45b2-97d0-5fe812448788",
+      "ratings_total": 1566,
+      "rating": 4.3,
+      "website": "https://www.barchiqui.com/",
+      "host": "barchiqui.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.covermanager.com/reservation/module_restaurant/restaurante-bar-chiqui/spanish"
+      ]
+    },
+    {
+      "name": "Bar Zambra",
+      "club_id": "f5d0699e-5008-4e21-8c76-c0de65e5bfc2",
+      "ratings_total": 1563,
+      "rating": 4.6,
+      "website": "http://www.zambratapas.com/",
+      "host": "zambratapas.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Eldiset",
+      "club_id": "4efa29be-ee1e-43c3-874f-616c72eb4beb",
+      "ratings_total": 1563,
+      "rating": 4.7,
+      "website": "https://eldiset.com/",
+      "host": "eldiset.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Menjador del Centre",
+      "club_id": "c6a86e4b-2e57-40f7-9a60-f94081023a0c",
+      "ratings_total": 1557,
+      "rating": 4.3,
+      "website": "http://www.elmenjadordelabeckett.cat/",
+      "host": "elmenjadordelabeckett.cat",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://elmenjadordelabeckett.cat/reservas/",
+        "https://elmenjadordelabeckett.cat/reserves/"
+      ]
+    },
+    {
+      "name": "Big Bang Bar",
+      "club_id": "99963c1c-dbdb-4c3b-a8de-e4c4ae0aa3e3",
+      "ratings_total": 1555,
+      "rating": 4.5,
+      "website": "http://www.bigbangbar.net/",
+      "host": "bigbangbar.net",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Belladona",
+      "club_id": "c9527614-da6e-4e94-867d-9ac6d909fa21",
+      "ratings_total": 1555,
+      "rating": 4.4,
+      "website": "https://www.belladonabarcelona.com/",
+      "host": "belladonabarcelona.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "ArteSants",
+      "club_id": "9e8de0de-3e08-49ab-a541-68819b666ecc",
+      "ratings_total": 1548,
+      "rating": 4.4,
+      "website": "https://www.facebook.com/artesantsbcn/",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "La central",
+      "club_id": "8e20f704-c011-448c-8266-fd44ac83ecd1",
+      "ratings_total": 1547,
+      "rating": 3.8,
+      "website": "https://www.instagram.com/barcentralboqueriabcn/",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Sway Soul Lounge & Cocktail Bar",
+      "club_id": "4f523bad-75a1-4c18-ab70-93608c5ef982",
+      "ratings_total": 1547,
+      "rating": 4.8,
+      "website": "https://www.swaysoul.com/",
+      "host": "swaysoul.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "El cangrejo",
+      "club_id": "0d06dda2-82a6-447c-bb23-3fe02f999b78",
+      "ratings_total": 1542,
+      "rating": 4.4,
+      "website": "http://facebook.com/elcangrejodelraval",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Tumatey",
+      "club_id": "0a5abd01-b909-4e59-99e1-c26b6b4bac77",
+      "ratings_total": 1540,
+      "rating": 4.9,
+      "website": "http://www.tumatey.com/",
+      "host": "tumatey.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Space Cowboy",
+      "club_id": "cca8800c-4f37-4530-88b7-f4d1b1302c67",
+      "ratings_total": 1532,
+      "rating": 4.7,
+      "website": "https://www.spacecowboybcn.com/",
+      "host": "spacecowboybcn.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Estraperlo Barceloneta",
+      "club_id": "673504fa-0e23-4cd0-acfb-efba793aa35f",
+      "ratings_total": 1529,
+      "rating": 4.5,
+      "website": "https://www.instagram.com/estraperlobarceloneta?igsh=MThna2k4Y204dDd0eA==",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Michigan",
+      "club_id": "6adc557b-cecc-4479-a7ab-2cb3b955c894",
+      "ratings_total": 1522,
+      "rating": 4.5,
+      "website": "https://grupconfiteria.com/grup/bar-michigan/",
+      "host": "grupconfiteria.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.covermanager.com/reservation/module_restaurant/bar-michigan/catalan"
+      ]
+    },
+    {
+      "name": "Naranjito",
+      "club_id": "f10f61fd-172e-46e2-b176-5c5ca7ad8931",
+      "ratings_total": 1517,
+      "rating": 4.2,
+      "website": "http://naranjito.bar/",
+      "host": "naranjito.bar",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Monopol",
+      "club_id": "e66f916f-7876-4795-9f27-73bdba7ec271",
+      "ratings_total": 1515,
+      "rating": 4,
+      "website": "http://www.monopol.cat/",
+      "host": "monopol.cat",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "YouBarcelona - Lista Isaac (Discotecas / Night Clubs)",
+      "club_id": "bb1ccdfc-79e0-468b-b430-87342df8f93f",
+      "ratings_total": 1503,
+      "rating": 4.9,
+      "website": "https://youbarcelona.com/",
+      "host": "youbarcelona.com",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://youbarcelona.com/es",
+        "https://youbarcelona.com/es/discoteca/opium-mar-barcelona/mesas-vip",
+        "https://youbarcelona.com/es/discoteca/bling-bling-barcelona/mesas-vip"
+      ]
+    },
+    {
+      "name": "El Pollo",
+      "club_id": "12e96613-2f9e-46fc-bb1a-dee53f5fe738",
+      "ratings_total": 1502,
+      "rating": 3.9,
+      "website": "http://tubardeconfianza.com/",
+      "host": "tubardeconfianza.com",
+      "http": 200,
+      "platforms": [
+        "opentable"
+      ],
+      "primary": "opentable",
+      "bookable_engine": true,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://tubardeconfianza.com/"
+      ]
+    },
+    {
+      "name": "Dixi 724",
+      "club_id": "0ceff93a-df08-4d3f-9793-027166e95525",
+      "ratings_total": 1493,
+      "rating": 4.2,
+      "website": "https://www.facebook.com/dixi724barcelona/",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "The Rooftop at Sir Victor",
+      "club_id": "58d45d24-0914-4f16-a17b-202ccf3eb7a1",
+      "ratings_total": 1481,
+      "rating": 4.5,
+      "website": "https://www.sirhotels.com/en/victor/rooftop/?utm_source=google&utm_medium=referral&utm_campaign=google-button",
+      "host": "sirhotels.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Sintonia",
+      "club_id": "283ebcf6-115e-4c7c-8e27-0ecb73f9aaac",
+      "ratings_total": 1479,
+      "rating": 4.5,
+      "website": "https://restaurantesintonia.com/?utm_source=google&utm_medium=organic&utm_campaign=google-my-business",
+      "host": "restaurantesintonia.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.covermanager.com/reserve/module_restaurant/restaurante-sintonia/spanish"
+      ]
+    },
+    {
+      "name": "Garage Beer Co. Poblenou",
+      "club_id": "2792a178-f3f0-48d4-a81c-9fa058e93e36",
+      "ratings_total": 1468,
+      "rating": 4.7,
+      "website": "https://garagebeer.co/",
+      "host": "garagebeer.co",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Las 3 Palmeras",
+      "club_id": "68ca01ed-8482-4751-96c5-7a8315d99faa",
+      "ratings_total": 1467,
+      "rating": 4.4,
+      "website": "https://www.facebook.com/pg/Bar-Las-Palmeras-346710295507350/about/?ref=page_internal",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Morro fi",
+      "club_id": "34c0dc83-4bd9-41c5-8c74-c0c897734dae",
+      "ratings_total": 1460,
+      "rating": 4.4,
+      "website": "http://www.morrofi.cat/",
+      "host": "morrofi.cat",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Les Gens Que J'Aime",
+      "club_id": "5bbd8eb5-9566-454d-9ebe-4562f7306fc4",
+      "ratings_total": 1457,
+      "rating": 4.3,
+      "website": "http://www.lesgensquejaime.com/",
+      "host": "lesgensquejaime.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Gracia Latina",
+      "club_id": "101e327b-d2f0-4c18-83a3-766c10f1eec7",
+      "ratings_total": 1457,
+      "rating": 4.2,
+      "website": "http://www.facebook.com/Gracia-Latina",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Cabernet",
+      "club_id": "3aa877bd-1dc3-4ec8-aabf-a070a4f5d44e",
+      "ratings_total": 1456,
+      "rating": 4.5,
+      "website": "https://www.privateaser.es/local/56010-cabernet-bar",
+      "host": "privateaser.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Jules Verne",
+      "club_id": "fce97372-5735-4b7a-967e-9e65b8ab99a6",
+      "ratings_total": 1441,
+      "rating": 3.9,
+      "website": "http://www.vernebarcelona.com/",
+      "host": "vernebarcelona.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.vernebarcelona.com/reservas/",
+        "https://www.vernebarcelona.com/actividades-para-ninos-en-barcelona/"
+      ]
+    },
+    {
+      "name": "La Biblio",
+      "club_id": "1a49859c-ebcf-417a-b025-3dd84bcb1d54",
+      "ratings_total": 1433,
+      "rating": 3.6,
+      "website": "https://www.labibliobcn.com/",
+      "host": "labibliobcn.com",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Fidel",
+      "club_id": "a16035f8-4896-4b1c-96a9-9925e9dbce9d",
+      "ratings_total": 1422,
+      "rating": 4.5,
+      "website": "https://www.barfidel.com/",
+      "host": "barfidel.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Sala Upload Barcelona",
+      "club_id": "1bb3d02f-ce3f-4495-a247-2a5e5297d02a",
+      "ratings_total": 1420,
+      "rating": 4.4,
+      "website": "http://www.sala-upload.com/",
+      "host": "sala-upload.com",
+      "http": 202,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Smith",
+      "club_id": "7e4a55df-217b-468a-ad0b-afc7e2d4edd5",
+      "ratings_total": 1406,
+      "rating": 4.3,
+      "website": "http://www.restaurantesmith.com/",
+      "host": "restaurantesmith.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "La Terrrazza Barcelona",
+      "club_id": "68dd8349-0b15-4cfc-ba53-479c92bc39dc",
+      "ratings_total": 1400,
+      "rating": 4.1,
+      "website": "http://laterrrazza.com/",
+      "host": "laterrrazza.com",
+      "http": 200,
+      "platforms": [
+        "dice"
+      ],
+      "primary": "dice",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://dice.fm/event/oedapr-churros-con-chocolate-open-air-30th-aug-la-terrrazza-barcelona-tickets",
+        "https://laterrrazza.com/tickets/"
+      ]
+    },
+    {
+      "name": "Arena Xperience",
+      "club_id": "a3fa5a96-cbfc-4027-87af-bbb71e28a3dd",
+      "ratings_total": 1400,
+      "rating": 3.9,
+      "website": "http://www.arenadisco.com/",
+      "host": "arenadisco.com",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bodega Amposta",
+      "club_id": "76f213e8-0bc2-421a-afa9-54b4f34cb655",
+      "ratings_total": 1392,
+      "rating": 4.5,
+      "website": "http://www.bodegaamposta.com/",
+      "host": "bodegaamposta.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.bodegaamposta.com/reserves/"
+      ]
+    },
+    {
+      "name": "Bar Bodega",
+      "club_id": "1bd55ca5-407b-433b-9d08-baf399613b26",
+      "ratings_total": 1391,
+      "rating": 4.5,
+      "website": "https://www.bodegaquimet.com/",
+      "host": "bodegaquimet.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Luar",
+      "club_id": "58d67f36-d6d7-4dc6-a4a2-4db043ecd19b",
+      "ratings_total": 1390,
+      "rating": 4.4,
+      "website": "https://www.restauranteoluar.com/",
+      "host": "restauranteoluar.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.restauranteoluar.com/reservas-2/"
+      ]
+    },
+    {
+      "name": "Bloody Mary Cocktail Bar",
+      "club_id": "cbacd56b-9fd5-4a40-9e9f-5219322b18e0",
+      "ratings_total": 1387,
+      "rating": 4.7,
+      "website": "https://bloodymarybcn.es/",
+      "host": "bloodymarybcn.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Sants Vermut",
+      "club_id": "57ee5c81-7fec-4b27-8b81-cbb0a0cb68b9",
+      "ratings_total": 1378,
+      "rating": 4.3,
+      "website": "https://www.facebook.com/Vermut-i-a-la-G%C3%A0bia-1057952944231382/",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Dublin Sports Bar",
+      "club_id": "f485cd74-e5f0-4b56-82d0-59690803432e",
+      "ratings_total": 1371,
+      "rating": 4.2,
+      "website": "https://galeragroup.com/restaurantes/barcelona/dublins/",
+      "host": "galeragroup.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Mariatchi",
+      "club_id": "87c1ad9c-54d9-4ed5-b35e-26e0c333827c",
+      "ratings_total": 1370,
+      "rating": 4.6,
+      "website": "https://www.instagram.com/bar_mariatchi_oficial/",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "La Klaka",
+      "club_id": "58cf808b-140a-4bd8-9752-572399c35ab0",
+      "ratings_total": 1369,
+      "rating": 4.4,
+      "website": "http://www.laklaka.es/",
+      "host": "laklaka.es",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "the James Joyce",
+      "club_id": "397618a9-4003-4f8c-bb33-761f7fa97568",
+      "ratings_total": 1361,
+      "rating": 4.1,
+      "website": "http://www.thejamesjoycebcn.com/",
+      "host": "thejamesjoycebcn.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Bágoa",
+      "club_id": "cd09ec73-add9-487b-a2d8-a89d5b44afd5",
+      "ratings_total": 1359,
+      "rating": 4.3,
+      "website": "https://barbagoa.shop/",
+      "host": "barbagoa.shop",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Quilombo",
+      "club_id": "f18f4238-85f1-4e08-b2d4-97a6062396de",
+      "ratings_total": 1358,
+      "rating": 4.1,
+      "website": "http://www.quilombo.com/",
+      "host": "quilombo.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Quiosc-bar Ciutadella Cascades",
+      "club_id": "86e90e27-5c97-4d53-a3b5-01a639065b4a",
+      "ratings_total": 1358,
+      "rating": 4,
+      "website": "https://cartadigital.barmanagerapp.com/site/index/show/LASCASCADAS",
+      "host": "cartadigital.barmanagerapp.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Higuera",
+      "club_id": "50b52f97-f21c-4fd6-a1d8-4f0a4854a9bb",
+      "ratings_total": 1358,
+      "rating": 4.7,
+      "website": "https://www.barlahiguerabcn.com/",
+      "host": "barlahiguerabcn.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.barlahiguerabcn.com/reservas"
+      ]
+    },
+    {
+      "name": "Ryans Irish Pub",
+      "club_id": "443ac9b4-e7ad-4436-9869-240176e33e28",
+      "ratings_total": 1357,
+      "rating": 4.4,
+      "website": "https://www.ryans.dk/",
+      "host": "ryans.dk",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "El Mirador",
+      "club_id": "1abc0ada-f8d6-4f09-a89b-12a72f784181",
+      "ratings_total": 1356,
+      "rating": 4.5,
+      "website": "https://www.instagram.com/elmiradorcarmelo/",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "El Templu La Sidra",
+      "club_id": "6a74a380-0a33-4d82-b298-51caf96a05ac",
+      "ratings_total": 1336,
+      "rating": 4.5,
+      "website": "http://www.elracodelasidra.com/",
+      "host": "elracodelasidra.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "The Shamrock",
+      "club_id": "0bf2d74a-61df-4b3e-95c2-7e9a11bfccbd",
+      "ratings_total": 1336,
+      "rating": 4.2,
+      "website": "https://www.instagram.com/theshamrockbarcelona?igsh=MW01ejl6ZmZpdHEyZQ==",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Guingueta BeGay",
+      "club_id": "683f1a69-d895-4d73-9c94-49c521990723",
+      "ratings_total": 1330,
+      "rating": 4.1,
+      "website": "http://chiringuitobegay.com/",
+      "host": "chiringuitobegay.com",
+      "http": 202,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Lolita Barceloneta",
+      "club_id": "b6104a31-607f-4d35-9c2a-3570ef74cb31",
+      "ratings_total": 1326,
+      "rating": 4.1,
+      "website": "http://www.lolitabarceloneta.com/",
+      "host": "lolitabarceloneta.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "La Vermu",
+      "club_id": "e6670709-0e38-4d0a-8370-2d2adf5fe16d",
+      "ratings_total": 1318,
+      "rating": 4.1,
+      "website": "http://www.facebook.com/lavermubcn",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Absenta del Raval",
+      "club_id": "74e24005-1a9c-4f9b-825c-d13c7188f4ee",
+      "ratings_total": 1304,
+      "rating": 4.3,
+      "website": "https://linktr.ee/absentaraval?utm_source=qr_code",
+      "host": "linktr.ee",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Gent del Barri",
+      "club_id": "df758dba-03ff-43a8-9e46-2ec557201df6",
+      "ratings_total": 1300,
+      "rating": 4,
+      "website": "https://gentdelbarri.shop/?utm_source=gmb&utm_medium=organic&utm_campaign=gmb_website",
+      "host": "gentdelbarri.shop",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Mediterráneo",
+      "club_id": "e8480361-cb0b-4332-a119-7210e4fa21b1",
+      "ratings_total": 1299,
+      "rating": 4.2,
+      "website": "https://www.instagram.com/el_medi_bcn/",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Azul Frida",
+      "club_id": "ead941f4-b82d-4423-967c-0bf3c578cac2",
+      "ratings_total": 1299,
+      "rating": 4.7,
+      "website": "https://www.azulfrida.es/",
+      "host": "azulfrida.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "LUTE Bar & Bowls",
+      "club_id": "1841684e-d4f8-486a-a906-7d2bb771c945",
+      "ratings_total": 1291,
+      "rating": 4.7,
+      "website": "http://www.barlute.es/",
+      "host": "barlute.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bodega Sopena",
+      "club_id": "98fb62aa-3a94-45c5-a07b-95490f2ff99e",
+      "ratings_total": 1286,
+      "rating": 4.5,
+      "website": "https://www.facebook.com/pages/Bodega-Sopena/386164248120630",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Level",
+      "club_id": "e824850c-1f69-433a-92e8-84f2b16ec227",
+      "ratings_total": 1283,
+      "rating": 3.8,
+      "website": "https://barlevel.shop/",
+      "host": "barlevel.shop",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Billar HDP",
+      "club_id": "23a2de87-6d93-4a83-b43c-b4ab0a339848",
+      "ratings_total": 1257,
+      "rating": 4.5,
+      "website": "https://linktr.ee/hdpbillar",
+      "host": "linktr.ee",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Tres Tíos",
+      "club_id": "1dcc042a-b052-44b7-b19c-b264b5abf885",
+      "ratings_total": 1255,
+      "rating": 5,
+      "website": "https://numerotresgrupobar.wixsite.com/no320",
+      "host": "numerotresgrupobar.wixsite.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "M7 Club Barcelona",
+      "club_id": "fd034a94-314c-4eda-8ad8-1640edf8f63d",
+      "ratings_total": 1254,
+      "rating": 4.4,
+      "website": "http://www.m7club.es/",
+      "host": "m7club.es",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://www.m7club.es/tickets"
+      ]
+    },
+    {
+      "name": "Bar Sauvage",
+      "club_id": "165f5085-983f-4f2d-be3b-68dc63bb17e1",
+      "ratings_total": 1250,
+      "rating": 4.4,
+      "website": "https://barsauvage.es/",
+      "host": "barsauvage.es",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bar escocés",
+      "club_id": "17ba63c3-2221-4ece-adc7-0c1474fc89f2",
+      "ratings_total": 1237,
+      "rating": 4.4,
+      "website": "https://www.barescoces1955.com/",
+      "host": "barescoces1955.com",
+      "http": 200,
+      "platforms": [
+        "wix"
+      ],
+      "primary": "wix",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "INPUT - High Fidelity Dance Club",
+      "club_id": "b9b9c400-7d15-4b0b-b375-7fdd4a3bc883",
+      "ratings_total": 1233,
+      "rating": 4.1,
+      "website": "https://www.inputbcn.com/",
+      "host": "inputbcn.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "whatsapp",
+        "dice"
+      ],
+      "primary": "dice",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://inputbcn.com/evento/outro-official-afterparty-5/",
+        "https://inputbcn.com/evento/prism-pres-d-dan/",
+        "https://inputbcn.com/evento/prism-hard-pres-azyr/"
+      ]
+    },
+    {
+      "name": "Travel Bar",
+      "club_id": "480c68eb-25f1-447b-80de-f3bfc4519f53",
+      "ratings_total": 1223,
+      "rating": 4,
+      "website": "http://www.travelbar.com/",
+      "host": "travelbar.com",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "http://www.bestbarcelonatour.com/tickets-museums-football",
+        "http://www.bestbarcelonatour.com/book-tours-trips-tickets-activities",
+        "https://www.bestbarcelonatour.com/book-tours-trips-tickets-activities"
+      ]
+    },
+    {
+      "name": "Elephant Club",
+      "club_id": "9174af45-bcf0-4078-8ac5-112766551e97",
+      "ratings_total": 1209,
+      "rating": 4.6,
+      "website": "https://www.elephanta.cat/",
+      "host": "elephanta.cat",
+      "http": 200,
+      "platforms": [
+        "woocommerce"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Magic Rock Club Barcelona",
+      "club_id": "ca397bf8-16dc-4904-b914-bed40bd71479",
+      "ratings_total": 1189,
+      "rating": 3.9,
+      "website": "https://www.magicrockclub.com/",
+      "host": "magicrockclub.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bobby Gin",
+      "club_id": "b7273018-a851-449f-b7be-be5e49989c91",
+      "ratings_total": 1189,
+      "rating": 4.3,
+      "website": "http://www.bobbygin.com/",
+      "host": "bobbygin.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "The Comedy Clubhouse",
+      "club_id": "350a721b-f53f-429c-8e6b-bc7a1d87a533",
+      "ratings_total": 1189,
+      "rating": 4.8,
+      "website": "https://thecomedyclubhouse.es/",
+      "host": "thecomedyclubhouse.es",
+      "http": 200,
+      "platforms": [
+        "woocommerce",
+        "whatsapp"
+      ],
+      "primary": "woocommerce",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "sons in law",
+      "club_id": "8ec619ad-c985-4e35-aed6-500c3150e4e0",
+      "ratings_total": 1188,
+      "rating": 4.2,
+      "website": "https://www.instagram.com/summum.bar?igsh=MW44dWwxZ2thMzAzZg==",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Lambicus",
+      "club_id": "f21c71dc-6ed6-4e06-916a-8069901b7614",
+      "ratings_total": 1187,
+      "rating": 4.7,
+      "website": "http://www.lambicus.com/",
+      "host": "lambicus.com",
+      "http": 0,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bubar",
+      "club_id": "8d7452e4-df6d-4db9-be7d-7ef00f12ca21",
+      "ratings_total": 1186,
+      "rating": 4.5,
+      "website": "https://www.instagram.com/bubarbarcelona/?hl=es&utm_source=gmb&utm_medium=organic&utm_campaign=gmb_website",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Kfè Olé",
+      "club_id": "9c10bf48-9287-4012-a5c2-58cd2a1a580c",
+      "ratings_total": 1184,
+      "rating": 4.2,
+      "website": "https://www.facebook.com/kfeole160/",
+      "host": "facebook.com",
+      "http": 400,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "local",
+      "club_id": "b147a989-0ebd-419a-8010-882fc73f94bb",
+      "ratings_total": 1180,
+      "rating": 4.5,
+      "website": "http://thelocalkaraoke.com/home.php",
+      "host": "thelocalkaraoke.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "El Copetín",
+      "club_id": "c9a70162-92a4-4149-a064-d672d73513fd",
+      "ratings_total": 1179,
+      "rating": 3.9,
+      "website": "https://instagram.com/elcopetinbcn",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "New Fizz",
+      "club_id": "4614c827-7a48-48f2-bc3f-3ae2aef7e151",
+      "ratings_total": 1177,
+      "rating": 4.5,
+      "website": "https://www.faromusic.es/new-fizz/",
+      "host": "faromusic.es",
+      "http": 200,
+      "platforms": [
+        "dice",
+        "woocommerce"
+      ],
+      "primary": "dice",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Blau",
+      "club_id": "091a1c6d-0c4c-4a3c-8722-a8504cab09d2",
+      "ratings_total": 1175,
+      "rating": 4.7,
+      "website": "https://familiablau.es/",
+      "host": "familiablau.es",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "La Terraza del Central",
+      "club_id": "07fc6f8e-ed38-409a-8b63-d2d36607929c",
+      "ratings_total": 1162,
+      "rating": 4.3,
+      "website": "https://www.grandhotelcentral.com/es/rooftop-barcelona/",
+      "host": "grandhotelcentral.com",
+      "http": 200,
+      "platforms": [
+        "covermanager"
+      ],
+      "primary": "covermanager",
+      "bookable_engine": true,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://www.grandhotelcentral.com/es/rooftop-barcelona/"
+      ]
+    },
+    {
+      "name": "Tomàs Enrique",
+      "club_id": "ba3bd9d3-4275-4683-a20e-8a10f43ef81c",
+      "ratings_total": 1160,
+      "rating": 4.6,
+      "website": "https://www.enriquetomas.com/",
+      "host": "enriquetomas.com",
+      "http": 200,
+      "platforms": [
+        "shopify"
+      ],
+      "primary": "shopify",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": [
+        "https://enriquetomas.com/collections/jamon-gran-reserva-enrique-tomas",
+        "https://enriquetomas.com/collections/paleta-gran-reserva"
+      ]
+    },
+    {
+      "name": "LA ROSE SHISHA LOUNGE BAR",
+      "club_id": "b34a3205-8b5b-4190-900e-e8be76ba6bba",
+      "ratings_total": 1157,
+      "rating": 4.7,
+      "website": "https://larosebar.github.io/LaRose/#cocktails-id",
+      "host": "larosebar.github.io",
+      "http": 200,
+      "platforms": [
+        "whatsapp"
+      ],
+      "primary": "whatsapp",
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Gran Bodega Saltó",
+      "club_id": "e99cbe64-fd72-4c72-9d2c-cc2e7dc0d996",
+      "ratings_total": 1149,
+      "rating": 4.5,
+      "website": "http://bodegasalto.net/",
+      "host": "bodegasalto.net",
+      "http": 404,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Pietro",
+      "club_id": "bde2198e-19a8-4056-88a3-0b9135e49209",
+      "ratings_total": 1142,
+      "rating": 4.5,
+      "website": "https://www.instagram.com/bar_pietro/",
+      "host": "instagram.com",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": true,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Cugat",
+      "club_id": "b625e105-6c74-478d-8e6f-bbc0f33d2770",
+      "ratings_total": 1139,
+      "rating": 4.4,
+      "website": "http://barcugat.com/",
+      "host": "barcugat.com",
+      "http": 202,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "Bar Restaurant La Tortuga",
+      "club_id": "fad768ea-b5b9-487c-8c2d-6054ebcb7c28",
+      "ratings_total": 1136,
+      "rating": 4.7,
+      "website": "https://tortugarestaurante.es/",
+      "host": "tortugarestaurante.es",
+      "http": 200,
+      "platforms": [],
+      "primary": null,
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": []
+    },
+    {
+      "name": "mini pepita",
+      "club_id": "6f2247c5-f202-4e48-bc88-977581bbdf05",
+      "ratings_total": 1136,
+      "rating": 4.5,
+      "website": "http://www.lapepitabcn.com/",
+      "host": "lapepitabcn.com",
+      "http": 200,
+      "platforms": [
+        "squarespace"
+      ],
+      "primary": "squarespace",
+      "bookable_engine": false,
+      "mentions_vip": false,
+      "vip_links": [
+        "https://www.lapepitabcn.com/horarios-contacto",
+        "https://www.lapepitabcn.com/contact-l-opening-times"
+      ]
+    }
+  ]
+}

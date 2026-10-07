@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   platformFeeCents, promoterTakeCents, formatFeeBps, parseFeePercent,
-  DEFAULT_PLATFORM_FEE_BPS, FeeError,
+  DEFAULT_PLATFORM_FEE_BPS, DEFAULT_PUBLIC_PLATFORM_FEE_BPS, defaultFeeBpsFor,
+  FeeError,
 } from './platform-fee'
 
 describe('platformFeeCents', () => {
@@ -51,6 +52,35 @@ describe('platformFeeCents', () => {
     expect(() => platformFeeCents(10.5, 1200)).toThrow(FeeError)
     expect(() => platformFeeCents(1000, 10_001)).toThrow(FeeError)
     expect(() => platformFeeCents(1000, -1)).toThrow(FeeError)
+  })
+})
+
+describe('the two standing rates', () => {
+  it('is 12% on a private event and 50% on a public offer', () => {
+    expect(DEFAULT_PLATFORM_FEE_BPS).toBe(1200)
+    expect(DEFAULT_PUBLIC_PLATFORM_FEE_BPS).toBe(5000)
+    expect(formatFeeBps(DEFAULT_PLATFORM_FEE_BPS)).toBe('12%')
+    expect(formatFeeBps(DEFAULT_PUBLIC_PLATFORM_FEE_BPS)).toBe('50%')
+  })
+
+  it('picks the rate by how the night is sold', () => {
+    expect(defaultFeeBpsFor('private')).toBe(1200)
+    expect(defaultFeeBpsFor('public')).toBe(5000)
+  })
+
+  it('splits a €20 ticket the way each deal says', () => {
+    // Private: promoter brought the crowd, keeps €17.60.
+    expect(platformFeeCents(2000, defaultFeeBpsFor('private'))).toBe(240)
+    expect(promoterTakeCents(2000, defaultFeeBpsFor('private'))).toBe(1760)
+    // Public: we supplied the audience, split down the middle.
+    expect(platformFeeCents(2000, defaultFeeBpsFor('public'))).toBe(1000)
+    expect(promoterTakeCents(2000, defaultFeeBpsFor('public'))).toBe(1000)
+  })
+
+  it('still rounds the odd cent to the promoter at 50%', () => {
+    // 50% of €10.01 is 500.5 cents — we take 500, they keep 501.
+    expect(platformFeeCents(1001, 5000)).toBe(500)
+    expect(promoterTakeCents(1001, 5000)).toBe(501)
   })
 })
 

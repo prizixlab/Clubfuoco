@@ -89,6 +89,12 @@ final class SyncManager: ObservableObject {
             do {
                 try await repo.record(scan)
                 delivered.insert(scan.scanId)
+            } catch DoorRepoError.rejected(let code, let message) {
+                // The server refused this one for good (an unknown or
+                // cancelled ticket). Retrying it would block every scan
+                // queued behind it forever — the old behaviour — so drop it.
+                NSLog("[door] scan %@ refused (%d): %@", scan.scanId.uuidString, code, message)
+                delivered.insert(scan.scanId)
             } catch {
                 // Still offline (or the server is down) — keep the rest queued
                 // and stop; the next path change or tick retries.

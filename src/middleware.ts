@@ -121,6 +121,7 @@ export async function middleware(request: NextRequest) {
       '/billing',                                                 // Stripe card-setup return page
       '/login', '/signup', '/complete-profile', '/auth',         // auth for joining
       '/supplier',                                                // supplier set-password link
+      '/credentials',                                             // partner API-key intake (/credentials/<token>)
     ]
     const allowed =
       pathname === '/' ||

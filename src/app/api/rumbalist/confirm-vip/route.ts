@@ -1,13 +1,17 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { stripe } from '@/lib/stripe'
-import { ok, err, resolveBookingDate } from '@/lib/utils'
-import { generateReferenceCode } from '@/lib/rumbalist-reference'
-import { supplyingBrandId } from '@/lib/partner'
+import { ok, err } from '@/lib/utils'
+import { checkVipPrice } from '@/lib/vip-price'
+import { writeVipBooking } from '@/lib/vip-booking'
 import { z } from 'zod'
 
 // Verify with Stripe that the Apple Pay confirmation actually succeeded,
 // then write the booking row. The client cannot be trusted to claim success.
+//
+// The row itself is written by lib/vip-booking, shared with the Stripe
+// webhook — so if this request never arrives, the webhook books the table,
+// and if both run, they agree on one row. Safe for the app to retry.
 
 const schema = z.object({
   payment_intent_id: z.string().min(1),
@@ -23,96 +27,45 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}))
   const parsed = schema.safeParse(body)
-  if (!parsed.success) return err(parsed.error.message)
+  if (!parsed.success) return err('Invalid request')
 
   // 1. Verify with Stripe
   let intent
   try {
     intent = await stripe.paymentIntents.retrieve(parsed.data.payment_intent_id)
   } catch (e: unknown) {
-    return err(e instanceof Error ? e.message : 'Stripe lookup failed', 402)
+    console.error('[confirm-vip] stripe lookup', e instanceof Error ? e.message : e)
+    return err('Couldn’t confirm the payment yet. Give it a moment.', 502)
   }
   if (intent.status !== 'succeeded') {
-    return err(`Payment not completed (status: ${intent.status})`, 402)
+    return err('The payment didn’t go through. You haven’t been charged.', 402)
   }
   if (intent.metadata?.user_id !== user!.id) {
     return err('Payment does not belong to this user', 403)
   }
+  // The table is booked at the club the payment was made for — not whichever
+  // club the confirm request names.
+  if (intent.metadata?.source !== 'rumbalist_vip' || intent.metadata?.club_id !== parsed.data.club_id) {
+    return err('Payment does not match this table', 403)
+  }
 
-  // 2. Idempotency — if we already wrote this booking, return it
   const supabase = await createServiceClient()
-  const { data: existing } = await supabase
-    .from('bookings')
-    .select('*')
-    .eq('stripe_payment_intent_id', intent.id)
-    .maybeSingle()
-  if (existing) return ok(existing)
 
-  // 3. Insert booking row — retry on reference-code collision (Postgres unique
-  //    violation = 23505). Five attempts is overkill at 1/2.8-trillion odds.
-  // Native sends the planner-selected night; web keeps the tomorrow default.
-  const bookingDate = resolveBookingDate(parsed.data.booking_date)
-  if (!bookingDate) return err('booking_date must be today or within the next 14 days')
-  const total = intent.amount / 100   // cents → euros
-  // Supplier behind this table, so the ticket brands itself correctly.
-  const brandId = await supplyingBrandId(supabase, parsed.data.club_id, 'vip_table', bookingDate)
-  let booking: any = null
-  let insertErr: any = null
-  let withBrand = true
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const code = generateReferenceCode()
-    const res  = await supabase
-      .from('bookings')
-      .insert({
-        user_id:                   user!.id,
-        club_id:                   parsed.data.club_id,
-        booking_type:              'vip',
-        party_size:                1,
-        booking_date:               bookingDate,
-        status:                    'confirmed',
-        unit_price:                total,
-        total_amount:              total,
-        platform_fee:              0,
-        stripe_payment_intent_id:  intent.id,
-        qr_code_token:             code,
-        ...(withBrand && brandId ? { brand_id: brandId } : {}),
-      })
-      .select('*')
-      .single()
-    booking   = res.data
-    insertErr = res.error
-    if (!insertErr) break
-    // Attribution must never cost someone a table they just paid for.
-    if (/brand_id/.test(insertErr.message ?? '') && withBrand) { withBrand = false; continue }
-    if (insertErr.code !== '23505') break
-  }
-  if (insertErr) return err(insertErr.message)
-
-  // 4. Rumbalist purchase audit row — non-fatal on failure so we don't lose
-  //    the user's paid booking if the audit table is missing.
-  try {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('full_name, email, phone')
-      .eq('id', user!.id)
-      .single()
-    await supabase.from('rumbalist_purchases').insert({
-      user_id:                  user!.id,
-      full_name:                profile?.full_name ?? null,
-      email:                    profile?.email ?? null,
-      phone:                    profile?.phone ?? null,
-      venue_id:                 parsed.data.club_id,
-      venue_name:               parsed.data.venue_name ?? 'Unknown venue',
-      product_name:             parsed.data.product_name ?? 'VIP Table',
-      product_kind:             'vip_table',
-      price_eur:                total,
-      event_date:               bookingDate,
-      stripe_payment_intent_id: intent.id,
-      booking_id:               booking.id,
-    })
-  } catch (auditErr) {
-    console.error('rumbalist_purchases insert failed (non-fatal):', auditErr)
+  // An intent create-vip-intent didn't price (made before that check
+  // existed) must still be for a real VIP price at this club.
+  if (intent.metadata?.price_checked !== '1') {
+    const price = await checkVipPrice(supabase, parsed.data.club_id, null, intent.amount)
+    if (!price.ok) {
+      console.error('[confirm-vip] unpriced intent refused', intent.id, intent.amount, price.reason)
+      return err('This payment doesn’t match a VIP table price. Contact support for a refund.', 409)
+    }
   }
 
-  return ok(booking)
+  const result = await writeVipBooking(supabase, intent, {
+    bookingDate: parsed.data.booking_date,
+    venueName:   parsed.data.venue_name,
+    productName: parsed.data.product_name,
+  })
+  if (!result.ok) return err(result.error, result.status)
+  return ok(result.booking)
 }

@@ -140,6 +140,11 @@ def main() -> int:
     name_ids: dict[str, set[str]] = collections.defaultdict(set)
     dj_name: dict[str, str] = {}
     for d in fetch_all(base, key, "djs?select=ra_artist_id,name&order=ra_artist_id.asc"):
+        # Only the real RA catalogue. Our own synthetic "guest:" rows live in
+        # the same table; matching against them let a past bad guess vouch
+        # for itself on every later run.
+        if d["ra_artist_id"].startswith("guest:"):
+            continue
         n = norm(d["name"])
         if n:
             name_ids[n].add(d["ra_artist_id"])
@@ -165,6 +170,13 @@ def main() -> int:
             name = guest_from_title(e.get("title"))
             if not name:
                 continue                          # genre-only / can't tell → leave it
+            # A title fragment is only a DJ if we KNOW that DJ. Unknown ones were
+            # minted as "special guests" and produced "FREE TICKETS", "MAIN
+            # ROOM", "Barcelona" and "room / Guest list" — each of which also
+            # hid the real event it came from. A lineup that names one artist
+            # is RA's own word; a phrase after a dash in a title is not.
+            if norm(name) not in lookup:
+                continue
         else:
             continue                              # 2+ artists → a real event
 

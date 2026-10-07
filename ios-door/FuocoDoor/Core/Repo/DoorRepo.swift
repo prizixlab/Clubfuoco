@@ -58,9 +58,13 @@ enum DoorRepoError: LocalizedError {
     case offline
     case tamperedManifest
     case server(String)
+    /// The server understood and said no for good (400/404/409/410/422) —
+    /// retrying the same request can never succeed.
+    case rejected(Int, String)
 
     var errorDescription: String? {
         switch self {
+        case .rejected(_, let m): return m
         case .badCode:          return "That enrollment code wasn't recognised."
         case .offline:          return "No connection. Try again when you have signal."
         case .tamperedManifest: return "Cached data failed its signature check."

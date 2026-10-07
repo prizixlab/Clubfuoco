@@ -1,20 +1,15 @@
-import { createAuthedClient } from '@/lib/supabase/server'
+import { createAuthedClient, createServiceClient } from '@/lib/supabase/server'
 import { NextRequest } from 'next/server'
-import { ok, err, generateQRToken } from '@/lib/utils'
+import { ok, err, generateQRToken, resolveBookingDate } from '@/lib/utils'
 import { requireAuth } from '@/lib/auth'
 import { stripe, calculateOrderTotal } from '@/lib/stripe'
 import { z } from 'zod'
 
-// Bookings may only be made for today through 14 days ahead (server-side guard
-// mirroring the WhenPlanner cap). Compared in UTC date terms — generous by a day
-// across timezones, which is acceptable for a "no further than 2 weeks" rule.
+// Bookings may only be made for tonight through 14 nights ahead — Madrid
+// nights with the 06:00 rollover (lib/utils.resolveBookingDate), the same rule
+// as every other booking route.
 function isWithinBookingWindow(value: string): boolean {
-  const picked = new Date(`${value}T00:00:00Z`)
-  if (Number.isNaN(picked.getTime())) return false
-  const today = new Date()
-  const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
-  const diffDays = Math.floor((picked.getTime() - todayUTC) / 86_400_000)
-  return diffDays >= 0 && diffDays <= 14
+  return resolveBookingDate(value) === value
 }
 
 const createBookingSchema = z.object({
@@ -22,10 +17,12 @@ const createBookingSchema = z.object({
   booking_type:      z.enum(['general', 'vip']),
   party_size:        z.number().int().min(1).max(20),
   booking_date:      z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(isWithinBookingWindow, {
-                       message: 'Booking date must be today or within the next 14 days',
+                       message: 'Pick a night in the next two weeks.',
                      }),
   arrival_window:    z.string().regex(/^\d{2}:\d{2}$/).optional(),
   payment_method_id: z.string().min(1),
+  /** What the client showed the guest, in euros. Optional for older clients. */
+  expected_total:    z.number().positive().optional(),
 })
 
 // GET /api/bookings — user's own booking history + guest list signups + ticket orders
@@ -77,15 +74,27 @@ export async function GET() {
 }
 
 // POST /api/bookings — create a new booking + Stripe payment
+//
+// Order matters, because money moves in the middle:
+//   1. a recent identical booking is returned instead of charging again
+//      (a double tap, or a client retry after a dropped response);
+//   2. the booking row is written FIRST, as 'pending';
+//   3. the PaymentIntent is created with an idempotency key tied to that row
+//      and the row's id in its metadata — so a retry can't charge twice, and
+//      if step 4 never happens the webhook still confirms the row;
+//   4. the row is confirmed (or deleted if the charge failed).
+// It used to charge first and insert after: an insert failure left the guest
+// charged with no booking, and every tap was a fresh charge.
 export async function POST(request: NextRequest) {
   const { user, response } = await requireAuth()
   if (response) return response
 
-  const body   = await request.json()
+  const body   = await request.json().catch(() => ({}))
   const parsed = createBookingSchema.safeParse(body)
-  if (!parsed.success) return err(parsed.error.message)
+  if (!parsed.success) return err(parsed.error.issues[0]?.message ?? 'Invalid booking')
 
   const supabase = await createAuthedClient()
+  const admin    = await createServiceClient()
 
   // Fetch club to get pricing
   const { data: club, error: clubError } = await supabase
@@ -111,16 +120,64 @@ export async function POST(request: NextRequest) {
   if (unitPrice === 0) return err('Pricing not available for this club', 400)
 
   // Benefits only apply at partner clubs
-  const { total, discount, platformFee } = calculateOrderTotal(
+  const { total, platformFee } = calculateOrderTotal(
     unitPrice,
     parsed.data.party_size,
     profile?.membership_tier ?? 'free',
     club.is_partner ?? false,
   )
 
+  // Never charge more than the guest was shown. The Apple Pay sheet / card
+  // form displays the client's figure; if the club's price rose since the
+  // page loaded, refuse rather than take more. (Less — a member discount —
+  // is fine.) Older clients don't send it.
+  const expected = parsed.data.expected_total
+  if (expected != null && total > expected + 0.005) {
+    return err('The price for this night has changed. Check the new price and try again.', 409)
+  }
+
+  // 1. Double tap / retry → the booking already made, not a second charge.
+  const since = new Date(Date.now() - 10 * 60_000).toISOString()
+  const { data: recent } = await admin
+    .from('bookings')
+    .select(`*, clubs(id, name, cover_image_url, address)`)
+    .eq('user_id', user!.id).eq('club_id', parsed.data.club_id)
+    .eq('booking_date', parsed.data.booking_date).eq('booking_type', parsed.data.booking_type)
+    .in('status', ['confirmed', 'pending'])
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(1).maybeSingle()
+  if (recent?.status === 'confirmed') return ok(recent)
+  if (recent?.status === 'pending') {
+    return err('Your payment for this night is still going through. Check Tickets in a moment before trying again.', 409)
+  }
+
   const qrToken = generateQRToken()
 
-  // Create Stripe PaymentIntent and immediately confirm
+  // 2. The row first.
+  const { data: pending, error: pendingErr } = await admin
+    .from('bookings')
+    .insert({
+      user_id:        user!.id,
+      club_id:        parsed.data.club_id,
+      booking_type:   parsed.data.booking_type,
+      party_size:     parsed.data.party_size,
+      booking_date:   parsed.data.booking_date,
+      arrival_window: parsed.data.arrival_window,
+      status:         'pending',
+      unit_price:     unitPrice,
+      total_amount:   total,
+      platform_fee:   platformFee,
+      qr_code_token:  qrToken,
+    })
+    .select('id')
+    .single()
+  if (pendingErr || !pending) {
+    console.error('[bookings] pending insert:', pendingErr?.message)
+    return err('We couldn’t start your booking. You haven’t been charged.', 500)
+  }
+
+  // 3. The charge, tied to the row.
   let paymentIntent
   try {
     paymentIntent = await stripe.paymentIntents.create({
@@ -135,34 +192,45 @@ export async function POST(request: NextRequest) {
         user_id:      user!.id,
         booking_type: parsed.data.booking_type,
         qr_token:     qrToken,
+        booking_id:   pending.id,
       },
-    })
-  } catch (stripeErr: any) {
-    return err(stripeErr.message ?? 'Payment failed', 402)
+    }, { idempotencyKey: `booking-${pending.id}` })
+  } catch (stripeErr: unknown) {
+    await admin.from('bookings').delete().eq('id', pending.id).eq('status', 'pending')
+    // A card error's message is written for the cardholder ("Your card was
+    // declined."); anything else is ours and stays in the log.
+    const e = stripeErr as { type?: string; message?: string }
+    console.error('[bookings] stripe:', e?.type, e?.message)
+    return err(e?.type === 'StripeCardError' && e.message ? e.message : 'The payment didn’t go through. You haven’t been charged.', 402)
   }
 
-  const isConfirmed = paymentIntent.status === 'succeeded'
+  if (paymentIntent.status !== 'succeeded') {
+    // requires_action (3-D Secure) can't be completed in this flow
+    // (allow_redirects: 'never'). Cancel it so nothing is left half-paid.
+    await stripe.paymentIntents.cancel(paymentIntent.id).catch(() => {})
+    await admin.from('bookings').delete().eq('id', pending.id).eq('status', 'pending')
+    return err('Your bank needs to verify this payment, which isn’t supported here yet. Try another card or Apple Pay.', 402)
+  }
 
-  // Persist booking row
-  const { data: booking, error: bookingError } = await supabase
+  // 4. Confirm. If this write fails the guest has still paid: the
+  // payment_intent.succeeded webhook confirms the row by booking_id.
+  const { data: booking, error: bookingError } = await admin
     .from('bookings')
-    .insert({
-      user_id:                   user!.id,
-      club_id:                   parsed.data.club_id,
-      booking_type:              parsed.data.booking_type,
-      party_size:                parsed.data.party_size,
-      booking_date:              parsed.data.booking_date,
-      arrival_window:            parsed.data.arrival_window,
-      status:                    isConfirmed ? 'confirmed' : 'pending',
-      stripe_payment_intent_id:  paymentIntent.id,
-      unit_price:                unitPrice,
-      total_amount:              total,
-      platform_fee:              platformFee,
-      qr_code_token:             qrToken,
-    })
+    .update({ status: 'confirmed', stripe_payment_intent_id: paymentIntent.id })
+    .eq('id', pending.id)
+    .eq('status', 'pending')   // never re-confirm a booking cancelled mid-payment
     .select(`*, clubs(id, name, cover_image_url, address)`)
-    .single()
+    .maybeSingle()
 
-  if (bookingError) return err(bookingError.message)
+  if (!bookingError && !booking) {
+    // Cancelled while the charge was in flight: give the money back in full.
+    await stripe.refunds.create({ payment_intent: paymentIntent.id }).catch(e =>
+      console.error('[bookings] refund of cancelled-in-flight booking failed:', pending.id, e?.message))
+    return err('This booking was cancelled while paying. You’ve been refunded in full.', 409)
+  }
+  if (bookingError || !booking) {
+    console.error('[bookings] confirm after charge:', pending.id, bookingError?.message)
+    return err('Payment received — your booking is being saved and will appear in Tickets shortly. Don’t pay again.', 502)
+  }
   return ok(booking, 201)
 }

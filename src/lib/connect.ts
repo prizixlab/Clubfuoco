@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
 import { stripe } from './stripe'
-import { DEFAULT_PLATFORM_FEE_BPS } from './platform-fee'
+import { DEFAULT_PLATFORM_FEE_BPS, DEFAULT_PUBLIC_PLATFORM_FEE_BPS } from './platform-fee'
 
 // ── Stripe Connect — paying promoters without us in the loop ────────────────
 //
@@ -57,7 +57,7 @@ export async function payoutAccount(
     country: null,
     default_currency: null,
     platform_fee_bps: DEFAULT_PLATFORM_FEE_BPS,
-    platform_fee_public_bps: DEFAULT_PLATFORM_FEE_BPS,
+    platform_fee_public_bps: DEFAULT_PUBLIC_PLATFORM_FEE_BPS,
   }
 }
 
@@ -73,10 +73,15 @@ export async function payoutAccount(
 export function feeBpsForVisibility(
   account: PayoutAccount, visibility: string | null | undefined
 ): number {
-  const bps = visibility === 'public'
-    ? account.platform_fee_public_bps
-    : account.platform_fee_bps
-  return Number.isInteger(bps) ? bps : DEFAULT_PLATFORM_FEE_BPS
+  const isPublic = visibility === 'public'
+  const bps = isPublic ? account.platform_fee_public_bps : account.platform_fee_bps
+  // Fall back to the default FOR THAT KIND, not the private one for both — a
+  // public offer on a row missing the column would otherwise be charged the
+  // 12% private rate instead of 50%, which is a silent undercharge rather
+  // than a visible failure.
+  return Number.isInteger(bps)
+    ? bps
+    : (isPublic ? DEFAULT_PUBLIC_PLATFORM_FEE_BPS : DEFAULT_PLATFORM_FEE_BPS)
 }
 
 /**

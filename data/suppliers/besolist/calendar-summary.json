@@ -1,0 +1,67 @@
+{
+  "supplier": "BesoList",
+  "source_url": "https://site.fourvenues.com/en/besolist",
+  "source_route": "public embed — https://site.fourvenues.com/en/iframe/besolist/events",
+  "scraped_at": "2026-09-16",
+  "window": "2026-09-16 .. 2026-12-31",
+  "event_count": 383,
+  "notes": [
+    "site.fourvenues.com itself sits behind an interactive Cloudflare 'verify you are human' challenge. It was NOT touched. The public embed route serves the same calendar with no challenge.",
+    "The embed loads in chunks that REPLACE the previous chunk in the DOM (3 chunks: 165 + 171 + 47). Anchor hrefs/event codes are recycled and go stale, so they are not trustworthy; the card aria-label IS in sync with the visible text and is the source of the structured fields below.",
+    "The backing JSON API (cli-api-service.fourvenues.com/api/events?slug=besolist) returns 401 without the widget's own credential. It was not used.",
+    "'nights' counts the night a card is filed under (nightlife convention). The aria-label carries the calendar date of the START time, which rolls past midnight for most club nights.",
+    "No prices appear on calendar cards. Per-event pages expose VIP zone names and 'From €X'; those were not collected here.",
+    "BesoList sells and fulfils through Fourvenues. Nothing in this file represents inventory Club Fuoco can honour."
+  ],
+  "venue_map": {
+    "resolved": {
+      "BASTIAN BEACH":        { "club_id": "2706f18a-76ce-4276-abc0-ba53b7d6894d", "club_name": "Bastian Beach",                       "events": 17 },
+      "La Biblio BCN":        { "club_id": "1a49859c-ebcf-417a-b025-3dd84bcb1d54", "club_name": "La Biblio",                           "events": 9  },
+      "Opium Barcelona":      { "club_id": "b3f7747f-d911-490d-a688-d04add6a1c8b", "club_name": "Opium Barcelona Restaurant and Club",  "events": 76 },
+      "Ku Barcelona":         { "club_id": "d184f2f1-8db3-4d03-ae11-ad19b650894d", "club_name": "Ku (formerly Pacha)",                  "events": 64 },
+      "SUTTON BARCELONA":     { "club_id": "e0cf6310-28e5-4117-ad5f-01179f87d8fd", "club_name": "Sutton Club Barcelona",                "events": 30 },
+      "Bling Bling BCN":      { "club_id": "07ce6a58-ceee-48e4-89ce-3c3e6b6ff2b2", "club_name": "Bling Bling Barcelona",                "events": 61 },
+      "El Tardet Barcelona":  { "club_id": "4ad56773-ffc0-4122-9dff-58bb77fb934d", "club_name": "El Tardet",                            "events": 27 },
+      "DOWNTOWN BARCELONA":   { "club_id": "60d6f94e-26cc-4d24-bacc-8a255e1c7924", "club_name": "Downtown Barcelona",                   "events": 21 },
+      "HYPE BARCELONA":       { "club_id": "00e3f149-bd90-4180-83f9-a79ebf71ab8f", "club_name": "HYPE Barcelona",                       "events": 6  },
+      "OTTO ZUTZ":            { "club_id": "b9bc5258-4349-4f05-af59-6556d961524a", "club_name": "Otto Zutz Club",                       "events": 15 },
+      "Boris":                { "club_id": "277cd0b1-c8c5-4769-bf28-07d03f96d145", "club_name": "Boris Club",                           "events": 10 },
+      "Duvet":                { "club_id": "cd260c75-6a5e-464e-a24d-48155b6d0c5a", "club_name": "Duvet Barcelona",                      "events": 2  },
+      "La Fira Casanova":     { "club_id": "f710a3a3-c84e-408a-a061-d6791215848a", "club_name": "La Fira Casanova",                     "events": 4  },
+      "La Fira Villarroel":   { "club_id": "5eaaf6ad-c479-4e7e-b735-f3459b319aac", "club_name": "La Fira Villarroel",                   "events": 3  },
+      "Twenties Barcelona":   { "club_id": "3c3716e0-0361-4a62-b4d2-ec1eb5d00bbb", "club_name": "Twenties Barcelona",                   "events": 9  },
+      "La Fira Provença":     { "club_id": "fb8a09e0-6a79-4023-b990-6a0702d88053", "club_name": "La Fira Provença",                     "events": 7  },
+      "COSTA BREVE":          { "club_id": "dbf8342b-e7b8-4f27-97d2-5982bc4a3947", "club_name": "Costa Breve",                          "events": 12 },
+      "4 Latas Club":         { "club_id": "018e3c22-f309-4555-82da-19e425c927fd", "club_name": "4 latas",                              "events": 2  }
+    },
+    "unresolved": {
+      "Brisa Open Air":        { "events": 1, "why": "real venue, no row in clubs" },
+      "Nu Bcn":                { "events": 1, "why": "no row in clubs" },
+      "PARIPÉ x Ku Barcelona": { "events": 3, "why": "collaboration label, not a venue — the room is Ku Barcelona" },
+      "Marcel BS":             { "events": 1, "why": "DJ name in the venue field (SIGHT event)" },
+      "Gustavo Dominguez":     { "events": 1, "why": "DJ name in the venue field (SIGHT event)" },
+      "Dennis Quin":           { "events": 1, "why": "DJ name in the venue field (SIGHT event, stated as at Ku Barcelona)" }
+    },
+    "coverage": "377 of 383 events (98.4%) resolve to 18 existing clubs rows. No fuzzy guesses were accepted; 'Marcel BS' fuzzy-matched 'Bodega Marcel Cava-vino' and was rejected."
+  },
+  "by_venue": {
+    "Opium Barcelona":     { "events": 76, "nights": "every night (Wed–Tue 10–11 each)", "start": "11:30 PM", "end": "05:00 AM (54) / 06:00 AM (21)", "min_age": 18, "genres": "hits, reggaeton, edm, house", "residencies": ["Holy Sh*t (Mon, 11)", "FULL PARTY (Wed, 10)", "Jet Lag (Thu, 10)", "Just Opium (Sat, 10)", "Addicted (Fri)", "Mandrake (Sun)", "Ladies Night (Tue)"] },
+    "Ku Barcelona":        { "events": 64, "nights": "Fri 14, Sat 14, Sun 10, Wed 7, Thu 7, Mon 6, Tue 6", "start": "11:45 PM / 12:00 AM", "end": "05:45 AM / 05:00 AM", "min_age": 18, "genres": "reggaeton, r&b, afrobeat, hits", "residencies": ["GUAYA PROJECT (Wed, 7)", "RED ROOM | AVALON (Fri, 7)", "RED ROOM | LA DOS (Sat, 7)", "BAE (Thu, 6)", "FRIYAY", "PEGAO", "MONEY MONDAYS", "BADASS"] },
+    "Bling Bling BCN":     { "events": 61, "nights": "Wed 16, Thu 14, Fri 14, Sat 14, Sun 2, Mon 1", "start": "12:30 AM", "end": "05:00 AM / 06:00 AM", "min_age": "25 (27) / 18 (19) / 21 (14)", "genres": "hits, reggaeton, comercial", "residencies": ["Mamma x Wild (Wed, 16)", "RITA (Thu, 14)", "Friday Night (14)", "Saturday Night (13)"] },
+    "SUTTON BARCELONA":    { "events": 30, "nights": "Thu 8, Fri 8, Sat 7, Wed 6, Sun 1", "start": "11:45 PM / 12:00 AM", "end": "06:00 AM", "min_age": "23 (13) / 18 (7) / 20 (7)", "genres": "hits, reggaeton, pop", "residencies": ["POLARIS Wednesdays (5)", "Jolie Thursdays (5)", "Fridays at Sutton (5)", "THIS IS SUTTON (5)"] },
+    "El Tardet Barcelona": { "events": 27, "nights": "Sat 12, Fri 9, Thu 6", "start": "07:00 PM / 05:30 PM", "end": "12:00 AM / 01:00 AM", "min_age": 23, "genres": "n/a (tardeo, daytime)", "residencies": ["VIERNES - TARDEO JALEO (7)", "SÁBADO - TARDEO JALEO (7)", "JUEVES - AFTERWORK JALEO (6)"] },
+    "DOWNTOWN BARCELONA":  { "events": 21, "nights": "Thu 7, Fri 7, Sat 6, Wed 1", "start": "11:59 PM", "end": "06:00 AM / 05:00 AM", "min_age": 18, "genres": "reggaeton, hits", "residencies": ["WILD THURSDAY (7)", "PULSE OF FRIDAY (7)", "THE VIBE SATURDAY (5)"] },
+    "BASTIAN BEACH":       { "events": 17, "nights": "every day", "start": "11:00 AM", "end": "07:00 PM", "min_age": 18, "genres": "n/a (day club / pool)", "residencies": ["Pool Area (15)", "Barre & Brunch", "beach clean-up"] },
+    "OTTO ZUTZ":           { "events": 15, "nights": "Fri 7, Sat 4, Thu 2, Wed 1, Sun 1", "start": "12:00 AM", "end": "06:00 AM", "min_age": 18, "genres": "reggaeton, hits, underground, hip-hop", "residencies": ["FRIDAY BY OTTO ZUTZ (7)", "LA CASITA CLUB (4)"] },
+    "COSTA BREVE":         { "events": 12, "nights": "Sat 7, Thu 5", "start": "12:30 AM / 12:00 AM", "end": "06:00 AM / 05:00 AM", "min_age": "21 (7) / 18 (5)", "genres": "n/a", "residencies": ["BLUEMOON (+21) (7)", "SUPERJUEVES | Copas a 3 € (5)"] },
+    "Boris":               { "events": 10, "nights": "Sat 4, Thu 3, Fri 2, Wed 1", "start": "12:30 AM", "end": "06:00 AM", "min_age": "21 (8)", "genres": "house", "residencies": ["one-off bookings (Damian Lazarus, Read the News, PAX ARABIANA)"] },
+    "La Biblio BCN":       { "events": 9,  "nights": "Wed 3, Thu 2, Fri 2, Sat 2", "start": "12:00 AM", "end": "05:00 AM / 06:00 AM", "min_age": "18 (5) / 21 (2)", "genres": "reggaeton", "residencies": ["Jueves COLLEGE PARTY", "Viernes OFFICIAL PARTY", "Miércoles GreenLight"] },
+    "Twenties Barcelona":  { "events": 9,  "nights": "Fri 7, Sat 2", "start": "12:00 AM", "end": "06:00 AM", "min_age": 18, "genres": "reggaeton, hits, house, comercial", "residencies": ["PLAYFUL (5)", "CLASSIC XX’ (2)"] },
+    "La Fira Provença":    { "events": 7,  "nights": "Sat 7", "start": "06:00 PM", "end": "03:30 AM", "min_age": 40, "genres": "disco", "residencies": ["TARDEO XXL 80S 90S 00S (7)"] },
+    "HYPE BARCELONA":      { "events": 6,  "nights": "Thu 3, Fri 2, Wed 1", "start": "12:00 AM", "end": "05:00 AM / 06:00 AM", "min_age": "18 (4) / 17 (2)", "genres": "reggaeton, hits", "residencies": ["student nights (SOMFESTES / UPC / UB)"] },
+    "La Fira Casanova":    { "events": 4,  "nights": "Fri 2, Sat 2", "start": "11:45 PM", "end": "05:30 AM", "min_age": 18, "genres": "reggaeton, hits, dance, comercial", "residencies": ["La Fira Casanova · Friday / · Saturday"] },
+    "La Fira Villarroel":  { "events": 3,  "nights": "Sat 2, Fri 1", "start": "12:00 AM", "end": "05:30 AM", "min_age": 18, "genres": "reggaeton, pop, disco, comercial, old-school", "residencies": ["La Fira Villaroel · Saturday / · FRIDAY AT MIDNIGHT"] },
+    "Duvet":               { "events": 2,  "nights": "Fri 1, Sat 1", "start": "11:45 PM / 11:30 PM", "end": "05:00 AM", "min_age": "16 / 40", "genres": "hits, reggaeton, disco", "residencies": [] },
+    "4 Latas Club":        { "events": 2,  "nights": "Wed 1, Fri 1", "start": "08:00 PM", "end": "05:30 AM / 11:30 PM", "min_age": "23 / 40", "genres": "reggaeton, hits, flamenco", "residencies": [] }
+  }
+}

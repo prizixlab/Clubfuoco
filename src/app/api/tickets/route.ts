@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { stripe }        from '@/lib/stripe'
 import { requireAuth }   from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase/server'
@@ -6,83 +7,78 @@ import { ok, err }       from '@/lib/utils'
 import { TICKET_MARKUP } from '@/lib/tickets'
 
 // POST /api/tickets
-// Body: { platform, platform_event_id, event_name, venue_name, venue_place_id,
-//         event_date, quantity, base_price_cents, currency, lat, lng }
+// Body: { platform_event_id, quantity, venue_place_id? }
+//
+// The price, name, venue and date come from OUR `events` row for that event —
+// never from the body. This route used to take base_price_cents from the
+// client: sending 0 wrote a 'paid' order for anything, and any figure was
+// charged as sent. Older clients still send the display fields; they are
+// ignored.
+const schema = z.object({
+  platform_event_id: z.string().min(1),
+  quantity:          z.number().int().min(1).max(10).default(1),
+  venue_place_id:    z.string().optional(),
+})
+
 export async function POST(req: NextRequest) {
   const { user, response } = await requireAuth()
   if (response) return response
 
-  const body = await req.json()
-  const {
-    platform,
-    platform_event_id,
-    event_name,
-    venue_name,
-    venue_place_id,
-    event_date,
-    quantity    = 1,
-    base_price_cents,
-    currency    = 'EUR',
-  } = body
+  const parsed = schema.safeParse(await req.json().catch(() => ({})))
+  if (!parsed.success) return err('Missing or invalid fields')
+  const { platform_event_id, quantity, venue_place_id } = parsed.data
 
-  if (!event_name || base_price_cents === undefined || base_price_cents === null) return err('Missing required fields')
+  const supabase = await createServiceClient()
+
+  const { data: event } = await supabase
+    .from('events')
+    .select('source_ref, origin, title, venue_name, date, base_price, currency, sold_out')
+    .eq('source_ref', platform_event_id)
+    .maybeSingle()
+  if (!event) return err('This event isn’t on sale here.', 404)
+  if (event.sold_out) return err('This event has sold out.', 409)
+
+  const base_price_cents = Math.round(Number(event.base_price ?? 0))
+  // A price we don't know reads as 0 in `events` (the RA listing query doesn't
+  // expose one) — that is "unknown", not "free", so it is not sold here.
+  if (!(base_price_cents > 0)) return err('This event isn’t on sale here.', 409)
 
   const markup_cents = Math.ceil(base_price_cents * TICKET_MARKUP)
   const unit_total   = base_price_cents + markup_cents
   const total_cents  = unit_total * quantity
+  const currency     = String(event.currency || 'EUR').toLowerCase()
+  const platform     = String(event.origin ?? 'manual')
 
-  const supabase = await createServiceClient()
-
-  // Free events — just record RSVP, no payment required
-  if (base_price_cents === 0) {
-    const { data: order, error } = await supabase
-      .from('ticket_orders')
-      .insert({
+  let intent
+  try {
+    intent = await stripe.paymentIntents.create({
+      amount:   total_cents,
+      currency,
+      metadata: {
         user_id:           user!.id,
-        platform:          platform ?? 'manual',
-        platform_event_id: platform_event_id ?? null,
-        event_name,
-        venue_name,
-        venue_place_id:    venue_place_id ?? null,
-        event_date:        event_date ?? null,
-        quantity,
-        base_price_cents:  0,
-        markup_cents:      0,
-        total_cents:       0,
-        status:            'paid',
-      })
-      .select()
-      .single()
-    if (error) return err(error.message)
-    return ok({ order_id: order.id, total_cents: 0, markup_cents: 0 })
+        platform,
+        platform_event_id,
+        event_name:        event.title ?? '',
+        venue_name:        event.venue_name ?? '',
+        venue_place_id:    venue_place_id ?? '',
+        quantity:          String(quantity),
+      },
+    })
+  } catch (e) {
+    console.error('[tickets] stripe:', e instanceof Error ? e.message : e)
+    return err('We couldn’t start the payment. You haven’t been charged.', 502)
   }
 
-  // Create Stripe payment intent
-  const intent = await stripe.paymentIntents.create({
-    amount:   total_cents,
-    currency: currency.toLowerCase(),
-    metadata: {
-      user_id:           user!.id,
-      platform:          platform ?? 'manual',
-      platform_event_id: platform_event_id ?? '',
-      event_name,
-      venue_name,
-      venue_place_id:    venue_place_id ?? '',
-      quantity:          String(quantity),
-    },
-  })
-
-  // Store pending order
   const { data: order, error } = await supabase
     .from('ticket_orders')
     .insert({
       user_id:             user!.id,
-      platform:            platform ?? 'manual',
-      platform_event_id:   platform_event_id ?? null,
-      event_name,
-      venue_name,
+      platform,
+      platform_event_id,
+      event_name:          event.title,
+      venue_name:          event.venue_name,
       venue_place_id:      venue_place_id ?? null,
-      event_date:          event_date ?? null,
+      event_date:          event.date ?? null,
       quantity,
       base_price_cents,
       markup_cents,
@@ -93,7 +89,12 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return err(error.message)
+  if (error) {
+    // No order to attach a payment to — make sure it can't be paid.
+    await stripe.paymentIntents.cancel(intent.id).catch(() => {})
+    console.error('[tickets] order insert:', error.message)
+    return err('We couldn’t start the payment. You haven’t been charged.', 500)
+  }
 
   return ok({
     client_secret: intent.client_secret,

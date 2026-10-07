@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
+import { NON_ADMITTING_PAYMENT } from '@/lib/refunds'
 
 /**
  * Epoch ms for when a night's doors open, in Europe/Madrid.
@@ -68,11 +69,15 @@ export async function POST(
   // Load guest, verify ownership
   const { data: guest, error: gErr } = await sb
     .from('promoter_guests')
-    .select('id, claimed_by_user, checked_in_at, allocation:promoter_allocations(night:promoter_nights(night_date, open_time))')
+    .select('id, claimed_by_user, checked_in_at, payment_status, allocation:promoter_allocations(night:promoter_nights(night_date, open_time))')
     .eq('id', guestId)
     .single()
   if (gErr || !guest) return err('Guest not found', 404)
   if (guest.claimed_by_user !== userId) return err('Forbidden', 403)
+  // An unpaid hold (or a refunded / disputed spot) is not a guest. The door
+  // refuses it; a geofence must not show it to the promoter as checked in.
+  const pay = (guest as { payment_status?: string | null }).payment_status ?? 'free'
+  if (NON_ADMITTING_PAYMENT.has(pay)) return err('This spot isn’t paid', 409)
 
   // Idempotent — first trigger wins
   if (guest.checked_in_at) {

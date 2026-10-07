@@ -5,6 +5,7 @@ import { logAudit } from '@/lib/portal-audit'
 import { ok, err } from '@/lib/utils'
 import {
   parseFeePercent, formatFeeBps, DEFAULT_PLATFORM_FEE_BPS,
+  DEFAULT_PUBLIC_PLATFORM_FEE_BPS, defaultFeeBpsFor,
 } from '@/lib/platform-fee'
 
 // PATCH /api/portal/promoters/:id/fee   { percent: "10" | "7.5" | "0", note?: string }
@@ -94,10 +95,12 @@ export async function GET(
     ?? DEFAULT_PLATFORM_FEE_BPS
 
   const pubBps = (data as { platform_fee_public_bps?: number } | null)?.platform_fee_public_bps
+  // Public offers default to 50%, not the private 12% — see platform-fee.ts.
+  const pubResolved = Number.isInteger(pubBps) ? pubBps! : DEFAULT_PUBLIC_PLATFORM_FEE_BPS
   const body: FeeResponse = {
     fee_bps: bps,
-    public_fee_bps: Number.isInteger(pubBps) ? pubBps! : DEFAULT_PLATFORM_FEE_BPS,
-    public_percent: formatFeeBps(Number.isInteger(pubBps) ? pubBps! : DEFAULT_PLATFORM_FEE_BPS),
+    public_fee_bps: pubResolved,
+    public_percent: formatFeeBps(pubResolved),
     public_note: (data as { fee_note_public?: string } | null)?.fee_note_public ?? null,
     fee_percent: formatFeeBps(bps),
     is_default: bps === DEFAULT_PLATFORM_FEE_BPS,
@@ -139,12 +142,15 @@ export async function PATCH(
 
   const { data: before } = await sb
     .from('promoter_payout_accounts')
-    .select('platform_fee_bps')
+    // BOTH columns: this used to select only platform_fee_bps while the cast
+    // below read platform_fee_public_bps, so every public rate change logged
+    // its "from" as the default instead of the rate actually being replaced.
+    .select('platform_fee_bps, platform_fee_public_bps')
     .eq('user_id', userId)
     .maybeSingle()
   const prevRow = before as { platform_fee_bps?: number; platform_fee_public_bps?: number } | null
   const previous = (kind === 'public' ? prevRow?.platform_fee_public_bps : prevRow?.platform_fee_bps)
-    ?? DEFAULT_PLATFORM_FEE_BPS
+    ?? defaultFeeBpsFor(kind)
 
   // Upsert: a promoter can be given a negotiated rate before they have ever
   // opened the payouts screen, which is exactly when a deal gets signed.
@@ -173,7 +179,9 @@ export async function PATCH(
     kind,
     fee_bps: bps,
     fee_percent: formatFeeBps(bps),
-    is_default: bps === DEFAULT_PLATFORM_FEE_BPS,
+    // Against the default for THIS kind — 50% is standard on a public offer
+    // and would otherwise be reported as a negotiated rate.
+    is_default: bps === defaultFeeBpsFor(kind),
     previous_percent: formatFeeBps(previous),
     note,
   })

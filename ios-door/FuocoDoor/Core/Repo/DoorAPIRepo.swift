@@ -38,7 +38,13 @@ struct DoorAPIRepo: DoorRepo {
                 // "Server error 403" sends someone hunting for a bug.
                 struct ErrorEnvelope: Decodable { let error: String? }
                 let message = (try? JSONDecoder().decode(ErrorEnvelope.self, from: data))?.error
-                throw DoorRepoError.server(message ?? "Server error \(http.statusCode)")
+                    ?? "Server error \(http.statusCode)"
+                // Permanent refusals are told apart from "try again later", so
+                // the scan queue can drop one instead of retrying it forever.
+                if [400, 404, 409, 410, 422].contains(http.statusCode) {
+                    throw DoorRepoError.rejected(http.statusCode, message)
+                }
+                throw DoorRepoError.server(message)
             }
             return data
         } catch let e as DoorRepoError {

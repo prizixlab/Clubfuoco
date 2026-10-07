@@ -22,6 +22,7 @@ import { computeOpenNow, isOpenOnDate } from '@/lib/hours'
 import { usePlan } from '@/contexts/PlanContext'
 import type { ExternalEvent } from '@/lib/tickets'
 import type { Rumba } from '@/types'
+import { VenuePhoto } from '@/components/VenuePhoto'
 
 interface Place {
   place_id:     string
@@ -626,7 +627,7 @@ function HeroCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; 
         {/* Image */}
         <div style={{ position: 'relative', height: 220, width: '100%', background: C.bg2 }}>
           {place.cover_photo
-            ? <img src={place.cover_photo} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ? <VenuePhoto src={place.cover_photo} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 48, color: C.ink3, opacity: 0.3, fontVariationSettings: "'FILL' 1" }}>nightlife</span>
               </div>
@@ -701,7 +702,7 @@ function LandCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean; 
         {/* Image */}
         <div style={{ position: 'relative', height: 130, background: C.bg2 }}>
           {place.cover_photo
-            ? <img src={place.cover_photo} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ? <VenuePhoto src={place.cover_photo} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 32, color: C.ink3, opacity: 0.25 }}>nightlife</span>
               </div>
@@ -743,7 +744,7 @@ function PosterCard({ place, isSaved, onSave }: { place: Place; isSaved: boolean
         {/* Image */}
         <div style={{ position: 'relative', height: 168, background: C.bg2 }}>
           {place.cover_photo
-            ? <img src={place.cover_photo} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ? <VenuePhoto src={place.cover_photo} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 28, color: C.ink3, opacity: 0.25 }}>nightlife</span>
               </div>
@@ -792,7 +793,7 @@ function EventShelfCard({ place }: { place: Place }) {
       <div style={{ width: 220, borderRadius: 12, overflow: 'hidden', background: C.surface, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 16px rgba(34,30,26,0.06)' }}>
         <div style={{ position: 'relative', height: 130, background: C.bg2 }}>
           {place.cover_photo
-            ? <img src={place.cover_photo} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ? <VenuePhoto src={place.cover_photo} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 32, color: C.ink3, opacity: 0.25 }}>nightlife</span>
               </div>
@@ -836,7 +837,7 @@ function RumbaShelfCard({ rumba }: { rumba: Rumba }) {
       <div style={{ width: 220, borderRadius: 12, overflow: 'hidden', background: C.surface, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 16px rgba(34,30,26,0.06)' }}>
         <div style={{ position: 'relative', height: 130, background: C.bg2 }}>
           {rumba.cover_image
-            ? <img src={rumba.cover_image} alt={rumba.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ? <VenuePhoto src={rumba.cover_image} alt={rumba.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 40, color: C.accent, opacity: 0.3, fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
               </div>
@@ -1356,7 +1357,7 @@ export default function ExplorePage() {
                   <div style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 12, padding: 12, marginBottom: 10, boxShadow: '0 1px 2px rgba(34,30,26,0.04), 0 4px 12px rgba(34,30,26,0.05)' }}>
                     <div style={{ width: 52, height: 52, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: C.bg2 }}>
                       {p.cover_photo
-                        ? <img src={p.cover_photo} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ? <VenuePhoto src={p.cover_photo} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span className="material-symbols-outlined" style={{ fontSize: 20, color: C.ink3, opacity: 0.3 }}>nightlife</span></div>
                       }
                     </div>
@@ -1415,7 +1416,7 @@ export default function ExplorePage() {
                   }}>
                     <div style={{ position: 'relative', height: 200, background: C.bg2 }}>
                       {p.cover_photo
-                        ? <img src={p.cover_photo} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        ? <VenuePhoto src={p.cover_photo} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                         : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <span className="material-symbols-outlined" style={{ fontSize: 48, color: C.ink3, opacity: 0.3, fontVariationSettings: "'FILL' 1" }}>nightlife</span>
                           </div>}

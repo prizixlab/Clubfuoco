@@ -6,6 +6,7 @@ import {
   passThemeRow, resolvePassTheme, passImages, promoterForGuest,
   promoterDisplayName, HOUSE_THEME,
 } from '@/lib/wallet/pass-theme'
+import { NON_ADMITTING_PAYMENT } from '@/lib/refunds'
 
 // Apple Wallet pass for a promoter-invite claim. Mirrors
 // /api/bookings/[id]/wallet — same cert envs — but the primary field is the
@@ -65,7 +66,7 @@ export async function GET(
   // opening checkout and abandoning it still yields a scannable pass sitting in
   // Apple Wallet — and unlike the QR, a pass keeps working offline once added.
   const paymentStatus = (guest as { payment_status?: string }).payment_status ?? 'free'
-  if (paymentStatus === 'pending' || paymentStatus === 'refunded') {
+  if (NON_ADMITTING_PAYMENT.has(paymentStatus)) {
     return NextResponse.json({ error: 'Payment required' }, { status: 402 })
   }
   const club = Array.isArray(nightRow.club) ? nightRow.club[0] : nightRow.club

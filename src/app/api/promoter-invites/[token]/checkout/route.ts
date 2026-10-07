@@ -5,6 +5,7 @@ import { ok, err } from '@/lib/utils'
 import { payoutAccount, canCharge, syncAccount, feeBpsForVisibility } from '@/lib/connect'
 import { platformFeeCents } from '@/lib/platform-fee'
 import { ladder, livePrice } from '@/lib/releases'
+import { rateLimit, clientIp } from '@/lib/ratelimit'
 
 // POST /api/promoter-invites/<token>/checkout   { full_name, plus_ones? }
 //
@@ -57,6 +58,14 @@ export async function POST(
   if (bearer) {
     const { data } = await sb.auth.getUser(bearer)
     buyerId = data.user?.id ?? null
+  }
+
+  // Every checkout opens a 30-minute hold on real capacity, so it can't be
+  // free to open them in bulk. Per warm instance only (lib/ratelimit) — the
+  // anonymous-holds cap below is the hard limit.
+  const who = buyerId ? `u:${buyerId}` : `ip:${clientIp(req)}`
+  if (!rateLimit(`checkout:${who}`, buyerId ? 10 : 5, 10 * 60_000)) {
+    return err('Too many checkout attempts. Wait a few minutes and try again.', 429)
   }
 
   const resolved = await resolveTokenToAllocation(sb, token)
@@ -150,10 +159,44 @@ export async function POST(
   }[]
 
   // Already paid → hand back the existing spot rather than selling a second one.
+  // Already HOLDING one (backed out of the Stripe page, tapped Buy again) →
+  // send them back to that same page while it's open. The one-claim-per-user
+  // index covers pending rows too, so this used to answer "You already have a
+  // spot on this list" to someone who hadn't paid, until the sweeper freed
+  // the hold up to ~2 h later. A hold whose page has expired is released here
+  // and a fresh checkout starts below.
   if (buyerId) {
     const mine = guests.find(g => g.claimed_by_user === buyerId)
     if (mine && mine.payment_status === 'paid') {
       return ok({ alreadyPaid: true, guestId: mine.id })
+    }
+    if (mine && mine.payment_status === 'pending') {
+      const { data: held } = await sb.from('promoter_guests')
+        .select('stripe_checkout_session_id').eq('id', mine.id).maybeSingle()
+      const sessionId = (held as { stripe_checkout_session_id?: string | null } | null)?.stripe_checkout_session_id
+      if (sessionId) {
+        try {
+          const existing = await stripe.checkout.sessions.retrieve(sessionId)
+          if (existing.payment_status === 'paid') {
+            // Paid, the webhook just hasn't landed — record it now.
+            await sb.from('promoter_guests').update({
+              payment_status: 'paid', paid_at: new Date().toISOString(), hold_expires_at: null,
+              stripe_payment_intent_id: (existing.payment_intent as string) ?? null,
+            }).eq('id', mine.id).neq('payment_status', 'paid')
+            return ok({ alreadyPaid: true, guestId: mine.id })
+          }
+          if (existing.status === 'open' && existing.url) {
+            return ok({ url: existing.url, guestId: mine.id, amountCents: existing.amount_total, currency: existing.currency, resumed: true })
+          }
+          // Expired or completed-unpaid: free the hold, sell afresh below.
+        } catch (e) {
+          console.warn('[checkout] could not read the held session:', e instanceof Error ? e.message : e)
+          return err('Couldn’t reopen your checkout. Try again in a moment.', 502)
+        }
+      }
+      await sb.from('promoter_guests').delete().eq('id', mine.id).eq('payment_status', 'pending')
+      const i = guests.indexOf(mine)
+      if (i >= 0) guests.splice(i, 1)
     }
   }
 
@@ -168,6 +211,20 @@ export async function POST(
   }, 0)
   const heads = 1 + plusOnes
   if (used + heads > alloc.spots) return err('Not enough spots left', 409)
+
+  // Holds nobody can be traced to (no account) may take at most a quarter of
+  // the room. Without this, a script opening anonymous checkouts could hold a
+  // night "sold out" indefinitely, 30 minutes at a time.
+  if (!buyerId) {
+    const anonHeld = guests.reduce((sum, g) => {
+      const live = g.payment_status === 'pending' && !g.claimed_by_user
+        && (g.hold_expires_at ? new Date(g.hold_expires_at).getTime() > now : false)
+      return live ? sum + 1 + (g.plus_ones ?? 0) : sum
+    }, 0)
+    if (anonHeld + heads > Math.max(4, Math.floor(alloc.spots / 4))) {
+      return err('Sign in to buy — too many checkouts are open on this event right now.', 409)
+    }
+  }
 
   const amount = unitPrice * heads
   // Public offer or private event — two different deals, two different rates.

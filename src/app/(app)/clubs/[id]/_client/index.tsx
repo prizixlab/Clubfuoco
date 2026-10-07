@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { Club, LiveStatus, DrinkSpecial } from '@/types'
 import { doorPriceLabel } from '@/lib/door-price'
+import { VenuePhoto } from '@/components/VenuePhoto'
 
 interface GuestList {
   id: string
@@ -116,7 +117,7 @@ export default function ClubDetailPage() {
         {/* Hero image */}
         <div className="relative w-full h-56 overflow-hidden">
           {club.cover_image_url ? (
-            <img src={club.cover_image_url} alt={club.name} className="w-full h-full object-cover" />
+            <VenuePhoto loading="eager" src={club.cover_image_url} alt={club.name} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-surface-container-high" />
           )}

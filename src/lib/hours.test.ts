@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { venueWallClockToInstant, bookingWindow } from './hours'
+import { venueWallClockToInstant, bookingWindow, currentNight, nightsBetween } from './hours'
 
 // The check-in window is anchored to Europe/Madrid, NOT UTC. The old code
 // stamped local clock minutes onto a UTC midnight, so a "22:00" open resolved
@@ -47,5 +47,25 @@ describe('bookingWindow', () => {
     const post = bookingWindow('2026-08-15', null, null, 'post_entry_got_in')
     expect(post.earliest.toISOString()).toBe(night.earliest.toISOString())
     expect(post.latest.getTime()).toBeGreaterThan(night.latest.getTime())
+  })
+})
+
+describe('currentNight', () => {
+  it('is the previous evening until 06:00 Madrid', () => {
+    // 2026-10-10 01:30 CEST = 2026-10-09T23:30Z → Friday 9 Oct's night
+    expect(currentNight(new Date('2026-10-09T23:30:00Z'))).toBe('2026-10-09')
+    // 05:59 CEST still Friday's night
+    expect(currentNight(new Date('2026-10-10T03:59:00Z'))).toBe('2026-10-09')
+    // 06:00 CEST rolls to Saturday
+    expect(currentNight(new Date('2026-10-10T04:00:00Z'))).toBe('2026-10-10')
+  })
+  it('uses CET in winter', () => {
+    // 2026-12-05 05:30 CET = 04:30Z → still 4 Dec's night; 06:10 CET = 05:10Z → 5 Dec
+    expect(currentNight(new Date('2026-12-05T04:30:00Z'))).toBe('2026-12-04')
+    expect(currentNight(new Date('2026-12-05T05:10:00Z'))).toBe('2026-12-05')
+  })
+  it('counts nights between dates', () => {
+    expect(nightsBetween('2026-10-09', '2026-10-23')).toBe(14)
+    expect(nightsBetween('2026-10-09', '2026-10-08')).toBe(-1)
   })
 })

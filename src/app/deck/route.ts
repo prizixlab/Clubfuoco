@@ -16,13 +16,20 @@
  * and access can later be gated or logged in this one place.
  */
 
+import { recordDeckView } from '@/lib/deck-analytics'
+
 const BUCKET = 'investor'
 const OBJECT = 'deck.pdf'
 const FILENAME = 'Club-Fuoco-Pre-Seed.pdf'   // what it saves as
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Who opened it, when, and roughly where — see src/lib/deck-analytics.ts.
+  // Tag outreach links as /deck?i=<fund> to attribute the open; bare /deck
+  // still works and lands untagged.
+  await recordDeckView(req)
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) {

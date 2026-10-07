@@ -9,6 +9,7 @@ import {
 } from '../../_ui'
 import OffersEditor from './_offers'
 import EventsPanel from './_events'
+import RevenuePanel from './_revenue'
 
 const LABEL_PRESETS = ['Guestlist by', 'Powered by', 'via']
 
@@ -23,13 +24,13 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
   // preview is live — the operator sees the credit before committing it.
   const [draft, setDraft] = useState<{ attribution_required: boolean; attribution_label: string | null } | null>(null)
   // Which of the two panels the shared card is showing.
-  const [section, setSection] = useState<'offers' | 'events'>('offers')
+  const [section, setSection] = useState<'offers' | 'events' | 'revenue'>('offers')
 
   const sectionTabs = (
     <SectionTabs
       active={section}
       onChange={setSection}
-      tabs={[{ id: 'offers', label: 'Offers & venues' }, { id: 'events', label: 'Events' }]}
+      tabs={[{ id: 'offers', label: 'Offers & venues' }, { id: 'events', label: 'Events' }, { id: 'revenue', label: 'Revenue' }]}
     />
   )
 
@@ -72,13 +73,14 @@ export default function BrandEditorPage({ params }: { params: Promise<{ id: stri
         <PreviewCard brand={draft ? { ...brand, ...draft } : brand} />
       </div>
 
-      {/* One card, two tabs. Offers and events are different things — a
+      {/* One card, three tabs. Offers and events are different things — a
           standing per-venue product vs one dated night, in different tables —
-          but they answer the same question about a promoter, so they share a
-          place on the page rather than stacking into a scroll. */}
-      {section === 'offers'
-        ? <OffersEditor brand={brand} onOffersChanged={load} tabs={sectionTabs} />
-        : <EventsPanel brand={brand} tabs={sectionTabs} />}
+          and revenue is what both took through us; they answer the same
+          question about a promoter, so they share a place on the page rather
+          than stacking into a scroll. */}
+      {section === 'offers' && <OffersEditor brand={brand} onOffersChanged={load} tabs={sectionTabs} />}
+      {section === 'events' && <EventsPanel brand={brand} tabs={sectionTabs} />}
+      {section === 'revenue' && <RevenuePanel brand={brand} tabs={sectionTabs} />}
     </>
   )
 }

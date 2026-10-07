@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { ApiResponse } from '@/types'
+import { currentNight, nightsBetween } from '@/lib/hours'
 
 // Cache hints handed to Vercel's edge cache. Pick the preset that matches how
 // hot the endpoint is and how stale data is allowed to be. `none` is the safe
@@ -52,24 +53,23 @@ export function crowdLabelFromPercent(
 }
 
 // Resolve an optional client-requested booking date (YYYY-MM-DD) for the
-// Rumbalist flows. Absent/empty → tomorrow (the legacy default the web app
-// relies on). Present → must parse and fall within today…+14 days (UTC-day
-// comparison, generous by a day across timezones), else null → reject.
-export function resolveBookingDate(requested: unknown): string | null {
-  const fallback = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10)
-  if (typeof requested !== 'string' || requested === '') return fallback
+// Rumbalist flows. Absent/empty → tomorrow's night (the legacy default the
+// web app relies on). Present → must be tonight…+14 nights, else null.
+export function resolveBookingDate(requested: unknown, now: Date = new Date()): string | null {
+  // Nights, in Madrid, with the 06:00 rollover (lib/hours.currentNight): at
+  // 02:00 on Saturday "tonight" is still Friday. The old UTC arithmetic needed
+  // a day of slack each side to cope, which also let a guest book a night that
+  // had already ended.
+  const tonight = currentNight(now)
+  // Legacy default for callers that send no date (the web sheet): tomorrow.
+  if (typeof requested !== 'string' || requested === '') {
+    const d = new Date(`${tonight}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1)
+    return d.toISOString().slice(0, 10)
+  }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(requested)) return null
-  const picked = new Date(`${requested}T00:00:00Z`).getTime()
-  if (Number.isNaN(picked)) return null
-  const today = new Date()
-  const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
-  const diffDays = Math.floor((picked - todayUTC) / 86_400_000)
-  // `requested` is a LOCAL calendar date; the client's local "today" can be a
-  // day off from UTC today in either direction (offsets span UTC±14). Without
-  // this tolerance a same-night claim after UTC midnight (e.g. 22:00 in
-  // Barcelona → 00:00Z) is wrongly rejected. Keep the 14-day product window but
-  // allow one day of slack on each side to absorb the timezone boundary.
-  return diffDays >= -1 && diffDays <= 15 ? requested : null
+  if (Number.isNaN(Date.parse(`${requested}T00:00:00Z`))) return null
+  const ahead = nightsBetween(tonight, requested)
+  return ahead >= 0 && ahead <= 14 ? requested : null
 }
 
 /**

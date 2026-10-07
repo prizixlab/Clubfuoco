@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import QRCode from 'qrcode'
 import { createServiceClient } from '@/lib/supabase/server'
+import { NON_ADMITTING_PAYMENT } from '@/lib/refunds'
 
 /** Renders a simple QR encoding the guest id — door staff scans it.
  *
@@ -28,7 +29,7 @@ export async function GET(
   // 'free' is every spot on every unpaid event, including all of them today.
   // Only a started-but-unfinished purchase is refused.
   const status = (guest as { payment_status?: string }).payment_status ?? 'free'
-  if (status === 'pending' || status === 'refunded') {
+  if (NON_ADMITTING_PAYMENT.has(status)) {
     return new NextResponse('Payment required', { status: 402 })
   }
 

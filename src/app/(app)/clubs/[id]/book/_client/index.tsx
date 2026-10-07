@@ -9,6 +9,7 @@ import { DrumPicker } from '@/components/ui/DrumPicker'
 import { usePlan } from '@/contexts/PlanContext'
 import { useLocale } from '@/contexts/LocaleContext'
 import { buildDayOptions, formatPlan } from '@/lib/plan'
+import { VenuePhoto } from '@/components/VenuePhoto'
 
 type TicketType = 'entry' | 'vip'
 
@@ -137,7 +138,7 @@ export default function BookPage() {
         {/* Hero */}
         <div className="relative w-full h-48 rounded-xl overflow-hidden neon-glow">
           {club?.cover_image_url ? (
-            <img src={club.cover_image_url} alt={club.name} className="w-full h-full object-cover" />
+            <VenuePhoto loading="eager" src={club.cover_image_url} alt={club.name} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-surface-container-high" />
           )}

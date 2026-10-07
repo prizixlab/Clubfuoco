@@ -8,9 +8,9 @@ import { ok, err } from '@/lib/utils'
 //
 // The webhook is the source of truth and it is almost always faster than the
 // guest. But it can be late, or fail, and the sweeper that would otherwise
-// rescue the spot runs DAILY (Vercel's Hobby plan refuses a cron more frequent
-// than once a day). Waiting a day is fine for tidying up litter and completely
-// unacceptable for somebody standing there having been charged.
+// rescue the spot (admin/sweep-holds) runs hourly, 30 minutes after a hold
+// lapses. That is fine for tidying up and unacceptable for somebody standing
+// there having been charged.
 //
 // So the app calls this when it lands on a ticket that isn't paid yet: ask
 // Stripe directly, and honour the answer immediately.
@@ -39,7 +39,7 @@ export async function POST(
 
   // Already settled, or never needed paying. Nothing to ask Stripe.
   if (status === 'paid' || status === 'free') return ok({ paid: true, status })
-  if (status === 'refunded') return ok({ paid: false, status })
+  if (status === 'refunded' || status === 'disputed') return ok({ paid: false, status })
   if (!row.stripe_checkout_session_id) return ok({ paid: false, status })
 
   try {

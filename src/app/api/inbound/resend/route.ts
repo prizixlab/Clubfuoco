@@ -1,0 +1,295 @@
+import { NextRequest } from 'next/server'
+import { Resend } from 'resend'
+import { createServiceClient } from '@/lib/supabase/server'
+import { ok, err } from '@/lib/utils'
+import { allowedSenders, decodeHtml, isAllowedSender, isAuthenticated, kindFromPdf, parseTicketEmail, senderDomain, settleFromFeed, settlesForKind, tokenFromRecipients, type FeedEvent } from '@/lib/ticket-inbox'
+import { currentNight } from '@/lib/hours'
+import { notify } from '@/lib/notify'
+
+// POST /api/inbound/resend
+//
+// Resend's `email.received` webhook for the ticket inbox
+// (<token>@tickets.clubfuoco.com — see lib/ticket-inbox). For each email:
+//
+//   1. verify the Svix signature against the RAW body;
+//   2. skip it if this email_id was already handled (Resend retries);
+//   3. find the user from the recipient token;
+//   4. fetch the body (the webhook carries metadata only) and read the
+//      Fourvenues ticket out of it: PDF link(s) and the door code, which is in
+//      the PDF's filename (listas-LNKO1S1G1.pdf → QR payload "LNKO1S1G1");
+//   5. file it on external_tickets — merging into the row the app wrote at
+//      sign-up/payment when there is one, so one ticket never becomes two;
+//   6. forward a copy to the user's real inbox from our own domain.
+//
+// Guarded so a leaked address can't cost us: only allow-listed sender domains
+// get past the metadata check (no API read otherwise), the email must pass
+// DMARC (or SPF+DKIM), there's a per-inbox daily cap, and only real tickets
+// are ever forwarded.
+//
+// Always answers 200 once the signature checks out, even when the email isn't
+// a ticket: a non-2xx makes Resend retry an email that will never parse.
+
+// Two keys, least privilege. Reading a RECEIVED email needs a full-access key;
+// the app's RESEND_API_KEY is (rightly) send-only and Resend refuses it here
+// ("This API key is restricted to only send emails"). So the inbox reads with
+// its own RESEND_INBOUND_API_KEY and keeps sending (the forward) on the
+// ordinary send-only key.
+const sender = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+// Read under either name: production has it as ESEND_INBOUND_API_KEY (a typo
+// in Vercel). Renaming it there to RESEND_INBOUND_API_KEY needs no code change.
+const READ_KEY = process.env.RESEND_INBOUND_API_KEY ?? process.env.ESEND_INBOUND_API_KEY
+const reader = READ_KEY ? new Resend(READ_KEY) : null
+const SECRET = process.env.RESEND_INBOUND_WEBHOOK_SECRET
+const FORWARD_FROM = process.env.TICKET_INBOX_FORWARD_FROM ?? 'Club Fuoco Tickets <tickets@clubfuoco.com>'
+/** Emails one inbox may have processed per 24h — a ceiling on what a leaked address can cost. */
+const DAILY_CAP = Number(process.env.TICKET_INBOX_DAILY_CAP ?? 25)
+
+type Sb = Awaited<ReturnType<typeof createServiceClient>>
+
+interface ReceivedEvent {
+  type: string
+  data: { email_id: string; from?: string; to?: string[]; subject?: string }
+}
+
+export async function POST(req: NextRequest) {
+  if (!reader || !sender || !SECRET) return err('Ticket inbox not configured', 503)
+
+  const raw = await req.text()
+  let event: ReceivedEvent
+  try {
+    event = reader.webhooks.verify({
+      payload: raw,
+      headers: {
+        id: req.headers.get('svix-id') ?? '',
+        timestamp: req.headers.get('svix-timestamp') ?? '',
+        signature: req.headers.get('svix-signature') ?? '',
+      },
+      webhookSecret: SECRET,
+    }) as unknown as ReceivedEvent
+  } catch {
+    return err('Invalid signature', 401)
+  }
+  if (event.type !== 'email.received' || !event.data?.email_id) return ok({ ignored: event.type })
+
+  const { email_id, from = '', to = [], subject = '' } = event.data
+  const sb = await createServiceClient()
+
+  // 2. Idempotency: Resend retries; a second delivery must not file twice.
+  const { data: seen } = await sb
+    .from('ticket_inbox_messages').select('status').eq('email_id', email_id).maybeSingle()
+  if (seen) return ok({ duplicate: true, status: seen.status })
+
+  const log = (row: Record<string, unknown>) =>
+    sb.from('ticket_inbox_messages').insert({
+      email_id, from_address: from.slice(0, 300), to_address: to.join(', ').slice(0, 300),
+      subject: subject.slice(0, 300), ...row,
+    })
+
+  // 3. Whose inbox?
+  const token = tokenFromRecipients(to)
+  const { data: inbox } = token
+    ? await sb.from('ticket_inboxes').select('user_id').eq('token', token).maybeSingle()
+    : { data: null }
+  if (!inbox) {
+    await log({ status: 'unknown_inbox' })
+    return ok({ filed: false, reason: 'unknown inbox' })
+  }
+  const userId = inbox.user_id as string
+
+  // Nothing below may cost anything unless the email is genuinely a partner
+  // ticket. These cheap checks run BEFORE the body is fetched.
+  const domain = senderDomain(from)
+  if (!isAllowedSender(domain, allowedSenders())) {
+    // Logged with the domain, so a partner sending from a domain we haven't
+    // allowed yet shows up here instead of vanishing.
+    await log({ user_id: userId, status: 'no_ticket', detail: `blocked: sender ${domain ?? '?'} not allowed` })
+    return ok({ filed: false, reason: 'sender not allowed' })
+  }
+  const since = new Date(Date.now() - 24 * 3600_000).toISOString()
+  // Count only emails that cost a read — ones dropped at the sender check
+  // above are free, and counting them would let junk mail use up the cap and
+  // block the user's real tickets.
+  const { count } = await sb.from('ticket_inbox_messages')
+    .select('email_id', { count: 'exact', head: true })
+    .eq('user_id', userId).gte('received_at', since)
+    .not('detail', 'like', 'blocked: sender%')
+  if ((count ?? 0) >= DAILY_CAP) {
+    await log({ user_id: userId, status: 'no_ticket', detail: `blocked: daily cap ${DAILY_CAP}` })
+    return ok({ filed: false, reason: 'daily cap' })
+  }
+
+  try {
+    // 4. Body.
+    const { data: email, error: getErr } = await reader.emails.receiving.get(email_id)
+    if (getErr || !email) throw new Error(getErr?.message ?? 'email not found')
+    // A From header is trivially forged — require the domain to have proven it.
+    const auth = (email as { authentication?: { spf?: string; dkim?: string; dmarc?: string } }).authentication
+    if (!isAuthenticated(auth)) {
+      await log({ user_id: userId, status: 'no_ticket',
+        detail: `blocked: unauthenticated ${domain} (spf ${auth?.spf ?? '?'}, dkim ${auth?.dkim ?? '?'}, dmarc ${auth?.dmarc ?? '?'})` })
+      return ok({ filed: false, reason: 'unauthenticated' })
+    }
+    const html = decodeHtml((email as { html?: string | null }).html)
+    const text = (email as { text?: string | null }).text ?? ''
+    const parsed = parseTicketEmail(subject, html, text)
+
+    let ticketId: string | null = null
+    let fresh = false
+    if (parsed.codes.length && parsed.eventCode) {
+      ({ id: ticketId, fresh } = await fileTicket(sb, userId, parsed, from, `${subject}\n${text || html}`))
+    }
+
+    // The QR just reached the account — tell the guest, once per ticket.
+    if (ticketId && fresh) {
+      const name = parsed.eventName ?? 'your night'
+      await notify({
+        user_id: userId,
+        type: 'partner_ticket_ready',
+        title: `Your ticket for ${name} is ready`,
+        body: "It's in Tickets — show the QR at the door.",
+        // The app opens Tickets on this ticket; the web ignores the query.
+        link: `/bookings?ticket=${ticketId}`,
+        push: 'clubfuoco',
+      })
+    }
+
+    // 6. Forward a copy — of real tickets only. Our sending quota is never
+    // spent on anything else, even from an allowed, authenticated sender.
+    const forwarded = ticketId ? await forward(sb, userId, subject, html, text, from, parsed.eventName) : false
+
+    await log({
+      user_id: userId,
+      status: ticketId ? 'filed' : 'no_ticket',
+      ticket_id: ticketId,
+      forwarded,
+      detail: parsed.codes.length ? `codes ${parsed.codes.join(',')}` : 'no Fourvenues ticket link',
+    })
+    return ok({ filed: !!ticketId, forwarded })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    console.error('[inbound/resend]', email_id, message)
+    await log({ user_id: userId, status: 'error', detail: message.slice(0, 300) })
+    return ok({ filed: false, error: true })
+  }
+}
+
+/**
+ * 5. Merge into the app's own row for this event when it exists (written at
+ * sign-up, QR not yet known); otherwise file a new one from the email alone.
+ *
+ * The PDF's name says what kind of ticket this is (list / ticket / table), so
+ * a guest with a guestlist AND a table on one night gets each QR on the right
+ * card (BK-20). An email-only ticket takes its night, venue, settle and price
+ * from our own feed for that event, not from guesses (BK-12, BK-24).
+ */
+async function fileTicket(
+  sb: Sb, userId: string, p: ReturnType<typeof parseTicketEmail>, from: string, emailText: string,
+): Promise<{ id: string; fresh: boolean }> {
+  const code = p.codes[0]
+  const pdf = p.pdfUrls.find(u => u.toUpperCase().includes(code)) ?? p.pdfUrls[0] ?? null
+  const kind = kindFromPdf(pdf)
+
+  // Already filed with this exact code (a second email, or the app read it).
+  const { data: same } = await sb.from('external_tickets')
+    .select('id').eq('user_id', userId).eq('qr_payload', code).maybeSingle()
+  if (same) {
+    await sb.from('external_tickets').update({ pdf_url: pdf }).eq('id', same.id)
+    return { id: same.id as string, fresh: false }
+  }
+
+  // The app's row for this event AND this kind, still waiting for its QR —
+  // newest first. Kind unknown (an unfamiliar PDF name) → any pending row.
+  let pendingQ = sb.from('external_tickets')
+    .select('id').eq('user_id', userId).eq('event_code', p.eventCode!).is('qr_payload', null)
+  if (kind) pendingQ = pendingQ.in('settle', settlesForKind(kind))
+  const { data: pending } = await pendingQ
+    .order('created_at', { ascending: false }).limit(1).maybeSingle()
+  if (pending) {
+    await sb.from('external_tickets').update({ qr_payload: code, pdf_url: pdf }).eq('id', pending.id)
+    return { id: pending.id as string, fresh: true }
+  }
+
+  // Email only (booked on another device before this existed, or the app was
+  // closed mid-flow): file what the email and our feed tell us.
+  const ev = await feedEvent(p.eventCode!)
+  const money = settleFromFeed(ev, kind, emailText)
+  if (!money) {
+    // Can't tell free from pay-at-the-door. Logged so support can see it; the
+    // card shows as a plain guestlist entry.
+    console.warn('[inbound/resend] settle ambiguous for', p.eventCode, kind)
+  }
+  const venue = ev?.venue ?? from.match(/^\s*"?([^"<]+?)"?\s*</)?.[1]?.trim() ?? null
+  const { data: row, error } = await sb.from('external_tickets').insert({
+    user_id: userId,
+    provider: 'fourvenues',
+    event_code: p.eventCode,
+    event_name: p.eventName ?? ev?.name ?? null,
+    venue,
+    // The email's own date, else the feed's night, else tonight (Madrid
+    // night, not the UTC arrival date — BK-24).
+    night: p.night ?? ev?.night ?? currentNight(),
+    settle: money?.settle ?? (kind === 'table' ? 'table' : kind === 'ticket' ? 'online' : 'free'),
+    unit_price: money?.price ?? 0,
+    heads: p.heads ?? 1,
+    qr_payload: code,
+    pdf_url: pdf,
+    source: 'email',
+  }).select('id').single()
+  if (error) throw new Error(`file ticket: ${error.message}`)
+  return { id: row.id as string, fresh: true }
+}
+
+/** One event from the app's offers feed (agentbox publishes it hourly). */
+async function feedEvent(code: string): Promise<FeedEvent | null> {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!base) return null
+  try {
+    const res = await fetch(`${base}/storage/v1/object/public/fourvenues/offers.json`, {
+      cache: 'no-store', signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) return null
+    const feed = await res.json() as { events?: FeedEvent[] }
+    return feed.events?.find(e => e.code?.toUpperCase() === code.toUpperCase()) ?? null
+  } catch {
+    return null
+  }
+}
+
+/** A copy to the account's real address, from our verified domain. */
+async function forward(
+  sb: Sb, userId: string, subject: string, html: string, text: string, from: string,
+  eventName: string | null,
+): Promise<boolean> {
+  if (!sender) return false
+  const { data: user } = await sb.from('users').select('email').eq('id', userId).maybeSingle()
+  const to = (user as { email?: string | null } | null)?.email
+  if (!to) return false
+  const note = eventName
+    ? `Your ticket for ${escapeHtml(eventName)} is saved in the Club Fuoco app, under Tickets — the QR is there, ready for the door.`
+    : 'This came to your Club Fuoco ticket address. Anything we recognise as a ticket is saved in the app, under Tickets.'
+  // Club Fuoco's lockup above the platform's own email. Gold, never pink —
+  // the brand accent is #C09950.
+  const header = `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto 18px;padding:18px 20px;border-radius:14px;background:#F8F5EE;border:1px solid #E9E2D3">
+  <div style="font-size:11px;letter-spacing:3px;color:#C09950;font-weight:600">CLUB FUOCO</div>
+  <div style="font-size:14px;line-height:1.45;color:#221E1A;margin-top:8px">${note}</div>
+  <div style="font-size:11px;color:#9F9486;margin-top:8px">Below is the original email from ${escapeHtml(senderName(from))}.</div>
+</div>`
+  const { error } = await sender.emails.send({
+    from: FORWARD_FROM,
+    to,
+    subject,
+    html: header + (html || `<pre style="font-family:inherit;white-space:pre-wrap">${escapeHtml(text)}</pre>`),
+    replyTo: from || undefined,
+  } as Parameters<typeof sender.emails.send>[0])
+  if (error) console.warn('[inbound/resend] forward failed:', error.message)
+  return !error
+}
+
+function senderName(from: string): string {
+  return from.match(/^\s*"?([^"<]+?)"?\s*</)?.[1]?.trim() ?? (from || 'the sender')
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
+}

@@ -4,6 +4,7 @@ import { apiFetch } from '@/lib/api'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { VenuePhoto } from '@/components/VenuePhoto'
 
 interface DJProfile {
   id: string
@@ -168,7 +169,7 @@ export default function DJProfilePage() {
                     <div className="flex items-center gap-sm py-xs border-b border-outline-variant/10 last:border-0 active:opacity-70">
                       <div className="w-12 h-12 rounded-lg overflow-hidden bg-surface-container-high flex-shrink-0">
                         {gig.clubs?.cover_image_url ? (
-                          <img src={gig.clubs.cover_image_url} alt={gig.clubs.name} className="w-full h-full object-cover" />
+                          <VenuePhoto src={gig.clubs.cover_image_url} alt={gig.clubs.name} className="w-full h-full object-cover" />
                         ) : (
                           <span className="material-symbols-outlined text-on-surface-variant/30 m-auto block mt-3 text-center">nightlife</span>
                         )}

@@ -368,17 +368,22 @@ final class ExploreViewModel {
     }
 
     var searchResults: [Place] {
-        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
+        // Case- AND accent-insensitive, so "shoko" finds "Shôko" and
+        // "ocana" finds "Ocaña" — nobody types the diacritics.
+        func fold(_ s: String) -> String {
+            s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        }
+        let q = fold(search.trimmingCharacters(in: .whitespaces))
         guard !q.isEmpty else { return [] }
         return places.filter { place in
-            if place.name.lowercased().contains(q) { return true }
-            if place.address.lowercased().contains(q) { return true }
-            if place.neighborhood?.lowercased().contains(q) == true { return true }
+            if fold(place.name).contains(q) { return true }
+            if fold(place.address).contains(q) { return true }
+            if let n = place.neighborhood, fold(n).contains(q) { return true }
             // Genres + tags are snake_case ("live_music", "beach_club") —
             // match the raw value AND the spaced form so "house music",
             // "shisha", "club" etc. all hit.
             return (place.musicGenres + place.tags).contains { value in
-                let v = value.lowercased()
+                let v = fold(value)
                 return v.contains(q) || v.replacingOccurrences(of: "_", with: " ").contains(q)
             }
         }

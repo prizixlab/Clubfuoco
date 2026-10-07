@@ -1,12 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Badge, Btn, Card, ErrorLine, SectionLabel, api, C, caps, font, serif } from '../_ui'
+import { Badge, Btn, Card, ErrorLine, SectionLabel, SectionTabs, api, C, caps, font, serif } from '../_ui'
 import { shownSuppliers, toggleSupplier } from '@/lib/conflict-rule'
 import { TablesBoard } from '../tables/_board'
 
-// Who shows what, at every venue — one card per venue + product, with an
-// optional per-NIGHT override.
+// Who shows what. Two panels, one per app generation (lib/partner OfferMode):
+//   • Current app versions — per VENUE: one card per venue + product, with an
+//     optional per-NIGHT override. Guestlist rules here apply to every build;
+//     VIP rules only to builds released before per-table products.
+//   • New app versions — VIP per TABLE (the shared TablesBoard).
 //
 // Keyed by venue AND kind (a guestlist and a VIP table are decided separately),
 // and within a product a specific night can override the default: Rumba runs
@@ -38,8 +41,22 @@ const NIGHTS: { w: string; label: string }[] = [
   { w: '0', label: 'Sun' },
 ]
 
+type Panel = 'current' | 'new'
+
 export default function ConflictsPage() {
   const [items, setItems] = useState<Conflict[] | null>(null)
+  // Which app generation's rules are on screen. Kept in ?panel= so a link
+  // (or a reload) opens the same one.
+  const [panel, setPanel] = useState<Panel>('current')
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('panel') === 'new') setPanel('new')
+  }, [])
+  function choosePanel(p: Panel) {
+    setPanel(p)
+    const url = new URL(window.location.href)
+    url.searchParams.set('panel', p)
+    window.history.replaceState(null, '', url)
+  }
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(() => {
@@ -49,41 +66,75 @@ export default function ConflictsPage() {
   }, [])
   useEffect(load, [load])
 
+  const vipCount = items?.filter(c => c.kind === 'vip_table').length ?? null
+
   return (
     <>
       <h1 style={{ margin: 0, fontFamily: serif, fontSize: 30, fontWeight: 400, color: C.text }}>
         Who <em style={{ fontStyle: 'italic', color: C.goldHi }}>shows</em> where
       </h1>
-      <p style={{ margin: '8px 0 24px', fontSize: 14, color: C.dim, fontFamily: font, maxWidth: 640, lineHeight: 1.55 }}>
-        Guestlists, decided per venue. VIP tables are decided per table — scroll down.
-        Every venue and product with a promoter behind it. Set a default for each, then
-        override any night that should differ — Rumba on the door Mon–Fri, Aashi on Saturday.
-        <strong style={{ color: C.goldHi, fontWeight: 500 }}> Clash</strong> marks the ones where
-        promoters actually compete.
+      <p style={{ margin: '8px 0 18px', fontSize: 14, color: C.dim, fontFamily: font, maxWidth: 680, lineHeight: 1.55 }}>
+        Two app generations decide VIP differently, so each has its own panel. Builds already
+        out treat a venue&rsquo;s VIP as one product. Newer builds sell every table on its own.
+        Each panel only changes what its own builds see.
       </p>
 
-      <ErrorLine error={error} />
-      {items === null && !error && (
-        <p style={{ color: C.dim, fontFamily: font, fontSize: 14 }}>Loading…</p>
-      )}
-      {items?.length === 0 && (
-        <Card>
-          <p style={{ margin: 0, fontSize: 14, color: C.dim, fontFamily: font }}>
-            No offers are live yet, so there is nothing to assign.
-          </p>
-        </Card>
+      <SectionTabs<Panel>
+        tabs={[
+          { id: 'current', label: 'Current app versions · per venue', count: items?.length ?? null },
+          { id: 'new',     label: 'New app versions · per table' },
+        ]}
+        active={panel}
+        onChange={choosePanel}
+      />
+
+      {panel === 'current' && (
+        <>
+          <Card style={{ margin: '16px 0', background: C.lifted }}>
+            <p style={{ margin: 0, fontSize: 13.5, color: C.dim, fontFamily: font, lineHeight: 1.55 }}>
+              <strong style={{ color: C.goldHi, fontWeight: 500 }}>Per venue.</strong> Pick which promoters show for each
+              venue and product, then override any night that should differ. <strong style={{ color: C.goldHi, fontWeight: 500 }}>Guestlist</strong> rules
+              apply to every app version. <strong style={{ color: C.goldHi, fontWeight: 500 }}>VIP table</strong> rules here apply only to builds already
+              in the App Store. Those builds also hide all of our tables on any night Fourvenues sells one,
+              and nothing set here can change that.
+            </p>
+          </Card>
+
+          <ErrorLine error={error} />
+          {items === null && !error && (
+            <p style={{ color: C.dim, fontFamily: font, fontSize: 14 }}>Loading…</p>
+          )}
+          {items?.length === 0 && (
+            <Card>
+              <p style={{ margin: 0, fontSize: 14, color: C.dim, fontFamily: font }}>
+                No offers are live yet, so there is nothing to assign.
+              </p>
+            </Card>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {items?.map(c => <ConflictCard key={`${c.club_id}|${c.kind}`} item={c} onSaved={load} />)}
+          </div>
+          {vipCount === 0 && items && items.length > 0 && (
+            <p style={{ fontFamily: font, fontSize: 13, color: C.faint, marginTop: 14 }}>
+              No live VIP offers of ours, so there are no VIP venue rules to set.
+            </p>
+          )}
+        </>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {items?.map(c => <ConflictCard key={`${c.club_id}|${c.kind}`} item={c} onSaved={load} />)}
-      </div>
-
-      {/* VIP is settled per TABLE, never per venue — each table is its own
-          product, so its conflicts live here rather than in the cards above. */}
-      <h2 style={{ margin: '40px 0 6px', fontFamily: serif, fontSize: 24, fontWeight: 400, color: C.text }}>
-        VIP <em style={{ fontStyle: 'italic', color: C.goldHi }}>tables</em>, per table
-      </h2>
-      <TablesBoard compact />
+      {panel === 'new' && (
+        <div style={{ marginTop: 16 }}>
+          <Card style={{ marginBottom: 16, background: C.lifted }}>
+            <p style={{ margin: 0, fontSize: 13.5, color: C.dim, fontFamily: font, lineHeight: 1.55 }}>
+              <strong style={{ color: C.goldHi, fontWeight: 500 }}>Per table.</strong> Builds from this release on show our
+              tables beside Fourvenues&rsquo; and decide every table on its own. Guestlists still follow the
+              per-venue rules in the other panel.
+            </p>
+          </Card>
+          <TablesBoard compact />
+        </div>
+      )}
     </>
   )
 }
@@ -180,6 +231,7 @@ function ConflictCard({ item, onSaved }: { item: Conflict; onSaved: () => void }
         </span>
       }>
         {item.club_name} · <span style={{ color: C.goldHi }}>{item.kind_label}</span>
+        {item.kind === 'vip_table' && <span style={{ color: C.faint }}> · current app versions only</span>}
       </SectionLabel>
 
       {item.inherited && (

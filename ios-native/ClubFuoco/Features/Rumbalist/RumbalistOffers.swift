@@ -290,7 +290,10 @@ enum RumbalistOffers {
         // Make sure HypeList's nights are loaded (from cache/bundle) before
         // they're merged below — Explore can ask before anything else has.
         _ = FVCatalog.shared
-        guard let resp: Response = try? await api.get("/api/partner") else { return nil }
+        // tables=1: this build sells VIP per table (TableSellers). Without it
+        // the server answers with the per-venue VIP rule older builds follow.
+        guard let resp: Response = try? await api.get(
+            "/api/partner", query: [URLQueryItem(name: "tables", value: "1")]) else { return nil }
         brand = resp.brand?.model
         TableSellers.update(resp.tables)
         let mapped = resp.offersByClub.reduce(into: [String: [RumbalistOffer]]()) { acc, pair in

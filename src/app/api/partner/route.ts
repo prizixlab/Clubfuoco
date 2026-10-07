@@ -18,12 +18,18 @@ import { getActiveBrand, getPartnerOffersByClub, getPublicTables } from '@/lib/p
 // its mere presence tells a newer app this server sells per table — so it
 // stops hiding all of our tables whenever Fourvenues sells one. Older apps
 // don't decode the key and behave exactly as before.
-export async function GET() {
+//
+// Two audiences (lib/partner OfferMode): builds that ask ?tables=1 get VIP per
+// TABLE plus `tables`; every build released before that asks without it and
+// gets VIP per VENUE, the rule it was built for — and no `tables`, which is
+// also how a new build knows it is talking to an old server.
+export async function GET(request: Request) {
+  const perTable = new URL(request.url).searchParams.get('tables') === '1'
   const sb = await createServiceClient()
   const [brand, offersByClub, tables] = await Promise.all([
     getActiveBrand(sb),
-    getPartnerOffersByClub(sb),
-    getPublicTables(sb),
+    getPartnerOffersByClub(sb, perTable ? 'table' : 'venue'),
+    perTable ? getPublicTables(sb) : Promise.resolve(null),
   ])
 
   // Distinct brands actually referenced by live offers — lets a client resolve
@@ -50,6 +56,6 @@ export async function GET() {
       : null,
     brands,
     offersByClub,
-    tables,
+    ...(tables ? { tables } : {}),
   })
 }

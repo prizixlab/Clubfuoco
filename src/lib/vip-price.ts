@@ -41,7 +41,7 @@ export async function checkVipPrice(
   sb: SB, clubId: string, date: string | null, amountCents: number, offerId?: string,
 ): Promise<VipPriceCheck & { offer?: PartnerOffer }> {
   if (offerId) {
-    const offer = (await getPartnerOffers(sb, clubId))
+    const offer = (await getPartnerOffers(sb, clubId, 'table'))
       .find(o => o.id === offerId && o.kind === 'vip_table' && (o.price_eur ?? 0) > 0)
     if (!offer || (date && !offerLiveOn(offer, date))) return { ok: false, reason: 'unavailable' }
     return Math.round((offer.price_eur as number) * 100) === amountCents

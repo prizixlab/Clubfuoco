@@ -45,7 +45,10 @@ export async function POST(req: Request) {
   if (parsed.data.booking_date !== undefined) {
     bookingDate = resolveBookingDate(parsed.data.booking_date)
     if (!bookingDate) return err('booking_date must be today or within the next 14 days')
-    if (!(await offerRunsOn(supabase, clubId, 'vip_table', bookingDate))) {
+    // A booking that names its table comes from a per-table build; one that
+    // doesn't is judged as the venue rule its (older) app showed it.
+    const mode = parsed.data.offer_id ? 'table' : 'venue'
+    if (!(await offerRunsOn(supabase, clubId, 'vip_table', bookingDate, mode))) {
       return err('VIP tables aren’t available on that night.', 409)
     }
   }

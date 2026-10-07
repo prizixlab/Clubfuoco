@@ -105,7 +105,7 @@ function fakeSb(tables: Record<string, Record<string, unknown>[]>) {
   } as never
 }
 
-describe('offerRunsOn — VIP is judged per table, not per venue', () => {
+describe('offerRunsOn — VIP per table for new builds, per venue for current ones', () => {
   const brands = [{ id: 'b1', key: 'rumba', name: 'Rumba' }, { id: 'b2', key: 'aashi', name: 'Aashi' }]
   const offer = (id: string, brand: string, over: Record<string, unknown> = {}) =>
     ({ id, brand_id: brand, club_id: 'c1', kind: 'vip_table', valid_days: 'Every night', skipped_dates: [], ...over })
@@ -117,6 +117,26 @@ describe('offerRunsOn — VIP is judged per table, not per venue', () => {
       club_offer_visibility: [{ club_id: 'c1', kind: 'vip_table', weekday: '*', mode: 'selected', brand_ids: ['b1'] }],
       club_tables: [],
     })
+    expect(await offerRunsOn(sb, 'c1', 'vip_table', SATURDAY, 'table')).toBe(true)
+  })
+
+  it('current builds (venue mode) still follow the venue rule', async () => {
+    const sb = fakeSb({
+      partner_brands: brands,
+      partner_offers: [offer('o1', 'b1'), offer('o2', 'b2')],
+      club_offer_visibility: [{ club_id: 'c1', kind: 'vip_table', weekday: '*', mode: 'none', brand_ids: [] }],
+      club_tables: [],
+    })
+    expect(await offerRunsOn(sb, 'c1', 'vip_table', SATURDAY)).toBe(false)
+    expect(await offerRunsOn(sb, 'c1', 'vip_table', SATURDAY, 'table')).toBe(true)
+  })
+
+  it('current builds ignore table groupings', async () => {
+    const sb = fakeSb({
+      partner_brands: brands,
+      partner_offers: [offer('o1', 'b1', { table_id: 't1' })],
+      club_tables: [{ id: 't1', club_id: 'c1', name: 'Gold', seller: 'fourvenues', fourvenues_zones: ['gold'] }],
+    })
     expect(await offerRunsOn(sb, 'c1', 'vip_table', SATURDAY)).toBe(true)
   })
 
@@ -126,7 +146,7 @@ describe('offerRunsOn — VIP is judged per table, not per venue', () => {
       partner_offers: [offer('o1', 'b1', { table_id: 't1' })],
       club_tables: [{ id: 't1', club_id: 'c1', name: 'Gold', seller: 'fourvenues', fourvenues_zones: ['gold'] }],
     })
-    expect(await offerRunsOn(sb, 'c1', 'vip_table', SATURDAY)).toBe(false)
+    expect(await offerRunsOn(sb, 'c1', 'vip_table', SATURDAY, 'table')).toBe(false)
   })
 
   it('one table skipping tonight doesn’t close the others', async () => {
@@ -135,12 +155,12 @@ describe('offerRunsOn — VIP is judged per table, not per venue', () => {
       partner_offers: [offer('o1', 'b1', { skipped_dates: [SATURDAY] }), offer('o2', 'b2')],
       club_tables: [],
     })
-    expect(await offerRunsOn(sb, 'c1', 'vip_table', SATURDAY)).toBe(true)
+    expect(await offerRunsOn(sb, 'c1', 'vip_table', SATURDAY, 'table')).toBe(true)
   })
 
   it('an archived table can’t be booked', async () => {
     const sb = fakeSb({ partner_brands: brands, partner_offers: [offer('o1', 'b1', { is_active: false })], club_tables: [] })
-    expect(await offerRunsOn(sb, 'c1', 'vip_table', SATURDAY)).toBe(false)
+    expect(await offerRunsOn(sb, 'c1', 'vip_table', SATURDAY, 'table')).toBe(false)
   })
 
   it('guestlists keep the per-venue rule', async () => {

@@ -28,6 +28,9 @@ private struct CardPhoto: View {
             }
             .frame(height: height)
             .clipped()
+            // .clipped() hides the overflow of a .fill image but still hit-tests
+            // it — a tall flyer took taps meant for the shelf header above.
+            .contentShape(.rect)
     }
 }
 
@@ -496,15 +499,11 @@ struct ShelfRowView: View {
                     Text(String(format: locale.t("explore.bookableCount"), offers.bookableCount))
                     Image(systemName: "arrow.right").font(.system(size: 10, weight: .semibold))
                 }
-                .font(.cfSans(12, weight: .medium))
+                .font(.cfSans(12))
                 .foregroundStyle(Theme.accent)
                 .lineLimit(1)
                 .fixedSize()
-                .padding(.horizontal, 12)
-                .frame(height: 32)
-                .background(Theme.gold.opacity(0.12), in: .capsule)
-                .overlay(Capsule().strokeBorder(Theme.gold.opacity(0.4), lineWidth: 1))
-                .contentShape(.capsule)
+                .contentShape(.rect)
             }
             .buttonStyle(.plain)
         }

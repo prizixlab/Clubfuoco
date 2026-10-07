@@ -31,7 +31,9 @@ export async function GET(req: Request) {
 
   const { data: stale, error } = await sb
     .from('promoter_guests')
-    .select('id, stripe_checkout_session_id, stripe_payment_intent_id, hold_expires_at')
+    // `*`, not a column list: paid_with only exists once the 20261007
+    // migration is applied, and naming it would break the sweep until then.
+    .select('*')
     .eq('payment_status', 'pending')
     .lt('hold_expires_at', cutoff)
     .limit(200)
@@ -42,7 +44,16 @@ export async function GET(req: Request) {
   let released = 0
   let rescued = 0
 
-  for (const row of stale) {
+  for (const row of stale as {
+    id: string; paid_with?: string | null
+    stripe_checkout_session_id: string | null; stripe_payment_intent_id: string | null
+  }[]) {
+    // A companion ticket has no payment of its own — it is settled or deleted
+    // with its lead (trigger + ON DELETE CASCADE). Judged alone it would look
+    // like a checkout that never started and be deleted even after its lead
+    // was paid.
+    if (row.paid_with) continue
+
     // Neither a session nor an intent means checkout never got off the ground —
     // nothing to ask Stripe about, and nothing that could have been paid.
     if (!row.stripe_checkout_session_id && !row.stripe_payment_intent_id) {

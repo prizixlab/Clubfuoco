@@ -3,7 +3,7 @@ import { stripe } from '@/lib/stripe'
 import { ok, err } from '@/lib/utils'
 import { openSpotHold, releaseUnpaidIntent } from '@/lib/spot-sale'
 
-// POST /api/promoter-invites/<token>/payment-intent   { full_name, plus_ones? }
+// POST /api/promoter-invites/<token>/payment-intent   { full_name, plus_ones?, guests?, for_others? }
 //
 // The native Apple Pay path (app 1.14+). Same sale as /checkout — same checks,
 // same hold, same money routing — but instead of a Stripe-hosted page it
@@ -72,6 +72,10 @@ export async function POST(
       clientSecret: intent.client_secret,
       paymentIntentId: intent.id,
       guestId,
+      // Every ticket this charge pays for, lead first. The app checks the count
+      // against what it asked for before showing Apple Pay — an older server
+      // ignores `guests` and would charge for one.
+      ticketIds: sale.ticketIds,
       amountCents: amount,
       currency,
     })

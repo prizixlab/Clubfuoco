@@ -43,10 +43,11 @@ struct RootView: View {
         }
         .sheet(item: Binding(
             get: { router.pendingToken.map(InviteToken.init) },
-            set: { if $0 == nil { router.pendingToken = nil; router.paidGuestId = nil } }
+            set: { if $0 == nil { router.pendingToken = nil; router.paidGuestId = nil; router.sentTicketId = nil } }
         )) { wrapped in
             InviteClaimView(token: wrapped.value,
-                            preclaimedGuestId: router.paidGuestId)
+                            preclaimedGuestId: router.sentTicketId ?? router.paidGuestId,
+                            receivingSentTicket: router.sentTicketId != nil)
                 .presentationDetents([.large])
                 .cfSheetGrabber()
         }

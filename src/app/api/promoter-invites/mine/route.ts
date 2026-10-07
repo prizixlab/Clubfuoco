@@ -14,9 +14,7 @@ export async function GET(req: Request) {
   const { data: userResp, error: userErr } = await sb.auth.getUser(bearer)
   if (userErr || !userResp.user) return err('Unauthorized', 401)
 
-  const { data, error } = await sb
-    .from('promoter_guests')
-    .select(`
+  const select = `
       id, full_name, plus_ones, checked_in_at, created_at, payment_status, amount_cents,
       allocation:promoter_allocations (
         id, invite_token, spots,
@@ -26,7 +24,10 @@ export async function GET(req: Request) {
           club:clubs ( id, name, address, neighborhood, cover_image_url )
         )
       )
-    `)
+    `
+  const { data, error } = await sb
+    .from('promoter_guests')
+    .select(select)
     .eq('claimed_by_user', userResp.user.id)
     // A ticket, not a hold. Opening a paid night's checkout and backing out
     // leaves a 'pending' row for the length of the hold; listed here, the app
@@ -37,5 +38,23 @@ export async function GET(req: Request) {
     .order('created_at', { ascending: false })
 
   if (error) return err('Failed to load invites', 500)
-  return ok({ invites: data ?? [] })
+
+  // Tickets this user bought for other people and hasn't sent on yet
+  // (claimed_by_user still null). Opt-in with ?include=held: a build that
+  // predates multi-ticket purchases would take them for its own ticket.
+  // Before the 20261007 migration the column is missing and this quietly
+  // returns nothing.
+  let held: unknown[] = []
+  if (new URL(req.url).searchParams.get('include') === 'held') {
+    const { data: rows } = await sb
+      .from('promoter_guests')
+      .select(select)
+      .eq('purchased_by_user', userResp.user.id)
+      .is('claimed_by_user', null)
+      .or(`payment_status.is.null,payment_status.not.in.${NON_ADMITTING_PAYMENT_LIST}`)
+      .order('created_at', { ascending: false })
+    held = (rows ?? []).map(r => ({ ...(r as object), held_for_other: true }))
+  }
+
+  return ok({ invites: [...(data ?? []), ...held] })
 }

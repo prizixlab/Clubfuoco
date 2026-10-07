@@ -25,6 +25,12 @@ struct InviteSummary: Decodable, Identifiable, Hashable, Sendable {
     let paymentStatus: String?
     let amountCents: Int?
     let allocation: InviteAllocation
+    /// A ticket this user BOUGHT for someone else and hasn't sent on yet
+    /// (only listed when /mine is asked for ?include=held). Its name is the
+    /// friend's; the card offers "Send" instead of treating it as the user's own.
+    let heldForOther: Bool?
+
+    var isHeldForOther: Bool { heldForOther == true }
 
     /// What the guest paid, when they paid for it.
     var paidAmount: Double? {

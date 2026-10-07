@@ -36,6 +36,16 @@ struct TicketCard: View {
     /// and CancelConfirmButton all became unreachable — there was no way to
     /// cancel a booking in the app at all. Keep a route to it.
     let onOpenDetail: () -> Void
+    /// A ticket the guest bought for someone else and still holds: who it is
+    /// for, and the link that hands it to them (/i/<token>?ticket=<id> — the
+    /// app attaches it to their account when they open it).
+    var sendTo: Send? = nil
+
+    struct Send {
+        let name: String
+        let url: URL
+        let eventTitle: String
+    }
 
     @Environment(LocaleStore.self) private var locale
 
@@ -261,6 +271,26 @@ struct TicketCard: View {
             }
 
             qrRow.padding(.top, 13)
+
+            if let sendTo, !isCancelled, !isCheckedIn {
+                ShareLink(
+                    item: sendTo.url,
+                    subject: Text(sendTo.eventTitle),
+                    message: Text(String(format: locale.t("tickets.shareMessage"), sendTo.eventTitle))
+                ) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "paperplane.fill").font(.system(size: 13))
+                        Text(String(format: locale.t("tickets.send"), sendTo.name))
+                            .font(.cfSans(14, weight: .semibold))
+                    }
+                    .foregroundStyle(Explore.onAccent)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 46)
+                    .background(Explore.accent, in: .capsule)
+                }
+                .simultaneousGesture(TapGesture().onEnded { Haptics.tap() })
+                .padding(.top, 14)
+            }
 
             if showWallet && !isCancelled && !isCheckedIn {
                 WalletPassButton(

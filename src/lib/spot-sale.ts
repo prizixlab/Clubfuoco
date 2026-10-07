@@ -36,7 +36,10 @@ export const HOLD_MINUTES = 30
 export interface SpotSale {
   kind: 'held'
   sb: SB
+  /** The lead ticket — the row the payment is attached to. */
   guestId: string
+  /** Every ticket this purchase makes, lead first. */
+  ticketIds: string[]
   allocationId: string
   promoterId: string
   night: { id: string; night_date: string }
@@ -61,16 +64,39 @@ function fail(message: string, status = 400): SpotSaleResult {
   return { kind: 'refused', message, status }
 }
 
+/** Most tickets one purchase can make, the buyer's own included. */
+export const MAX_TICKETS = 10
+
 /**
  * Validate a paid spot and write the PENDING hold that counts against capacity.
  * The caller attaches a payment to `guestId`, and must delete the hold if
- * Stripe refuses to create one.
+ * Stripe refuses to create one (deleting the lead deletes its companions).
+ *
+ * Body: { full_name, plus_ones?, guests?: [{ full_name }], for_others? }
+ *   • guests     — extra NAMED tickets, each its own row and QR, linked to the
+ *                  lead by `paid_with` (migration 20261007_multi_ticket_purchases)
+ *   • for_others — buying only for other people ("buy another ticket" after
+ *                  the buyer already has theirs); the first guest is the lead
+ * Both need a signed-in buyer: the tickets are held on their account until
+ * they send them on.
  */
 export async function openSpotHold(req: Request, token: string): Promise<SpotSaleResult> {
   const body = await req.json().catch(() => ({}))
-  const fullName = typeof body.full_name === 'string' ? body.full_name.trim() : ''
-  const plusOnes = Math.max(0, Math.min(10, Number(body.plus_ones) || 0))
+  const forOthers = body.for_others === true
+  const extraNames: string[] = (Array.isArray(body.guests) ? body.guests : [])
+    .map((g: unknown) => (g && typeof (g as { full_name?: unknown }).full_name === 'string'
+      ? (g as { full_name: string }).full_name.trim() : ''))
+  if (extraNames.some(n => !n)) return fail('Every ticket needs a name', 400)
+  const fullName = forOthers ? (extraNames[0] ?? '')
+    : typeof body.full_name === 'string' ? body.full_name.trim() : ''
+  // Plus-ones ride on the buyer's own QR — not on a ticket bought for someone else.
+  const plusOnes = forOthers ? 0 : Math.max(0, Math.min(10, Number(body.plus_ones) || 0))
   if (!fullName) return fail('Name is required', 400)
+  // The lead's name is the first guest when buying for others; the rest are companions.
+  const companionNames = forOthers ? extraNames.slice(1) : extraNames
+  const ticketCount = 1 + companionNames.length
+  if (ticketCount > MAX_TICKETS) return fail(`At most ${MAX_TICKETS} tickets at a time`, 400)
+  const multi = forOthers || companionNames.length > 0
 
   const sb = await createServiceClient()
 
@@ -84,6 +110,7 @@ export async function openSpotHold(req: Request, token: string): Promise<SpotSal
     const { data } = await sb.auth.getUser(bearer)
     buyerId = data.user?.id ?? null
   }
+  if (multi && !buyerId) return fail('Sign in to buy tickets for other people.', 401)
 
   const resolved = await resolveTokenToAllocation(sb, token)
   if (!resolved) return fail('Invite not found', 404)
@@ -189,7 +216,8 @@ export async function openSpotHold(req: Request, token: string): Promise<SpotSal
   // one-claim-per-user index covers pending rows too, so this used to answer
   // "You already have a spot on this list" to someone who had paid nothing,
   // for the whole 30-minute hold.
-  if (buyerId) {
+  // Buying for others leaves the buyer's own spot alone, whatever its state.
+  if (buyerId && !forOthers) {
     const mine = guests.find(g => g.claimed_by_user === buyerId)
     if (mine && mine.payment_status === 'paid') {
       return { kind: 'alreadyPaid', guestId: mine.id }
@@ -234,8 +262,11 @@ export async function openSpotHold(req: Request, token: string): Promise<SpotSal
       || (g.hold_expires_at ? new Date(g.hold_expires_at).getTime() > now : false)
     return holdLive ? sum + 1 + (g.plus_ones ?? 0) : sum
   }, 0)
-  const heads = 1 + plusOnes
-  if (used + heads > alloc.spots) return fail('Not enough spots left', 409)
+  const leadHeads = 1 + plusOnes
+  const heads = leadHeads + companionNames.length
+  if (used + heads > alloc.spots) {
+    return fail(ticketCount > 1 ? `Not enough spots left for ${ticketCount} tickets` : 'Not enough spots left', 409)
+  }
 
   const amount = unitPrice * heads
   // Public offer or private event — two different deals, two different rates.
@@ -253,10 +284,16 @@ export async function openSpotHold(req: Request, token: string): Promise<SpotSal
       full_name: fullName,
       plus_ones: plusOnes,
       created_via_invite: true,
-      claimed_by_user: buyerId,
+      // A ticket bought for someone else belongs to nobody until it's sent on.
+      claimed_by_user: forOthers ? null : buyerId,
+      // Only written on multi-ticket purchases, so a single-ticket sale keeps
+      // working on a database without the 20261007 migration.
+      ...(multi ? { purchased_by_user: buyerId } : {}),
       referral_id: resolved.referralId,
       payment_status: 'pending',
-      amount_cents: amount,
+      // Each row carries ITS share, so summing rows gives revenue; the charge
+      // itself is `amount`, the whole purchase.
+      amount_cents: unitPrice * leadHeads,
       // Which wave this spot came out of — this is what makes "sold per
       // release" a count of real rows rather than a counter that drifts.
       release_id: live?.id ?? null,
@@ -271,9 +308,40 @@ export async function openSpotHold(req: Request, token: string): Promise<SpotSal
   if (insertErr?.code === '23505') return fail('You already have a spot on this list', 409)
   if (insertErr || !guest) return fail('Couldn’t start checkout', 500)
 
+  // The other named tickets. Same hold, same wave; they follow the lead's
+  // payment_status by trigger and vanish with it if the purchase is abandoned.
+  const ticketIds = [guest.id as string]
+  if (companionNames.length > 0) {
+    const holdUntil = new Date(now + HOLD_MINUTES * 60_000).toISOString()
+    const { data: companions, error: compErr } = await sb
+      .from('promoter_guests')
+      .insert(companionNames.map(name => ({
+        allocation_id: alloc.id,
+        full_name: name,
+        plus_ones: 0,
+        created_via_invite: true,
+        claimed_by_user: null,
+        purchased_by_user: buyerId,
+        paid_with: guest.id,
+        referral_id: resolved.referralId,
+        payment_status: 'pending',
+        amount_cents: unitPrice,
+        release_id: live?.id ?? null,
+        hold_expires_at: holdUntil,
+      })))
+      .select('id')
+    if (compErr || !companions || companions.length !== companionNames.length) {
+      await sb.from('promoter_guests').delete().eq('id', guest.id)
+      if (compErr?.code === '23514') return fail(`Not enough spots left for ${ticketCount} tickets`, 409)
+      console.error('[spot-sale] companion tickets:', compErr?.message)
+      return fail('Couldn’t start checkout', 500)
+    }
+    ticketIds.push(...companions.map(c => c.id as string))
+  }
+
   const eventName = night.title || night.club?.name || night.location_name || 'Club Fuoco event'
   return {
-    kind: 'held', sb, guestId: guest.id, allocationId: alloc.id, promoterId: alloc.promoter_id,
+    kind: 'held', sb, guestId: guest.id, ticketIds, allocationId: alloc.id, promoterId: alloc.promoter_id,
     night: { id: night.id, night_date: night.night_date }, eventName,
     heads, amount, currency, fee, feeBps, platformSettled, payout, now,
   }

@@ -2969,5 +2969,18 @@
  "fv.paidYes": { "ca": "Sí, he pagat", "fr": "Oui, j'ai payé" },
  "fv.paidNo": { "ca": "No, tanca", "fr": "Non, fermer" },
  "vip.savingTable": { "ca": "Pagament rebut: estem desant la teva taula. No tornis a pagar; apareixerà a Entrades aviat.", "fr": "Paiement reçu — on enregistre ta table. Ne paie pas une deuxième fois ; elle apparaîtra bientôt dans Billets." },
- "events.buyHint": { "ca": "Pagament segur — el teu passi apareix a Entrades.", "fr": "Paiement sécurisé — ton pass apparaît dans Billets." }
+ "events.buyHint": { "ca": "Pagament segur — el teu passi apareix a Entrades.", "fr": "Paiement sécurisé — ton pass apparaît dans Billets." },
+ "tickets.title": { "ca": "Entrades", "fr": "Billets" },
+ "tickets.howMany": { "ca": "Quantes entrades?", "fr": "Combien de billets ?" },
+ "tickets.another": { "ca": "Compra una altra entrada", "fr": "Acheter un autre billet" },
+ "tickets.anotherShort": { "ca": "Una altra entrada", "fr": "Un autre billet" },
+ "tickets.you": { "ca": "Tu", "fr": "Vous" },
+ "tickets.theirName": { "ca": "El seu nom complet", "fr": "Son nom complet" },
+ "tickets.ticketN": { "ca": "Entrada %d", "fr": "Billet %d" },
+ "tickets.namesHint": { "ca": "Cada entrada porta el seu nom i el seu QR. Les tens a Entrades i pots enviar-ne cadascuna.", "fr": "Chaque billet a son nom et son QR. Vous les gardez dans Billets et pouvez envoyer chacun." },
+ "tickets.total": { "ca": "Total", "fr": "Total" },
+ "tickets.pay": { "ca": "Paga %@", "fr": "Payer %@" },
+ "tickets.forName": { "ca": "Per a %@", "fr": "Pour %@" },
+ "tickets.send": { "ca": "Envia a %@", "fr": "Envoyer à %@" },
+ "tickets.shareMessage": { "ca": "La teva entrada per a %@ — obre-la a Club Fuoco per tenir el teu QR.", "fr": "Ton billet pour %@ — ouvre-le dans Club Fuoco pour avoir ton QR." }
 }

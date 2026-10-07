@@ -705,7 +705,12 @@ struct BookingsView: View {
                         group: nil,
                         showWallet: false,
                         onOpenGroup: {},
-                        onOpenDetail: { openInvite = inv }
+                        onOpenDetail: { openInvite = inv },
+                        sendTo: inv.isHeldForOther ? TicketCard.Send(
+                            name: inv.fullName,
+                            url: InviteLinkRouter.ticketURL(token: inv.inviteToken,
+                                                            guestId: inv.id.uuidString.lowercased()),
+                            eventTitle: inv.eventTitle) : nil
                     )
                     .padding(.horizontal, 20)
                 }
@@ -1027,7 +1032,9 @@ final class BookingsViewModel {
         // client + manual scoping, so they work for native Bearer requests.
         async let groupList: [GroupListItem]? = try? await api.get("/api/groups")
         async let inviteResp: InvitesResponse? = {
-            do { return try await api.get("/api/promoter-invites/mine") as InvitesResponse }
+            // include=held: tickets bought for friends and not sent on yet.
+            do { return try await api.get("/api/promoter-invites/mine",
+                                          query: [URLQueryItem(name: "include", value: "held")]) as InvitesResponse }
             catch { FVTrace.log("tickets page: invites failed to load — \(error)"); return nil }
         }()
         do {

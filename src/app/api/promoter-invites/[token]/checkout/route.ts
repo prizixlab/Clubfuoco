@@ -2,7 +2,7 @@ import { stripe } from '@/lib/stripe'
 import { ok, err } from '@/lib/utils'
 import { openSpotHold, HOLD_MINUTES } from '@/lib/spot-sale'
 
-// POST /api/promoter-invites/<token>/checkout   { full_name, plus_ones? }
+// POST /api/promoter-invites/<token>/checkout   { full_name, plus_ones?, guests?, for_others? }
 //
 // Buying a spot on a paid night. Returns a Stripe Checkout URL; the spot is
 // only really theirs once the webhook says the money landed.
@@ -100,7 +100,7 @@ export async function POST(
       .update({ stripe_checkout_session_id: session.id })
       .eq('id', guest.id)
 
-    return ok({ url: session.url, guestId: guest.id, amountCents: amount, currency })
+    return ok({ url: session.url, guestId: guest.id, ticketIds: sale.ticketIds, amountCents: amount, currency })
   } catch (e) {
     // Stripe refused. Release the hold immediately rather than leaving a spot
     // locked up by a checkout that will never exist.

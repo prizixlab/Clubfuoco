@@ -10,6 +10,10 @@ struct InviteClaimView: View {
     /// has already claimed this invite.
     var preclaimedGuestId: String? = nil
     var preclaimedName: String? = nil
+    /// `preclaimedGuestId` is a ticket somebody bought for this person and
+    /// sent them (/i/<token>?ticket=<id>). Signed in, it is attached to their
+    /// account on open; signed out, the save card below does it after sign-in.
+    var receivingSentTicket = false
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthStore.self) private var auth
@@ -161,6 +165,9 @@ struct InviteClaimView: View {
             if let id = preclaimedGuestId {
                 claimedGuestId = id
                 if let n = preclaimedName, !n.isEmpty { name = n }
+                if receivingSentTicket, auth.hasAccount {
+                    await receiveSentTicket(guestId: id)
+                }
             } else if let full = auth.profile?.fullName, !full.isEmpty {
                 name = full
             }
@@ -681,6 +688,27 @@ struct InviteClaimView: View {
             // plainly rather than implying the spot is gone, because it isn't:
             // the QR above still opens the door either way.
             attachError = "Signed in, but couldn't attach this spot. Your QR still works — pull it up from this link again."
+            Haptics.error()
+        }
+    }
+
+    /// A ticket somebody bought for this person: make it theirs. A refusal is
+    /// shown in the server's words — "already belongs to another account" (sent
+    /// to someone else first) and "you already have a spot on this list" are the
+    /// answers that matter, and neither means the link is broken.
+    private func receiveSentTicket(guestId: String) async {
+        struct Resp: Decodable, Sendable { let attached: Bool }
+        do {
+            let _: Resp = try await api.post("/api/promoter-invites/guest/\(guestId)/attach")
+            attached = true
+            Haptics.success()
+            NotificationCenter.default.post(name: .cfInviteClaimed, object: nil)
+        } catch {
+            if case let .http(_, message) = error as? APIError ?? .emptyData, !message.isEmpty {
+                self.error = message
+            } else {
+                attachError = "Couldn't add this ticket to your account. Open the link again in a moment."
+            }
             Haptics.error()
         }
     }

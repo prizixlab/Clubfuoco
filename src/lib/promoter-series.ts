@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { allocationBlocked, seriesBlocked } from '@/lib/promoter-review'
+import { fourvenuesOnlyAllocation, fourvenuesOnlyOwners } from '@/lib/fourvenues-only'
 
 /**
  * Promoter "series" = a recurring guestlist with ONE permanent invite token.
@@ -235,6 +236,17 @@ export async function resolveTokenToAllocation(
   sb: SupabaseClient,
   token: string
 ): Promise<{ allocationId: string; seriesToken: string | null; referralId: string | null } | null> {
+  // A Fourvenues-only promoter (HypeList) never has a working link of ours —
+  // every invite route resolves through here, so this is the one gate.
+  const r = await resolveToken(sb, token)
+  if (r && (await fourvenuesOnlyAllocation(sb, r.allocationId))) return null
+  return r
+}
+
+async function resolveToken(
+  sb: SupabaseClient,
+  token: string
+): Promise<{ allocationId: string; seriesToken: string | null; referralId: string | null } | null> {
   // 1. One-off allocation token. Held (unapproved) nights don't resolve.
   const { data: oneOff } = await sb
     .from('promoter_allocations')
@@ -255,6 +267,8 @@ export async function resolveTokenToAllocation(
     .maybeSingle()
   if (series) {
     if (await seriesBlocked(sb, (series as PromoterSeries).id)) return null
+    // Checked before materializing, so no night is minted for them either.
+    if ((await fourvenuesOnlyOwners(sb)).has((series as PromoterSeries).promoter_id)) return null
     const date = resolveOccurrenceDate(series as PromoterSeries)
     if (!date) return null
     const allocationId = await ensureOccurrence(sb, series as PromoterSeries, date)

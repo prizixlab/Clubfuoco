@@ -1,5 +1,6 @@
 import type { createServiceClient } from '@/lib/supabase/server'
 import { parseValidDays, weekdayOf } from '@/lib/valid-days'
+import { isFourvenuesOnlyBrandKey } from '@/lib/fourvenues-only'
 
 type SB = Awaited<ReturnType<typeof createServiceClient>>
 
@@ -103,7 +104,9 @@ export async function getActiveBrand(sb: SB): Promise<(PartnerBrand & { id: stri
     .from('partner_brands')
     .select('*')
     .eq('is_active', true)
-  const rows = (data ?? []) as Record<string, unknown>[]
+  // A Fourvenues-only supplier is never the app-wide brand, not even as the
+  // last resort below.
+  const rows = ((data ?? []) as Record<string, unknown>[]).filter(r => !isFourvenuesOnlyBrandKey(r.key))
   const usable = rows.filter(r => r.offers_hidden !== true)
   const pick = (usable.length ? usable : rows)
     .sort((a, b) => String(a.key ?? '').localeCompare(String(b.key ?? '')))[0]
@@ -305,7 +308,10 @@ async function brandsById(sb: SB): Promise<{
     const row = r as Record<string, unknown>
     const b = toBrand(row)
     brands.set(b.id, b)
-    if (row.offers_hidden === true) hidden.add(b.id)
+    // Fourvenues-only suppliers (HypeList) are hidden no matter what the
+    // portal toggle says: their offers would book through us and mint a Fuoco
+    // QR their door doesn't scan. See lib/fourvenues-only.ts.
+    if (row.offers_hidden === true || isFourvenuesOnlyBrandKey(row.key)) hidden.add(b.id)
   }
   return { brands, hidden }
 }

@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { ok, err } from '@/lib/utils'
+import { fourvenuesOnlyNight } from '@/lib/fourvenues-only'
 
 // POST   /api/events/[id]/reserve — reserve a spot on one of our events.
 // DELETE /api/events/[id]/reserve — cancel that reservation.
@@ -119,6 +120,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   if (evErr) return err(evErr.message, 500)
   if (!event) return err('That event is not open for reservations', 404)
+
+  // A HypeList night is sold through Fourvenues only — a spot here would be a
+  // Fuoco QR their door doesn't scan. The app books it from the feed instead.
+  if (await fourvenuesOnlyNight(sb, id)) {
+    return err('This night is booked through Fourvenues, not here', 409)
+  }
 
   // `bookings.club_id` is NOT NULL, so an event at a free-text address has
   // nowhere to hang a booking. Refused explicitly rather than failing on the

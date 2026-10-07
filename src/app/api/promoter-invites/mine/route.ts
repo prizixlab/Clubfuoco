@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
+import { NON_ADMITTING_PAYMENT_LIST } from '@/lib/refunds'
 
 /**
  * Returns every promoter-invite this user has claimed (joined to allocation
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
     // drew it as a ticket with a QR (that the door then refused) instead of
     // leaving the guest on "Save it, pay later". Refunded spots aren't
     // tickets either. null = written before payment_status existed (free).
-    .or('payment_status.is.null,payment_status.not.in.(pending,refunded)')
+    .or(`payment_status.is.null,payment_status.not.in.${NON_ADMITTING_PAYMENT_LIST}`)
     .order('created_at', { ascending: false })
 
   if (error) return err('Failed to load invites', 500)

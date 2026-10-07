@@ -65,7 +65,7 @@ export async function GET(req: Request) {
             stripe_payment_intent_id: stripeSays.paymentIntentId,
           })
           .eq('id', row.id)
-          .neq('payment_status', 'paid')
+          .eq('payment_status', 'pending')
         if (!payErr) rescued++
         continue
       }

@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
 import { billableForKind, isoNoMs, usedForToken, type CredentialKind } from '@/lib/door'
 import { eventAccessDenied } from '@/lib/door-events'
+import { NON_ADMITTING_PAYMENT } from '@/lib/refunds'
 
 // POST /api/door/admit  { scan_id, action, token_ref, count, kind, holder_name, reason? }
 //
@@ -189,7 +190,7 @@ async function tokenContext(
     // fallback: dropping it there to survive a missing column would fail open,
     // which is exactly the bug this closes.
     const pay = (row.data as { payment_status?: string }).payment_status ?? 'free'
-    if (pay === 'pending' || pay === 'refunded') return null
+    if (NON_ADMITTING_PAYMENT.has(pay)) return null
     const night = (row.data.promoter_allocations as {
       promoter_nights?: { id?: string; club_id?: string; night_date?: string; visibility?: string }
     } | null)?.promoter_nights

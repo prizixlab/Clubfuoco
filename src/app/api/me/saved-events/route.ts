@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
+import { NON_ADMITTING_PAYMENT_LIST } from '@/lib/refunds'
 
 // GET /api/me/saved-events
 //
@@ -47,7 +48,7 @@ export async function GET(req: Request) {
       .select('allocation_id')
       .eq('claimed_by_user', userId)
       .in('allocation_id', allocIds)
-      .or('payment_status.is.null,payment_status.not.in.(pending,refunded)')
+      .or(`payment_status.is.null,payment_status.not.in.${NON_ADMITTING_PAYMENT_LIST}`)
     for (const g of mine ?? []) have.add(g.allocation_id as string)
   }
 

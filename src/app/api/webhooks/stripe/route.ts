@@ -5,6 +5,7 @@ import { sendTicketConfirmation, sendAdminTicketAlert } from '@/lib/email'
 import { pushWalletUpdate } from '@/lib/wallet/push'
 import { applyCardVerification } from '@/lib/promoter-billing'
 import { syncAccount } from '@/lib/connect'
+import { revokeForCharge } from '@/lib/refunds'
 import type Stripe from 'stripe'
 
 // Uses Postgres sequence to give each new paid member a unique sequential number
@@ -88,7 +89,9 @@ export async function POST(request: NextRequest) {
                 stripe_payment_intent_id: (session.payment_intent as string) ?? null,
               })
               .eq('id', m.guest_id)
-              .neq('payment_status', 'paid')  // idempotent: retries are no-ops
+              // Only a hold becomes paid. Retries are no-ops, and a retry that
+              // lands after a refund must not flip 'refunded' back to 'paid'.
+              .eq('payment_status', 'pending')
             if (payErr) throw new Error(payErr.message)
           } catch (e) {
             console.error('[webhook] event_spot: could not mark paid —',
@@ -221,7 +224,7 @@ export async function POST(request: NextRequest) {
               stripe_payment_intent_id: pi.id,
             })
             .eq('id', pi.metadata.guest_id)
-            .neq('payment_status', 'paid')
+            .eq('payment_status', 'pending')   // see the Checkout branch
           if (payErr) {
             console.error('[webhook] event_spot intent: could not mark paid —',
               pi.metadata.guest_id, payErr.message)
@@ -314,6 +317,34 @@ export async function POST(request: NextRequest) {
             .from('ticket_orders')
             .update({ status: 'payment_failed' })
             .eq('stripe_payment_intent', pi.id)
+        }
+        break
+      }
+
+      // ---- Money given back, or taken back ----
+      //
+      // A refund or a chargeback has to reach the door. Full refunds and every
+      // dispute revoke entry (lib/refunds); a partial refund is logged and left
+      // alone. Like event_spot, a failed revoke returns 500 so Stripe retries
+      // instead of the catch-all swallowing it.
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge
+        if (!charge.refunded) {
+          console.log('[webhook] partial refund', charge.id, charge.amount_refunded, '/', charge.amount)
+          break
+        }
+        if (!(await revokeForCharge(supabase, charge, 'refunded'))) {
+          return NextResponse.json({ error: 'could not revoke entry' }, { status: 500 })
+        }
+        break
+      }
+      case 'charge.dispute.created': {
+        const dispute = event.data.object as Stripe.Dispute
+        const charge = typeof dispute.charge === 'string'
+          ? await stripe.charges.retrieve(dispute.charge)
+          : dispute.charge
+        if (!(await revokeForCharge(supabase, charge, 'disputed'))) {
+          return NextResponse.json({ error: 'could not revoke entry' }, { status: 500 })
         }
         break
       }

@@ -40,7 +40,7 @@ export async function POST(
 
   // Already settled, or never needed paying. Nothing to ask Stripe.
   if (status === 'paid' || status === 'free') return ok({ paid: true, status })
-  if (status === 'refunded') return ok({ paid: false, status })
+  if (status === 'refunded' || status === 'disputed') return ok({ paid: false, status })
   if (!row.stripe_checkout_session_id && !row.stripe_payment_intent_id) return ok({ paid: false, status })
 
   try {
@@ -58,7 +58,7 @@ export async function POST(
         stripe_payment_intent_id: stripeSays.paymentIntentId,
       })
       .eq('id', guestId)
-      .neq('payment_status', 'paid')   // idempotent against the webhook racing us
+      .eq('payment_status', 'pending')   // idempotent, and never un-refunds a spot
     if (error) return err('Could not record the payment', 500)
     return ok({ paid: true, status: 'paid' })
   } catch (e) {

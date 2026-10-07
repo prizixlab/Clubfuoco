@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
 import { ok, err } from '@/lib/utils'
+import { NON_ADMITTING_PAYMENT_LIST } from '@/lib/refunds'
 
 // GET /api/portal/insights — everything booked through the app, by venue.
 //
@@ -61,7 +62,7 @@ export async function GET() {
     .select(`id, claimed_by_user, payment_status, amount_cents, plus_ones, created_at, checked_in_at,
              allocation:promoter_allocations ( night:promoter_nights ( id, club_id, location_name ) )`)
     .gte('created_at', since)
-    .or('payment_status.is.null,payment_status.not.in.(pending,refunded)')
+    .or(`payment_status.is.null,payment_status.not.in.${NON_ADMITTING_PAYMENT_LIST}`)
   for (const g of (guests ?? []) as unknown as {
     id: string; claimed_by_user: string | null; payment_status: string | null; amount_cents: number | null
     created_at: string; checked_in_at: string | null

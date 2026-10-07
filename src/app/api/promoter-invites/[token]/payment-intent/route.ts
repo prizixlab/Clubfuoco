@@ -130,7 +130,7 @@ export async function DELETE(
       // It succeeded after all — the spot is theirs.
       await sb.from('promoter_guests')
         .update({ payment_status: 'paid', paid_at: new Date().toISOString(), hold_expires_at: null })
-        .eq('id', guestId).neq('payment_status', 'paid')
+        .eq('id', guestId).eq('payment_status', 'pending')
       return ok({ released: false, paid: true })
     }
   } catch (e) {

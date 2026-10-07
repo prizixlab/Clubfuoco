@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'crypto'
 import { headers } from 'next/headers'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { NON_ADMITTING_PAYMENT } from '@/lib/refunds'
 
 // ── Fuoco Door — server helpers ──────────────────────────────────────────────
 // Shared by the /api/door/* routes. Devices authenticate with a bearer token
@@ -383,7 +384,7 @@ async function resolveGuest(supabase: SupabaseClient, guestId: string): Promise<
   // descriptor with it, so a new case would break every installed build. The
   // entitlement label carries the real reason.
   const pay = (g as { payment_status?: string }).payment_status ?? 'free'
-  const paid = pay !== 'pending' && pay !== 'refunded'
+  const paid = !NON_ADMITTING_PAYMENT.has(pay)
   return {
     holder_name: g.full_name ?? 'Guest',
     holder_avatar_url: null,

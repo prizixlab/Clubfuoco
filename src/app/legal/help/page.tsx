@@ -16,7 +16,8 @@ const SECTIONS: LegalSection[] = [
   {
     heading: 'Bookings and tickets',
     body: [
-      'You can review your bookings and ticket orders at any time from the "My Bookings" screen.',
+      'You can review your bookings and tickets at any time from the Tickets tab.',
+      'Guest lists, tickets and tables sold on Fourvenues are booked for you in the app, and the ticket is saved to your Tickets tab and emailed to you, usually within a few minutes. If one has not arrived after an hour, contact us with the event name and date.',
       'Cancellation, refund, and no-show rules are set by each venue or event organiser and are shown before you confirm a purchase. If something looks wrong with an order, contact us with your booking reference and we will help.',
     ],
   },

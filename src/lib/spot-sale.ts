@@ -222,6 +222,20 @@ export async function openSpotHold(req: Request, token: string): Promise<SpotSal
     if (mine && mine.payment_status === 'paid') {
       return { kind: 'alreadyPaid', guestId: mine.id }
     }
+    // Refunded or charged back: no longer a ticket, but still holding the
+    // one-claim-per-user slot, so buying again would answer "You already have
+    // a spot on this list". Let go of the claim; purchased_by_user keeps the
+    // row attributed to the buyer for the record.
+    if (mine && (mine.payment_status === 'refunded' || mine.payment_status === 'disputed')) {
+      const { error: relErr } = await sb.from('promoter_guests')
+        .update({ claimed_by_user: null, purchased_by_user: buyerId })
+        .eq('id', mine.id).in('payment_status', ['refunded', 'disputed'])
+      if (relErr) {
+        console.error('[spot-sale] could not release a refunded claim:', relErr.message)
+        return fail('Couldn’t start checkout', 500)
+      }
+      guests.splice(guests.indexOf(mine), 1)
+    }
     if (mine && mine.payment_status === 'pending') {
       const { data: held } = await sb.from('promoter_guests')
         .select('stripe_checkout_session_id, stripe_payment_intent_id')
@@ -258,6 +272,8 @@ export async function openSpotHold(req: Request, token: string): Promise<SpotSal
   // next person out for the rest of the night.
   const now = Date.now()
   const used = guests.reduce((sum, g) => {
+    // Refunded and charged-back tickets admit nobody, so they hold no spot.
+    if (g.payment_status === 'refunded' || g.payment_status === 'disputed') return sum
     const holdLive = g.payment_status !== 'pending'
       || (g.hold_expires_at ? new Date(g.hold_expires_at).getTime() > now : false)
     return holdLive ? sum + 1 + (g.plus_ones ?? 0) : sum

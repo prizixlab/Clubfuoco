@@ -75,6 +75,9 @@ struct FeaturedDJBox: View {
         }
         .frame(width: 64, height: 64)
         .clipShape(.circle)
+        // Taps only inside the visible frame — a .fill image's clipped-away overflow
+        // still hit-tests and steals taps from views above it on wider phones.
+        .contentShape(.circle)
         .overlay(Circle().stroke(Theme.gold.opacity(0.5)))
     }
 }
@@ -318,6 +321,7 @@ struct FeaturedDJSheet: View {
         }
         .frame(width: 78, height: 78)
         .clipShape(.rect(cornerRadius: 20))
+        .contentShape(.rect(cornerRadius: 20))
     }
 
     // ── Residency ─────────────────────────────────────────────────────────────

@@ -44,6 +44,9 @@ struct TicketHero: View {
                 }
                 .frame(height: 340)
                 .clipped()
+                // Taps only inside the visible frame — a .fill image's clipped-away overflow
+                // still hit-tests and steals taps from views above it on wider phones.
+                .contentShape(.rect)
                 // Deep wine scrim: dark enough at the bottom for the title and
                 // for the QR card's shadow to sit on, clear at the middle so the
                 // venue photo still reads.

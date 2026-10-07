@@ -407,6 +407,9 @@ struct FVEventSheet: View {
                 } placeholder: { Self.veil(0.06) }
                 .frame(width: 66, height: 88)
                 .clipShape(.rect(cornerRadius: 10))
+                // Taps only inside the visible frame — a .fill image's clipped-away overflow
+                // still hit-tests and steals taps from views above it on wider phones.
+                .contentShape(.rect(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Self.veil(0.1)))
             }
             VStack(alignment: .leading, spacing: 4) {

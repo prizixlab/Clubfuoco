@@ -115,6 +115,9 @@ struct TicketCard: View {
                 )
                 .frame(height: 140)
                 .clipped()
+                // Taps only inside the visible frame — a .fill image's clipped-away overflow
+                // still hit-tests and steals taps from views above it on wider phones.
+                .contentShape(.rect)
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top, spacing: 10) {

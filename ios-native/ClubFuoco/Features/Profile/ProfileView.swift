@@ -246,6 +246,9 @@ struct ProfileView: View {
                                     }
                                     .frame(width: 84, height: 84)
                                     .clipShape(.circle)
+                                    // Taps only inside the visible frame — a .fill image's clipped-away overflow
+                                    // still hit-tests and steals taps from views above it on wider phones.
+                                    .contentShape(.circle)
                                 } else {
                                     Text(parts.initials)
                                         .font(.cfSerif(42, italic: true))

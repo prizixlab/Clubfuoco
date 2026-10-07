@@ -264,6 +264,12 @@ struct ExploreView: View {
         return VStack(alignment: .leading, spacing: 0) {
             WhenPlannerView()
                 .padding(.bottom, 16)
+                // Above the featured box in hit-test order: a portrait flyer
+                // in the hero overflows its 220pt frame by ~100pt, and in 1.15
+                // that invisible overflow sat on top of this pill and ate
+                // every tap. The photos clip their hit area now too; this
+                // keeps the day selector safe whatever lands under it.
+                .zIndex(1)
 
             // ── Featured, venues and events together ──────────────────────────
             // Events used to sit in their own block ABOVE this box, which put
@@ -440,6 +446,9 @@ struct ExploreView: View {
                 }
                 .frame(width: 220, height: 130)
                 .clipped()
+                // Taps only inside the visible frame — a .fill image's clipped-away overflow
+                // still hit-tests and steals taps from views above it on wider phones.
+                .contentShape(.rect)
                 .overlay(
                     LinearGradient(colors: [.black.opacity(0.75), .clear], startPoint: .bottom, endPoint: .top)
                 )
@@ -483,6 +492,7 @@ struct ExploreView: View {
                                 }
                                 .frame(width: 52, height: 52)
                                 .clipShape(.rect(cornerRadius: 10))
+                                .contentShape(.rect(cornerRadius: 10))
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(place.name)
@@ -676,5 +686,6 @@ private struct CardPhotoLarge: View {
             }
             .frame(height: 200)
             .clipped()
+            .contentShape(.rect)
     }
 }

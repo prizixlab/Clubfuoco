@@ -7,15 +7,22 @@ struct WhenPlannerView: View {
     @Environment(PlanStore.self) private var plan
     @Environment(LocaleStore.self) private var locale
     @State private var open = false
+    /// What the wheel is on. Spinning only moves this; `plan.date` (which
+    /// rebuilds the whole feed) is set once, after the wheel has closed —
+    /// a rebuild per wheel stop made the wheel and Done feel sluggish.
+    @State private var draft: String?
 
     var body: some View {
-        @Bindable var plan = plan
         let options = PlanStore.dayOptions(locale: locale)
+        let shown = draft ?? plan.date
 
         VStack(spacing: 0) {
             Button {
-                withAnimation(.spring(duration: 0.3)) { open.toggle() }
                 Haptics.tap()
+                if open { close() } else {
+                    draft = plan.date
+                    withAnimation(.snappy(duration: 0.25)) { open = true }
+                }
             } label: {
                 HStack(spacing: 9) {
                     Image(systemName: "calendar")
@@ -26,7 +33,7 @@ struct WhenPlannerView: View {
                         .kerning(1)
                         .foregroundStyle(Theme.fadedSand)
                         .lineLimit(1)
-                    Text(plan.formatted(locale: locale))
+                    Text(options.first { $0.value == shown }?.label ?? shown)
                         .font(.cfSerif(17, italic: true))
                         .foregroundStyle(Theme.ink)
                         .lineLimit(1)
@@ -44,7 +51,10 @@ struct WhenPlannerView: View {
                 VStack(spacing: 8) {
                     Divider().overlay(Theme.hairline)
 
-                    Picker(locale.t("plan.day"), selection: $plan.date) {
+                    Picker(locale.t("plan.day"), selection: Binding(
+                        get: { draft ?? plan.date },
+                        set: { draft = $0 }
+                    )) {
                         ForEach(options) { option in
                             Text(option.label)
                                 .font(.cfSerif(20))
@@ -56,7 +66,8 @@ struct WhenPlannerView: View {
                     .clipped()
 
                     Button {
-                        withAnimation(.spring(duration: 0.3)) { open = false }
+                        Haptics.tap()
+                        close()
                     } label: {
                         Text(locale.t("plan.done"))
                             .font(.cfSans(13, weight: .semibold))
@@ -78,5 +89,22 @@ struct WhenPlannerView: View {
                 .stroke(open ? Theme.hairline : .clear)
         )
         .padding(.horizontal, 20)
+        // Leaving Explore with the wheel open still keeps the night picked.
+        .onDisappear { commit() }
+    }
+
+    /// Collapse first, then commit: the feed rebuild lands after the
+    /// animation instead of stalling it.
+    private func close() {
+        withAnimation(.snappy(duration: 0.25)) {
+            open = false
+        } completion: {
+            commit()
+        }
+    }
+
+    private func commit() {
+        if let draft, draft != plan.date { plan.date = draft }
+        draft = nil
     }
 }

@@ -46,6 +46,7 @@ struct MainTabView: View {
                 // Set on the stack (not on ExploreView) so pushed destinations —
                 // ShelfListView's rows, etc. — inherit it too.
                 .environment(\.pushPlace, { explorePath.append($0) })
+                .environment(\.pushFeaturedOffers, { explorePath.append($0) })
                 .tabItem { Label(locale.t("nav.explore"), systemImage: "safari") }
                 .tag(Tab.explore)
 

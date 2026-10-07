@@ -52,6 +52,12 @@ struct EventDetailView: View {
     /// screen's, opened straight onto the QR + Wallet.
     @State private var paidGuestId: String?
     @State private var showPaidTicket = false
+    // Choosing tickets (BuyTicketsSheet), and the purchase it hands back —
+    // paid only once the sheet is gone, so Apple Pay never stacks on it.
+    @State private var buySheetForOthers: Bool?
+    @State private var pendingPurchase: (guests: [String], forOthers: Bool)?
+    /// "2 tickets bought — in Tickets", after buying for other people.
+    @State private var boughtNote: String?
     @State private var showFVGate = false
 
     /// A HypeList night is booked through HypeList: the same three buttons as
@@ -101,6 +107,24 @@ struct EventDetailView: View {
                     .presentationDetents([.large])
                     .cfSheetGrabber()
             }
+        }
+        .sheet(isPresented: Binding(
+            get: { buySheetForOthers != nil },
+            set: { if !$0 { buySheetForOthers = nil } }),
+               onDismiss: {
+            guard let p = pendingPurchase else { return }
+            pendingPurchase = nil
+            Task { await buy(guests: p.guests, forOthers: p.forOthers) }
+        }) {
+            BuyTicketsSheet(
+                mode: buySheetForOthers == true ? .forOthers : .withMe(buyerName: buyerName),
+                eventTitle: event.displayTitle,
+                unitCents: event.liveRelease?.priceCents ?? event.priceCents ?? 0
+            ) { names in
+                pendingPurchase = (names, buySheetForOthers == true)
+            }
+            .presentationDetents([.medium, .large])
+            .cfSheetGrabber()
         }
         .sheet(isPresented: $showFVGate) {
             GuestGateView(reason: .guestlist).presentationDetents([.medium])
@@ -788,12 +812,27 @@ struct EventDetailView: View {
         // Bought: the only thing left to do is show the ticket. Never "Buy"
         // again — that read as if the payment hadn't gone through.
         if paidGuestId != nil {
-            Button { Haptics.tap(); showPaidTicket = true } label: {
-                dockShell(fill: Explore.accentSoft, stroke: Explore.accentDim, text: Explore.ink) {
-                    HStack(spacing: 9) {
-                        Image(systemName: "checkmark").font(.system(size: 14, weight: .bold))
-                        Text(locale.t("events.viewPass"))
+            HStack(spacing: 10) {
+                Button { Haptics.tap(); showPaidTicket = true } label: {
+                    dockShell(fill: Explore.accentSoft, stroke: Explore.accentDim, text: Explore.ink) {
+                        HStack(spacing: 9) {
+                            Image(systemName: "checkmark").font(.system(size: 14, weight: .bold))
+                            Text(locale.t("events.viewPass"))
+                        }
                     }
+                }
+                // A ticket for someone else: their name, their own QR. Held in
+                // Tickets until sent on.
+                if event.isTicketed, !event.soldOut {
+                    Button { Haptics.tap(); buySheetForOthers = true } label: {
+                        dockShell(fill: .clear, stroke: Explore.accent, text: Explore.accent) {
+                            HStack(spacing: 7) {
+                                Image(systemName: "plus").font(.system(size: 13, weight: .bold))
+                                Text(locale.t("tickets.anotherShort"))
+                            }
+                        }
+                    }
+                    .disabled(working)
                 }
             }
         } else {
@@ -847,7 +886,10 @@ struct EventDetailView: View {
                     Text("Sold out")
                 }
             } else if event.isTicketed {
-                Button { Task { await buy() } } label: {
+                Button {
+                    guard auth.hasAccount else { showGuestGate = true; return }
+                    buySheetForOthers = false
+                } label: {
                     dockShell(fill: Explore.accent, stroke: nil, text: Explore.onAccent) {
                         Text("Buy · \(priceNow)")
                     }
@@ -879,14 +921,24 @@ struct EventDetailView: View {
     /// hold, the payout verification and the release stamping — a second
     /// implementation would drift from it, and money is the worst place for
     /// two truths.
-    private func buy() async {
+    ///
+    /// `guests` are the other ticket-holders' names; with `forOthers` the
+    /// buyer's own ticket is left alone and every ticket is for someone else.
+    private func buy(guests: [String] = [], forOthers: Bool = false) async {
         guard let token = event.inviteToken else { return }
         guard auth.hasAccount else { showGuestGate = true; return }
-        working = true; errorText = nil
+        working = true; errorText = nil; boughtNote = nil
         defer { working = false }
         do {
             switch try await SpotPayment.buy(
-                api: api, token: token, fullName: buyerName, plusOnes: 0, label: event.displayTitle) {
+                api: api, token: token, fullName: buyerName, plusOnes: 0,
+                guests: guests, forOthers: forOthers, label: event.displayTitle) {
+            case .paid where forOthers:
+                // Their tickets, not a new one of ours: stay put and say where
+                // they went — each is sent on from Tickets.
+                Haptics.success()
+                boughtNote = locale.t("rumbalist.savedToTickets")
+                NotificationCenter.default.post(name: .cfInviteClaimed, object: nil)
             case .paid(let guestId):
                 // Straight onto the ticket — the QR, Wallet, the party. A
                 // haptic alone left a paying guest unsure it had worked.
@@ -926,6 +978,7 @@ struct EventDetailView: View {
     }
 
     private var dockNote: String {
+        if let boughtNote { return boughtNote }
         if paidGuestId != nil { return locale.t("rumbalist.savedToTickets") }
         switch state {
         case .working:   return locale.t("events.holdingSpot")

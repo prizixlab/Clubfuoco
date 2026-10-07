@@ -15,6 +15,31 @@ import { DEFAULT_PLATFORM_FEE_BPS, DEFAULT_PUBLIC_PLATFORM_FEE_BPS } from './pla
 // promoter's own dashboard for payouts and receipts. Custom would put all of
 // that on us.
 
+/**
+ * Whether this promoter's sales settle to the PLATFORM account instead of
+ * their own — a row in `platform_settled_promoters`.
+ *
+ * A plain charge on Club Fuoco's Stripe: no transfer, no application fee, no
+ * on_behalf_of — we are merchant of record, we hold the money, and we settle
+ * with the promoter by hand afterwards. For a promoter who is selling before
+ * they have finished Connect onboarding.
+ *
+ * Deliberately a named list, never a fallback for "can't be paid": a silent
+ * fallback would make us merchant of record for every promoter whose account
+ * Stripe disables. The same table exempts them from the DB price guard
+ * (promoter_can_sell), so the two cannot disagree. A failed read answers
+ * false, which sends the sale down the Connect path — and that refuses rather
+ * than charging anyone.
+ */
+export async function isPlatformSettled(sb: SupabaseClient, userId: string): Promise<boolean> {
+  const { data, error } = await sb
+    .from('platform_settled_promoters')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle()
+  return !error && !!data
+}
+
 export type PayoutAccount = {
   user_id: string
   stripe_account_id: string | null

@@ -22,28 +22,55 @@ enum SpotPayment {
         case cancelled
     }
 
+    private struct Guest: Encodable, Sendable { let fullName: String }
     private struct Body: Encodable, Sendable {
         let fullName: String
         let plusOnes: Int
+        /// Extra NAMED tickets — each its own row, QR and Wallet pass.
+        let guests: [Guest]?
+        /// Buying only for other people; the buyer's own spot is untouched.
+        let forOthers: Bool?
     }
 
+    /// The server sold fewer tickets than were asked for — a backend that
+    /// predates multi-ticket purchases ignores `guests`. Refused BEFORE any
+    /// payment sheet, so nobody pays for tickets that don't exist.
+    struct TicketsNotSupported: LocalizedError {
+        var errorDescription: String? {
+            "Buying several tickets isn't available yet. You haven't been charged."
+        }
+    }
+
+    /// - Parameters:
+    ///   - guests: names for extra tickets bought alongside `fullName`'s, or —
+    ///     with `forOthers` — the names of everyone being bought for (then
+    ///     `fullName` is ignored and the buyer's own ticket is left alone).
     @MainActor
     static func buy(
-        api: APIClient, token: String, fullName: String, plusOnes: Int, label: String
+        api: APIClient, token: String, fullName: String, plusOnes: Int,
+        guests: [String] = [], forOthers: Bool = false, label: String
     ) async throws -> Outcome {
+        let body = Body(
+            fullName: forOthers ? (guests.first ?? fullName) : fullName,
+            plusOnes: forOthers ? 0 : plusOnes,
+            guests: guests.isEmpty ? nil : guests.map(Guest.init(fullName:)),
+            forOthers: forOthers ? true : nil)
+        // Tickets the server must report back: the lead, plus everyone else.
+        let expected = forOthers ? guests.count : 1 + guests.count
+
         guard ApplePayService.isAvailable else {
-            return try await checkout(api: api, token: token, fullName: fullName, plusOnes: plusOnes)
+            return try await checkout(api: api, token: token, body: body, expected: expected)
         }
 
         struct Intent: Decodable, Sendable {
             let clientSecret: String?
             let guestId: String?
+            let ticketIds: [String]?
             let amountCents: Int?
             let alreadyPaid: Bool?
         }
         let intent: Intent = try await api.post(
-            "/api/promoter-invites/\(token)/payment-intent",
-            body: Body(fullName: fullName, plusOnes: plusOnes))
+            "/api/promoter-invites/\(token)/payment-intent", body: body)
 
         // Bought already, on this account — straight to the ticket, never a
         // second charge.
@@ -51,6 +78,10 @@ enum SpotPayment {
         guard let secret = intent.clientSecret, let guestId = intent.guestId,
               let cents = intent.amountCents else {
             throw APIError.emptyData
+        }
+        if expected > 1, (intent.ticketIds?.count ?? 1) != expected {
+            await release(api: api, token: token, guestId: guestId)
+            throw TicketsNotSupported()
         }
 
         do {
@@ -73,13 +104,16 @@ enum SpotPayment {
 
     @MainActor
     private static func checkout(
-        api: APIClient, token: String, fullName: String, plusOnes: Int
+        api: APIClient, token: String, body: Body, expected: Int
     ) async throws -> Outcome {
-        struct Reply: Decodable, Sendable { let url: String?; let alreadyPaid: Bool?; let guestId: String? }
+        struct Reply: Decodable, Sendable {
+            let url: String?; let alreadyPaid: Bool?; let guestId: String?; let ticketIds: [String]?
+        }
         let reply: Reply = try await api.post(
-            "/api/promoter-invites/\(token)/checkout",
-            body: Body(fullName: fullName, plusOnes: plusOnes))
+            "/api/promoter-invites/\(token)/checkout", body: body)
         if reply.alreadyPaid == true, let id = reply.guestId { return .paid(guestId: id) }
+        // Same guard as Apple Pay. The unopened Checkout hold expires by itself.
+        if expected > 1, (reply.ticketIds?.count ?? 1) != expected { throw TicketsNotSupported() }
         guard let raw = reply.url, let url = URL(string: raw) else { throw APIError.emptyData }
         return .openCheckout(url)
     }

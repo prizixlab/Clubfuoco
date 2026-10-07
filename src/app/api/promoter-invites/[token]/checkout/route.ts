@@ -1,13 +1,8 @@
-import { createServiceClient } from '@/lib/supabase/server'
-import { resolveTokenToAllocation } from '@/lib/promoter-series'
 import { stripe } from '@/lib/stripe'
 import { ok, err } from '@/lib/utils'
-import { payoutAccount, canCharge, syncAccount, feeBpsForVisibility } from '@/lib/connect'
-import { platformFeeCents } from '@/lib/platform-fee'
-import { ladder, livePrice } from '@/lib/releases'
-import { rateLimit, clientIp } from '@/lib/ratelimit'
+import { openSpotHold, HOLD_MINUTES } from '@/lib/spot-sale'
 
-// POST /api/promoter-invites/<token>/checkout   { full_name, plus_ones? }
+// POST /api/promoter-invites/<token>/checkout   { full_name, plus_ones?, guests?, for_others? }
 //
 // Buying a spot on a paid night. Returns a Stripe Checkout URL; the spot is
 // only really theirs once the webhook says the money landed.
@@ -15,24 +10,14 @@ import { rateLimit, clientIp } from '@/lib/ratelimit'
 // The money never passes through us. `transfer_data.destination` sends it
 // straight to the promoter's own Connect account and `application_fee_amount`
 // keeps our cut — so there is no payout to run, no balance to reconcile, and no
-// point at which a person at Club Fuoco has to do anything.
+// point at which a person at Club Fuoco has to do anything. (Platform-settled
+// promoters are the exception — see isPlatformSettled.)
+//
+// Every check that can refuse the sale is in lib/spot-sale, shared with the
+// native Apple Pay path (/payment-intent).
 
-/**
- * How long a spot is held while somebody is on the Stripe page.
- *
- * THIRTY IS A FLOOR, NOT A PREFERENCE. Stripe refuses any Checkout Session
- * whose `expires_at` is less than 30 minutes out ("The `expires_at` timestamp
- * must be at least 30 minutes from Checkout Session creation"), and this value
- * sets both the hold and that expiry. At 15 every single paid checkout came
- * back 400 from Stripe and 502 from here — no ticket on the platform could be
- * bought at all. Do not lower it.
- *
- * The two clocks are deliberately the same number: a Stripe session that
- * outlives its hold is a session someone can still pay after the spot has been
- * given away. The sweeper adds its own 30-minute grace on top before it
- * releases anything, so a slow webhook still wins the race.
- */
-const HOLD_MINUTES = 30
+/** Where Stripe Checkout returns the buyer — see success_url. */
+const RETURN_HOST = 'https://clubfuoco.vercel.app'
 
 /** Stripe's hard minimum for `expires_at`, in minutes. */
 const STRIPE_MIN_SESSION_MINUTES = 30
@@ -42,225 +27,13 @@ export async function POST(
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params
-  const body = await req.json().catch(() => ({}))
-  const fullName = typeof body.full_name === 'string' ? body.full_name.trim() : ''
-  const plusOnes = Math.max(0, Math.min(10, Number(body.plus_ones) || 0))
-  if (!fullName) return err('Name is required', 400)
+  const sale = await openSpotHold(req, token)
+  if (sale.kind === 'refused') return err(sale.message, sale.status)
+  if (sale.kind === 'alreadyPaid') return ok({ alreadyPaid: true, guestId: sale.guestId })
 
-  const sb = await createServiceClient()
-
-  // Identify the buyer if they're signed in. Unlike a free claim this is not
-  // optional-friendly in practice — an anonymous purchase leaves someone with a
-  // receipt and no way back to their ticket — but it is not REQUIRED either,
-  // because refusing the sale of a ticket someone is trying to buy is worse.
-  let buyerId: string | null = null
-  const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
-  if (bearer) {
-    const { data } = await sb.auth.getUser(bearer)
-    buyerId = data.user?.id ?? null
-  }
-
-  // Every checkout opens a 30-minute hold on real capacity, so it can't be
-  // free to open them in bulk. Per warm instance only (lib/ratelimit) — the
-  // anonymous-holds cap below is the hard limit.
-  const who = buyerId ? `u:${buyerId}` : `ip:${clientIp(req)}`
-  if (!rateLimit(`checkout:${who}`, buyerId ? 10 : 5, 10 * 60_000)) {
-    return err('Too many checkout attempts. Wait a few minutes and try again.', 429)
-  }
-
-  const resolved = await resolveTokenToAllocation(sb, token)
-  if (!resolved) return err('Invite not found', 404)
-
-  const { data: alloc } = await sb
-    .from('promoter_allocations')
-    .select(`
-      id, spots, promoter_id,
-      night:promoter_nights ( id, title, night_date, price_cents, currency, location_name,
-                              visibility, club:clubs ( name ) ),
-      promoter_guests ( id, plus_ones, claimed_by_user, payment_status, hold_expires_at )
-    `)
-    .eq('id', resolved.allocationId)
-    .maybeSingle()
-  if (!alloc) return err('Invite not found', 404)
-
-  const night = (Array.isArray(alloc.night) ? alloc.night[0] : alloc.night) as {
-    id: string; title: string | null; night_date: string
-    price_cents: number | null; currency: string | null
-    location_name: string | null; visibility: string | null
-    club: { name?: string } | null
-  } | null
-  if (!night) return err('Invite not found', 404)
-
-  // A priced night may sell in waves. The price charged is the LIVE release's,
-  // never the column — the column goes stale the moment a wave sells out or its
-  // date passes, because neither of those changes a row for a trigger to catch.
-  const releases = await ladder(sb, night.id)
-  const live = releases.find(r => r.active) ?? null
-  const unitPrice = livePrice(releases, night.price_cents ?? 0)
-
-  // Every wave spent, on a night that does have waves: selling at the flat
-  // price here would charge whatever the last sync happened to leave behind.
-  if (releases.length > 0 && !live) {
-    return err('Tickets for this event have sold out.', 409)
-  }
-  // A free night has no business here — the caller should use /claim, and
-  // silently creating a €0 Checkout session would be a confusing dead end.
-  if (unitPrice <= 0) return err('This event is free — use the normal RSVP.', 409)
-
-  // The promoter must be able to receive money BEFORE a guest is asked for any.
-  // Discovering this at the card form is the worst possible moment.
-  let payout = await payoutAccount(sb, alloc.promoter_id)
-
-  // Ask STRIPE, not just our mirror.
-  //
-  // Our copy of charges_enabled is only as fresh as the last account.updated we
-  // received — and a webhook is a wire that can be unsubscribed, misconfigured,
-  // or silently failing signature verification, none of which is visible from
-  // here. Depending on it to decide whether someone can be paid means a promoter
-  // Stripe disabled last week still takes a guest's card and fails.
-  //
-  // One extra API call at the START of a checkout is cheap: this is a payment
-  // flow, nobody notices 200ms, and being wrong costs a guest their night. The
-  // webhook stays as the fast path that keeps the mirror warm for the UI; this
-  // is the check that actually gates money.
-  if (payout.stripe_account_id) {
-    try {
-      const fresh = await stripe.accounts.retrieve(payout.stripe_account_id)
-      await syncAccount(sb, fresh)
-      payout = await payoutAccount(sb, alloc.promoter_id)
-    } catch (e) {
-      // Stripe unreachable. Fall through on the mirror rather than refusing a
-      // sale on our own outage — the charge itself would fail anyway if the
-      // account really is disabled.
-      console.warn('[checkout] could not re-verify the payout account:',
-        e instanceof Error ? e.message : e)
-    }
-  }
-
-  if (!canCharge(payout)) {
-    return err('This event can’t take payments yet. Ask the promoter to finish their payout setup.', 409)
-  }
-  // A card on file is checked HERE too, not only when the price was set. Stripe
-  // can disable an account, and a card expires, weeks after a night went on
-  // sale — and the moment either lapses we would be selling a ticket whose
-  // refunds and chargebacks have nowhere to land.
-  const { data: billing } = await sb
-    .from('promoter_billing_accounts')
-    .select('card_verified')
-    .eq('user_id', alloc.promoter_id)
-    .maybeSingle()
-  if (!(billing as { card_verified?: boolean } | null)?.card_verified) {
-    return err('This event can’t take payments yet. Ask the promoter to finish their payout setup.', 409)
-  }
-
-  const guests = (alloc.promoter_guests ?? []) as {
-    id: string; plus_ones: number; claimed_by_user: string | null
-    payment_status: string | null; hold_expires_at: string | null
-  }[]
-
-  // Already paid → hand back the existing spot rather than selling a second one.
-  // Already HOLDING one (backed out of the Stripe page, tapped Buy again) →
-  // send them back to that same page while it's open. The one-claim-per-user
-  // index covers pending rows too, so this used to answer "You already have a
-  // spot on this list" to someone who hadn't paid, until the sweeper freed
-  // the hold up to ~2 h later. A hold whose page has expired is released here
-  // and a fresh checkout starts below.
-  if (buyerId) {
-    const mine = guests.find(g => g.claimed_by_user === buyerId)
-    if (mine && mine.payment_status === 'paid') {
-      return ok({ alreadyPaid: true, guestId: mine.id })
-    }
-    if (mine && mine.payment_status === 'pending') {
-      const { data: held } = await sb.from('promoter_guests')
-        .select('stripe_checkout_session_id').eq('id', mine.id).maybeSingle()
-      const sessionId = (held as { stripe_checkout_session_id?: string | null } | null)?.stripe_checkout_session_id
-      if (sessionId) {
-        try {
-          const existing = await stripe.checkout.sessions.retrieve(sessionId)
-          if (existing.payment_status === 'paid') {
-            // Paid, the webhook just hasn't landed — record it now.
-            await sb.from('promoter_guests').update({
-              payment_status: 'paid', paid_at: new Date().toISOString(), hold_expires_at: null,
-              stripe_payment_intent_id: (existing.payment_intent as string) ?? null,
-            }).eq('id', mine.id).neq('payment_status', 'paid')
-            return ok({ alreadyPaid: true, guestId: mine.id })
-          }
-          if (existing.status === 'open' && existing.url) {
-            return ok({ url: existing.url, guestId: mine.id, amountCents: existing.amount_total, currency: existing.currency, resumed: true })
-          }
-          // Expired or completed-unpaid: free the hold, sell afresh below.
-        } catch (e) {
-          console.warn('[checkout] could not read the held session:', e instanceof Error ? e.message : e)
-          return err('Couldn’t reopen your checkout. Try again in a moment.', 502)
-        }
-      }
-      await sb.from('promoter_guests').delete().eq('id', mine.id).eq('payment_status', 'pending')
-      const i = guests.indexOf(mine)
-      if (i >= 0) guests.splice(i, 1)
-    }
-  }
-
-  // Capacity, counting live holds. Expired holds are excluded here and swept
-  // separately — a spot someone abandoned on the Stripe page must not keep the
-  // next person out for the rest of the night.
-  const now = Date.now()
-  const used = guests.reduce((sum, g) => {
-    const holdLive = g.payment_status !== 'pending'
-      || (g.hold_expires_at ? new Date(g.hold_expires_at).getTime() > now : false)
-    return holdLive ? sum + 1 + (g.plus_ones ?? 0) : sum
-  }, 0)
-  const heads = 1 + plusOnes
-  if (used + heads > alloc.spots) return err('Not enough spots left', 409)
-
-  // Holds nobody can be traced to (no account) may take at most a quarter of
-  // the room. Without this, a script opening anonymous checkouts could hold a
-  // night "sold out" indefinitely, 30 minutes at a time.
-  if (!buyerId) {
-    const anonHeld = guests.reduce((sum, g) => {
-      const live = g.payment_status === 'pending' && !g.claimed_by_user
-        && (g.hold_expires_at ? new Date(g.hold_expires_at).getTime() > now : false)
-      return live ? sum + 1 + (g.plus_ones ?? 0) : sum
-    }, 0)
-    if (anonHeld + heads > Math.max(4, Math.floor(alloc.spots / 4))) {
-      return err('Sign in to buy — too many checkouts are open on this event right now.', 409)
-    }
-  }
-
-  const amount = unitPrice * heads
-  // Public offer or private event — two different deals, two different rates.
-  const feeBps = feeBpsForVisibility(payout, night.visibility)
-  const fee = platformFeeCents(amount, feeBps)
-  const currency = (night.currency || 'eur').toLowerCase()
-
-  // The held row. It counts against capacity from this moment, which is the
-  // point of a hold — but it carries no QR and no Wallet pass until paid.
-  const { data: guest, error: insertErr } = await sb
-    .from('promoter_guests')
-    .insert({
-      allocation_id: alloc.id,
-      full_name: fullName,
-      plus_ones: plusOnes,
-      created_via_invite: true,
-      claimed_by_user: buyerId,
-      referral_id: resolved.referralId,
-      payment_status: 'pending',
-      amount_cents: amount,
-      // Which wave this spot came out of — this is what makes "sold per
-      // release" a count of real rows rather than a counter that drifts.
-      release_id: live?.id ?? null,
-      hold_expires_at: new Date(now + HOLD_MINUTES * 60_000).toISOString(),
-    })
-    .select('id')
-    .single()
-
-  // 23514 = the capacity trigger; 23505 = one-claim-per-user. Both mean the
-  // answer is no, and neither should read as a server fault.
-  if (insertErr?.code === '23514') return err('Not enough spots left', 409)
-  if (insertErr?.code === '23505') return err('You already have a spot on this list', 409)
-  if (insertErr || !guest) return err('Couldn’t start checkout', 500)
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://clubfuoco.com'
-  const eventName = night.title || night.club?.name || night.location_name || 'Club Fuoco event'
+  const { sb, night, eventName, heads, amount, currency, fee, feeBps, platformSettled, payout, now } = sale
+  const guest = { id: sale.guestId }
+  const alloc = { id: sale.allocationId, promoter_id: sale.promoterId }
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -279,21 +52,25 @@ export async function POST(
         },
       }],
       payment_intent_data: {
-        application_fee_amount: fee,
-        transfer_data: { destination: payout.stripe_account_id! },
-        // WHO IS THE SELLER. Without on_behalf_of the charge is created on the
-        // PLATFORM account: Club Fuoco becomes merchant of record, the charge
-        // settles under our US entity, and — the part that costs money — a
-        // chargeback debits OUR balance even though the funds were already
-        // transferred to the promoter. We would be paying back money we no
-        // longer hold.
-        //
-        // on_behalf_of makes the connected account the merchant of record. The
-        // charge settles in their country and currency (which is also what
-        // makes a EUR price coherent under a US platform), their name is on the
-        // statement, and a dispute comes out of their balance, where the sale
-        // happened.
-        on_behalf_of: payout.stripe_account_id!,
+        // Platform-settled: a plain charge on our own account — no transfer,
+        // no fee, no on_behalf_of. Everything below applies to Connect sales.
+        ...(platformSettled ? {} : {
+          application_fee_amount: fee,
+          transfer_data: { destination: payout.stripe_account_id! },
+          // WHO IS THE SELLER. Without on_behalf_of the charge is created on the
+          // PLATFORM account: Club Fuoco becomes merchant of record, the charge
+          // settles under our US entity, and — the part that costs money — a
+          // chargeback debits OUR balance even though the funds were already
+          // transferred to the promoter. We would be paying back money we no
+          // longer hold.
+          //
+          // on_behalf_of makes the connected account the merchant of record. The
+          // charge settles in their country and currency (which is also what
+          // makes a EUR price coherent under a US platform), their name is on the
+          // statement, and a dispute comes out of their balance, where the sale
+          // happened.
+          on_behalf_of: payout.stripe_account_id!,
+        }),
         // On the promoter's statement, not ours — they are the seller.
         description: `${eventName} · ${night.night_date}`,
         metadata: { guest_id: guest.id, night_id: night.id },
@@ -306,20 +83,24 @@ export async function POST(
         night_id: night.id,
         promoter_id: alloc.promoter_id,
         fee_bps: String(feeBps),
+        settle: platformSettled ? 'platform' : 'connect',
       },
       // Same clock as the hold above — and never under Stripe's floor, which
       // it rejects outright rather than clamping.
       expires_at: Math.floor(
         (now + Math.max(HOLD_MINUTES, STRIPE_MIN_SESSION_MINUTES) * 60_000) / 1000),
-      success_url: `${appUrl}/i/${token}?paid=1&guest=${guest.id}`,
-      cancel_url: `${appUrl}/i/${token}?cancelled=1`,
+      // Back to the invite page on the vercel.app host, NOT clubfuoco.com:
+      // that page's "Open your ticket" button links to clubfuoco.com, and only
+      // a tap across domains opens the app (Universal Link) without a prompt.
+      success_url: `${RETURN_HOST}/i/${token}?paid=1&guest=${guest.id}`,
+      cancel_url: `${RETURN_HOST}/i/${token}?cancelled=1`,
     })
 
     await sb.from('promoter_guests')
       .update({ stripe_checkout_session_id: session.id })
       .eq('id', guest.id)
 
-    return ok({ url: session.url, guestId: guest.id, amountCents: amount, currency })
+    return ok({ url: session.url, guestId: guest.id, ticketIds: sale.ticketIds, amountCents: amount, currency })
   } catch (e) {
     // Stripe refused. Release the hold immediately rather than leaving a spot
     // locked up by a checkout that will never exist.

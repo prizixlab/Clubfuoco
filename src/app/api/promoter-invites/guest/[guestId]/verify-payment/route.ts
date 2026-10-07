@@ -1,5 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/server'
-import { stripe } from '@/lib/stripe'
+import { holdPaidOnStripe } from '@/lib/spot-sale'
 import { ok, err } from '@/lib/utils'
 
 // POST /api/promoter-invites/guest/<guestId>/verify-payment
@@ -8,9 +8,9 @@ import { ok, err } from '@/lib/utils'
 //
 // The webhook is the source of truth and it is almost always faster than the
 // guest. But it can be late, or fail, and the sweeper that would otherwise
-// rescue the spot (admin/sweep-holds) runs hourly, 30 minutes after a hold
-// lapses. That is fine for tidying up and unacceptable for somebody standing
-// there having been charged.
+// rescue the spot runs DAILY (Vercel's Hobby plan refuses a cron more frequent
+// than once a day). Waiting a day is fine for tidying up litter and completely
+// unacceptable for somebody standing there having been charged.
 //
 // So the app calls this when it lands on a ticket that isn't paid yet: ask
 // Stripe directly, and honour the answer immediately.
@@ -27,24 +27,26 @@ export async function POST(
 
   const { data: guest } = await sb
     .from('promoter_guests')
-    .select('id, payment_status, stripe_checkout_session_id')
+    .select('id, payment_status, stripe_checkout_session_id, stripe_payment_intent_id')
     .eq('id', guestId)
     .maybeSingle()
   if (!guest) return err('Spot not found', 404)
 
   const row = guest as {
-    id: string; payment_status?: string; stripe_checkout_session_id?: string | null
+    id: string; payment_status?: string
+    stripe_checkout_session_id?: string | null; stripe_payment_intent_id?: string | null
   }
   const status = row.payment_status ?? 'free'
 
   // Already settled, or never needed paying. Nothing to ask Stripe.
   if (status === 'paid' || status === 'free') return ok({ paid: true, status })
   if (status === 'refunded' || status === 'disputed') return ok({ paid: false, status })
-  if (!row.stripe_checkout_session_id) return ok({ paid: false, status })
+  if (!row.stripe_checkout_session_id && !row.stripe_payment_intent_id) return ok({ paid: false, status })
 
   try {
-    const session = await stripe.checkout.sessions.retrieve(row.stripe_checkout_session_id)
-    if (session.payment_status !== 'paid') {
+    // A Checkout session (web) or a bare PaymentIntent (native Apple Pay).
+    const stripeSays = await holdPaidOnStripe(row)
+    if (!stripeSays.paid) {
       return ok({ paid: false, status: 'pending' })
     }
     const { error } = await sb
@@ -53,10 +55,10 @@ export async function POST(
         payment_status: 'paid',
         paid_at: new Date().toISOString(),
         hold_expires_at: null,
-        stripe_payment_intent_id: (session.payment_intent as string) ?? null,
+        stripe_payment_intent_id: stripeSays.paymentIntentId,
       })
       .eq('id', guestId)
-      .neq('payment_status', 'paid')   // idempotent against the webhook racing us
+      .eq('payment_status', 'pending')   // idempotent, and never un-refunds a spot
     if (error) return err('Could not record the payment', 500)
     return ok({ paid: true, status: 'paid' })
   } catch (e) {

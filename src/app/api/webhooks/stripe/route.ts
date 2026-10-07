@@ -90,7 +90,9 @@ export async function POST(request: NextRequest) {
                 stripe_payment_intent_id: (session.payment_intent as string) ?? null,
               })
               .eq('id', m.guest_id)
-              .neq('payment_status', 'paid')  // idempotent: retries are no-ops
+              // Only a hold becomes paid. Retries are no-ops, and a retry that
+              // lands after a refund must not flip 'refunded' back to 'paid'.
+              .eq('payment_status', 'pending')
             if (payErr) throw new Error(payErr.message)
           } catch (e) {
             console.error('[webhook] event_spot: could not mark paid —',
@@ -207,6 +209,30 @@ export async function POST(request: NextRequest) {
 
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent
+        // ---- Event spot paid with native Apple Pay (app 1.14+) ----
+        // No Checkout session behind these, so checkout.session.completed never
+        // fires for them; this is their webhook. Spots bought through Checkout
+        // carry no `purpose` on the intent and are settled above.
+        if (pi.metadata?.purpose === 'event_spot' && pi.metadata?.guest_id) {
+          // Same rule as the Checkout branch: a guest has been charged, so a
+          // failure here must make Stripe retry, not be swallowed.
+          const { error: payErr } = await supabase
+            .from('promoter_guests')
+            .update({
+              payment_status: 'paid',
+              paid_at: new Date().toISOString(),
+              hold_expires_at: null,
+              stripe_payment_intent_id: pi.id,
+            })
+            .eq('id', pi.metadata.guest_id)
+            .eq('payment_status', 'pending')   // see the Checkout branch
+          if (payErr) {
+            console.error('[webhook] event_spot intent: could not mark paid —',
+              pi.metadata.guest_id, payErr.message)
+            return NextResponse.json({ error: 'could not record payment' }, { status: 500 })
+          }
+          break
+        }
 
         // ---- A Rumbalist VIP table paid by Apple Pay ----
         // The backstop for the app never reaching /confirm-vip: book the table
@@ -326,17 +352,18 @@ export async function POST(request: NextRequest) {
 
       // ---- Money given back, or taken back ----
       //
-      // A refund or a chargeback has to reach the door. Nothing used to write
-      // payment_status 'refunded', so a refunded guest kept a valid QR and got
-      // in anyway. Full refunds and every dispute revoke entry; a partial
-      // refund (our own cancel keeps Stripe's fee) is logged and left alone —
-      // the route that made it already cancelled the booking.
+      // A refund or a chargeback has to reach the door. Full refunds and every
+      // dispute revoke entry (lib/refunds); a partial refund is logged and left
+      // alone. Like event_spot, a failed revoke returns 500 so Stripe retries
+      // instead of the catch-all swallowing it.
       case 'charge.refunded': {
         const charge = event.data.object as Stripe.Charge
-        if (charge.refunded) {
-          await revokeForCharge(supabase, charge, 'refunded')
-        } else {
+        if (!charge.refunded) {
           console.log('[webhook] partial refund', charge.id, charge.amount_refunded, '/', charge.amount)
+          break
+        }
+        if (!(await revokeForCharge(supabase, charge, 'refunded'))) {
+          return NextResponse.json({ error: 'could not revoke entry' }, { status: 500 })
         }
         break
       }
@@ -345,7 +372,9 @@ export async function POST(request: NextRequest) {
         const charge = typeof dispute.charge === 'string'
           ? await stripe.charges.retrieve(dispute.charge)
           : dispute.charge
-        await revokeForCharge(supabase, charge, 'disputed')
+        if (!(await revokeForCharge(supabase, charge, 'disputed'))) {
+          return NextResponse.json({ error: 'could not revoke entry' }, { status: 500 })
+        }
         break
       }
 

@@ -36,7 +36,6 @@ struct TicketCard: View {
     /// and CancelConfirmButton all became unreachable — there was no way to
     /// cancel a booking in the app at all. Keep a route to it.
     let onOpenDetail: () -> Void
-
     @Environment(LocaleStore.self) private var locale
 
     private var isCancelled: Bool { data.status == "cancelled" }

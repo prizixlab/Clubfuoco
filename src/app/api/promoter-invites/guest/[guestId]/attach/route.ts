@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
+import { NON_ADMITTING_PAYMENT } from '@/lib/refunds'
 
 // POST /api/promoter-invites/guest/<guestId>/attach
 //
@@ -33,12 +34,31 @@ export async function POST(
   const userId = userResp.user?.id
   if (!userId) return err('Unauthorized', 401)
 
-  const { data: guest } = await sb
+  // `*`: purchased_by_user / payment_status are read below, and naming
+  // purchased_by_user would fail before the 20261007 migration.
+  const { data: row } = await sb
     .from('promoter_guests')
-    .select('id, full_name, plus_ones, claimed_by_user, allocation_id')
+    .select('*')
     .eq('id', guestId)
     .maybeSingle()
-  if (!guest) return err('Spot not found', 404)
+  if (!row) return err('Spot not found', 404)
+  const { purchased_by_user: purchasedBy, payment_status: paymentStatus, ...rest } = row as {
+    id: string; full_name: string; plus_ones: number; claimed_by_user: string | null
+    allocation_id: string; purchased_by_user?: string | null; payment_status?: string | null
+  }
+  const guest = { id: rest.id, full_name: rest.full_name, plus_ones: rest.plus_ones,
+                  claimed_by_user: rest.claimed_by_user, allocation_id: rest.allocation_id }
+
+  // A refunded or unpaid ticket can't be handed on — it wouldn't open the door.
+  if (NON_ADMITTING_PAYMENT.has(paymentStatus ?? 'free')) {
+    return err('This ticket is no longer valid', 409)
+  }
+  // A ticket bought FOR someone else, opened by the buyer (tapping their own
+  // "send" link to check it). It stays theirs to hold and send — attaching it
+  // would make it their own spot and take it off the friend.
+  if (!guest.claimed_by_user && purchasedBy === userId) {
+    return ok({ attached: false, heldByYou: true, guest })
+  }
 
   // Already theirs — idempotent, because the app retries this after a flaky
   // sign-in and must not present that as a failure.

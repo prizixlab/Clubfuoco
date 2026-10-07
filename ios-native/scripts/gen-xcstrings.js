@@ -329,6 +329,9 @@ const NATIVE_KEYS = {
   // "%d venues →" header link. Cards carry no CTA label — the card itself is
   // the tap target — so there is no join/view string here.
   'explore.seeAll': { en: 'See all', es: 'Ver todo' },
+  'explore.offersCount': { en: "%d offers", es: "%d ofertas" },
+  'explore.bookableCount': { en: "%d bookable", es: "%d reservables" },
+  'explore.bookableTag': { en: "Bookable", es: "Reservable" },
   'explore.city': { en: 'Barcelona', es: 'Barcelona' },
 
   // Events tab — our own nights (promoter + house). `pickTag` is the editorial
@@ -345,6 +348,22 @@ const NATIVE_KEYS = {
   'events.joinToReserve': { en: 'Join to reserve', es: 'Únete para reservar' },
   'events.joinNote': { en: 'Free account · takes a second', es: 'Cuenta gratis · un segundo' },
   'events.viewPass': { en: 'View pass', es: 'Ver pase' },
+  'tickets.title': { en: "Tickets", es: "Entradas" },
+  'tickets.howMany': { en: "How many tickets?", es: "¿Cuántas entradas?" },
+  'tickets.another': { en: "Buy another ticket", es: "Comprar otra entrada" },
+  'tickets.anotherShort': { en: "Another ticket", es: "Otra entrada" },
+  'tickets.theirName': { en: "Their full name", es: "Su nombre completo" },
+  'tickets.ticketN': { en: "Ticket %d", es: "Entrada %d" },
+  'tickets.namesHint': { en: "Each ticket has its own name and QR. You hold them in Tickets and can send each one on.", es: "Cada entrada lleva su nombre y su QR. Las tienes en Entradas y puedes enviar cada una." },
+  'tickets.total': { en: "Total", es: "Total" },
+  'tickets.pay': { en: "Pay %@", es: "Pagar %@" },
+  'tickets.forName': { en: "For %@", es: "Para %@" },
+  'tickets.send': { en: "Send to %@", es: "Enviar a %@" },
+  'tickets.shareMessage': { en: "Your ticket for %@ — open it in Club Fuoco to get your QR.", es: "Tu entrada para %@ — ábrela en Club Fuoco para tener tu QR." },
+  'tickets.refundTicket': { en: "Refund ticket", es: "Reembolsar entrada" },
+  'tickets.refundConfirmTitle': { en: "Refund this ticket?", es: "¿Reembolsar esta entrada?" },
+  'tickets.refundConfirmBody': { en: "%@ goes back to your card (90%% of the price). The ticket stops working right away.", es: "%@ vuelve a tu tarjeta (90%% del precio). La entrada deja de funcionar al momento." },
+  'tickets.refundDone': { en: "Refunded %@ to your card", es: "%@ reembolsados a tu tarjeta" },
   'events.passUnavailable': { en: 'Your pass will appear in Tickets shortly.', es: 'Tu pase aparecerá en Entradas en breve.' },
   'events.cancelRsvp': { en: 'Cancel', es: 'Cancelar' },
   'events.cancelTitle': { en: 'Give up your spot?', es: '¿Dejar tu plaza?' },

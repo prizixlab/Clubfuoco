@@ -28,6 +28,9 @@ private struct CardPhoto: View {
             }
             .frame(height: height)
             .clipped()
+            // .clipped() hides the overflow of a .fill image but still hit-tests
+            // it — a tall flyer took taps meant for the shelf header above.
+            .contentShape(.rect)
     }
 }
 
@@ -370,6 +373,8 @@ struct ShelfRowView: View {
     /// Tier 2 from /portal/featured: what leads the line under the hero.
     var featuredRow: [FeaturedItem] = []
     @Environment(LocaleStore.self) private var locale
+    @Environment(PlanStore.self) private var plan
+    @Environment(\.pushFeaturedOffers) private var pushFeaturedOffers
 
     // The featured deal shelf is grouped inside a soft gold-framed box so it
     // reads as one distinct section; everything else flows edge-to-edge.
@@ -396,7 +401,9 @@ struct ShelfRowView: View {
                             .foregroundStyle(Theme.ink)
                     }
                     Spacer(minLength: 6)
-                    if !shelf.places.isEmpty {
+                    if shelf.featured {
+                        offersChip
+                    } else if !shelf.places.isEmpty {
                     NavigationLink(value: shelf) {
                         Text(String(format: locale.t("explore.venuesArrow"), shelf.places.count))
                             .font(.cfSans(12))
@@ -468,6 +475,38 @@ struct ShelfRowView: View {
         // Extra gap below the featured container so the next shelf header
         // ("FOR THE 4/4 FAITHFUL" etc.) doesn't visually press into the box.
         .padding(.bottom, isRumba ? 40 : 32)
+    }
+
+    /// Everything the box shows: the big card, then the line under it.
+    private var boxItems: [FeaturedItem] {
+        let hero = featuredHero ?? shelf.places.first.map(FeaturedItem.place)
+        return [hero].compactMap { $0 } + tierTwo()
+    }
+
+    /// "8 offers · 3 bookable →" — counts what the box actually shows, and
+    /// opens all of it as a list. A Button pushing through the environment,
+    /// not a NavigationLink: the hero card right below claimed the link's taps.
+    @ViewBuilder private var offersChip: some View {
+        let offers = FeaturedOffers(items: boxItems, date: plan.date)
+        if !offers.items.isEmpty {
+            Button {
+                Haptics.tap()
+                pushFeaturedOffers(offers)
+            } label: {
+                HStack(spacing: 5) {
+                    Text(String(format: locale.t("explore.offersCount"), offers.items.count))
+                    Text("·").foregroundStyle(Theme.fadedSand)
+                    Text(String(format: locale.t("explore.bookableCount"), offers.bookableCount))
+                    Image(systemName: "arrow.right").font(.system(size: 10, weight: .semibold))
+                }
+                .font(.cfSans(12))
+                .foregroundStyle(Theme.accent)
+                .lineLimit(1)
+                .fixedSize()
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     /// The line under the hero: the desk's tier-2 picks in their chosen order,

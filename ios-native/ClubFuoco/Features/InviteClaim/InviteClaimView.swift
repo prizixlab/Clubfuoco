@@ -10,9 +10,17 @@ struct InviteClaimView: View {
     /// has already claimed this invite.
     var preclaimedGuestId: String? = nil
     var preclaimedName: String? = nil
+    /// `preclaimedGuestId` is a ticket somebody bought for this person and
+    /// sent them (/i/<token>?ticket=<id>). Signed in, it is attached to their
+    /// account on open; signed out, the save card below does it after sign-in.
+    var receivingSentTicket = false
+    /// Told after a ticket on this screen was refunded (the Tickets tab shows
+    /// the toast); the screen closes itself.
+    var onRefunded: ((String) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthStore.self) private var auth
+    @Environment(LocaleStore.self) private var locale
     @Environment(\.api) private var api
     @State private var loading = true
     @State private var error: String?
@@ -43,6 +51,25 @@ struct InviteClaimView: View {
     @State private var partyLoaded = false
     @State private var partyBusy = false
     @State private var showTicketFriendPicker = false
+    @State private var confirmRefund = false
+    @State private var refunding = false
+    /// This account's tickets on this night (/mine?include=held): its own, and
+    /// the ones it bought for other people and still holds. One page each.
+    @State private var myRows: [InviteSummary] = []
+    /// The ticket page on screen.
+    @State private var currentPage: String?
+
+    private var heldTickets: [InviteSummary] { myRows.filter(\.isHeldForOther) }
+
+    /// One swipeable page per ticket.
+    private struct TicketPage: Identifiable, Hashable {
+        let id: String
+        let name: String
+        /// Set when the ticket is for someone else — the page offers Send.
+        let held: InviteSummary?
+        /// What Refund would give back, when this account may refund it now.
+        let refundCents: Int?
+    }
 
     struct InvitedFriend: Identifiable, Hashable { let id: UUID; let name: String }
 
@@ -161,6 +188,9 @@ struct InviteClaimView: View {
             if let id = preclaimedGuestId {
                 claimedGuestId = id
                 if let n = preclaimedName, !n.isEmpty { name = n }
+                if receivingSentTicket, auth.hasAccount {
+                    await receiveSentTicket(guestId: id)
+                }
             } else if let full = auth.profile?.fullName, !full.isEmpty {
                 name = full
             }
@@ -460,11 +490,129 @@ struct InviteClaimView: View {
     /// My own guest row (to read my open plus-ones + check-in state).
     private func loadPaidAmount(guestId: String) async {
         guard auth.hasAccount,
-              let resp: InvitesResponse = try? await api.get("/api/promoter-invites/mine")
+              let resp: InvitesResponse = try? await api.get(
+                "/api/promoter-invites/mine", query: [URLQueryItem(name: "include", value: "held")])
         else { return }
         paidAmount = resp.invites
             .first { $0.id.uuidString.lowercased() == guestId.lowercased() }?
             .paidAmount
+        myRows = resp.invites.filter { $0.inviteToken == token }
+    }
+
+    /// The pages for the ticket that was opened. Opened on the viewer's own
+    /// ticket: theirs first, then every ticket they hold for others on the same
+    /// night. Opened on a held ticket with no own ticket beside it: the held
+    /// ones. Before /mine answers (or signed out), just the one ticket.
+    private func pages(_ guestId: String) -> [TicketPage] {
+        func page(_ r: InviteSummary) -> TicketPage {
+            TicketPage(id: r.id.uuidString.lowercased(), name: r.fullName,
+                       held: r.isHeldForOther ? r : nil, refundCents: r.refundCents)
+        }
+        let opened = myRows.first { $0.id.uuidString.lowercased() == guestId.lowercased() }
+        let held = heldTickets.map(page)
+        if opened?.isHeldForOther == true { return held }
+        let own = opened.map(page)
+            ?? TicketPage(id: guestId.lowercased(), name: name, held: nil, refundCents: nil)
+        return [own] + held
+    }
+
+    private func pager(_ pages: [TicketPage]) -> some View {
+        let selection = Binding(
+            get: { currentPage.flatMap { id in pages.contains { $0.id == id } ? id : nil } ?? pages.first?.id ?? "" },
+            set: { currentPage = $0 })
+        // The tallest page, invisible, gives the pager its height — a paged
+        // TabView inside a ScrollView has none of its own.
+        let tallest = pages.first { $0.held != nil } ?? pages[0]
+        return VStack(spacing: 12) {
+            ticketPage(tallest, index: 0, of: pages.count)
+                .hidden()
+                .overlay {
+                    TabView(selection: selection) {
+                        ForEach(Array(pages.enumerated()), id: \.element.id) { i, p in
+                            ticketPage(p, index: i, of: pages.count)
+                                .frame(maxHeight: .infinity, alignment: .top)
+                                .tag(p.id)
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                }
+            if pages.count > 1 {
+                HStack(spacing: 7) {
+                    ForEach(pages) { p in
+                        Circle()
+                            .fill(p.id == selection.wrappedValue ? Theme.ink : Theme.ink.opacity(0.2))
+                            .frame(width: 7, height: 7)
+                    }
+                }
+                .animation(.snappy, value: selection.wrappedValue)
+            }
+        }
+    }
+
+    /// One ticket: whose it is, its own QR, its own Wallet pass, and — for a
+    /// ticket bought for someone else — the link that sends it to them.
+    private func ticketPage(_ p: TicketPage, index: Int, of count: Int) -> some View {
+        VStack(spacing: 14) {
+            if count > 1 {
+                HStack {
+                    Text(p.name)
+                        .font(.cfSans(15, weight: .semibold))
+                        .foregroundStyle(Theme.ink)
+                        .lineLimit(1)
+                    Spacer()
+                    Text("\(index + 1) / \(count)")
+                        .font(.cfMono(10)).kerning(1)
+                        .foregroundStyle(Theme.ink.opacity(0.45))
+                }
+            }
+            TicketQRCard(token: "fuoco-invite:\(p.id)", printed: nil)
+            WalletPassButton(passPath: "/api/promoter-invites/guest/\(p.id)/wallet", fullWidth: true)
+            if let held = p.held { sendLink(held) }
+        }
+        .padding(.horizontal, 1)
+    }
+
+    /// Refund the ticket on screen: 90% back, the server's rules. The screen
+    /// closes on success and the Tickets tab says what came back.
+    private func refund(_ p: TicketPage) async {
+        refunding = true
+        defer { refunding = false }
+        struct Resp: Decodable, Sendable { let refunded: Bool; let refundCents: Int? }
+        do {
+            let r: Resp = try await api.post("/api/promoter-invites/guest/\(p.id)/refund")
+            Haptics.success()
+            NotificationCenter.default.post(name: .cfInviteClaimed, object: nil)
+            onRefunded?(String(format: locale.t("tickets.refundDone"),
+                               BookingsView.euros(r.refundCents ?? p.refundCents ?? 0)))
+            dismiss()
+        } catch {
+            Haptics.error()
+            if case let .http(_, m) = error as? APIError ?? .emptyData, !m.isEmpty { attachError = m }
+            else { attachError = "Couldn't refund this ticket. Try again." }
+        }
+    }
+
+    /// The other tickets held on this night — never the one already on screen.
+    private func otherHeld(_ guestId: String) -> [InviteSummary] {
+        heldTickets.filter { $0.id.uuidString.lowercased() != guestId.lowercased() }
+    }
+
+    private func sendLink(_ inv: InviteSummary) -> some View {
+        ShareLink(
+            item: InviteLinkRouter.ticketURL(token: token, guestId: inv.id.uuidString.lowercased()),
+            subject: Text(inv.eventTitle),
+            message: Text(String(format: locale.t("tickets.shareMessage"), inv.eventTitle))
+        ) {
+            HStack(spacing: 8) {
+                Image(systemName: "paperplane.fill").font(.system(size: 13))
+                Text(String(format: locale.t("tickets.send"), inv.fullName))
+                    .font(.cfSans(14, weight: .semibold))
+            }
+            .foregroundStyle(Theme.cream)
+            .frame(maxWidth: .infinity)
+            .frame(height: 46)
+            .background(Theme.ink, in: .capsule)
+        }
     }
 
     private func myGuest(_ guestId: String) -> InviteGuest? {
@@ -517,7 +665,8 @@ struct InviteClaimView: View {
                     headline: night.title
                 )
                 VStack(spacing: 26) {
-                    TicketQRCard(token: "fuoco-invite:\(guestId)", printed: nil)
+                    // One page per ticket — swipe between them.
+                    pager(pages(guestId))
                     TicketStatsStrip(data: ticketData(guestId: guestId, night: night))
 
                     // The reduced signup. It sits HERE, after the spot is already
@@ -531,16 +680,54 @@ struct InviteClaimView: View {
                     // Tickets tab, and the Wallet URL is one nobody remembers.
                     if !auth.hasAccount { saveSpotCard(guestId: guestId) }
 
-                    WalletPassButton(
-                        passPath: "/api/promoter-invites/guest/\(guestId)/wallet",
-                        fullWidth: true)
-
-                    // ── Your party — editable: adjust open spots, invite friends ──
-                    partyCard(guestId: guestId)
+                    // Wallet and Send live on each ticket's page above. The
+                    // party is the viewer's own — not shown on a screen of
+                    // tickets held for other people.
+                    if pages(guestId).first?.held == nil {
+                        // ── Your party — editable: adjust open spots, invite friends ──
+                        partyCard(guestId: guestId)
+                    }
 
                     // ── Who's going: the roster (when the promoter makes it visible)
                     if !guests.isEmpty {
                         rosterCard
+                    }
+
+                    // Refund the ticket on screen — at the very bottom, in red,
+                    // the amount only in the confirmation.
+                    let all = pages(guestId)
+                    if let shown = all.first(where: { $0.id == (currentPage ?? all.first?.id) }) ?? all.first,
+                       let cents = shown.refundCents {
+                        Button {
+                            Haptics.tap()
+                            confirmRefund = true
+                        } label: {
+                            Group {
+                                if refunding { ProgressView().tint(.white) }
+                                else { Text(locale.t("tickets.refundTicket")) }
+                            }
+                            .font(.cfSans(15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(Color(hex: 0xC62828), in: .capsule)
+                        }
+                        .disabled(refunding)
+                        .padding(.top, 18)
+                        .alert(locale.t("tickets.refundConfirmTitle"), isPresented: $confirmRefund) {
+                            Button(locale.t("tickets.refundTicket"), role: .destructive) {
+                                Task { await refund(shown) }
+                            }
+                            Button(locale.t("common.cancel"), role: .cancel) {}
+                        } message: {
+                            Text(String(format: locale.t("tickets.refundConfirmBody"), BookingsView.euros(cents)))
+                        }
+                        if let attachError, auth.hasAccount {
+                            Text(attachError)
+                                .font(.cfSans(12.5))
+                                .foregroundStyle(Theme.ember)
+                                .multilineTextAlignment(.center)
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -685,6 +872,27 @@ struct InviteClaimView: View {
         }
     }
 
+    /// A ticket somebody bought for this person: make it theirs. A refusal is
+    /// shown in the server's words — "already belongs to another account" (sent
+    /// to someone else first) and "you already have a spot on this list" are the
+    /// answers that matter, and neither means the link is broken.
+    private func receiveSentTicket(guestId: String) async {
+        struct Resp: Decodable, Sendable { let attached: Bool }
+        do {
+            let _: Resp = try await api.post("/api/promoter-invites/guest/\(guestId)/attach")
+            attached = true
+            Haptics.success()
+            NotificationCenter.default.post(name: .cfInviteClaimed, object: nil)
+        } catch {
+            if case let .http(_, message) = error as? APIError ?? .emptyData, !message.isEmpty {
+                self.error = message
+            } else {
+                attachError = "Couldn't add this ticket to your account. Open the link again in a moment."
+            }
+            Haptics.error()
+        }
+    }
+
     private func partyCard(guestId: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -700,7 +908,12 @@ struct InviteClaimView: View {
             }
 
             // Me
-            partyRow(name: "\(name) (you)", trailing: myGuest(guestId)?.checkedInAt != nil ? .checkedIn : .going)
+            partyRow(name: name, trailing: myGuest(guestId)?.checkedInAt != nil ? .checkedIn : .going)
+
+            // Tickets bought for friends — their own QR above, sent from there.
+            ForEach(otherHeld(guestId)) { inv in
+                partyRow(name: inv.fullName, trailing: .going)
+            }
 
             // Friend slots — invited/going, removable while pending.
             ForEach(invitedList) { friend in

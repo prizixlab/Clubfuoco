@@ -176,14 +176,7 @@ struct RumbalistOfferSheet: View {
 
                 supplierCredit
 
-                if model.paidButUnsaved {
-                    Text(locale.t("vip.savingTable"))
-                        .font(.cfSans(12, weight: .medium))
-                        .foregroundStyle(Self.textColor)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 12)
-                } else if let error = model.errorMessage {
+                if let error = model.errorMessage {
                     Text(error)
                         .font(.cfSans(12))
                         .foregroundStyle(Color.adaptive(light: 0x8C2A2A, dark: 0xFFB4A2))
@@ -217,8 +210,7 @@ struct RumbalistOfferSheet: View {
                     .background(offer.isVip ? Self.ctaFillVip : Self.ctaFill, in: .rect(cornerRadius: 12))
                     .opacity(model.busy ? 0.55 : 1)
                 }
-                // Already charged: a second tap would charge again.
-                .disabled(model.busy || model.paidButUnsaved)
+                .disabled(model.busy)
                 .padding(.top, 22)
 
                 if !offer.isVip { guestStepper }
@@ -573,9 +565,6 @@ final class RumbalistOfferModel {
     private(set) var busy = false
     private(set) var confirmation: RumbalistBookingResult?
     var errorMessage: String?
-    /// Apple Pay charged, but the booking couldn't be confirmed yet. The
-    /// webhook books it; the guest must not pay again.
-    private(set) var paidButUnsaved = false
 
     func joinFree(clubId: String, venueName: String, bookingDate: String,
                   plusOnes: Int = 0, api: APIClient) {
@@ -654,8 +643,6 @@ final class RumbalistOfferModel {
                     let clubId: String
                     let amount: Int
                     let bookingDate: String
-                    let venueName: String
-                    let productName: String
                 }
                 struct IntentResult: Decodable, Sendable {
                     let clientSecret: String
@@ -663,8 +650,7 @@ final class RumbalistOfferModel {
                 }
                 let intent: IntentResult = try await api.post(
                     "/api/rumbalist/create-vip-intent",
-                    body: IntentBody(clubId: clubId, amount: Int((price * 100).rounded()), bookingDate: bookingDate,
-                                     venueName: venueName, productName: "VIP Table")
+                    body: IntentBody(clubId: clubId, amount: Int((price * 100).rounded()), bookingDate: bookingDate)
                 )
 
                 // 2. Apple Pay confirms it on-device
@@ -678,22 +664,11 @@ final class RumbalistOfferModel {
                     let productName: String
                     let bookingDate: String
                 }
-                // The money has moved. From here a failure must never read as
-                // "it didn't work": confirm-vip is idempotent, so retry it, and
-                // if it still can't answer, the Stripe webhook books the table
-                // from the payment itself (lib/vip-booking) — say so.
-                let body = ConfirmBody(paymentIntentId: intent.paymentIntentId, clubId: clubId,
-                                       venueName: venueName, productName: "VIP Table", bookingDate: bookingDate)
-                var saved: RumbalistBookingResult?
-                for attempt in 0..<4 where saved == nil {
-                    if attempt > 0 { try? await Task.sleep(for: .seconds(Double(attempt) * 1.5)) }
-                    saved = try? await api.post("/api/rumbalist/confirm-vip", body: body)
-                }
-                guard let result = saved else {
-                    paidButUnsaved = true
-                    busy = false
-                    return
-                }
+                let result: RumbalistBookingResult = try await api.post(
+                    "/api/rumbalist/confirm-vip",
+                    body: ConfirmBody(paymentIntentId: intent.paymentIntentId, clubId: clubId,
+                                      venueName: venueName, productName: "VIP Table", bookingDate: bookingDate)
+                )
                 Haptics.success()
                 confirmation = result
             } catch let error as ApplePayError where error == .cancelled {

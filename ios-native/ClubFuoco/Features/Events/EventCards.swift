@@ -37,6 +37,9 @@ private struct EventPhoto: View {
             }
             .frame(height: height)
             .clipped()
+            // .clipped() hides the overflow of a .fill image but still hit-tests
+            // it — a tall flyer took taps meant for the shelf header above.
+            .contentShape(.rect)
     }
 }
 

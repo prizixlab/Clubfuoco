@@ -112,6 +112,7 @@ struct ExploreView: View {
             ShelfListView(shelf: shelf, model: model, onSave: save)
         }
         .navigationDestination(for: FeedEvent.self) { EventDetailView(event: $0) }
+        .navigationDestination(for: FeaturedOffers.self) { FeaturedOffersView(offers: $0) }
         .sheet(isPresented: $showNearbyLocationSheet) {
             LocationPermissionSheet(mode: .nearby)
         }

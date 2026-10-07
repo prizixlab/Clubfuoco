@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
+import { NON_ADMITTING_PAYMENT_LIST } from '@/lib/refunds'
 
 // GET /api/me/saved-events
 //
@@ -36,6 +37,21 @@ export async function GET(req: Request) {
 
   if (error) return err(error.message, 500)
 
+  // Paid (or joined free) since saving → it's a ticket now, not unfinished
+  // business. Drop it here rather than relying on every payment path to
+  // delete the bookmark. A pending hold is NOT a spot and keeps it listed.
+  const allocIds = (data ?? []).map(r => r.allocation_id as string)
+  const have = new Set<string>()
+  if (allocIds.length > 0) {
+    const { data: mine } = await sb
+      .from('promoter_guests')
+      .select('allocation_id')
+      .eq('claimed_by_user', userId)
+      .in('allocation_id', allocIds)
+      .or(`payment_status.is.null,payment_status.not.in.${NON_ADMITTING_PAYMENT_LIST}`)
+    for (const g of mine ?? []) have.add(g.allocation_id as string)
+  }
+
   // Today counts as upcoming — a night on the 17th is still live at 2am on the
   // 18th, and dropping it at midnight would take the ticket away mid-night.
   const today = new Date().toISOString().slice(0, 10)
@@ -48,7 +64,7 @@ export async function GET(req: Request) {
       price_cents: number | null; currency: string | null; location_name: string | null
       club: { id: string; name: string; cover_image_url: string | null } | null
     } | undefined
-    if (!n || n.night_date < today) return []
+    if (!n || n.night_date < today || have.has(row.allocation_id as string)) return []
     const club = Array.isArray(n.club) ? n.club[0] : n.club
     return [{
       allocation_id: row.allocation_id,

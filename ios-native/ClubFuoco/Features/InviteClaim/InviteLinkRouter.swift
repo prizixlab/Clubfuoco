@@ -23,6 +23,25 @@ final class InviteLinkRouter {
     /// marks the spot paid, so a forged query buys nothing.
     var paidGuestId: String?
 
+    /// Set when the link is a ticket somebody bought for this person and sent
+    /// on: /i/<token>?ticket=<guestId>. The claim screen opens that ticket and
+    /// attaches it to the signed-in account.
+    var sentTicketId: String?
+
+    /// The link a buyer sends with a ticket they bought for someone. Same
+    /// /i/ path as an invite, so it is already a Universal Link (AASA) and the
+    /// web page already bounces anyone without the app to the App Store.
+    static func ticketURL(token: String, guestId: String) -> URL {
+        var c = URLComponents(string: "https://clubfuoco.com/i/\(token)")!
+        c.queryItems = [URLQueryItem(name: "ticket", value: guestId)]
+        return c.url!
+    }
+
+    private func readTicket(_ url: URL) {
+        sentTicketId = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == "ticket" })?.value
+    }
+
     /// Returns true if we recognized this URL and handled it (caller should
     /// stop further processing). False otherwise — lets other handlers
     /// (Google Sign-In, etc.) try.
@@ -38,6 +57,7 @@ final class InviteLinkRouter {
             guard url.host == "i" else { return false }
             let parts = url.path.split(separator: "/", omittingEmptySubsequences: true)
             guard let raw = parts.first, !raw.isEmpty else { return false }
+            readTicket(url)
             pendingToken = String(raw)
             return true
         }
@@ -50,6 +70,7 @@ final class InviteLinkRouter {
         if items?.first(where: { $0.name == "paid" })?.value == "1" {
             paidGuestId = items?.first(where: { $0.name == "guest" })?.value
         }
+        readTicket(url)
         pendingToken = token
         return true
     }

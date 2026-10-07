@@ -6,11 +6,72 @@ import MiniFooter from './MiniFooter'
 import {
   NETWORK_VENUES,
   NETWORK_VENUE_COUNT,
-  NETWORK_VENUE_COUNT_WORD,
-  NETWORK_VENUE_COUNT_WORD_CAP,
 } from '@/lib/network-venues'
+import { getLiveAvailability, type BookableClub, type WayIn } from '@/lib/live-availability'
 
-export default function WebHome() {
+// Shown when the live lookup fails — the mockup must never render empty.
+const FALLBACK_ROWS: { name: string; label: string }[] = [
+  { name: 'Opium Barcelona',     label: 'Free guestlist' },
+  { name: 'Ku (formerly Pacha)', label: 'Free guestlist · VIP table' },
+  { name: 'Jamboree',            label: 'Free guestlist' },
+  { name: 'Shôko Club',          label: 'VIP table' },
+  { name: 'CDLC Barcelona',      label: 'Free guestlist · VIP table' },
+]
+
+const THUMB_GRADIENTS = [
+  'linear-gradient(135deg,#3a2a4a,#160f22)',
+  'linear-gradient(135deg,#4a2a32,#1d1014)',
+  'linear-gradient(135deg,#2a3a4a,#101824)',
+  'linear-gradient(135deg,#4a3c2a,#211a0e)',
+  'linear-gradient(135deg,#2a4a3a,#0f211a)',
+]
+
+const WAY_LABEL: Record<WayIn, string> = {
+  guestlist: 'Free guestlist',
+  tickets:   'Tickets',
+  vip:       'VIP table',
+}
+
+const NETWORK_CAP = 11
+
+const COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six',
+  'seven', 'eight', 'nine', 'ten', 'eleven']
+
+/** "Opium Barcelona Restaurant and Club" → "Opium", "Ku (formerly Pacha)" → "Ku". */
+function shortClubName(name: string): string {
+  const short = name
+    .replace(/\s*\(.*?\)/g, '')
+    .replace(/\b(restaurant and club|barcelona|bcn|club)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return short || name
+}
+
+function clubRows(clubs: BookableClub[]) {
+  return clubs.map(c => ({
+    key:   c.id,
+    name:  c.name,
+    cover: c.cover,
+    label: c.ways.map(w => WAY_LABEL[w]).join(' · '),
+  }))
+}
+
+export default async function WebHome() {
+  const live = await getLiveAvailability()
+  const tonight = live?.tonight ?? 0
+  const rows = live && live.clubs.length > 0
+    ? clubRows(live.clubs)
+    : FALLBACK_ROWS.map(r => ({ key: r.name, name: r.name, cover: null as string | null, label: r.label }))
+  // Long lists scroll on their own inside the phone; the list is rendered
+  // twice so the loop is seamless.
+  const scrolling = rows.length > 5
+  // "The network": clubs bookable in the app right now, at most eleven, and
+  // the copy's count follows. Static list only if the live lookup fails.
+  const network = live && live.clubs.length > 0
+    ? live.clubs.slice(0, NETWORK_CAP).map(c => shortClubName(c.name))
+    : [...NETWORK_VENUES]
+  const countWord = COUNT_WORDS[network.length] ?? String(network.length)
+
   return (
     <div className="cf-site">
       <div className="ambient-light" aria-hidden="true" />
@@ -27,7 +88,7 @@ export default function WebHome() {
         <p className="hero-tag">Barcelona nightlife, curated.</p>
         <hr className="divider" />
         <p className="hero-lede">
-          {NETWORK_VENUE_COUNT_WORD_CAP} of Barcelona&rsquo;s best venues,
+          {countWord[0].toUpperCase() + countWord.slice(1)} of Barcelona&rsquo;s best venues,
           end-to-end inside one app. Booked, paid, and on your phone before you
           leave the house.
         </p>
@@ -43,10 +104,17 @@ export default function WebHome() {
           <a href="#how" className="btn btn-secondary">How it works ↓</a>
         </div>
         <div className="hero-stats">
-          <div className="hstat"><div className="num">{NETWORK_VENUE_COUNT}</div><div className="lbl">Venues available</div></div>
-          <div className="hstat"><div className="num">1,700+</div><div className="lbl">Barcelona venues catalogued</div></div>
-          <div className="hstat"><div className="num">May 2026</div><div className="lbl">App Store launch</div></div>
-          <div className="hstat"><div className="num">Apple Pay</div><div className="lbl">Native payments</div></div>
+          {tonight > 0 ? (
+            <div className="hstat">
+              <div className="num">{tonight}</div>
+              <div className="lbl">
+                <span className="live-dot" aria-hidden="true" />
+                Offers available tonight
+              </div>
+            </div>
+          ) : (
+            <div className="hstat"><div className="num">{NETWORK_VENUE_COUNT}</div><div className="lbl">Venues available</div></div>
+          )}
         </div>
       </header>
 
@@ -64,24 +132,29 @@ export default function WebHome() {
               </span>
             </div>
             <div className="app-body">
-              <p className="app-eyebrow">Tonight, curated by</p>
               <div className="app-title">CLUB FUOCO</div>
-              <div className="venue-list">
-                {[
-                  ['Opium Barcelona',  'Free guestlist',            'linear-gradient(135deg,#3a2a4a,#160f22)'],
-                  ['Ku (formerly Pacha)', 'Free guestlist · VIP table', 'linear-gradient(135deg,#4a2a32,#1d1014)'],
-                  ['Jamboree',         'Free guestlist',            'linear-gradient(135deg,#2a3a4a,#101824)'],
-                  ['Shôko Club',       'VIP table',                 'linear-gradient(135deg,#4a3c2a,#211a0e)'],
-                  ['CDLC Barcelona',   'Free guestlist · VIP table', 'linear-gradient(135deg,#2a4a3a,#0f211a)'],
-                ].map(([name, label, gradient]) => (
-                  <div className="venue-row" key={name}>
-                    <div className="venue-thumb" style={{ background: gradient }} />
-                    <div className="venue-meta">
-                      <div className="venue-name">{name}</div>
-                      <div className="venue-label">{label}</div>
+              <div className={scrolling ? 'venue-viewport scrolling' : 'venue-viewport'}>
+                <div
+                  className="venue-list"
+                  style={scrolling ? { animationDuration: `${rows.length * 3}s` } : undefined}
+                >
+                  {(scrolling ? [0, 1] : [0]).flatMap(copy => rows.map((r, i) => (
+                    <div className="venue-row" key={`${copy}-${r.key}`} aria-hidden={copy === 1 || undefined}>
+                      <div
+                        className="venue-thumb"
+                        style={{
+                          background: r.cover
+                            ? `center / cover no-repeat url("${r.cover}")`
+                            : THUMB_GRADIENTS[i % THUMB_GRADIENTS.length],
+                        }}
+                      />
+                      <div className="venue-meta">
+                        <div className="venue-name">{r.name}</div>
+                        <div className="venue-label">{r.label}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )))}
+                </div>
               </div>
             </div>
           </div>
@@ -120,16 +193,16 @@ export default function WebHome() {
         <div className="wrap">
           <p className="eyebrow" style={{ textAlign: 'center' }}>The network</p>
           <h2 className="serif-title" style={{ marginTop: 18 }}>
-            Built around {NETWORK_VENUE_COUNT_WORD} of Barcelona&rsquo;s best rooms.
+            Built around {countWord} of Barcelona&rsquo;s best rooms.
           </h2>
           <p className="sub">
-            Guest lists, VIP tables, and direct entry at {NETWORK_VENUE_COUNT_WORD} of
+            Guest lists, VIP tables, and direct entry at {countWord} of
             the city&rsquo;s best venues.
           </p>
           <div className="venues" aria-label="Featured venues">
-            {NETWORK_VENUES.map((name, i, arr) => (
+            {network.map((name, i, arr) => (
               <span key={name}>
-                <span>{name}</span>
+                <span className="vname">{name}</span>
                 {i < arr.length - 1 && <span className="sep">·</span>}
               </span>
             ))}
@@ -158,7 +231,7 @@ export default function WebHome() {
       {/* ===== ROUTE HANDOFF ===== */}
       <section className="route-strip">
         <nav className="route-links" aria-label="Secondary">
-          <a href="/partners">For Partners →</a>
+          <a href="/promoters">For Promoters →</a>
           <span className="dot" aria-hidden="true">·</span>
           <a href="/investors">For Investors →</a>
         </nav>

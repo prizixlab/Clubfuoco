@@ -200,3 +200,11 @@
   display: inline-block;
 }
 .closing .mailto a { color: var(--gold); }
+
+/* ---------- Promoters page: everything centred ---------- */
+.promoters-page .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 28px; }
+.promoters-page .positioning,
+.promoters-page .perks-head { margin-left: auto; margin-right: auto; text-align: center; }
+.promoters-page .positioning .sub { margin-left: auto; margin-right: auto; }
+.promoters-page .perk { text-align: center; }
+.promoters-page .perk .pk-rule { margin-left: auto; margin-right: auto; }

@@ -33,6 +33,13 @@ const nextConfig: NextConfig = {
     },
     // Apple Universal Links: AASA must be served as application/json.
     // File lives at public/.well-known/apple-app-site-association (no extension).
+    // The partners hub was replaced by the promoter-app page; keep old links working.
+    async redirects() {
+      return [
+        { source: '/partners', destination: '/promoters', permanent: true },
+        { source: '/partners/:path*', destination: '/promoters', permanent: true },
+      ]
+    },
     async headers() {
       return [
         {

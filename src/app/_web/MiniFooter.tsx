@@ -9,7 +9,7 @@ export default function MiniFooter() {
         <nav className="mf-links" aria-label="Footer">
           <a href="/legal/privacy">Privacy</a><span className="dot" aria-hidden="true">·</span>
           <a href="/legal/terms">Terms</a><span className="dot" aria-hidden="true">·</span>
-          <a href="/press">Press</a><span className="dot" aria-hidden="true">·</span>
+          <a href="/promoters">Promoters</a><span className="dot" aria-hidden="true">·</span>
           {/* Careers still points nowhere — there is no /careers page yet. */}
           <a href="#">Careers</a><span className="dot" aria-hidden="true">·</span>
           <a href="mailto:hello@clubfuoco.com">hello@clubfuoco.com</a>

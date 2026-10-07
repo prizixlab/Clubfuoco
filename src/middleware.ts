@@ -114,7 +114,7 @@ export async function middleware(request: NextRequest) {
   // native app and the join flow both depend on them (each route self-protects).
   if (!pathname.startsWith('/api/')) {
     const WEB_ALLOWED = [
-      '/about', '/partners', '/investors', '/press', '/legal',   // marketing
+      '/about', '/promoters', '/investors', '/legal',            // marketing
       '/deck',                                                    // investor deck PDF (stable link in outreach)
       '/join',                                                    // invite flow
       '/i',                                                       // promoter invite links (/i/<token>)

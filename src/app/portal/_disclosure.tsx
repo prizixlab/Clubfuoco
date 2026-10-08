@@ -1,19 +1,23 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import type { BrandEvent } from '@/app/api/portal/brands/[id]/events/route'
-import { computeNight, eur, DISCLOSURE_STATEMENT } from '@/lib/disclosure'
+import { useEffect, useState } from 'react'
+import {
+  eur, half, priceLine, promoterPart, DISCLOSURE_STATEMENT, type DisclosureClub,
+} from '@/lib/disclosure'
 import { Btn, ErrorLine, Modal, TextInput, api, C, caps, font, mono } from './_ui'
 
-// "Send disclosure" on a promoter card. Asks, per logged night, what the club
-// pays per table and our share, and the guestlist price for men and women —
-// the 50% of each guestlist price is worked out live. Sends by email; the
-// binding statement is shown here exactly as the promoter receives it.
+// "Send disclosure" on a promoter card. A clean list, per club they work, of
+// every VIP table they sell there with all its prices — the VIP section only
+// appears at clubs where they sell tables. Per table the operator enters what
+// the club pays and Club Fuoco's part; the promoter's part is the rest. Per
+// club, guestlist men/women, split 50/50. Sent by email with the binding
+// statement shown here exactly as the promoter receives it.
 
-type Rates = { table_club_pays: string; table_our_share: string; gl_man: string; gl_woman: string }
-const EMPTY: Rates = { table_club_pays: '', table_our_share: '', gl_man: '', gl_woman: '' }
+type Table = { club_pays: string; fuoco_part: string }
+type Gl = { gl_man: string; gl_woman: string }
 
-function num(s: string): number | null {
+function num(s: string | undefined): number | null {
+  if (!s) return null
   const v = parseFloat(s.replace(',', '.'))
   return Number.isFinite(v) && v >= 0 ? v : null
 }
@@ -31,59 +35,45 @@ export function DisclosureButton({ brandId, name, email }: { brandId: string; na
 function DisclosureModal({ brandId, name, email, onClose }: {
   brandId: string; name: string; email: string | null; onClose: () => void
 }) {
-  const [nights, setNights] = useState<BrandEvent[] | null>(null)
-  const [rates, setRates] = useState<Record<string, Rates>>({})
+  const [clubs, setClubs] = useState<DisclosureClub[] | null>(null)
+  const [tables, setTables] = useState<Record<string, Table>>({})
+  const [gl, setGl] = useState<Record<string, Gl>>({})
   const [to, setTo] = useState(email ?? '')
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState<string | null>(null)
 
   useEffect(() => {
-    api<{ events: BrandEvent[] }>(`/api/portal/brands/${brandId}/events`)
-      .then(d => setNights(d.events))
-      .catch(e => setError(e instanceof Error ? e.message : 'Could not load nights'))
+    api<{ clubs: DisclosureClub[] }>(`/api/portal/brands/${brandId}/disclosure`)
+      .then(d => setClubs(d.clubs))
+      .catch(e => setError(e instanceof Error ? e.message : 'Could not load clubs'))
   }, [brandId])
 
-  const selected = useMemo(
-    () => (nights ?? []).filter(n => rates[n.id]),
-    [nights, rates],
-  )
-
-  const toggle = (id: string) => setRates(r => {
-    const next = { ...r }
-    if (next[id]) delete next[id]
-    else next[id] = { ...(selected[0] ? r[selected[0].id] : EMPTY) }
-    return next
-  })
-  const setField = (id: string, k: keyof Rates, v: string) =>
-    setRates(r => ({ ...r, [id]: { ...r[id], [k]: v } }))
-  const copyFirstToAll = () => {
-    const first = selected[0] && rates[selected[0].id]
-    if (!first) return
-    setRates(r => Object.fromEntries(Object.keys(r).map(id => [id, { ...first }])))
-  }
+  const setTable = (id: string, k: keyof Table, v: string) =>
+    setTables(t => ({ ...t, [id]: { ...(t[id] ?? { club_pays: '', fuoco_part: '' }), [k]: v } }))
+  const setGuest = (id: string, k: keyof Gl, v: string) =>
+    setGl(g => ({ ...g, [id]: { ...(g[id] ?? { gl_man: '', gl_woman: '' }), [k]: v } }))
 
   const send = async () => {
     setError(null)
     if (!to.trim()) { setError('Add the email address to send it to.'); return }
-    if (!selected.length) { setError('Pick at least one night.'); return }
-    if (!confirm(`Send this disclosure for ${selected.length} night${selected.length === 1 ? '' : 's'} to ${to.trim()}?`)) return
+    if (!confirm(`Send this disclosure to ${to.trim()}?`)) return
     setSending(true)
     try {
       await api(`/api/portal/brands/${brandId}/disclosure`, {
         method: 'POST',
         body: JSON.stringify({
           to: to.trim(),
-          nights: selected.map(n => {
-            const r = rates[n.id]
-            return {
-              night_id: n.id,
-              table_club_pays: num(r.table_club_pays),
-              table_our_share: num(r.table_our_share),
-              gl_man: num(r.gl_man),
-              gl_woman: num(r.gl_woman),
-            }
-          }),
+          clubs: (clubs ?? []).map(c => ({
+            club_id: c.club_id,
+            gl_man: num(gl[c.club_id]?.gl_man),
+            gl_woman: num(gl[c.club_id]?.gl_woman),
+            tables: c.tables.map(t => ({
+              key: t.key,
+              club_pays: num(tables[t.key]?.club_pays),
+              fuoco_part: num(tables[t.key]?.fuoco_part),
+            })),
+          })),
         }),
       })
       setSent(to.trim())
@@ -104,63 +94,66 @@ function DisclosureModal({ brandId, name, email, onClose }: {
   }
 
   return (
-    <Modal title={`Send disclosure — ${name}`} onClose={onClose} width={760}>
-      <label style={{ display: 'block', marginBottom: 18 }}>
+    <Modal title={`Send disclosure — ${name}`} onClose={onClose} width={820}>
+      <label style={{ display: 'block', marginBottom: 6 }}>
         <span style={{ ...caps, fontSize: 10, color: C.faint, display: 'block', marginBottom: 7 }}>Send to</span>
         <TextInput type="email" value={to} onChange={e => setTo(e.target.value)} placeholder="promoter@email.com" />
       </label>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ ...caps, fontSize: 10, color: C.faint }}>Logged nights</span>
-        {nights && nights.length > 0 && (
-          <span style={{ display: 'flex', gap: 8 }}>
-            <Btn small onClick={() => setRates(Object.fromEntries(nights.map(n => [n.id, rates[n.id] ?? { ...EMPTY }])))}>Select all</Btn>
-            {selected.length > 1 && <Btn small onClick={copyFirstToAll}>Copy first night's prices to all</Btn>}
-          </span>
-        )}
-      </div>
-
-      {!nights && !error && <p style={{ fontFamily: font, fontSize: 13, color: C.faint }}>Loading nights…</p>}
-      {nights && nights.length === 0 && (
-        <p style={{ fontFamily: font, fontSize: 13, color: C.faint }}>No nights logged for this promoter yet.</p>
+      {!clubs && !error && <p style={{ fontFamily: font, fontSize: 13, color: C.faint }}>Loading clubs and tables…</p>}
+      {clubs && clubs.length === 0 && (
+        <p style={{ fontFamily: font, fontSize: 13, color: C.faint }}>No clubs yet — they have no logged nights and aren't ranked on any table.</p>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {(nights ?? []).map(n => {
-          const r = rates[n.id]
-          const calc = r && computeNight({
-            night_id: n.id, night_date: n.night_date, label: '',
-            table_club_pays: num(r.table_club_pays), table_our_share: num(r.table_our_share),
-            gl_man: num(r.gl_man), gl_woman: num(r.gl_woman),
-          })
-          return (
-            <div key={n.id} style={{ border: `1px solid ${r ? C.gold : C.line}`, borderRadius: 6, padding: '10px 12px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                <input type="checkbox" checked={!!r} onChange={() => toggle(n.id)} />
-                <span style={{ fontFamily: mono, fontSize: 12.5, color: C.text }}>
-                  {new Date(n.night_date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-                </span>
-                <span style={{ fontFamily: font, fontSize: 13, color: C.dim }}>
-                  {[n.club_name ?? n.location_name, n.title].filter(Boolean).join(' · ')}
-                </span>
-              </label>
-              {r && calc && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginTop: 10 }}>
-                  <Money label="Club pays per table" value={r.table_club_pays} onChange={v => setField(n.id, 'table_club_pays', v)} />
-                  <Money label="Our share per table" value={r.table_our_share} onChange={v => setField(n.id, 'table_our_share', v)} />
-                  <Money label="Guestlist — men" value={r.gl_man} onChange={v => setField(n.id, 'gl_man', v)}
-                    note={`50%: ${eur(calc.gl_man_split)}`} />
-                  <Money label="Guestlist — women" value={r.gl_woman} onChange={v => setField(n.id, 'gl_woman', v)}
-                    note={`50%: ${eur(calc.gl_woman_split)}`} />
+      {(clubs ?? []).map(c => {
+        const g = gl[c.club_id]
+        const man = num(g?.gl_man), woman = num(g?.gl_woman)
+        return (
+          <section key={c.club_id} style={{ marginTop: 22, paddingTop: 18, borderTop: `1px solid ${C.line}` }}>
+            <h3 style={{ margin: 0, fontFamily: font, fontSize: 16, fontWeight: 700, color: C.text }}>{c.club_name}</h3>
+
+            {c.tables.length > 0 && (
+              <>
+                <p style={{ ...caps, fontSize: 10, color: C.gold, margin: '16px 0 8px' }}>VIP tables</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {c.tables.map(t => {
+                    const v = tables[t.key]
+                    const promoter = promoterPart({ club_pays: num(v?.club_pays), fuoco_part: num(v?.fuoco_part) })
+                    return (
+                      <div key={t.key} style={{ border: `1px solid ${C.line}`, borderRadius: 6, padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                          <span style={{ fontFamily: font, fontSize: 14, fontWeight: 650, color: C.text, minWidth: 140 }}>{t.name}</span>
+                          <span style={{ fontFamily: mono, fontSize: 12, color: C.dim, lineHeight: 1.6 }}>
+                            {t.prices.length
+                              ? t.prices.map((p, i) => <span key={i} style={{ display: 'block' }}>{priceLine(p)}</span>)
+                              : <span style={{ color: C.faint }}>No price listed</span>}
+                          </span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, marginTop: 10 }}>
+                          <Money label="Club pays per table" value={v?.club_pays ?? ''} onChange={x => setTable(t.key, 'club_pays', x)} />
+                          <Money label="Club Fuoco's part" value={v?.fuoco_part ?? ''} onChange={x => setTable(t.key, 'fuoco_part', x)} />
+                          <Computed label="Promoter's part" value={promoter} bad={promoter != null && promoter < 0} />
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-              )}
+              </>
+            )}
+
+            <p style={{ ...caps, fontSize: 10, color: C.gold, margin: '16px 0 8px' }}>Guestlist</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+              <Money label="Men" value={g?.gl_man ?? ''} onChange={x => setGuest(c.club_id, 'gl_man', x)}
+                note={man != null ? `Club Fuoco 50%: ${eur(half(man))} · Promoter 50%: ${eur(half(man))}` : undefined} />
+              <Money label="Women" value={g?.gl_woman ?? ''} onChange={x => setGuest(c.club_id, 'gl_woman', x)}
+                note={woman != null ? `Club Fuoco 50%: ${eur(half(woman))} · Promoter 50%: ${eur(half(woman))}` : undefined} />
             </div>
-          )
-        })}
-      </div>
+          </section>
+        )
+      })}
 
       <p style={{
-        margin: '20px 0 0', padding: 14, border: `1px solid ${C.gold}`, borderRadius: 6,
+        margin: '24px 0 0', padding: 14, border: `1px solid ${C.gold}`, borderRadius: 6,
         fontFamily: font, fontSize: 13, color: C.text, lineHeight: 1.6,
       }}>
         {DISCLOSURE_STATEMENT}
@@ -169,8 +162,8 @@ function DisclosureModal({ brandId, name, email, onClose }: {
       <ErrorLine error={error} />
       <div style={{ display: 'flex', gap: 10, marginTop: 18, justifyContent: 'flex-end' }}>
         <Btn onClick={onClose}>Cancel</Btn>
-        <Btn kind="primary" onClick={send} disabled={sending || !selected.length}>
-          {sending ? 'Sending…' : `Send disclosure${selected.length ? ` (${selected.length})` : ''}`}
+        <Btn kind="primary" onClick={send} disabled={sending || !clubs?.length}>
+          {sending ? 'Sending…' : 'Send disclosure'}
         </Btn>
       </div>
     </Modal>
@@ -185,7 +178,21 @@ function Money({ label, value, onChange, note }: {
       <span style={{ ...caps, fontSize: 9.5, color: C.faint, display: 'block', marginBottom: 6 }}>{label}</span>
       <TextInput inputMode="decimal" value={value} placeholder="€" onChange={e => onChange(e.target.value)}
         style={{ padding: '8px 10px', fontSize: 13.5 }} />
-      {note && <span style={{ display: 'block', marginTop: 5, fontFamily: mono, fontSize: 12, color: C.goldHi }}>{note}</span>}
+      {note && <span style={{ display: 'block', marginTop: 5, fontFamily: mono, fontSize: 11.5, color: C.goldHi }}>{note}</span>}
     </label>
+  )
+}
+
+function Computed({ label, value, bad }: { label: string; value: number | null; bad?: boolean }) {
+  return (
+    <div>
+      <span style={{ ...caps, fontSize: 9.5, color: C.faint, display: 'block', marginBottom: 6 }}>{label}</span>
+      <div style={{
+        padding: '8px 10px', fontSize: 13.5, fontFamily: mono, borderRadius: 4,
+        border: `1px dashed ${bad ? C.danger : C.line}`, color: bad ? C.danger : value == null ? C.faint : C.goldHi,
+      }}>
+        {value == null ? 'auto' : eur(value)}
+      </div>
+    </div>
   )
 }

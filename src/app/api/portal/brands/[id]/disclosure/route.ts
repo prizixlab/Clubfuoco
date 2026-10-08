@@ -3,36 +3,45 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
 import { getBrand } from '@/lib/partner'
 import { logAudit } from '@/lib/portal-audit'
-import { sendPromoterDisclosure } from '@/lib/email'
-import { computeNight, DISCLOSURE_STATEMENT } from '@/lib/disclosure'
+import { sendPromoterDisclosure, type DisclosureEmailClub } from '@/lib/email'
+import { loadDisclosureClubs } from '@/lib/disclosure-data'
+import { half, promoterPart, DISCLOSURE_STATEMENT } from '@/lib/disclosure'
 import { ok, err } from '@/lib/utils'
 
-// POST /api/portal/brands/:id/disclosure — email the promoter a disclosure of
-// the money on their logged nights (club pays per table, our share, guestlist
-// men/women + the 50% split).
+// GET  /api/portal/brands/:id/disclosure — the clubs this promoter works and
+//      every VIP table they sell at each, with all its prices.
+// POST /api/portal/brands/:id/disclosure — email the disclosure.
 //
-// Keyed by BRAND, same as /events: nights hang off the brand's owner. Night
-// ids are re-checked against that owner so a disclosure can only cite nights
-// actually logged for this promoter. The full sent payload goes to the audit
-// log — that row is our copy of what the contract extension said.
+// The POST only carries what the operator typed (club pays, Club Fuoco's part,
+// guestlist prices). Clubs, tables and prices are reloaded here, so the email
+// can only list tables this promoter actually sells. The full sent payload goes
+// to the audit log — that row is our copy of what the contract extension said.
+
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await requirePortal()
+  if (denied) return denied
+  const { id } = await params
+  const clubs = await loadDisclosureClubs(await createServiceClient(), id)
+  return clubs ? ok({ clubs }) : err('Promoter not found', 404)
+}
 
 const money = z.number().min(0).max(1_000_000).nullable()
 
 const Body = z.object({
   to: z.string().email(),
-  nights: z.array(z.object({
-    night_id: z.string().uuid(),
-    table_club_pays: money,
-    table_our_share: money,
+  clubs: z.array(z.object({
+    club_id: z.string().uuid(),
     gl_man: money,
     gl_woman: money,
-  })).min(1).max(1000),
+    tables: z.array(z.object({
+      key: z.string().min(3).max(300),
+      club_pays: money,
+      fuoco_part: money,
+    })).max(200),
+  })).max(300),
 })
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const denied = await requirePortal()
   if (denied) return denied
   const { id } = await params
@@ -42,59 +51,51 @@ export async function POST(
 
   const sb = await createServiceClient()
   const brand = await getBrand(sb, id)
-  if (!brand) return err('Brand not found', 404)
-  if (!brand.owner_user_id) return err('This promoter has no logged nights yet')
+  if (!brand) return err('Promoter not found', 404)
+  const known = await loadDisclosureClubs(sb, id)
+  if (!known?.length) return err('This promoter has no clubs or tables to disclose')
 
-  const ids = [...new Set(body.nights.map(n => n.night_id))]
-  const found: { id: string; night_date: string; title: string | null; club_id: string | null; location_name: string | null }[] = []
-  for (let i = 0; i < ids.length; i += 200) {
-    const { data, error } = await sb.from('promoter_nights')
-      .select('id, night_date, title, club_id, location_name')
-      .eq('created_by', brand.owner_user_id)
-      .in('id', ids.slice(i, i + 200))
-    if (error) return err(error.message, 500)
-    found.push(...(data ?? []))
-  }
-  const nightById = new Map(found.map(n => [n.id, n]))
-  if (nightById.size !== ids.length) return err('Some nights are not logged for this promoter')
-
-  const clubIds = [...new Set(found.map(n => n.club_id).filter((v): v is string => !!v))]
-  const clubName = new Map<string, string>()
-  if (clubIds.length) {
-    const { data } = await sb.from('clubs').select('id, name').in('id', clubIds)
-    for (const c of (data ?? []) as { id: string; name: string }[]) clubName.set(c.id, c.name)
-  }
-
-  const nights = body.nights
-    .map(n => {
-      const row = nightById.get(n.night_id)!
-      const venue = (row.club_id ? clubName.get(row.club_id) : null) ?? row.location_name ?? ''
-      return computeNight({
-        ...n,
-        night_date: row.night_date,
-        label: [venue, row.title].filter(Boolean).join(' · ') || 'Night',
-      })
+  const input = new Map(body.clubs.map(c => [c.club_id, c]))
+  const clubs: DisclosureEmailClub[] = []
+  for (const k of known) {
+    const c = input.get(k.club_id)
+    const terms = new Map((c?.tables ?? []).map(t => [t.key, t]))
+    const tables = k.tables.map(t => {
+      const tt = terms.get(t.key) ?? { club_pays: null, fuoco_part: null }
+      return { ...t, club_pays: tt.club_pays, fuoco_part: tt.fuoco_part, promoter_part: promoterPart(tt) }
     })
-    .sort((a, b) => a.night_date.localeCompare(b.night_date))
+    const bad = tables.find(t => t.promoter_part != null && t.promoter_part < 0)
+    if (bad) return err(`${k.club_name} · ${bad.name}: Club Fuoco's part is more than the club pays`)
+    const gl_man = c?.gl_man ?? null
+    const gl_woman = c?.gl_woman ?? null
+    // A club with no tables and no guestlist prices has nothing to disclose.
+    if (!tables.length && gl_man == null && gl_woman == null) continue
+    clubs.push({
+      club_name: k.club_name, tables,
+      gl_man, gl_woman, gl_man_half: half(gl_man), gl_woman_half: half(gl_woman),
+    })
+  }
+  if (!clubs.length) return err('Nothing to disclose yet — add guestlist prices or rank them on a table')
 
   const sentAt = new Date().toISOString()
   let sent: boolean
   try {
     sent = await sendPromoterDisclosure({
-      to: body.to, displayName: brand.name, nights, statement: DISCLOSURE_STATEMENT, sentAt,
+      to: body.to, displayName: brand.name, clubs, statement: DISCLOSURE_STATEMENT, sentAt,
     })
   } catch (e) {
     return err(`Email failed: ${e instanceof Error ? e.message : 'unknown error'}`, 502)
   }
   if (!sent) return err('Email is not configured (RESEND_API_KEY missing)', 503)
 
+  const tableCount = clubs.reduce((n, c) => n + c.tables.length, 0)
   await logAudit(sb, {
     action: 'brand.disclosure_sent',
-    summary: `Sent disclosure (${nights.length} night${nights.length === 1 ? '' : 's'}) to ${body.to} for ${brand.name}`,
+    summary: `Sent disclosure (${clubs.length} club${clubs.length === 1 ? '' : 's'}, ${tableCount} table${tableCount === 1 ? '' : 's'}) to ${body.to} for ${brand.name}`,
     target_type: 'brand',
     target_id: brand.id,
-    meta: { to: body.to, sent_at: sentAt, statement: DISCLOSURE_STATEMENT, nights },
+    meta: { to: body.to, sent_at: sentAt, statement: DISCLOSURE_STATEMENT, clubs },
   })
 
-  return ok({ sent: true, to: body.to, nights: nights.length })
+  return ok({ sent: true, to: body.to })
 }

@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { laddersFor, livePrice, type Release } from '@/lib/releases'
+import { fourvenuesOnlyOwners } from '@/lib/fourvenues-only'
 import { ok, err, chunked } from '@/lib/utils'
 
 // GET /api/events/feed — the consumer Events tab.
@@ -257,6 +258,16 @@ export async function GET() {
     .eq('offers_hidden', true)
     .not('owner_user_id', 'is', null)
   const hiddenOwners = new Set((hiddenBrands ?? []).map(b => b.owner_user_id as string))
+
+  // HOTFIX 8 Oct 2026: until 18:05 UTC (20:05 Madrid) phones may still hold a
+  // Fourvenues feed published while HypeList was off — nights with NO products.
+  // Shown a HypeList night with nothing to sell, the app falls back to our own
+  // Reserve, which /reserve refuses (409). Leaving HypeList nights out of this
+  // list until every phone has re-downloaded (hourly) means no customer can
+  // reach that screen. After the cutoff this is a no-op; delete it then.
+  if (Date.now() < Date.parse('2026-10-08T18:05:00Z')) {
+    for (const o of await fourvenuesOnlyOwners(sb)) hiddenOwners.add(o)
+  }
 
   const PAGE = 1000
   const list: Record<string, unknown>[] = []

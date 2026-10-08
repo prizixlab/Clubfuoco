@@ -11,6 +11,7 @@
 
 import type { createServiceClient } from '@/lib/supabase/server'
 import { NON_ADMITTING_PAYMENT_LIST } from '@/lib/refunds'
+import { loadCatalog } from '@/lib/vip-products'
 
 type SB = Awaited<ReturnType<typeof createServiceClient>>
 
@@ -44,13 +45,21 @@ export async function pendingReviewTargets(sb: SB, userId: string): Promise<Revi
   // Fourvenues tickets (free lists, tickets, tables) filed to the account.
   const { data: tickets } = await sb
     .from('external_tickets')
-    .select('id, club_id, night, heads, event_name, survey_dismissed_at, club:clubs(id, name, cover_image_url, address, neighborhood)')
+    .select('id, club_id, night, heads, event_code, venue, event_name, survey_dismissed_at')
     .eq('user_id', userId)
     .is('survey_dismissed_at', null)
     .gte('night', from).lte('night', to)
-  for (const t of (tickets ?? []) as Record<string, unknown>[]) {
-    const club = one(t.club)
-    if (!club) continue                        // a night we can't place at a venue
+  const ticketRows = (tickets ?? []) as Record<string, unknown>[]
+  await placeTickets(sb, ticketRows)
+  const clubIds = [...new Set(ticketRows.map(t => t.club_id as string | null).filter((c): c is string => !!c))]
+  const clubs = new Map<string, Record<string, unknown>>()
+  if (clubIds.length) {
+    const { data: c } = await sb.from('clubs').select('id, name, cover_image_url, address, neighborhood').in('id', clubIds)
+    for (const r of (c ?? []) as Record<string, unknown>[]) clubs.set(String(r.id), r)
+  }
+  for (const t of ticketRows) {
+    const club = t.club_id ? clubs.get(String(t.club_id)) : undefined
+    if (!club) continue                        // a night we can't place at any venue
     out.push(target(String(t.id), 'fourvenues', String(t.night), Number(t.heads) || 1, club, (t.event_name as string) ?? null))
   }
 
@@ -96,10 +105,12 @@ export async function resolveReviewTarget(
   sb: SB, userId: string, source: ReviewSource, id: string,
 ): Promise<{ club_id: string | null; night: string } | { error: string; status: number }> {
   if (source === 'fourvenues') {
-    const { data } = await sb.from('external_tickets').select('user_id, club_id, night').eq('id', id).maybeSingle()
+    const { data } = await sb.from('external_tickets').select('id, user_id, club_id, night, event_code, venue').eq('id', id).maybeSingle()
     if (!data) return { error: 'Ticket not found', status: 404 }
     if (data.user_id !== userId) return { error: 'This ticket belongs to a different account', status: 403 }
-    return { club_id: (data.club_id as string | null) ?? null, night: String(data.night) }
+    const row = data as Record<string, unknown>
+    await placeTickets(sb, [row])
+    return { club_id: (row.club_id as string | null) ?? null, night: String(row.night) }
   }
   const { data } = await sb.from('promoter_guests')
     .select('claimed_by_user, allocation:promoter_allocations ( night:promoter_nights ( night_date, club_id ) )')
@@ -111,6 +122,50 @@ export async function resolveReviewTarget(
   const night = one(one((data as Record<string, unknown>).allocation)?.night)
   if (!night) return { error: 'Guestlist night not found', status: 404 }
   return { club_id: (night.club_id as string | null) ?? null, night: String(night.night_date) }
+}
+
+/**
+ * Give tickets with no club one, and save it. Tickets are filed by the app,
+ * and builds before this didn't record the club, so most rows have none. In
+ * order of trust:
+ *   1. the Fourvenues night agentbox filed under that event code
+ *      (promoter_nights.fourvenues_code → club_id) — kept after the night
+ *      leaves the catalog;
+ *   2. another ticket at the same venue name that is already placed
+ *      ("Ku Barcelona" → Ku (formerly Pacha));
+ *   3. the live catalog, for a night still in it.
+ * Mutates the rows' club_id.
+ */
+async function placeTickets(sb: SB, rows: Record<string, unknown>[]): Promise<void> {
+  const missing = rows.filter(r => !r.club_id)
+  if (!missing.length) return
+  const codes = [...new Set(missing.map(r => String(r.event_code ?? '')).filter(Boolean))]
+  const byCode = new Map<string, string>()
+  if (codes.length) {
+    const { data } = await sb.from('promoter_nights').select('fourvenues_code, club_id').in('fourvenues_code', codes)
+    for (const n of (data ?? []) as { fourvenues_code: string; club_id: string | null }[]) {
+      if (n.club_id) byCode.set(n.fourvenues_code, n.club_id)
+    }
+  }
+  const venues = [...new Set(missing.map(r => String(r.venue ?? '')).filter(Boolean))]
+  const byVenue = new Map<string, string>()
+  if (venues.length) {
+    const { data } = await sb.from('external_tickets').select('venue, club_id').in('venue', venues).not('club_id', 'is', null)
+    for (const t of (data ?? []) as { venue: string; club_id: string }[]) byVenue.set(t.venue, t.club_id)
+  }
+  let catalog: Map<string, string> | null = null
+  for (const r of missing) {
+    let club = byCode.get(String(r.event_code ?? '')) ?? byVenue.get(String(r.venue ?? ''))
+    if (!club) {
+      catalog ??= new Map((await loadCatalog() ?? [])
+        .filter(e => e.club_id).map(e => [e.code, e.club_id as string]))
+      club = catalog.get(String(r.event_code ?? ''))
+    }
+    if (!club) continue
+    r.club_id = club
+    if (r.venue) byVenue.set(String(r.venue), club)
+    await sb.from('external_tickets').update({ club_id: club }).eq('id', String(r.id)).is('club_id', null)
+  }
 }
 
 function target(

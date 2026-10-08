@@ -288,7 +288,7 @@ final class FVCatalog {
     /// The feed as downloaded. Never read directly — `events` applies the
     /// portal switch on top of it.
     private var allEvents: [FVEvent] = [] {
-        didSet { publishOffers() }
+        didSet { rebuildEvents() }
     }
 
     /// Each seller's portal switch (brand key → on sale). The catalog file
@@ -303,7 +303,7 @@ final class FVCatalog {
         didSet {
             guard brandOn != oldValue else { return }
             UserDefaults.standard.set(brandOn, forKey: "fv.brandOn")
-            publishOffers()
+            rebuildEvents()
         }
     }
 
@@ -317,10 +317,17 @@ final class FVCatalog {
     ///   • a Fuoco seller → the first listing of it, marked `soldBy`.
     /// A table the server says nothing about stays as the catalog has it.
     /// Club pages, the Guestlist offers, event pages and Explore all read this.
-    var events: [FVEvent] {
-        _ = tableRulesRev   // re-read when the server's decisions change
+    ///
+    /// STORED, not computed: it's read many times per frame while lists
+    /// scroll (every row asks for its club's nights), and rebuilding ~150
+    /// nights and re-normalising every table name on each read made scrolling
+    /// the events list crawl. Rebuilt only when the catalog, a brand switch or
+    /// the server's seller decisions change.
+    private(set) var events: [FVEvent] = []
+
+    private func rebuildEvents() {
         var claimed = Set<String>()   // club|night|zone already given a Fuoco listing
-        return allEvents.filter { brandOn[$0.seller] ?? true }.map { e in
+        events = allEvents.filter { brandOn[$0.seller] ?? true }.map { e in
             guard e.products.contains(where: { $0.settle == .table }) else { return e }
             var e = e
             e.products = e.products.compactMap { p in
@@ -336,15 +343,11 @@ final class FVCatalog {
             }
             return e
         }
-    }
-
-    /// Bumped by `tableRulesChanged()` so views reading `events` refresh when
-    /// /api/partner brings new table decisions.
-    private(set) var tableRulesRev = 0
-    func tableRulesChanged() {
-        tableRulesRev += 1
         publishOffers()
     }
+
+    /// The server's table decisions changed (VipSellers.update).
+    func tableRulesChanged() { rebuildEvents() }
 
     /// The brand that sells a night, as the UI credits it. Falls back to
     /// HypeList, which was the only seller before brands were tagged.
@@ -463,8 +466,8 @@ final class FVCatalog {
             brandMeta = feed.brands ?? [:]
             allEvents = feed.events
         }
-        // didSet doesn't run during init — publish the offers explicitly.
-        publishOffers()
+        // didSet doesn't run during init — build the list explicitly.
+        rebuildEvents()
     }
 
     /// Download if the copy we hold is over an hour old (or `force`).

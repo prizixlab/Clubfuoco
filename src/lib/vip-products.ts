@@ -28,6 +28,7 @@
 import type { createServiceClient } from '@/lib/supabase/server'
 import { parseValidDays, weekdayOf } from '@/lib/valid-days'
 import { isFourvenuesOnlyBrandKey } from '@/lib/fourvenues-only'
+import { mentionsWhatsApp } from '@/lib/whatsapp-rule'
 
 type SB = Awaited<ReturnType<typeof createServiceClient>>
 
@@ -64,12 +65,16 @@ export interface Listing { event: FeedEvent; product: FeedProduct; brandKey: str
 export type CatalogIndex = Map<string, Listing[]>
 const ix = (club: string, night: string, zone: string) => `${club}|${night}|${zone}`
 
+/** A table that hands the guest to WhatsApp isn't a product (lib/whatsapp-rule). */
+export const isWhatsAppProduct = (p: FeedProduct) => mentionsWhatsApp(p.name, p.rates, (p as { detail?: unknown }).detail,
+  (p as { checkout?: unknown }).checkout)
+
 export function indexCatalog(events: FeedEvent[]): CatalogIndex {
   const out: CatalogIndex = new Map()
   for (const e of events) {
     if (!e.club_id || !e.night) continue
     for (const p of e.products ?? []) {
-      if (p.settle !== 'table' || !p.name) continue
+      if (p.settle !== 'table' || !p.name || isWhatsAppProduct(p)) continue
       const key = ix(e.club_id, e.night, normZone(p.name))
       const list = out.get(key) ?? []
       list.push({ event: e, product: p, brandKey: (e.brand ?? 'hypelist').toLowerCase() })
@@ -304,7 +309,7 @@ export async function syncProducts(sb: SB, events: FeedEvent[]): Promise<void> {
   for (const e of events) {
     if (!e.club_id) continue
     for (const p of e.products ?? []) {
-      if (p.settle !== 'table' || !p.name) continue
+      if (p.settle !== 'table' || !p.name || isWhatsAppProduct(p)) continue
       const zone_key = normZone(p.name)
       if (zone_key) seen.set(`${e.club_id}|${zone_key}`, { club_id: e.club_id, zone_key, name: p.name })
     }

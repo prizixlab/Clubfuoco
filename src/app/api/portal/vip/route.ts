@@ -2,7 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
 import { ok } from '@/lib/utils'
 import {
-  checkoutOf, indexCatalog, listingsFor, loadCatalog, loadVipState, normZone, sellerFor, syncProducts,
+  checkoutOf, indexCatalog, isWhatsAppProduct, listingsFor, loadCatalog, loadVipState, normZone, sellerFor, syncProducts,
 } from '@/lib/vip-products'
 
 // GET /api/portal/vip — the VIP products board. Every table saved from
@@ -27,7 +27,7 @@ export async function GET() {
   for (const e of events ?? []) {
     if (!e.club_id) continue
     for (const p of e.products ?? []) {
-      if (p.settle !== 'table' || !p.name) continue
+      if (p.settle !== 'table' || !p.name || isWhatsAppProduct(p)) continue
       const key = normZone(p.name)
       const club = zones.get(e.club_id) ?? new Map()
       const z = club.get(key) ?? { name: p.name, nights: new Set<string>(), prices: [] }

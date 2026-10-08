@@ -1,6 +1,7 @@
 import type { createServiceClient } from '@/lib/supabase/server'
 import { parseValidDays, weekdayOf } from '@/lib/valid-days'
 import { isFourvenuesOnlyBrandKey } from '@/lib/fourvenues-only'
+import { mentionsWhatsApp } from '@/lib/whatsapp-rule'
 
 type SB = Awaited<ReturnType<typeof createServiceClient>>
 
@@ -58,7 +59,11 @@ const isActiveOffer = (r: Record<string, unknown>) => r.is_active !== false
 // tables saved from Fourvenues, sold by ranked promoters (lib/vip-products).
 // Any vip_table rows left in partner_offers are inert — never shown, never
 // booked — whether or not they have been deleted.
+//
+// Nor is anything booked over WhatsApp (lib/whatsapp-rule) — an offer whose
+// text sends the guest to WhatsApp never shows and is never bookable.
 const isListedOffer = (r: Record<string, unknown>) => r.kind !== 'vip_table'
+  && !mentionsWhatsApp(r.title, r.subtitle, r.time_window, r.dress_code, r.music)
 
 function toOffer(r: Record<string, unknown>, brand?: PartnerBrand & { id: string }): PartnerOffer {
   return {

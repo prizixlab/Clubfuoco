@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { mentionsWhatsApp, WHATSAPP_REFUSAL } from '@/lib/whatsapp-rule'
 
 // Zod shapes shared by the portal's offer routes (create + patch validate the
 // same merged object, so the VIP/free price rule can't be dodged by a partial
@@ -26,6 +27,9 @@ export const OfferSchema = z.object({
   if (o.kind === 'vip_table') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['kind'],
       message: 'VIP is sold from the club’s saved tables now, not as an offer. Ask Club Fuoco to add you as a seller.' })
+  }
+  if (mentionsWhatsApp(o.title, o.subtitle, o.time_window, o.dress_code, o.music)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['subtitle'], message: WHATSAPP_REFUSAL })
   }
   if (o.kind === 'free_guestlist' && o.price_eur != null) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price_eur'], message: 'Free guestlist offers cannot have a price' })

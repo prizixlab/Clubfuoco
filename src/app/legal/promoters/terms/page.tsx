@@ -57,6 +57,14 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
+    heading: 'No WhatsApp bookings',
+    body: [
+      'Everything a guest is offered through Club Fuoco must be bookable in the app. You may not publish, or sell through Club Fuoco, any night, guest list, ticket, VIP table, or other offer that is booked, reserved, paid for, or confirmed over WhatsApp. This applies whether the offer reaches the app from you directly, through Fourvenues, or through any other platform or channel.',
+      'This includes listing a WhatsApp number or link as the way to book, listing a "WhatsApp" product or zone in place of a real price, and asking guests who found you on Club Fuoco to message you on WhatsApp to complete a booking.',
+      'We remove offers that break this rule, whether we find them in review or after they are published, and we may do so automatically. Repeated breaches may lead to suspension or termination of your account.',
+    ],
+  },
+  {
     heading: 'Honouring what you publish',
     body: [
       'If a guest arrives holding a confirmation, a guest-list place, or an offer issued through Club Fuoco, you must honour it on the terms shown to that guest, subject to the venue\'s lawful admission rules (capacity, age, dress code, safety, and refusal of entry for conduct).',
@@ -161,7 +169,7 @@ export default function PromoterTermsPage() {
     <LegalDoc
       kicker="Club Fuoco Promoters · Legal"
       title="Promoter Terms of Service"
-      updated="4 August 2026"
+      updated="9 October 2026"
       intro="These Terms govern promoter and partner accounts on Club Fuoco — how nights and offers are published, how payouts and fees work, and the obligations that come with handling guest data. They are separate from the Terms that govern the guest-facing Club Fuoco app."
       sections={SECTIONS}
     />

@@ -98,7 +98,11 @@ struct FVEvent: Decodable, Identifiable, Hashable {
 ///   so a fully sold-out tier still reads "sold out" instead of vanishing.
 /// Guestlists and tables are left alone.
 enum FVOffer {
-    static func curate(_ all: [FVProduct]) -> [FVProduct] {
+    static func curate(_ feed: [FVProduct]) -> [FVProduct] {
+        // Club Fuoco rule: nothing booked over WhatsApp is shown (promoter
+        // terms, "No WhatsApp bookings"). agentbox already drops these; this
+        // covers a cached or older catalog. Mirrors src/lib/whatsapp-rule.ts.
+        let all = feed.filter { !$0.viaWhatsApp }
         let paid: Set<Settle> = [.online, .door]
         let onSale = all.filter { !$0.soldOut }
         let freeTonight = onSale.contains { $0.settle == .free }
@@ -165,6 +169,15 @@ struct FVProduct: Decodable, Identifiable, Hashable {
     /// (VipSellers) — FVEventSheet then charges with Apple Pay through us
     /// instead of opening Fourvenues. Not in the feed; set by FVCatalog.
     var soldBy: VipSellers.Seller? = nil
+
+    /// Hands the guest to WhatsApp instead of selling them something.
+    var viaWhatsApp: Bool {
+        let texts = [name, detail, checkout, zonePage]
+            + (rates ?? []).flatMap { [$0.name, $0.description] }
+        return texts.compactMap { $0 }.contains {
+            $0.range(of: #"whats\s*app|wa\.me/|api\.whatsapp\.com"#, options: [.regularExpression, .caseInsensitive]) != nil
+        }
+    }
 
     /// What the price includes, read from the name and the description.
     var perks: FVPerks { FVPerks([name, detail].compactMap { $0 }.joined(separator: " · ")) }

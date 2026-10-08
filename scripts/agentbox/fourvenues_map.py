@@ -577,6 +577,18 @@ def auto_link(con: sqlite3.Connection, venue: str, lat, lng) -> str | None:
     return club
 
 
+WHATSAPP = re.compile(r"whats\s*app|wa\.me/|api\.whatsapp\.com", re.I)
+
+
+def via_whatsapp(p: dict) -> bool:
+    """A product that hands the guest to WhatsApp instead of selling them
+    something: its name, description, rates or link mention WhatsApp."""
+    texts = [p.get("name"), p.get("detail"), p.get("checkout"), p.get("zone_page")]
+    for r in p.get("rates") or []:
+        texts += [r.get("name"), r.get("description")]
+    return any(isinstance(t, str) and WHATSAPP.search(t) for t in texts)
+
+
 def vip_layout(zone_products: list[dict], images: dict[str, tuple[str, str | None]]) -> dict | None:
     """How the night's VIP areas fit together, for the app's overview map:
     "shared" — one plan for the whole venue (the same image, or one image per
@@ -694,6 +706,10 @@ def main() -> int:
         products = (tickets(latest(con, run, code, "tickets"), base)
                     + guestlists(latest(con, run, code, "guestlists"), base)
                     + zones(latest(con, run, code, "zones"), base, code))
+        # Club Fuoco rule: nothing booked over WhatsApp is allowed in the app
+        # (promoter terms §WhatsApp). Boris lists its "VIP" as a €0 zone named
+        # "WhatsApp" — a hand-off to a chat, not a product.
+        products = [p for p in products if not via_whatsapp(p)]
         events.append({
             "code": code,
             "id": ev["id"],

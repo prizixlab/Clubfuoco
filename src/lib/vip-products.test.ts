@@ -137,3 +137,10 @@ describe('parseFourvenuesChannel — one standard field for every promoter', () 
     expect(parseFourvenuesChannel('not a channel!')).toBeNull()
   })
 })
+
+describe('no WhatsApp offers', () => {
+  it('a "WhatsApp" zone is never a VIP product', () => {
+    const boris = { id: 'w', name: 'WhatsApp', settle: 'table', price: 0, rates: [{ id: 'r', name: 'WhatsApp', price: 0 }] }
+    expect(indexCatalog([event('hypelist', [boris, gold])]).size).toBe(1)
+  })
+})

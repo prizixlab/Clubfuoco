@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
 import { listPending } from '@/lib/pending-changes'
 import { ok, err } from '@/lib/utils'
+import { mentionsWhatsApp } from '@/lib/whatsapp-rule'
 
 type Item = {
   id: string
@@ -11,6 +12,8 @@ type Item = {
   summary: string
   created_at: string
   payload?: Record<string, unknown> | null
+  /** Mentions WhatsApp — not allowed on Club Fuoco (lib/whatsapp-rule). */
+  whatsapp?: boolean
 }
 
 function clubName(row: unknown): string {
@@ -33,13 +36,14 @@ export async function GET() {
   try {
     const changes = await listPending(sb)
     for (const r of changes) {
-      items.push({ id: r.id, type: 'change', entity: r.entity, action: r.action, summary: r.summary, created_at: r.created_at, payload: r.payload })
+      items.push({ id: r.id, type: 'change', entity: r.entity, action: r.action, summary: r.summary, created_at: r.created_at, payload: r.payload,
+        whatsapp: mentionsWhatsApp(r.summary, r.payload) })
     }
   } catch { /* changes table missing → skip */ }
 
   const { data: nights, error: nightErr } = await sb
     .from('promoter_nights')
-    .select('id, title, night_date, created_at, club:clubs(name)')
+    .select('*, club:clubs(name)')
     .eq('review_status', 'pending')
     .order('created_at', { ascending: true })
     .limit(100)
@@ -50,13 +54,14 @@ export async function GET() {
         id: r.id, type: 'night', entity: 'night', action: 'night.create',
         summary: `New night${r.title ? ` “${r.title}”` : ''} at ${clubName(n)} · ${r.night_date}`,
         created_at: r.created_at,
+        whatsapp: mentionsWhatsApp({ ...(n as Record<string, unknown>), club: undefined }),
       })
     }
   }
 
   const { data: series, error: seriesErr } = await sb
     .from('promoter_series')
-    .select('id, title, created_at, club:clubs(name)')
+    .select('*, club:clubs(name)')
     .eq('review_status', 'pending')
     .order('created_at', { ascending: true })
     .limit(100)
@@ -67,6 +72,7 @@ export async function GET() {
         id: r.id, type: 'series', entity: 'series', action: 'series.create',
         summary: `New recurring series${r.title ? ` “${r.title}”` : ''} at ${clubName(s)}`,
         created_at: r.created_at,
+        whatsapp: mentionsWhatsApp({ ...(s as Record<string, unknown>), club: undefined }),
       })
     }
   }

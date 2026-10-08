@@ -9,6 +9,7 @@ interface Review {
   entity: string
   action: string
   summary: string
+  whatsapp?: boolean
   created_at: string
   payload?: Record<string, unknown> | null
 }
@@ -128,6 +129,7 @@ export default function ReviewsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                 <Badge color={r.action === 'offer.delete' ? C.danger : C.gold}>{ACTION_LABEL[r.action] ?? r.action}</Badge>
                 <Badge color={C.faint}>{r.type === 'change' ? 'offer' : 'night'}</Badge>
+                {r.whatsapp && <Badge color={C.danger}>Mentions WhatsApp: not allowed, reject</Badge>}
               </div>
               <p style={{ margin: 0, fontSize: 14.5, fontFamily: font, color: C.text }}>{r.summary}</p>
               <p style={{ margin: '4px 0 0', fontFamily: mono, fontSize: 11, color: C.faint }}>

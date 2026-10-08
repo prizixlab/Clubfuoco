@@ -283,6 +283,7 @@ final class FVCatalog {
         ?? ["hypelist": UserDefaults.standard.object(forKey: "fv.onSale") as? Bool ?? true] {
         didSet {
             guard brandOn != oldValue else { return }
+            FVTrace.log("switch changed: \(brandOn.filter { oldValue[$0.key] != $0.value }.map { "\($0.key)=\($0.value ? "on" : "off")" }.sorted().joined(separator: ", "))")
             UserDefaults.standard.set(brandOn, forKey: "fv.brandOn")
             publishOffers()
         }
@@ -434,13 +435,28 @@ final class FVCatalog {
     /// The portal switch, every minute while the app is open; the catalog
     /// itself still only downloads when the copy is an hour old.
     func keepFresh() async {
+        // Two independent loops: the switch must never wait behind a feed
+        // download (a 2 MB fetch once held an "off" back for 40 s).
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.watchSwitch() }
+            group.addTask { await self.watchFeed() }
+        }
+    }
+
+    /// The portal switch — a tiny request, every 15 s, so on/off lands fast.
+    private func watchSwitch() async {
         while !Task.isCancelled {
             await checkSwitch()
-            // A brand switched ON whose nights we hold with no products: our
-            // copy was published while it was off. Waiting out the hour made a
-            // portal restore look broken — fetch now (at most once a minute).
+            try? await Task.sleep(for: .seconds(15))
+        }
+    }
+
+    /// The feed: hourly as before, or at once (at most once a minute) when a
+    /// brand switched ON has no products in our copy — a copy published while
+    /// it was off.
+    private func watchFeed() async {
+        while !Task.isCancelled {
             await refresh(force: waitingOnRestoredBrand && minuteSinceFetch)
-            // The switch is a tiny request: every 15 s, so on/off lands fast.
             try? await Task.sleep(for: .seconds(15))
         }
     }

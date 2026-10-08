@@ -13,7 +13,8 @@ import { createServiceClient } from '@/lib/supabase/server'
 // venue, shut VIP down, and what the guest may pay (deposit / full / both).
 // Whoever is ranked next takes the table the moment they step back.
 //
-// Venues themselves (which clubs, which weekdays) are set by Club Fuoco.
+// Which tables they sell is Club Fuoco's ranking; their clubs are the clubs
+// they're ranked at, each with the nights its tables are on sale.
 
 export async function GET() {
   const { brand, response } = await brandOrNull()
@@ -37,9 +38,7 @@ export async function PATCH(request: NextRequest) {
   if (response) return response
   const parsed = Patch.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return err(parsed.error.issues[0]?.message ?? 'Invalid VIP settings')
-  const { venues, ...rest } = parsed.data
-  // venue_updates only edits venues the promoter already has — it can't add.
-  const fail = await saveBrandVip(sb, brand.id, { ...rest, venue_updates: venues })
+  const fail = await saveBrandVip(sb, brand.id, parsed.data)
   if (fail) return err(fail, /schema change/.test(fail) ? 503 : 500)
   return ok({ vip: await getBrandVip(sb, brand.id) })
 }

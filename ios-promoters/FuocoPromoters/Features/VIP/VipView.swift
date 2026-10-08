@@ -1,10 +1,10 @@
 import SwiftUI
 
 /// Selling VIP tables. The products are the club's saved Fourvenues tables;
-/// Club Fuoco ranks which promoters sell each one. On every night the
-/// highest-ranked promoter who is selling gets the table — so stepping back
-/// here (a night, a venue, or VIP altogether) hands it to the next promoter
-/// straight away, and stepping back in takes it back if you rank above them.
+/// Club Fuoco ranks which promoters sell each one, and being ranked is all it
+/// takes — you sell every night the table is on sale. Stepping back here (a
+/// night, a club, or VIP altogether) hands your tables to the next promoter
+/// straight away; stepping back in takes them back if you rank above them.
 struct VipView: View {
     @State private var vip: VipSetup?
     @State private var loading = true
@@ -50,7 +50,7 @@ struct VipView: View {
                         .font(.cfSans(16, weight: .semibold))
                         .foregroundStyle(v.vipPaused ? Theme.ember : Theme.parchment)
                     Text(v.checkout == "fourvenues"
-                         ? "Guests check out on Fourvenues through your link."
+                         ? "Guests check out on Fourvenues through your link when it lists the table, otherwise through Club Fuoco."
                          : "Guests pay with Apple Pay through Club Fuoco.")
                         .font(.cfSans(12)).foregroundStyle(Theme.parchmentDim)
                 }
@@ -62,8 +62,8 @@ struct VipView: View {
             }
         }
 
-        // What the guest pays now (Fuoco checkout only)
-        if v.checkout == "fuoco" {
+        // What the guest pays now (Fuoco checkout)
+        do {
             VStack(alignment: .leading, spacing: 8) {
                 label("What the guest pays now")
                 HStack(spacing: 8) {
@@ -78,11 +78,9 @@ struct VipView: View {
 
         // Venues and nights
         VStack(alignment: .leading, spacing: 10) {
-            label("Your venues")
+            label("Clubs you sell at")
             if v.venues.isEmpty {
-                Text(v.checkout == "fourvenues"
-                     ? "You sell the nights your Fourvenues link lists."
-                     : "No venues yet. Club Fuoco adds the venues you do VIP at.")
+                Text("Club Fuoco hasn’t given you any tables yet.")
                     .font(.cfSans(13)).foregroundStyle(Theme.parchmentDim)
             }
             ForEach(v.venues) { venue in venueCard(venue, vip: v) }
@@ -95,7 +93,9 @@ struct VipView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(venue.clubName).font(.cfSans(16, weight: .semibold)).foregroundStyle(Theme.parchment)
-                        Text(venue.validDays).font(.cfMono(11)).foregroundStyle(Theme.parchmentDim)
+                        if let n = venue.rankedTables {
+                            Text("\(n) table\(n == 1 ? "" : "s")").font(.cfMono(11)).foregroundStyle(Theme.parchmentDim)
+                        }
                     }
                     Spacer()
                     Button(venue.paused ? "Resume" : "Pause") {
@@ -109,7 +109,7 @@ struct VipView: View {
                     Text("Paused. You aren’t selling here until you resume.")
                         .font(.cfSans(12)).foregroundStyle(Theme.ember)
                 } else {
-                    Text("Tap a night to suspend it")
+                    Text((venue.nights ?? []).isEmpty ? "No nights on sale right now" : "Tap a night to suspend it")
                         .font(.cfSans(11)).foregroundStyle(Theme.parchmentFaint)
                     nightGrid(venue)
                 }
@@ -118,9 +118,9 @@ struct VipView: View {
         .opacity(v.vipPaused ? 0.5 : 1)
     }
 
-    /// The next two weeks of nights this venue runs, each a suspend toggle.
+    /// The nights your tables here are on sale, each a suspend toggle.
     private func nightGrid(_ venue: VipSetup.Venue) -> some View {
-        let nights = Self.upcoming(validDays: venue.validDays)
+        let nights = venue.nights ?? []
         return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
             ForEach(nights, id: \.self) { night in
                 let off = venue.skippedDates.contains(night)
@@ -194,17 +194,4 @@ struct VipView: View {
     private static let iso = formatter("yyyy-MM-dd")
     private static func weekday(_ n: String) -> String { iso.date(from: n).map { formatter("EEE").string(from: $0) } ?? "" }
     private static func dayMonth(_ n: String) -> String { iso.date(from: n).map { formatter("d MMM").string(from: $0) } ?? n }
-
-    /// The next 14 nights that fall on the venue's VIP weekdays.
-    static func upcoming(validDays: String) -> [String] {
-        var cal = Calendar(identifier: .gregorian); cal.timeZone = madrid
-        // A night runs past midnight: until 06:00 it's still last night.
-        let start = cal.startOfDay(for: Date().addingTimeInterval(-6 * 3600))
-        let allowed = ValidDays.parse(validDays)
-        return (0..<14).compactMap { i -> String? in
-            guard let d = cal.date(byAdding: .day, value: i, to: start) else { return nil }
-            let wd = cal.component(.weekday, from: d) - 1   // 0 = Sun
-            return allowed.isEmpty || allowed.contains(wd) ? iso.string(from: d) : nil
-        }
-    }
 }

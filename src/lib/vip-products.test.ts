@@ -58,19 +58,22 @@ describe('resolveSeller — ranked promoters, first one selling wins', () => {
     expect(resolve([{ ...rumba, vip_paused: true }, nova], ls)?.brand_key).toBe('nova')
   })
 
-  it('a paused venue, or a night outside their weekdays, is skipped', () => {
+  it('a paused club is skipped', () => {
     const paused = new Map(venues); paused.set(rumba.id, venue(rumba, { paused: true }))
     expect(resolve([rumba, nova], ls, paused)?.brand_key).toBe('nova')
-    const weekdays = new Map(venues); weekdays.set(rumba.id, venue(rumba, { valid_days: 'Mon – Thu' }))
-    expect(resolve([rumba, nova], ls, weekdays)?.brand_key).toBe('nova')
   })
 
-  it('a promoter not set up at this club can’t sell here', () => {
-    expect(resolve([brand('stranger'), nova], ls)?.brand_key).toBe('nova')
+  it('being ranked is enough — no per-club set-up', () => {
+    expect(resolve([brand('stranger'), nova], ls)).toMatchObject({ brand_key: 'stranger', checkout: 'fuoco' })
   })
 
-  it('a Fourvenues promoter sells only what their own channel lists, through Fourvenues', () => {
+  it('Fourvenues is just how they check out: their channel lists it → Fourvenues, else Fuoco', () => {
     expect(resolve([hypelist, rumba], ls)).toMatchObject({ brand_key: 'hypelist', checkout: 'fourvenues', ranked: true })
+    const beso = brand('besolist', { fourvenues_channel: 'besolist' })
+    expect(resolve([beso], ls)).toMatchObject({ brand_key: 'besolist', checkout: 'fuoco' })
+  })
+
+  it('HypeList stays Fourvenues-only: off its channel it is skipped, never Fuoco', () => {
     const otherChannel = listings(event('besolist', [gold]))
     expect(resolve([hypelist, rumba], otherChannel)?.brand_key).toBe('rumba')
   })
@@ -82,13 +85,13 @@ describe('resolveSeller — ranked promoters, first one selling wins', () => {
 
   it('a sold-out table can’t be sold on Fuoco checkout', () => {
     const soldOut = listings(event('hypelist', [{ ...gold, sold_out: true }]))
-    expect(canSell(rumba, venue(rumba), soldOut, SAT)).toBe(false)
+    expect(canSell(rumba, venue(rumba), soldOut, SAT)).toBeNull()
   })
 
   it('a hidden or Fourvenues-only promoter never sells on Fuoco checkout', () => {
-    expect(canSell({ ...rumba, hidden: true }, venue(rumba), ls, SAT)).toBe(false)
+    expect(canSell({ ...rumba, hidden: true }, venue(rumba), ls, SAT)).toBeNull()
     const fvOnly = brand('hypelist')   // channel removed, still Fourvenues-only
-    expect(canSell(fvOnly, venue(fvOnly), ls, SAT)).toBe(false)
+    expect(canSell(fvOnly, venue(fvOnly), ls, SAT)).toBeNull()
   })
 })
 

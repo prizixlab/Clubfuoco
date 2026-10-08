@@ -6,16 +6,17 @@ import { logAudit } from '@/lib/portal-audit'
 import { ok, err } from '@/lib/utils'
 import { getBrandVip, saveBrandVip } from '@/lib/vip-products'
 
-// A promoter's VIP set-up, operator side: where and when they do VIP, VIP shut
-// down, and what the guest may pay (deposit / full / both). The promoter app
-// edits the same record, minus adding or removing venues.
+// A promoter's VIP controls, operator side: VIP shut down, a club paused,
+// nights suspended, and what the guest may pay (deposit / full / both). The
+// promoter app edits the same record. Where they sell is the VIP page ranking.
 
 const Patch = z.object({
   vip_paused:  z.boolean().optional(),
   vip_payment: z.enum(['both', 'deposit', 'full']).optional(),
+  // Step back at a club: pause it or suspend nights. No set-up — a promoter
+  // sells wherever they're ranked on the VIP page.
   venues: z.array(z.object({
     club_id:       z.string().uuid(),
-    valid_days:    z.string().trim().max(120),
     skipped_dates: z.array(z.string()).max(400).optional(),
     paused:        z.boolean().optional(),
   })).max(200).optional(),

@@ -1,8 +1,9 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { requirePortal } from '@/lib/portal-auth'
+import { isFourvenuesOnlyBrandKey } from '@/lib/fourvenues-only'
 import { ok } from '@/lib/utils'
 import {
-  checkoutOf, indexCatalog, isWhatsAppProduct, listingsFor, loadCatalog, loadVipState, normZone, sellerFor, syncProducts,
+  indexCatalog, isWhatsAppProduct, listingsFor, loadCatalog, loadVipState, normZone, sellerFor, syncProducts,
 } from '@/lib/vip-products'
 
 // GET /api/portal/vip — the VIP products board. Every table saved from
@@ -46,11 +47,10 @@ export async function GET() {
     for (const c of (data ?? []) as { id: string; name: string }[]) names.set(c.id, c.name)
   }
 
-  // Who can be ranked at all: VIP promoters (set up at a venue, or selling
-  // through a Fourvenues channel) that aren't hidden.
-  const vipBrandIds = new Set([...state.venues.values()].map(v => v.brand_id))
+  // Any promoter can be ranked — being ranked is the permission to sell.
+  // Hidden promoters are left out (they can't sell anything).
   const candidates = [...state.brands.values()]
-    .filter(b => !b.hidden && (b.fourvenues_channel || vipBrandIds.has(b.id)))
+    .filter(b => !b.hidden)
     .sort((a, b) => a.name.localeCompare(b.name))
 
   const clubs = clubIds.map(clubId => {
@@ -62,15 +62,16 @@ export async function GET() {
       nights,
       candidates: candidates.map(b => {
         const venue = state.venues.get(`${b.id}|${clubId}`)
+        // Fourvenues is just how they'd check out: their channel lists this
+        // club → Fourvenues, otherwise Fuoco. HypeList (Fourvenues-only)
+        // can only sell what its channel lists.
         const onChannelHere = !!b.fourvenues_channel && clubZones.some(([key]) =>
           nights.some(n => listingsFor(catalog, clubId, n, key).some(l => l.brandKey === b.key)))
         return {
-          id: b.id, name: b.name, color: b.color, checkout: checkoutOf(b),
+          id: b.id, name: b.name, color: b.color,
+          checkout: onChannelHere ? 'fourvenues' as const : 'fuoco' as const,
+          fourvenues_only: isFourvenuesOnlyBrandKey(b.key) && !onChannelHere,
           vip_paused: b.vip_paused,
-          // Can they ever sell here? A Fuoco seller needs the venue set up;
-          // a Fourvenues seller needs their channel to list this club.
-          set_up: b.fourvenues_channel ? onChannelHere : !!venue,
-          venue_days: venue?.valid_days ?? null,
           venue_paused: venue?.paused ?? false,
         }
       }),

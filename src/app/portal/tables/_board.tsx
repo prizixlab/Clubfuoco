@@ -16,7 +16,7 @@ import { Badge, Btn, Card, ErrorLine, SectionLabel, TextInput, api, C, caps, fon
 type Checkout = 'fourvenues' | 'fuoco'
 interface Candidate {
   id: string; name: string; color: string; checkout: Checkout
-  vip_paused: boolean; set_up: boolean; venue_days: string | null; venue_paused: boolean
+  fourvenues_only: boolean; vip_paused: boolean; venue_paused: boolean
 }
 interface Product {
   id: string | null; zone_key: string; name: string
@@ -240,17 +240,16 @@ function RankEditor({ club, value, onChange }: { club: Club; value: string[]; on
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {value.map((id, i) => {
         const c = byId.get(id)
-        const warn = !c ? 'not a VIP promoter any more'
+        const warn = !c ? 'hidden promoter'
           : c.vip_paused ? 'VIP shut down'
-          : !c.set_up ? (c.checkout === 'fuoco' ? 'not set up at this club' : 'their Fourvenues link doesn’t list this club')
-          : c.venue_paused ? 'paused at this club' : null
+          : c.venue_paused ? 'paused at this club'
+          : c.fourvenues_only ? 'Fourvenues-only, and their link doesn’t list this club' : null
         return (
           <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', border: `1px solid ${C.line}`, borderRadius: 8 }}>
             <span style={{ fontFamily: mono, fontSize: 12, color: C.gold, width: 18 }}>{i + 1}</span>
             <span style={{ width: 8, height: 8, borderRadius: 4, background: c?.color ?? C.faint }} />
             <span style={{ fontFamily: font, fontSize: 13.5, color: C.text }}>{c?.name ?? 'Unknown'}</span>
             {c && <span style={{ fontFamily: font, fontSize: 11.5, color: c.checkout === 'fuoco' ? C.goldHi : C.faint }}>{CHECKOUT_LABEL[c.checkout]}</span>}
-            {c?.venue_days && c.checkout === 'fuoco' && <span style={{ fontFamily: font, fontSize: 11.5, color: C.faint }}>{c.venue_days}</span>}
             {warn && <Badge color={C.danger}>{warn}</Badge>}
             <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 4 }}>
               <Btn small kind="ghost" disabled={i === 0} onClick={() => move(i, -1)}>↑</Btn>
@@ -273,7 +272,7 @@ function RankEditor({ club, value, onChange }: { club: Club; value: string[]; on
           <option value="">Add a seller…</option>
           {rest.map(c => (
             <option key={c.id} value={c.id}>
-              {c.name} · {CHECKOUT_LABEL[c.checkout]}{c.set_up ? '' : ' (not set up here)'}
+              {c.name} · {CHECKOUT_LABEL[c.checkout]}
             </option>
           ))}
         </select>

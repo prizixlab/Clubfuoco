@@ -46,10 +46,14 @@ struct Offer: Decodable, Identifiable, Hashable {
 /// price VIP: the club's saved Fourvenues tables are the products and Club
 /// Fuoco ranks who sells which. This is what the promoter controls.
 struct VipSetup: Decodable, Hashable {
+    /// A club they sell at — every club they're ranked on a table at.
     struct Venue: Decodable, Hashable, Identifiable {
         let clubId: String
         let clubName: String
-        let validDays: String
+        /// How many of this club's tables they're ranked on.
+        let rankedTables: Int?
+        /// Upcoming nights those tables are on sale (from the catalog).
+        let nights: [String]?
         let skippedDates: [String]
         let paused: Bool
         var id: String { clubId }

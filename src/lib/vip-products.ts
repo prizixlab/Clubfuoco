@@ -26,7 +26,6 @@
 // database; loaders tolerate the migration not being applied.
 
 import type { createServiceClient } from '@/lib/supabase/server'
-import { parseValidDays, weekdayOf } from '@/lib/valid-days'
 import { isFourvenuesOnlyBrandKey } from '@/lib/fourvenues-only'
 import { mentionsWhatsApp } from '@/lib/whatsapp-rule'
 
@@ -121,20 +120,29 @@ export interface VipVenue {
 export const checkoutOf = (b: Pick<SellerBrand, 'fourvenues_channel'>): Checkout =>
   b.fourvenues_channel ? 'fourvenues' : 'fuoco'
 
-/** Can this promoter sell this table tonight? */
+/**
+ * Can this ranked promoter sell this table tonight, and how does it check out?
+ * null = they're skipped tonight and the next promoter in line moves up.
+ *
+ * Being ranked IS the permission — there is no per-club set-up. They're only
+ * skipped when they've stepped back: VIP shut down, the club paused, or the
+ * night suspended (brand_vip_venues holds those).
+ *
+ * Fourvenues is just a way to pay: their own channel lists the table tonight →
+ * Fourvenues checkout; otherwise Fuoco checkout, recorded in our system. The
+ * one exception is a Fourvenues-only promoter (HypeList), who never sells
+ * through us (lib/fourvenues-only).
+ */
 export function canSell(
   brand: SellerBrand, venue: VipVenue | undefined, listings: Listing[], night: string,
-): boolean {
-  if (brand.hidden || brand.vip_paused) return false
+): Checkout | null {
+  if (brand.hidden || brand.vip_paused) return null
   const onSale = listings.filter(l => !l.product.sold_out)
-  if (brand.fourvenues_channel) return onSale.some(l => l.brandKey === brand.key)
-  // Fuoco checkout. A Fourvenues-only promoter never sells through us.
-  if (isFourvenuesOnlyBrandKey(brand.key)) return false
-  if (!venue || venue.paused || onSale.length === 0) return false
-  if (venue.skipped_dates.includes(night)) return false
-  const days = parseValidDays(venue.valid_days)
-  const wd = weekdayOf(night)
-  return days.size === 0 || wd === null || days.has(wd)
+  if (onSale.length === 0) return null
+  if (venue?.paused || venue?.skipped_dates.includes(night)) return null
+  if (brand.fourvenues_channel && onSale.some(l => l.brandKey === brand.key)) return 'fourvenues'
+  if (isFourvenuesOnlyBrandKey(brand.key)) return null
+  return 'fuoco'
 }
 
 export interface ResolvedSeller {
@@ -159,10 +167,11 @@ export function resolveSeller(
   brandsByKey: Map<string, SellerBrand>,
 ): ResolvedSeller | null {
   for (const b of ranked) {
-    if (canSell(b, venueOf(b.id), listings, night)) {
+    const checkout = canSell(b, venueOf(b.id), listings, night)
+    if (checkout) {
       return {
         brand_id: b.id, brand_key: b.key, brand_name: b.name,
-        checkout: checkoutOf(b), ranked: true, payment: b.vip_payment,
+        checkout, ranked: true, payment: b.vip_payment,
       }
     }
   }
@@ -401,6 +410,22 @@ export function parseFourvenuesChannel(raw: unknown): string | null {
 }
 
 // ── A promoter's VIP settings (portal + promoter app share these) ────────────
+//
+// There is no per-club set-up: a promoter sells wherever they're ranked. What
+// they (or the operator) control is stepping back — VIP off everywhere, a club
+// paused, or single nights suspended — plus the deposit/full limit. Their
+// clubs are therefore the clubs they're ranked at, each with the nights its
+// tables are actually on sale (from the catalog).
+
+export interface BrandVipClub {
+  club_id: string; club_name: string
+  /** How many of this club's tables they're ranked on. */
+  ranked_tables: number
+  /** Upcoming nights any of those tables is on sale (catalog). */
+  nights: string[]
+  skipped_dates: string[]
+  paused: boolean
+}
 
 export interface BrandVip {
   migrated: boolean
@@ -408,20 +433,49 @@ export interface BrandVip {
   vip_payment: VipPayment
   checkout: Checkout
   fourvenues_channel: string | null
-  venues: (VipVenue & { id: string; club_name: string })[]
+  venues: BrandVipClub[]
 }
 
 export async function getBrandVip(sb: SB, brandId: string): Promise<BrandVip | null> {
   const { data: b } = await sb.from('partner_brands').select('*').eq('id', brandId).maybeSingle()
   if (!b) return null
   const r = b as Record<string, unknown>
-  const { data: v, error } = await sb.from('brand_vip_venues').select('*').eq('brand_id', brandId)
-  const rows = (error ? [] : v ?? []) as Record<string, unknown>[]
+  const [{ data: v, error }, { data: ranks }, events] = await Promise.all([
+    sb.from('brand_vip_venues').select('*').eq('brand_id', brandId),
+    sb.from('vip_product_sellers').select('product:vip_products(club_id, zone_key)').eq('brand_id', brandId),
+    loadCatalog(),
+  ])
+
+  // club → the zones they're ranked on there
+  const zonesByClub = new Map<string, Set<string>>()
+  for (const row of (ranks ?? []) as { product: { club_id: string; zone_key: string } | { club_id: string; zone_key: string }[] | null }[]) {
+    const p = Array.isArray(row.product) ? row.product[0] : row.product
+    if (!p) continue
+    const set = zonesByClub.get(p.club_id) ?? new Set<string>()
+    set.add(p.zone_key)
+    zonesByClub.set(p.club_id, set)
+  }
+  const rows = new Map(((error ? [] : v ?? []) as Record<string, unknown>[]).map(x => [String(x.club_id), x]))
+  // Only clubs they sell at; a pause/suspension row for a club they're no
+  // longer ranked at is kept in the table but not shown.
+  const clubIds = [...zonesByClub.keys()]
+
   const names = new Map<string, string>()
-  if (rows.length) {
-    const { data: clubs } = await sb.from('clubs').select('id, name').in('id', rows.map(x => String(x.club_id)))
+  if (clubIds.length) {
+    const { data: clubs } = await sb.from('clubs').select('id, name').in('id', clubIds)
     for (const c of (clubs ?? []) as { id: string; name: string }[]) names.set(c.id, c.name)
   }
+  const today = new Date(Date.now() - 6 * 3600_000).toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' })
+  const nightsAt = (clubId: string) => {
+    const zones = zonesByClub.get(clubId) ?? new Set<string>()
+    const out = new Set<string>()
+    for (const e of events ?? []) {
+      if (e.club_id !== clubId || e.night < today) continue
+      if ((e.products ?? []).some(p => p.settle === 'table' && p.name && zones.has(normZone(p.name)) && !isWhatsAppProduct(p))) out.add(e.night)
+    }
+    return [...out].sort().slice(0, 21)
+  }
+
   const channel = (r.fourvenues_channel as string | null) || null
   return {
     migrated: !error,
@@ -429,23 +483,25 @@ export async function getBrandVip(sb: SB, brandId: string): Promise<BrandVip | n
     vip_payment: (['both', 'deposit', 'full'].includes(r.vip_payment as string) ? r.vip_payment : 'both') as VipPayment,
     checkout: channel ? 'fourvenues' : 'fuoco',
     fourvenues_channel: channel,
-    venues: rows.map(x => ({
-      id: String(x.id), brand_id: brandId, club_id: String(x.club_id),
-      club_name: names.get(String(x.club_id)) ?? 'Unknown venue',
-      valid_days: String(x.valid_days ?? 'Every night'),
-      skipped_dates: ((x.skipped_dates as string[] | null) ?? []).map(String).sort(),
-      paused: x.paused === true,
-    })).sort((a, b) => a.club_name.localeCompare(b.club_name)),
+    venues: clubIds.map(id => {
+      const row = rows.get(id)
+      return {
+        club_id: id,
+        club_name: names.get(id) ?? 'Unknown venue',
+        ranked_tables: zonesByClub.get(id)?.size ?? 0,
+        nights: nightsAt(id),
+        skipped_dates: ((row?.skipped_dates as string[] | null) ?? []).map(String).filter(d => d >= today).sort(),
+        paused: row?.paused === true,
+      }
+    }).sort((a, b) => a.club_name.localeCompare(b.club_name)),
   }
 }
 
 export interface BrandVipPatch {
   vip_paused?: boolean
   vip_payment?: VipPayment
-  /** Operator only: the full set of venues (adds, edits, removes). */
-  venues?: { club_id: string; valid_days: string; skipped_dates?: string[]; paused?: boolean }[]
-  /** Promoter app: edit the venues they already have — never add or remove. */
-  venue_updates?: { club_id: string; skipped_dates?: string[]; paused?: boolean; valid_days?: string }[]
+  /** Step back at a club: pause it, or suspend single nights. */
+  venues?: { club_id: string; skipped_dates?: string[]; paused?: boolean }[]
 }
 
 export const MIGRATION_HINT_VIP =
@@ -461,28 +517,15 @@ export async function saveBrandVip(sb: SB, brandId: string, patch: BrandVipPatch
     if (error) return /vip_/.test(error.message) ? MIGRATION_HINT_VIP : error.message
   }
   const clean = (d?: string[]) => [...new Set((d ?? []).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)))].sort()
-  if (patch.venues) {
-    const keep = patch.venues.map(v => v.club_id)
-    const del = keep.length
-      ? await sb.from('brand_vip_venues').delete().eq('brand_id', brandId).not('club_id', 'in', `(${keep.join(',')})`)
-      : await sb.from('brand_vip_venues').delete().eq('brand_id', brandId)
-    if (del.error) return /brand_vip_venues/.test(del.error.message) ? MIGRATION_HINT_VIP : del.error.message
-    if (patch.venues.length) {
-      const { error } = await sb.from('brand_vip_venues').upsert(patch.venues.map(v => ({
-        brand_id: brandId, club_id: v.club_id,
-        valid_days: v.valid_days.trim() || 'Every night',
-        skipped_dates: clean(v.skipped_dates), paused: v.paused === true,
-      })), { onConflict: 'brand_id,club_id' })
-      if (error) return error.message
+  for (const u of patch.venues ?? []) {
+    const { data: existing } = await sb.from('brand_vip_venues').select('*')
+      .eq('brand_id', brandId).eq('club_id', u.club_id).maybeSingle()
+    const row = {
+      brand_id: brandId, club_id: u.club_id,
+      skipped_dates: u.skipped_dates ? clean(u.skipped_dates) : ((existing?.skipped_dates as string[] | null) ?? []),
+      paused: u.paused ?? (existing?.paused === true),
     }
-  }
-  for (const u of patch.venue_updates ?? []) {
-    const row: Record<string, unknown> = {}
-    if (u.skipped_dates) row.skipped_dates = clean(u.skipped_dates)
-    if (u.paused !== undefined) row.paused = u.paused
-    if (u.valid_days !== undefined) row.valid_days = u.valid_days.trim() || 'Every night'
-    if (!Object.keys(row).length) continue
-    const { error } = await sb.from('brand_vip_venues').update(row).eq('brand_id', brandId).eq('club_id', u.club_id)
+    const { error } = await sb.from('brand_vip_venues').upsert(row, { onConflict: 'brand_id,club_id' })
     if (error) return /brand_vip_venues/.test(error.message) ? MIGRATION_HINT_VIP : error.message
   }
   return null

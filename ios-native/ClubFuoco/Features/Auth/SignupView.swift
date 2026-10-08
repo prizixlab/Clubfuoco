@@ -10,7 +10,6 @@ struct SignupView: View {
     @Binding var path: [AuthRoute]
     @Environment(AuthStore.self) private var auth
     @Environment(LocaleStore.self) private var locale
-    @Environment(\.api) private var api
     @Environment(\.dismiss) private var dismiss
 
     private enum Step: Int {
@@ -44,7 +43,6 @@ struct SignupView: View {
 
     @State private var loading = false
     @State private var errorMessage: String?
-    @State private var showSurvey = false
 
     var body: some View {
         Group {
@@ -56,16 +54,6 @@ struct SignupView: View {
         }
         .background(Theme.cream)
         .toolbar(.hidden, for: .navigationBar)
-        .fullScreenCover(isPresented: $showSurvey) {
-            // Modally-presented content doesn't inherit our environment, so the
-            // survey's API client + locale (used by PrimaryButton) are re-injected.
-            SurveyView(
-                onComplete: { auth.finishOnboarding() },   // saved → into the app
-                onCancel: { showSurvey = false }            // back → return to choice
-            )
-            .environment(locale)
-            .environment(\.api, api)
-        }
     }
 
     // ── Wizard frame ──────────────────────────────────────────────────────────
@@ -554,86 +542,6 @@ struct SignupView: View {
     // ── Step 3 of 3: profile (survey or straight into the app) ───────────────
 
     private var profileStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Kicker("N° 04 · Il tuo profilo")
-
-            (Text("Tell us more") + Text("\n") + Text("about yourself?").italic())
-                .font(.cfSerif(44))
-                .foregroundStyle(Theme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text("A few quick taps and we'll tune your nights — music, venues, the works. Or skip straight in.")
-                .font(.cfSans(13.5))
-                .foregroundStyle(Theme.stone)
-                .padding(.bottom, 8)
-
-            HStack(spacing: 12) {
-                // Left — personalize (start the survey)
-                choiceCard(
-                    overline: "Recommended",
-                    overlineColor: Color(hex: 0xFFE8B5).opacity(0.7),
-                    headline: "Yes, personalize my nights",
-                    headlineColor: Theme.parchment,
-                    cta: "Start survey",
-                    ctaColor: Color(hex: 0xFFE8B5),
-                    background: AnyShapeStyle(LinearGradient(
-                        colors: [Color(hex: 0x1A1410), Color(hex: 0x2A1810), Color(hex: 0x5B1F1C), Theme.ember],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )),
-                    borderColor: Color(hex: 0xFFE0A5).opacity(0.18)
-                ) { Haptics.tap(); showSurvey = true }
-
-                // Right — skip straight to explore
-                choiceCard(
-                    overline: "No thanks",
-                    overlineColor: Theme.sand,
-                    headline: "Just take me in",
-                    headlineColor: Theme.ink,
-                    cta: "Go to explore",
-                    ctaColor: Theme.wine,
-                    background: AnyShapeStyle(Theme.surface),
-                    borderColor: Theme.hairline
-                ) { Haptics.tap(); auth.finishOnboarding() }
-            }
-            .frame(minHeight: 360)
-        }
-    }
-
-    private func choiceCard(
-        overline: String, overlineColor: Color,
-        headline: String, headlineColor: Color,
-        cta: String, ctaColor: Color,
-        background: AnyShapeStyle, borderColor: Color,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(overline.uppercased())
-                    .font(.cfMono(9))
-                    .kerning(2)
-                    .foregroundStyle(overlineColor)
-
-                Text(headline)
-                    .font(.cfSerif(28, italic: true))
-                    .foregroundStyle(headlineColor)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 14)
-
-                Spacer(minLength: 14)
-
-                HStack(spacing: 6) {
-                    Text(cta.uppercased())
-                        .font(.cfMono(10))
-                        .kerning(1.6)
-                    Image(systemName: "arrow.right").font(.system(size: 11, weight: .semibold))
-                }
-                .foregroundStyle(ctaColor)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(18)
-            .background(background, in: .rect(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(borderColor))
-        }
-        .buttonStyle(.plain)
+        SurveyChoiceView(kicker: "N° 04 · Il tuo profilo") { auth.finishOnboarding() }
     }
 }

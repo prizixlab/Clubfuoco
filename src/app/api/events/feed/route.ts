@@ -77,6 +77,9 @@ export interface FeedEvent {
   is_pinned: boolean
   featured: boolean
   is_house: boolean
+  /** Run by a Fourvenues-only brand (HypeList): booked ONLY through
+   *  Fourvenues. Apps from 1.16.1 never offer our own Reserve/Buy on it. */
+  fourvenues_only: boolean
 }
 
 /// A club cover we can actually render.
@@ -224,6 +227,7 @@ async function featuredScraped(
       is_pinned: false,
       featured: false,
       is_house: false,
+      fourvenues_only: false,
     }
   })
 }
@@ -265,8 +269,9 @@ export async function GET() {
   // Reserve, which /reserve refuses (409). Leaving HypeList nights out of this
   // list until every phone has re-downloaded (hourly) means no customer can
   // reach that screen. After the cutoff this is a no-op; delete it then.
+  const fvOnlyOwners = await fourvenuesOnlyOwners(sb)
   if (Date.now() < Date.parse('2026-10-08T18:05:00Z')) {
-    for (const o of await fourvenuesOnlyOwners(sb)) hiddenOwners.add(o)
+    for (const o of fvOnlyOwners) hiddenOwners.add(o)
   }
 
   const PAGE = 1000
@@ -384,6 +389,7 @@ export async function GET() {
       is_pinned: r.is_pinned as boolean,
       featured: r.featured as boolean,
       is_house: r.is_house as boolean,
+      fourvenues_only: fvOnlyOwners.has(r.created_by as string),
     }
   })
 

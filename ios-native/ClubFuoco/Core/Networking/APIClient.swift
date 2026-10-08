@@ -98,6 +98,12 @@ actor APIClient {
         try await send(method: "DELETE", path: path, query: [], body: nil)
     }
 
+    /// DELETE with a query string. Never put "?a=b" in `path`: the URL is built
+    /// with appending(path:), which escapes "?" to %3F and the route 404s.
+    func delete<T: Decodable & Sendable>(_ path: String, query: [URLQueryItem]) async throws -> T {
+        try await send(method: "DELETE", path: path, query: query, body: nil)
+    }
+
     /// Some routes (e.g. DELETE /api/friends) take a JSON body on DELETE.
     func delete<T: Decodable & Sendable>(_ path: String, body: some Encodable) async throws -> T {
         try await send(method: "DELETE", path: path, query: [], body: try encoder.encode(body))

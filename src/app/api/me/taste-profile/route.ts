@@ -9,7 +9,7 @@ async function recomputeProfile(userId: string) {
   // ── 1. Survey signals ─────────────────────────────────────────────────────
   const { data: surveys } = await supabase
     .from('booking_surveys')
-    .select('rating, vibe_rating, crowd_rating, would_return, drinks, booking_id')
+    .select('*')   // club_id/night exist from 20261009b; select('*') survives drift
     .eq('user_id', userId)
 
   // ── 2. Booking history ────────────────────────────────────────────────────
@@ -38,17 +38,23 @@ async function recomputeProfile(userId: string) {
   const tagScores: Record<string, number> = {}
 
   for (const survey of surveys ?? []) {
-    const { data: bk } = await supabase
-      .from('bookings')
-      .select('club_id')
-      .eq('id', survey.booking_id)
-      .single()
-    if (!bk) continue
+    // A Fourvenues or invite review carries its own club; a booking review
+    // may predate that column, so fall back to its booking.
+    let clubId: string | null = survey.club_id ?? null
+    if (!clubId && survey.booking_id) {
+      const { data: bk } = await supabase
+        .from('bookings')
+        .select('club_id')
+        .eq('id', survey.booking_id)
+        .single()
+      clubId = bk?.club_id ?? null
+    }
+    if (!clubId) continue
 
     const { data: tags } = await supabase
       .from('club_tags')
       .select('tag, category')
-      .eq('club_id', bk.club_id)
+      .eq('club_id', clubId)
 
     const multiplier = survey.rating >= 4 ? 2 : survey.rating >= 3 ? 1 : -1
     for (const t of tags ?? []) {

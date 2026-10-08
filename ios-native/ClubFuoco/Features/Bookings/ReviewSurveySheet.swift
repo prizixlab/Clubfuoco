@@ -11,6 +11,11 @@ import SwiftUI
 /// intentionally skipped for the MVP since the API treats them as optional.
 struct ReviewSurveySheet: View {
     let booking: Booking
+    /// nil = a real booking. "fourvenues" / "invite" = a Fourvenues ticket or
+    /// an invite guestlist spot shaped like one (GET /api/reviews/pending):
+    /// no attendance signals (those are booking-only), and the review is
+    /// filed against the ticket or spot instead.
+    var source: String? = nil
     /// Fires after a successful submit OR an "I didn't go" answer — both end
     /// states where the parent should drop this booking from pending reviews.
     var onSubmitted: (UUID) -> Void = { _ in }
@@ -259,6 +264,7 @@ struct ReviewSurveySheet: View {
     /// moment they confirm they went, independent of finishing the review.
     /// Fire-and-forget; a failure just leaves attendance for the geo signals.
     private func recordWentIn() {
+        guard source == nil else { return }   // attendance signals are booking-only
         let path = "/api/bookings/\(booking.id.uuidString.lowercased())/signals"
         struct SBody: Encodable { let kind: String }
         struct SResp: Decodable, Sendable { let attendanceStatus: String? }
@@ -272,7 +278,15 @@ struct ReviewSurveySheet: View {
         struct Resp: Decodable, Sendable { let logged: String? }
         let path = "/api/bookings/\(booking.id.uuidString.lowercased())/signals"
         do {
-            let _: Resp = try await api.post(path, body: Body(kind: "post_entry_issue", reason: "did_not_go"))
+            if let source {
+                // Not a booking: "didn't go" just stops asking about this night.
+                struct DResp: Decodable, Sendable { let dismissed: String? }
+                let key = source == "invite" ? "promoter_guest_id" : "external_ticket_id"
+                let _: DResp = try await api.delete("/api/surveys",
+                    query: [URLQueryItem(name: key, value: booking.id.uuidString.lowercased())])
+            } else {
+                let _: Resp = try await api.post(path, body: Body(kind: "post_entry_issue", reason: "did_not_go"))
+            }
             Haptics.success()
             onSubmitted(booking.id)
             close()
@@ -290,7 +304,10 @@ struct ReviewSurveySheet: View {
         submitting = true; defer { submitting = false }
 
         struct Payload: Encodable {
-            let bookingId: String
+            // Exactly one is set — what the review is about.
+            let bookingId: String?
+            let externalTicketId: String?
+            let promoterGuestId: String?
             let rating: Int
             let drinks: [String]
             /// `drink_kinds`: per-category specific drinks chosen.
@@ -318,8 +335,11 @@ struct ReviewSurveySheet: View {
             .filter { !$0.value.isEmpty }
 
         let ratingsOnly = drinkRatings.filter { allDrinks.contains($0.key) && $0.value > 0 }
+        let id = booking.id.uuidString.lowercased()
         let payload = Payload(
-            bookingId: booking.id.uuidString.lowercased(),
+            bookingId: source == nil ? id : nil,
+            externalTicketId: source == "fourvenues" ? id : nil,
+            promoterGuestId: source == "invite" ? id : nil,
             rating: rating,
             drinks: selectedCategories,
             drinkKinds: kinds,
@@ -337,9 +357,11 @@ struct ReviewSurveySheet: View {
             // they got in, so attendance picks it up as `user_claimed_attended`.
             // Best-effort: even if the signal is rejected (e.g. older booking
             // outside the post-entry window), the survey row was saved.
-            let signalPath = "/api/bookings/\(booking.id.uuidString.lowercased())/signals"
-            struct SBody: Encodable { let kind: String }
-            let _: Resp? = try? await api.post(signalPath, body: SBody(kind: "post_entry_got_in"))
+            if source == nil {
+                let signalPath = "/api/bookings/\(booking.id.uuidString.lowercased())/signals"
+                struct SBody: Encodable { let kind: String }
+                let _: Resp? = try? await api.post(signalPath, body: SBody(kind: "post_entry_got_in"))
+            }
             Haptics.success()
             onSubmitted(booking.id)
             close()

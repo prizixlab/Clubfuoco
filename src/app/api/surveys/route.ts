@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { ok, err } from '@/lib/utils'
 import { z } from 'zod'
+import { resolveReviewTarget } from '@/lib/review-targets'
 
 // GET /api/surveys — bookings from the last 7 days that haven't been surveyed
 export async function GET() {
@@ -47,8 +48,12 @@ export async function GET() {
   return ok(pending)
 }
 
+// Exactly one of booking_id / external_ticket_id (a Fourvenues ticket) /
+// promoter_guest_id (an invite guestlist spot) — what the review is about.
 const surveySchema = z.object({
-  booking_id:    z.string().uuid(),
+  booking_id:         z.string().uuid().optional(),
+  external_ticket_id: z.string().uuid().optional(),
+  promoter_guest_id:  z.string().uuid().optional(),
   rating:        z.number().int().min(1).max(5),
   // drink categories selected (e.g. ['beer', 'cocktails'])
   drinks:        z.array(z.string()),
@@ -83,27 +88,49 @@ export async function POST(req: NextRequest) {
   // silently blocked by an RLS policy on a native (cookie-less) request.
   const supabase = await createServiceClient()
 
-  // Verify the booking belongs to the user. Split the lookup so the error
-  // message tells us why ("not in DB" vs "wrong user") — without this, native
-  // testing always reports the same 404 regardless of root cause.
-  const { data: booking, error: bookingErr } = await supabase
-    .from('bookings')
-    .select('id, user_id')
-    .eq('id', parsed.data.booking_id)
-    .maybeSingle()
-  if (bookingErr) return err(bookingErr.message, 500)
-  if (!booking) {
-    return err(`Booking ${parsed.data.booking_id.slice(0, 8)} not found`, 404)
-  }
-  if (booking.user_id !== user!.id) {
-    return err('This booking belongs to a different account', 403)
+  const { booking_id, external_ticket_id, promoter_guest_id } = parsed.data
+  if ([booking_id, external_ticket_id, promoter_guest_id].filter(Boolean).length !== 1) {
+    return err('Say what the review is about: one of booking_id, external_ticket_id or promoter_guest_id', 400)
   }
 
-  const { data, error } = await supabase
+  // Where and when the night was — stored on the review, so a Fourvenues or
+  // invite review needs no booking row downstream.
+  let place: { club_id: string | null; night: string | null }
+  if (booking_id) {
+    // Verify the booking belongs to the user. Split the lookup so the error
+    // message tells us why ("not in DB" vs "wrong user") — without this, native
+    // testing always reports the same 404 regardless of root cause.
+    const { data: booking, error: bookingErr } = await supabase
+      .from('bookings')
+      .select('id, user_id, club_id, booking_date')
+      .eq('id', booking_id)
+      .maybeSingle()
+    if (bookingErr) return err(bookingErr.message, 500)
+    if (!booking) {
+      return err(`Booking ${booking_id.slice(0, 8)} not found`, 404)
+    }
+    if (booking.user_id !== user!.id) {
+      return err('This booking belongs to a different account', 403)
+    }
+    place = { club_id: booking.club_id ?? null, night: booking.booking_date ?? null }
+  } else {
+    const t = await resolveReviewTarget(supabase, user!.id,
+      external_ticket_id ? 'fourvenues' : 'invite', (external_ticket_id ?? promoter_guest_id)!)
+    if ('error' in t) return err(t.error, t.status)
+    place = t
+  }
+
+  let { data, error } = await supabase
     .from('booking_surveys')
-    .insert({ ...parsed.data, user_id: user!.id })
+    .insert({ ...parsed.data, ...place, user_id: user!.id })
     .select()
     .single()
+  // Before 20261009b the review has no club/night columns — a booking review
+  // still saves without them.
+  if (error && booking_id && /club_id|night|schema cache/.test(error.message)) {
+    ;({ data, error } = await supabase.from('booking_surveys')
+      .insert({ ...parsed.data, user_id: user!.id }).select().single())
+  }
 
   if (error) {
     if (error.code === '23505') return err('Survey already submitted', 409)
@@ -124,14 +151,27 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ data }, { status: 201 })
 }
 
-// DELETE /api/surveys?booking_id=… — permanently dismiss the survey prompt
-// (swipe-to-dismiss on the bookings page). Sets survey_dismissed_at on the
-// booking row. No data is lost; the user just won't be re-prompted.
+// DELETE /api/surveys?booking_id=… (or external_ticket_id / promoter_guest_id)
+// — permanently dismiss the survey prompt (swipe-to-dismiss on the bookings
+// page). Sets survey_dismissed_at on that row. No data is lost; the user just
+// won't be re-prompted.
 export async function DELETE(req: NextRequest) {
   const { user, response } = await requireAuth()
   if (response) return response
 
-  const bookingId = req.nextUrl.searchParams.get('booking_id')
+  const q = req.nextUrl.searchParams
+  const ticketId = q.get('external_ticket_id'), guestId = q.get('promoter_guest_id')
+  if (ticketId || guestId) {
+    const sb = await createServiceClient()
+    const now = new Date().toISOString()
+    const { error } = ticketId
+      ? await sb.from('external_tickets').update({ survey_dismissed_at: now }).eq('id', ticketId).eq('user_id', user!.id)
+      : await sb.from('promoter_guests').update({ survey_dismissed_at: now }).eq('id', guestId!).eq('claimed_by_user', user!.id)
+    if (error) return err(error.message)
+    return ok({ dismissed: ticketId ?? guestId })
+  }
+
+  const bookingId = q.get('booking_id')
   if (!bookingId) return err('booking_id required', 400)
 
   const supabase = await createClient()

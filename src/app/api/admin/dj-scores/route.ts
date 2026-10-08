@@ -63,13 +63,14 @@ export async function GET(req: Request) {
   // ── 1. Surveys, and the bookings they belong to ──────────────────────────
   const { data: surveys, error: sErr } = await sb
     .from('booking_surveys')
-    .select('booking_id, vibe_rating')
+    .select('*')   // booking_id, vibe_rating, and club_id/night from 20261009b
     .not('vibe_rating', 'is', null)
     .limit(MAX_SURVEYS)
   if (sErr) return err(`surveys: ${sErr.message}`, 500)
   if (!surveys?.length) return ok({ nights: 0, djs: 0, note: 'no surveys yet' })
 
-  const surveyBookingIds = [...new Set(surveys.map(s => s.booking_id))]
+  // A Fourvenues or invite review has no booking; it carries club_id + night.
+  const surveyBookingIds = [...new Set(surveys.map(s => s.booking_id).filter((id): id is string => !!id))]
   const { data: surveyed, error: bErr } = await sb
     .from('bookings')
     .select('id, club_id, booking_date')
@@ -81,8 +82,14 @@ export async function GET(req: Request) {
 
   // ── 2. Bookings per night — the response-rate denominator ────────────────
   // Every booking at the clubs/dates in play, not just the surveyed ones.
-  const clubIds = [...new Set((surveyed ?? []).map(b => b.club_id).filter((c): c is string => !!c))]
-  const dates = [...new Set((surveyed ?? []).map(b => b.booking_date))]
+  const clubIds = [...new Set([
+    ...(surveyed ?? []).map(b => b.club_id),
+    ...surveys.map(s => s.club_id as string | null),
+  ].filter((c): c is string => !!c))]
+  const dates = [...new Set([
+    ...(surveyed ?? []).map(b => b.booking_date),
+    ...surveys.map(s => s.night as string | null),
+  ].filter((d): d is string => !!d))]
 
   const bookingsPerNight = new Map<string, number>()
   if (clubIds.length && dates.length) {
@@ -163,9 +170,11 @@ export async function GET(req: Request) {
   // ── 4. Assemble the nights ───────────────────────────────────────────────
   const reviewsByNight = new Map<string, Review[]>()
   for (const s of surveys) {
-    const b = bookingById.get(s.booking_id)
-    if (!b?.club_id) continue
-    const k = nightKey(b.club_id, b.booking_date)
+    const b = s.booking_id ? bookingById.get(s.booking_id) : undefined
+    const clubId = (s.club_id as string | null) ?? b?.club_id
+    const date = (s.night as string | null) ?? b?.booking_date
+    if (!clubId || !date) continue
+    const k = nightKey(clubId, date)
     // `intent` is deliberately absent: the booking flow does not yet record
     // the surface a booking came from, so there is no honest way to tell a
     // fan's review from anyone else's. dj-score treats that as a full-weight

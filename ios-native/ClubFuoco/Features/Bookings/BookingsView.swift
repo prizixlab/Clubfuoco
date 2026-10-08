@@ -213,6 +213,7 @@ struct BookingsView: View {
         .sheet(item: $reviewBooking) { booking in
             ReviewSurveySheet(
                 booking: booking,
+                source: model.reviewSource[booking.id],
                 onSubmitted: { id in
                     // Drop it from pendingReviews instantly so the row
                     // disappears the moment the sheet closes. Background fetch
@@ -237,7 +238,7 @@ struct BookingsView: View {
             reviewBooking = match
             // Tapping the morning-after prompt is itself a soft "probably
             // arrived" signal (→ likely_attended), even if they don't finish.
-            if let match {
+            if let match, model.reviewSource[match.id] == nil {
                 let path = "/api/bookings/\(match.id.uuidString.lowercased())/signals"
                 struct SBody: Encodable { let kind: String }
                 struct SResp: Decodable, Sendable { let attendanceStatus: String? }
@@ -1012,6 +1013,11 @@ final class BookingsViewModel {
     private(set) var data: BookingsResponse?
     private(set) var groups: [GroupListItem] = []
     private(set) var invites: [InviteSummary] = []
+    /// Fourvenues tickets and invite guestlist spots awaiting a morning-after
+    /// review, shaped like bookings (GET /api/reviews/pending), and which of
+    /// the two each one is. Bookings themselves come from `data`.
+    private(set) var reviewTargets: [Booking] = []
+    private(set) var reviewSource: [UUID: String] = [:]
     var showPast = false
     var toast: String?
 
@@ -1034,6 +1040,7 @@ final class BookingsViewModel {
         // promoter guestlists stay on their REST routes — they use the service
         // client + manual scoping, so they work for native Bearer requests.
         async let groupList: [GroupListItem]? = try? await api.get("/api/groups")
+        async let pendingTargets: [ReviewTargetRow]? = try? await api.get("/api/reviews/pending")
         async let inviteResp: InvitesResponse? = {
             // include=held: tickets bought for friends and not sent on yet.
             do { return try await api.get("/api/promoter-invites/mine",
@@ -1053,6 +1060,10 @@ final class BookingsViewModel {
         // list. A genuine empty result decodes to a non-nil response with an
         // empty array, so real deletions still clear correctly.
         if let g = await groupList { groups = g.filter { $0.status != "cancelled" } }
+        if let t = await pendingTargets {
+            reviewTargets = t.map(\.booking)
+            reviewSource = Dictionary(t.map { ($0.booking.id, $0.source) }, uniquingKeysWith: { a, _ in a })
+        }
         if let resp = await inviteResp {
             invites = resp.invites
             FVTrace.log("tickets page: \(resp.invites.count) invites [\(resp.invites.map { $0.nightDate }.joined(separator: ","))]")
@@ -1071,7 +1082,8 @@ final class BookingsViewModel {
         // the user hasn't granted Always.
         await LocationService.shared.syncGeofences()
         // Same reconciliation for the 10am-next-day "did you get in?" prompt.
-        await NotificationService.shared.syncMorningAfter(for: data?.bookings ?? [])
+        // Fourvenues tickets and invite guestlists get the same prompt.
+        await NotificationService.shared.syncMorningAfter(for: (data?.bookings ?? []) + reviewTargets)
     }
 
     // ── Tonight / upcoming / past partitions (mirror the page logic) ─────────
@@ -1229,7 +1241,7 @@ final class BookingsViewModel {
 
     /// All bookings the page currently knows about — used by the deep-link
     /// listener so a notification tap can match the right booking.
-    var allBookings: [Booking] { data?.bookings ?? [] }
+    var allBookings: [Booking] { (data?.bookings ?? []) + reviewTargets }
 
     /// Booking IDs we've just submitted a survey for during this session.
     /// Filtering on this gives an immediate UI dismiss without waiting for
@@ -1248,8 +1260,13 @@ final class BookingsViewModel {
         dismissedReviewIds.insert(bookingId)
         Task {
             struct Resp: Decodable, Sendable { let dismissed: String? }
-            let path = "/api/surveys?booking_id=\(bookingId.uuidString.lowercased())"
-            let _: Resp? = try? await api.delete(path)
+            let key = switch reviewSource[bookingId] {
+            case "fourvenues": "external_ticket_id"
+            case "invite": "promoter_guest_id"
+            default: "booking_id"
+            }
+            let _: Resp? = try? await api.delete("/api/surveys",
+                query: [URLQueryItem(name: key, value: bookingId.uuidString.lowercased())])
         }
     }
 
@@ -1263,7 +1280,7 @@ final class BookingsViewModel {
               let weekAgo   = cal.date(byAdding: .day, value: -7, to: Date()) else { return [] }
         let y = fmt.string(from: yesterday), w = fmt.string(from: weekAgo)
         let resolved: Set<String> = ["verified_attended","likely_attended","user_claimed_attended","no_show","disputed"]
-        return data.bookings
+        return (data.bookings + reviewTargets)
             .filter { $0.status != "cancelled" }
             .filter { !resolved.contains($0.attendanceStatus ?? "") }
             .filter { !dismissedReviewIds.contains($0.id) }
@@ -1354,4 +1371,17 @@ private struct PagerProgressKey: PreferenceKey {
 private struct SavedToken: Identifiable {
     let value: String
     var id: String { value }
+}
+
+/// One row of GET /api/reviews/pending: a Fourvenues ticket or invite
+/// guestlist spot shaped like a booking, plus which of the two it is.
+struct ReviewTargetRow: Decodable, Sendable {
+    let booking: Booking
+    let source: String
+
+    private enum K: String, CodingKey { case reviewSource }
+    init(from decoder: Decoder) throws {
+        booking = try Booking(from: decoder)
+        source = try decoder.container(keyedBy: K.self).decode(String.self, forKey: .reviewSource)
+    }
 }

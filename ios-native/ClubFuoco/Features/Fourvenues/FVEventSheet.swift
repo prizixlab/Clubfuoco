@@ -77,7 +77,11 @@ struct FVEventSheet: View {
     private static let ctaFill = Color.adaptive(light: 0x221E1A, dark: 0xF3EEE0)
     private static let ctaLabel = Color.adaptive(light: 0xF8F5EE, dark: 0x141416)
     /// The brand selling this night.
-    private var seller: PartnerBrand { fuoco?.brand ?? FVCatalog.shared.brand(for: event) }
+    private var seller: PartnerBrand {
+        if let fuoco { return fuoco.brand }
+        if tier == .vip || selected?.settle == .table { return FVCatalog.shared.vipSeller(for: [event]) }
+        return FVCatalog.shared.brand(for: event)
+    }
     /// The promoter selling the selected table on Fuoco checkout, if any.
     private var fuoco: VipSellers.Seller? { selected?.settle == .table ? selected?.soldBy : nil }
     /// Deposit / full for a Fuoco-checkout table, under the promoter's limit.
@@ -362,7 +366,8 @@ struct FVEventSheet: View {
                 }
 
                 HStack(spacing: 6) {
-                    Text(locale.t("fv.credit"))
+                    // A Fuoco-checkout table isn't sold via Fourvenues.
+                    Text(locale.t(fuoco == nil ? "fv.credit" : "rumbalist.via"))
                         .font(.cfSans(11))
                         .foregroundStyle(Self.text.opacity(0.45))
                     SupplierMark(brand: seller, height: 11, animated: false, tint: accent)
@@ -522,6 +527,12 @@ struct FVEventSheet: View {
                         .font(.cfSans(14, weight: .semibold))
                         .foregroundStyle(Self.text)
                         .multilineTextAlignment(.leading)
+                    // A table a ranked promoter sells tonight on Fuoco checkout
+                    // carries their mark, so it never reads as the night's own.
+                    if let s = p.soldBy {
+                        SupplierMark(brand: s.brand, height: 10, animated: false,
+                                     tint: Color(hexString: s.brand.color) ?? Theme.ember)
+                    }
                     let perks = perksLine(p)
                     if perks.what != nil || perks.when != nil {
                         Text([perks.what, perks.when].compactMap { $0 }.joined(separator: " · "))

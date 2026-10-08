@@ -72,7 +72,10 @@ struct FVTierCard: View {
                     Text("with").font(.cfSans(11)).foregroundStyle(fg.opacity(0.75)).fixedSize()
                     // The seller of the rooms this tier sells (HypeList, or any
                     // brand selling through Fourvenues the same way).
-                    let seller = FVCatalog.shared.brand(for: rooms.first)
+                    // VIP: whoever sells its tables tonight (VipSellers) —
+                    // a ranked promoter can hold them on Fuoco checkout.
+                    let seller = tier == .vip ? FVCatalog.shared.vipSeller(for: rooms)
+                                              : FVCatalog.shared.brand(for: rooms.first)
                     SupplierMark(brand: seller, height: 11, animated: false,
                                  tint: Color(hexString: seller.color) ?? Theme.ember)
                         .layoutPriority(1)

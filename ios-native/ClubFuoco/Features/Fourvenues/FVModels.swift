@@ -355,6 +355,21 @@ final class FVCatalog {
         brand(key: allEvents.first { $0.code == code }?.seller)
     }
 
+    /// Who sells the VIP tables across these nights: the one seller when every
+    /// table has the same one (a ranked promoter on Fuoco checkout, or the
+    /// channel's own brand), else the night's own brand. Each table row in
+    /// FVEventSheet credits its own seller when they differ.
+    func vipSeller(for events: [FVEvent]) -> PartnerBrand {
+        var sellers: [String: PartnerBrand] = [:]
+        for e in events {
+            for p in e.products where p.settle == .table {
+                let b = p.soldBy?.brand ?? brand(for: e)
+                sellers[b.key] = b
+            }
+        }
+        return sellers.count == 1 ? sellers.values.first! : brand(for: events.first)
+    }
+
     func brand(key: String?) -> PartnerBrand {
         guard let key, key != Self.brand.key, let m = brandMeta[key] else { return Self.brand }
         return PartnerBrand(key: key, name: m.name, logoURL: m.logoUrl.flatMap(URL.init(string:)),

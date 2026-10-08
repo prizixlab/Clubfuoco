@@ -77,9 +77,14 @@ struct FVEventSheet: View {
     private static let ctaFill = Color.adaptive(light: 0x221E1A, dark: 0xF3EEE0)
     private static let ctaLabel = Color.adaptive(light: 0xF8F5EE, dark: 0x141416)
     /// The brand selling this night.
-    private var seller: PartnerBrand {
+    /// nil = VIP with different brands selling different tables and none
+    /// picked yet — no brand is credited (each table row shows its own).
+    private var seller: PartnerBrand? {
         if let fuoco { return fuoco.brand }
-        if tier == .vip || selected?.settle == .table { return FVCatalog.shared.vipSeller(for: [event]) }
+        if tier == .vip || selected?.settle == .table {
+            if let picked = selected, picked.settle == .table { return FVCatalog.shared.brand(for: event) }
+            return FVCatalog.shared.vipSeller(for: [event])
+        }
         return FVCatalog.shared.brand(for: event)
     }
     /// The promoter selling the selected table on Fuoco checkout, if any.
@@ -94,7 +99,7 @@ struct FVEventSheet: View {
         if m.count == 1 { return m[0] }
         return payInFull ? .full : .deposit
     }
-    private var accent: Color { Color(hexString: seller.color) ?? Theme.ember }
+    private var accent: Color { seller.flatMap { Color(hexString: $0.color) } ?? Theme.ember }
 
     /// Name + email from the account, for filling Fourvenues' form.
     private var account: (name: String, email: String)? {
@@ -166,9 +171,13 @@ struct FVEventSheet: View {
             Self.ink.ignoresSafeArea()
             VStack(spacing: 0) {
                 Rectangle().fill(accent).frame(height: 2)
-                SupplierMark(brand: seller, height: 22, tint: accent)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
+                if let seller {
+                    SupplierMark(brand: seller, height: 22, tint: accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                } else {
+                    Color.clear.frame(height: 22).padding(.vertical, 18)
+                }
                 if let fuocoBooked {
                     fuocoBookedStep(fuocoBooked)
                 } else if let confirmed {
@@ -365,15 +374,17 @@ struct FVEventSheet: View {
                     }
                 }
 
-                HStack(spacing: 6) {
-                    // A Fuoco-checkout table isn't sold via Fourvenues.
-                    Text(locale.t(fuoco == nil ? "fv.credit" : "rumbalist.via"))
-                        .font(.cfSans(11))
-                        .foregroundStyle(Self.text.opacity(0.45))
-                    SupplierMark(brand: seller, height: 11, animated: false, tint: accent)
+                if let seller {
+                    HStack(spacing: 6) {
+                        // A Fuoco-checkout table isn't sold via Fourvenues.
+                        Text(locale.t(fuoco == nil ? "fv.credit" : "rumbalist.via"))
+                            .font(.cfSans(11))
+                            .foregroundStyle(Self.text.opacity(0.45))
+                        SupplierMark(brand: seller, height: 11, animated: false, tint: accent)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 18)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.top, 18)
             }
             .padding(.horizontal, 22)
             .padding(.bottom, 28)

@@ -440,7 +440,8 @@ final class FVCatalog {
             // copy was published while it was off. Waiting out the hour made a
             // portal restore look broken — fetch now (at most once a minute).
             await refresh(force: waitingOnRestoredBrand && minuteSinceFetch)
-            try? await Task.sleep(for: .seconds(60))
+            // The switch is a tiny request: every 15 s, so on/off lands fast.
+            try? await Task.sleep(for: .seconds(15))
         }
     }
 

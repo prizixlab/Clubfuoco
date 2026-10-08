@@ -88,6 +88,11 @@ struct FeedEvent: Codable, Sendable, Identifiable, Hashable {
     let featured: Bool?
     /// Run by Club Fuoco rather than by a promoter.
     let isHouse: Bool?
+    /// A HypeList (Fourvenues-only) night: booked only through Fourvenues.
+    /// Never offer our own Reserve/Buy on it — the server refuses (409).
+    let fourvenuesOnly: Bool?
+
+    var isFourvenuesOnly: Bool { fourvenuesOnly == true }
 
     /// The ladder, or nothing. Absent and empty mean the same thing to the UI.
     var ladder: [TicketRelease] { releases ?? [] }

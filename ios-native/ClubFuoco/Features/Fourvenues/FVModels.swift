@@ -436,9 +436,23 @@ final class FVCatalog {
     func keepFresh() async {
         while !Task.isCancelled {
             await checkSwitch()
-            await refresh()
+            // A brand switched ON whose nights we hold with no products: our
+            // copy was published while it was off. Waiting out the hour made a
+            // portal restore look broken — fetch now (at most once a minute).
+            await refresh(force: waitingOnRestoredBrand && minuteSinceFetch)
             try? await Task.sleep(for: .seconds(60))
         }
+    }
+
+    /// Some brand is on, has nights in our copy, and not one product among them.
+    private var waitingOnRestoredBrand: Bool {
+        Dictionary(grouping: allEvents, by: \.seller).contains { seller, nights in
+            brandOn[seller] != false && nights.allSatisfy { $0.products.isEmpty }
+        }
+    }
+
+    private var minuteSinceFetch: Bool {
+        fetchedAt.map { Date().timeIntervalSince($0) >= 55 } ?? true
     }
 
     /// Ask the server which sellers are on sale (GET /api/fourvenues/status:

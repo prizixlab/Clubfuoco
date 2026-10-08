@@ -25,6 +25,7 @@ extension FeaturedItem {
                 || FVCatalog.shared.upcoming(clubId: p.placeId).contains { $0.night == date }
         case .event(let e):
             guard !e.soldOut else { return false }
+            if e.isFourvenuesOnly { return !FVTier.offered(in: e.fvRooms).isEmpty }
             return e.isTicketed || e.clubId != nil || !FVTier.offered(in: e.fvRooms).isEmpty
         }
     }

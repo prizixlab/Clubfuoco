@@ -189,8 +189,13 @@ final class ExploreViewModel {
     /// FeaturedItem.dedupeKey) keeps only its first.
     var nightEvents: [FeedEvent] {
         var seen = Set<String>()
+        // A HypeList night goes the moment HypeList is switched off in the
+        // portal (checked every minute), not at the next feed reload.
+        let hypelistOn = FVCatalog.shared.brandOn["hypelist"] ?? true
         return feedEvents.filter {
-            $0.nightDate == lastPlanDate && seen.insert(FeaturedItem.event($0).dedupeKey).inserted
+            $0.nightDate == lastPlanDate
+                && (hypelistOn || !$0.isFourvenuesOnly)
+                && seen.insert(FeaturedItem.event($0).dedupeKey).inserted
         }
     }
 

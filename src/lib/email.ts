@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import QRCode    from 'qrcode'
+import { eur, type DisclosureNight } from '@/lib/disclosure'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
@@ -578,5 +579,80 @@ export async function sendCredentialIntake({
     subject: `Your ${providerLabel} API key for Club Fuoco`,
     html,
   })
+  return true
+}
+
+// ── Promoter disclosure email ────────────────────────────────────────────────
+// Sent from the portal's "Send disclosure" on a promoter card: per logged night,
+// what the club pays per table and Club Fuoco's share, and the guestlist price
+// for men/women with the 50% split. The binding statement goes in verbatim —
+// this mail is the written record the contract clause refers to.
+export async function sendPromoterDisclosure({
+  to, displayName, nights, statement, sentAt,
+}: {
+  to:          string
+  displayName: string
+  nights:      DisclosureNight[]
+  statement:   string
+  sentAt:      string
+}): Promise<boolean> {
+  if (!resend) return false
+  const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
+
+  const cell = 'padding:10px 8px;border-top:1px solid rgba(255,255,255,0.08);font-size:13px;color:#F5F5F7;vertical-align:top;'
+  const head = 'padding:0 8px 8px;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(245,245,247,0.45);text-align:left;font-weight:600;'
+  const rows = nights.map(n => `
+    <tr>
+      <td style="${cell}">${esc(fmtDate(n.night_date + 'T12:00:00'))}<br><span style="color:rgba(245,245,247,0.55);font-size:12px;">${esc(n.label)}</span></td>
+      <td style="${cell}">${eur(n.table_club_pays)}</td>
+      <td style="${cell}">${eur(n.table_our_share)}</td>
+      <td style="${cell}">${eur(n.gl_man)}<br><span style="color:#C09950;font-size:12px;">50%: ${eur(n.gl_man_split)}</span></td>
+      <td style="${cell}">${eur(n.gl_woman)}<br><span style="color:#C09950;font-size:12px;">50%: ${eur(n.gl_woman_split)}</span></td>
+    </tr>`).join('')
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0A0A0A;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0A0A0A;padding:32px 0;">
+<tr><td align="center">
+<table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;">
+  <tr><td style="padding:0 0 28px;text-align:center;">
+    <p style="margin:0;font-size:11px;letter-spacing:0.25em;text-transform:uppercase;color:#C09950;font-weight:700;">CLUB FUOCO · PROMOTER DISCLOSURE</p>
+  </td></tr>
+  <tr><td style="background:#141416;border-radius:16px;border:1px solid rgba(255,255,255,0.1);padding:32px 24px;">
+    <h1 style="margin:0 0 8px;font-size:22px;color:#F5F5F7;font-weight:700;">Disclosure for ${esc(displayName)}</h1>
+    <p style="margin:0 0 24px;font-size:13px;color:rgba(245,245,247,0.55);">Issued ${esc(fmtDate(sentAt))}</p>
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <th style="${head}">Night</th>
+        <th style="${head}">Club pays / table</th>
+        <th style="${head}">Our share</th>
+        <th style="${head}">Guestlist men</th>
+        <th style="${head}">Guestlist women</th>
+      </tr>
+      ${rows}
+    </table>
+    <p style="margin:28px 0 0;padding:16px;border:1px solid rgba(192,153,80,0.45);border-radius:8px;font-size:13px;color:#F5F5F7;line-height:1.6;">
+      ${esc(statement)}
+    </p>
+  </td></tr>
+  <tr><td style="padding:24px 0 0;text-align:center;">
+    <p style="margin:0;font-size:11px;color:rgba(245,245,247,0.25);line-height:1.6;">Club Fuoco · Barcelona</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+
+  const { error } = await resend.emails.send({
+    from:    PARTNER_FROM,
+    to,
+    subject: `Club Fuoco disclosure — ${displayName}`,
+    html,
+  })
+  if (error) throw new Error(error.message)
   return true
 }

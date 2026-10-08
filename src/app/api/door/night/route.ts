@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { ok, err } from '@/lib/utils'
 import { isoNoMs, usedByToken, usedByNight } from '@/lib/door'
-import { authEventSession } from '@/lib/door-events'
+import { authEventSession, lockedNightIds } from '@/lib/door-events'
 import { sealEntry, type EncryptedManifest, type SealedEntry } from '@/lib/door-crypto'
 
 // GET /api/door/night?venue=<club_id>&date=<yyyy-mm-dd>
@@ -95,8 +95,10 @@ export async function GET(req: NextRequest) {
         .from('promoter_nights').select('id')
         .eq('club_id', venue).eq('night_date', date)).data ?? [])
     : (withVisibility.data ?? [])
+  // A public night with an event code is locked the same way (lockedNightIds).
+  const locked = await lockedNightIds(supabase, nightRows.map(n => n.id))
   const nightIds = nightRows
-    .filter(n => n.visibility !== 'private')
+    .filter(n => n.visibility !== 'private' && !locked.has(n.id))
     .map(n => n.id)
 
   entries.push(...await sealGuests(supabase, nightIds, usedMap))

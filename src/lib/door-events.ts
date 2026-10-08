@@ -201,23 +201,46 @@ export async function authEventSession(
 }
 
 /**
- * Is this night private?
+ * Is this night's door locked to an event code?
+ *
+ * A private night always is. A public night is too once its promoter has an
+ * event code for it: the event stays in Explore and keeps selling, but only a
+ * door that typed the code can scan it.
  *
  * Drift-defensive: before the migration lands there are no private nights, so
  * a missing column reads as public — which is exactly today's behaviour, and
  * keeps every club night scanning while the migration is pending.
  */
-export async function nightIsPrivate(sb: SupabaseClient, nightId: string): Promise<boolean> {
-  const { data, error } = await sb
-    .from('promoter_nights').select('visibility').eq('id', nightId).maybeSingle()
-  if (error || !data) return false
-  return (data as { visibility?: string }).visibility === 'private'
+export async function nightIsLocked(sb: SupabaseClient, nightId: string): Promise<boolean> {
+  return (await lockedNightIds(sb, [nightId])).has(nightId)
+}
+
+/** The subset of `nightIds` whose door is locked (see nightIsLocked). */
+export async function lockedNightIds(sb: SupabaseClient, nightIds: string[]): Promise<Set<string>> {
+  if (nightIds.length === 0) return new Set()
+  const { data: nights, error } = await sb
+    .from('promoter_nights').select('id, visibility, series_id').in('id', nightIds)
+  if (error || !nights) return new Set()
+  const rows = nights as { id: string; visibility?: string; series_id?: string | null }[]
+  const seriesIds = [...new Set(rows.map(n => n.series_id).filter((x): x is string => !!x))]
+  const scope = [`night_id.in.(${nightIds.join(',')})`]
+  if (seriesIds.length) scope.push(`series_id.in.(${seriesIds.join(',')})`)
+  const { data: codes } = await sb
+    .from('promoter_door_codes').select('night_id, series_id').or(scope.join(','))
+  const codeRows = (codes ?? []) as { night_id: string | null; series_id: string | null }[]
+  const codedNights = new Set(codeRows.map(c => c.night_id))
+  const codedSeries = new Set(codeRows.map(c => c.series_id))
+  return new Set(rows
+    .filter(n => n.visibility === 'private' || codedNights.has(n.id)
+      || (n.series_id != null && codedSeries.has(n.series_id)))
+    .map(n => n.id))
 }
 
 /**
- * The gate. A private night may only be scanned by a door holding a live
- * session for THAT night; everything else is untouched, so club nights and
- * public promoter nights keep working exactly as they do now.
+ * The gate. A locked night (private, or public with an event code) may only
+ * be scanned by a door holding a live session for THAT night; everything else
+ * is untouched, so club nights and unlocked promoter nights keep working
+ * exactly as they do now.
  *
  * Applied on /night, /resolve AND /admit. All three, or it's theatre: gating
  * the pack download while leaving admit open would let anyone walk guests in,
@@ -227,7 +250,7 @@ export async function eventAccessDenied(
   sb: SupabaseClient, req: Request, nightId: string | null,
 ): Promise<'ok' | 'needs_code' | 'wrong_event'> {
   if (!nightId) return 'ok'
-  if (!(await nightIsPrivate(sb, nightId))) return 'ok'
+  if (!(await nightIsLocked(sb, nightId))) return 'ok'
   const session = await authEventSession(sb, req)
   if (!session) return 'needs_code'
   return session.nightId === nightId ? 'ok' : 'wrong_event'

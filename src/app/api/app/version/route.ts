@@ -31,7 +31,9 @@ async function liveVersion(): Promise<{ version: string | null; released: string
 
 export async function GET() {
   const { version } = await liveVersion()
-  const res = ok({ latest: version, minimum: version, store_url: STORE_URL })
+  // PAUSED (Yakov, 9 Oct 2026) while he works on dev builds: nobody is forced.
+  // To turn forcing back on, set `minimum: version`.
+  const res = ok({ latest: version, minimum: null, store_url: STORE_URL })
   res.headers.set('Cache-Control', 'no-store')
   return res
 }

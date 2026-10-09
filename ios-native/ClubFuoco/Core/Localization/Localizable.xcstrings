@@ -9382,6 +9382,90 @@
         }
       }
     },
+    "update.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Club Fuoco"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualiza Club Fuoco"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualitza Club Fuoco"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mettez à jour Club Fuoco"
+          }
+        }
+      }
+    },
+    "update.body": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This version is no longer supported. Update to keep booking guestlists, tickets and tables."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta versión ya no es compatible. Actualiza para seguir reservando listas, entradas y mesas."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aquesta versió ja no és compatible. Actualitza per continuar reservant llistes, entrades i taules."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette version n'est plus prise en charge. Mettez à jour pour continuer à réserver listes, billets et tables."
+          }
+        }
+      }
+    },
+    "update.button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update now"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualizar ahora"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualitza ara"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mettre à jour"
+          }
+        }
+      }
+    },
     "explore.offersCount": {
       "localizations": {
         "en": {

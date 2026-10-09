@@ -329,6 +329,9 @@ const NATIVE_KEYS = {
   // "%d venues →" header link. Cards carry no CTA label — the card itself is
   // the tap target — so there is no join/view string here.
   'explore.seeAll': { en: 'See all', es: 'Ver todo' },
+  'update.title': { en: "Update Club Fuoco", es: "Actualiza Club Fuoco" },
+  'update.body': { en: "This version is no longer supported. Update to keep booking guestlists, tickets and tables.", es: "Esta versión ya no es compatible. Actualiza para seguir reservando listas, entradas y mesas." },
+  'update.button': { en: "Update now", es: "Actualizar ahora" },
   'explore.offersCount': { en: "%d offers", es: "%d ofertas" },
   'explore.bookableCount': { en: "%d bookable", es: "%d reservables" },
   'explore.bookableTag': { en: "Bookable", es: "Reservable" },

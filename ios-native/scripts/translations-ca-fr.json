@@ -2988,5 +2988,8 @@
  "tickets.refundDone": { "ca": "%@ reemborsats a la teva targeta", "fr": "%@ remboursés sur ta carte" },
  "explore.offersCount": { "ca": "%d ofertes", "fr": "%d offres" },
  "explore.bookableCount": { "ca": "%d reservables", "fr": "%d réservables" },
- "explore.bookableTag": { "ca": "Reservable", "fr": "Réservable" }
+ "explore.bookableTag": { "ca": "Reservable", "fr": "Réservable" },
+ "update.title": { "ca": "Actualitza Club Fuoco", "fr": "Mettez à jour Club Fuoco" },
+ "update.body": { "ca": "Aquesta versió ja no és compatible. Actualitza per continuar reservant llistes, entrades i taules.", "fr": "Cette version n'est plus prise en charge. Mettez à jour pour continuer à réserver listes, billets et tables." },
+ "update.button": { "ca": "Actualitza ara", "fr": "Mettre à jour" }
 }

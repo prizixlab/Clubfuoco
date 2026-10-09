@@ -31,6 +31,8 @@ struct ClubFuocoApp: App {
                     }
                 }
                 .task { await env.authStore.start() }
+                // Too old to keep running? The server decides (AppUpdateGate).
+                .task { await AppUpdateGate.shared.check(api: env.api, locale: env.localeStore) }
                 // Pull the live partner offer catalog (falls back to the bundle).
                 .task {
                     #if DEBUG
@@ -45,6 +47,7 @@ struct ClubFuocoApp: App {
                 // shows up without a cold start.
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
+                        Task { await AppUpdateGate.shared.check(api: env.api, locale: env.localeStore) }
                         Task { await RumbalistOffers.refresh(api: env.api) }
                         Task {
                             await FVCatalog.shared.checkSwitch()

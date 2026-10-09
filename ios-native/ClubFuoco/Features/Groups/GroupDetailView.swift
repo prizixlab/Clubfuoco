@@ -94,6 +94,9 @@ struct GroupDetailView: View {
                         }
                         .frame(height: 200)
                         .clipped()
+                        // Taps only inside the visible frame — a .fill image's clipped-away overflow
+                        // still hit-tests and steals taps from views above it on wider phones.
+                        .contentShape(.rect)
                     LinearGradient(colors: [.black.opacity(0.55), .clear], startPoint: .bottom, endPoint: .top)
                     VStack(alignment: .leading, spacing: 4) {
                         statusChip(group.status)
@@ -436,6 +439,7 @@ struct GroupDetailView: View {
                     if let avatar = member.avatarUrl, let url = URL(string: avatar) {
                         CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color.clear }
                             .clipShape(.circle)
+                            .contentShape(.circle)
                     } else {
                         Text(member.initials)
                             .font(.cfSerif(15, italic: true))

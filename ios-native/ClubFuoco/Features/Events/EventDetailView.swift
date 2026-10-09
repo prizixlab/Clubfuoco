@@ -322,6 +322,9 @@ struct EventDetailView: View {
                 )
                 .frame(height: 352)
                 .clipped()
+                // Taps only inside the visible frame — a .fill image's clipped-away overflow
+                // still hit-tests and steals taps from views above it on wider phones.
+                .contentShape(.rect)
 
             VStack(alignment: .leading, spacing: 10) {
                 if event.pinned { pickPill }
@@ -758,7 +761,9 @@ struct EventDetailView: View {
         // Hidden entirely where a reservation is impossible: `bookings.club_id`
         // is NOT NULL, so a night at a free-text address has nothing to book
         // against, and a button that always errors is worse than none.
-        if event.clubId != nil, fvTiers.isEmpty {
+        // Never our own Reserve/Buy on a HypeList night: Fourvenues sells it
+        // and the server refuses ours (409).
+        if event.clubId != nil, fvTiers.isEmpty, !event.isFourvenuesOnly {
             VStack(spacing: 0) {
                 if let errorText {
                     Text(errorText)

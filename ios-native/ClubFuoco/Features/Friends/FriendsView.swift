@@ -184,6 +184,9 @@ struct FriendsView: View {
                     if let avatar, let url = URL(string: avatar) {
                         CachedAsyncImage(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { Color.clear }
                             .clipShape(.circle)
+                            // Taps only inside the visible frame — a .fill image's clipped-away overflow
+                            // still hit-tests and steals taps from views above it on wider phones.
+                            .contentShape(.circle)
                     } else {
                         Text(initials)
                             .font(.cfSerif(17, italic: true))

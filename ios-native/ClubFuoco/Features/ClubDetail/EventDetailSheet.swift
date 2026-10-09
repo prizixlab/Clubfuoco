@@ -94,6 +94,9 @@ struct EventDetailSheet<DJPage: View>: View {
         .frame(height: 200)
         .clipped()
         .clipShape(.rect(cornerRadius: 16))
+        // Taps only inside the visible frame — a .fill image's clipped-away overflow
+        // still hit-tests and steals taps from views above it on wider phones.
+        .contentShape(.rect(cornerRadius: 16))
         .padding(.horizontal, 18)
         .padding(.top, 6)
     }
@@ -316,6 +319,7 @@ struct EventDetailSheet<DJPage: View>: View {
         }
         .frame(width: 40, height: 40)
         .clipShape(.circle)
+        .contentShape(.circle)
     }
 
     private func initialTile(_ name: String) -> some View {

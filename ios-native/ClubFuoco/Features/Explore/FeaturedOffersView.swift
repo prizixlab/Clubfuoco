@@ -25,6 +25,7 @@ extension FeaturedItem {
                 || FVCatalog.shared.upcoming(clubId: p.placeId).contains { $0.night == date }
         case .event(let e):
             guard !e.soldOut else { return false }
+            if e.isFourvenuesOnly { return !FVTier.offered(in: e.fvRooms).isEmpty }
             return e.isTicketed || e.clubId != nil || !FVTier.offered(in: e.fvRooms).isEmpty
         }
     }
@@ -121,6 +122,9 @@ struct FeaturedOffersView: View {
             }
             .frame(width: 64, height: 64)
             .clipShape(.rect(cornerRadius: 12))
+            // Taps only inside the visible frame — a .fill image's clipped-away overflow
+            // still hit-tests and steals taps from views above it on wider phones.
+            .contentShape(.rect(cornerRadius: 12))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)

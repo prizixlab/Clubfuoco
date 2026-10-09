@@ -282,6 +282,9 @@ struct ClubDetailView: View {
                 }
                 .frame(height: heroHeight)
                 .clipped()
+                // Taps only inside the visible frame — a .fill image's clipped-away overflow
+                // still hit-tests and steals taps from views above it on wider phones.
+                .contentShape(.rect)
 
             // Multi-stop scrim: darken top (status bar) + bottom (overlaid text)
             LinearGradient(
@@ -586,6 +589,7 @@ struct ClubDetailView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 160)
                 .clipped()
+                .contentShape(.rect)
             }
             HStack(alignment: .top, spacing: 14) {
                 // Date block — the thing people scan for
@@ -904,6 +908,7 @@ struct ClubDetailView: View {
                                 }
                                 .frame(width: 140, height: 100)
                                 .clipShape(.rect(cornerRadius: 12))
+                                .contentShape(.rect(cornerRadius: 12))
                         }
                         .buttonStyle(.plain)
                     }

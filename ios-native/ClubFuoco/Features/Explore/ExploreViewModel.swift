@@ -86,6 +86,15 @@ final class ExploreViewModel {
     /// so a standby below it covers the night the top one has passed. Nil when
     /// nothing is featured or nothing resolves — the venue hero then leads, as
     /// it did before there was a desk.
+    /// A HypeList (Fourvenues-only) night is shown ONLY when it can be booked
+    /// this instant: HypeList on in the portal AND its Fourvenues options
+    /// already on the phone. Never a night with nothing to sell behind it.
+    static func bookableNow(_ e: FeedEvent) -> Bool {
+        guard e.isFourvenuesOnly else { return true }
+        return (FVCatalog.shared.brandOn["hypelist"] ?? true)
+            && !FVTier.offered(in: e.fvRooms).isEmpty
+    }
+
     var featuredHero: FeaturedItem? {
         featured.tier1.lazy.flatMap { self.expand($0, limit: 1) }.first
     }
@@ -105,7 +114,8 @@ final class ExploreViewModel {
     private func expand(_ ref: FeaturedRef, limit: Int) -> [FeaturedItem] {
         switch ref.kind {
         case "event":
-            return feedEvents.first { $0.id == ref.id }.map { [FeaturedItem.event($0)] } ?? []
+            return feedEvents.first { $0.id == ref.id && Self.bookableNow($0) }
+                .map { [FeaturedItem.event($0)] } ?? []
         case "venue":
             return places.first { $0.placeId.lowercased() == ref.id }.map { [FeaturedItem.place($0)] } ?? []
         case "auto":
@@ -190,7 +200,9 @@ final class ExploreViewModel {
     var nightEvents: [FeedEvent] {
         var seen = Set<String>()
         return feedEvents.filter {
-            $0.nightDate == lastPlanDate && seen.insert(FeaturedItem.event($0).dedupeKey).inserted
+            $0.nightDate == lastPlanDate
+                && Self.bookableNow($0)
+                && seen.insert(FeaturedItem.event($0).dedupeKey).inserted
         }
     }
 

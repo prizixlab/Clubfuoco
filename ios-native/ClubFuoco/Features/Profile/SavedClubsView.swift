@@ -93,6 +93,9 @@ struct SavedClubsView: View {
                 }
                 .frame(height: 160)
                 .clipped()
+                // Taps only inside the visible frame — a .fill image's clipped-away overflow
+                // still hit-tests and steals taps from views above it on wider phones.
+                .contentShape(.rect)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(place.name)

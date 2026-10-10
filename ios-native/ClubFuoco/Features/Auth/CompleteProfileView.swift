@@ -33,11 +33,19 @@ struct CompleteProfileView: View {
     @State private var bYear = currentYear - 25
 
     @State private var saving = false
+    /// Profile saved on a fresh OAuth sign-up — offer the taste survey next.
+    @State private var offerSurvey = false
     @State private var errorMessage: String?
 
     var body: some View {
         Group {
-            if ready {
+            if offerSurvey {
+                ScrollView {
+                    SurveyChoiceView(kicker: "N° 02 · Il tuo profilo") { auth.finishOnboarding() }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 28)
+                }
+            } else if ready {
                 form
             } else {
                 Theme.cream.ignoresSafeArea()
@@ -231,7 +239,10 @@ struct CompleteProfileView: View {
             do {
                 try await auth.updateProfile(updates)
                 Haptics.success()
-                auth.finishOnboarding()
+                // A new Google/Apple sign-up gets the same survey choice as the
+                // email wizard. Existing users walled here by a newly required
+                // field (onboarding not in progress) go straight back in.
+                if auth.onboardingInProgress { offerSurvey = true } else { auth.finishOnboarding() }
             } catch {
                 Haptics.error()
                 let msg = error.localizedDescription

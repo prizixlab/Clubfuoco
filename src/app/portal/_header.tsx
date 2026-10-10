@@ -15,6 +15,7 @@ const TABS = [
   { href: '/portal/conflicts', label: 'Conflicts', match: (p: string) => p.startsWith('/portal/conflicts') },
   { href: '/portal/tables',    label: 'VIP',      match: (p: string) => p.startsWith('/portal/tables') },
   { href: '/portal/insights',  label: 'Insights', match: (p: string) => p.startsWith('/portal/insights') },
+  { href: '/portal/billing',   label: 'Billing',  match: (p: string) => p.startsWith('/portal/billing') },
   { href: '/portal/activity',  label: 'Activity', match: (p: string) => p.startsWith('/portal/activity') },
   { href: '/portal/notifications', label: 'Notify', match: (p: string) => p.startsWith('/portal/notifications') },
   { href: '/portal/support',   label: 'Support',  match: (p: string) => p.startsWith('/portal/support') },

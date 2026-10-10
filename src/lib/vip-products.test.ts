@@ -88,8 +88,12 @@ describe('resolveSeller — ranked promoters, first one selling wins', () => {
     expect(canSell(rumba, venue(rumba), soldOut, SAT)).toBeNull()
   })
 
-  it('a hidden or Fourvenues-only promoter never sells on Fuoco checkout', () => {
-    expect(canSell({ ...rumba, hidden: true }, venue(rumba), ls, SAT)).toBeNull()
+  it('hiding guestlist offers doesn’t stop VIP; shutting VIP down does', () => {
+    expect(canSell({ ...rumba, hidden: true }, venue(rumba), ls, SAT)).toBe('fuoco')
+    expect(canSell({ ...rumba, vip_paused: true }, venue(rumba), ls, SAT)).toBeNull()
+  })
+
+  it('a Fourvenues-only promoter never sells on Fuoco checkout', () => {
     const fvOnly = brand('hypelist')   // channel removed, still Fourvenues-only
     expect(canSell(fvOnly, venue(fvOnly), ls, SAT)).toBeNull()
   })

@@ -48,9 +48,9 @@ export async function GET() {
   }
 
   // Any promoter can be ranked — being ranked is the permission to sell.
-  // Hidden promoters are left out (they can't sell anything).
+  // "Hide offers" only hides guestlist offers, so hidden promoters are
+  // rankable too; VIP shut down is flagged in the editor instead.
   const candidates = [...state.brands.values()]
-    .filter(b => !b.hidden)
     .sort((a, b) => a.name.localeCompare(b.name))
 
   const clubs = clubIds.map(clubId => {
@@ -65,7 +65,7 @@ export async function GET() {
         // Fourvenues is just how they'd check out: their channel lists this
         // club → Fourvenues, otherwise Fuoco. HypeList (Fourvenues-only)
         // can only sell what its channel lists.
-        const onChannelHere = !!b.fourvenues_channel && clubZones.some(([key]) =>
+        const onChannelHere = !!b.fourvenues_channel && !b.hidden && clubZones.some(([key]) =>
           nights.some(n => listingsFor(catalog, clubId, n, key).some(l => l.brandKey === b.key)))
         return {
           id: b.id, name: b.name, color: b.color,

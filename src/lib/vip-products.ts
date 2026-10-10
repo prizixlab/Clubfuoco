@@ -8,7 +8,7 @@
 // ranks them per product (vip_product_sellers). On a given night:
 //
 //   1. The highest-ranked promoter who can sell that night gets the buy button.
-//      Can sell = not hidden, VIP not shut down, and —
+//      Can sell = VIP not shut down, and —
 //        • with a Fourvenues channel (HypeList's set-up): their own channel
 //          lists this table that night, not sold out;
 //        • without one: they do VIP at this club (brand_vip_venues) on this
@@ -136,11 +136,15 @@ export const checkoutOf = (b: Pick<SellerBrand, 'fourvenues_channel'>): Checkout
 export function canSell(
   brand: SellerBrand, venue: VipVenue | undefined, listings: Listing[], night: string,
 ): Checkout | null {
-  if (brand.hidden || brand.vip_paused) return null
+  // "Hide offers" (brand.hidden) hides a promoter's GUESTLIST offers only —
+  // VIP has its own switch (vip_paused). It does matter for checkout: the app
+  // drops a hidden brand's Fourvenues listings, so a hidden promoter can't
+  // send guests to their Fourvenues link and sells on Fuoco checkout instead.
+  if (brand.vip_paused) return null
   const onSale = listings.filter(l => !l.product.sold_out)
   if (onSale.length === 0) return null
   if (venue?.paused || venue?.skipped_dates.includes(night)) return null
-  if (brand.fourvenues_channel && onSale.some(l => l.brandKey === brand.key)) return 'fourvenues'
+  if (brand.fourvenues_channel && !brand.hidden && onSale.some(l => l.brandKey === brand.key)) return 'fourvenues'
   if (isFourvenuesOnlyBrandKey(brand.key)) return null
   return 'fuoco'
 }

@@ -240,7 +240,7 @@ function RankEditor({ club, value, onChange }: { club: Club; value: string[]; on
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {value.map((id, i) => {
         const c = byId.get(id)
-        const warn = !c ? 'hidden promoter'
+        const warn = !c ? 'promoter removed'
           : c.vip_paused ? 'VIP shut down'
           : c.venue_paused ? 'paused at this club'
           : c.fourvenues_only ? 'Fourvenues-only, and their link doesn’t list this club' : null

@@ -16,6 +16,8 @@ import { NON_ADMITTING_PAYMENT_LIST } from '@/lib/refunds'
 //                         duplicates a booking for the same user+night too.
 //   * external_tickets  — Fourvenues lists/tickets/tables bought in the app.
 //                         Promoter = the brand selling that event code.
+// Assignments (billing_assignments) give an event — a club on a night — a
+// promoter, for entries that have none of their own (old offer bookings).
 // Exclusions (billing_exclusions) mark people or single entries that don't
 // count — they're returned flagged, never dropped, so the operator can see
 // and undo them.
@@ -41,6 +43,10 @@ export interface BillingLine {
   user_phone: string | null
   checked_in: boolean
   excluded: { id: string; by: 'user' | 'line'; reason: string | null } | null
+  /** No promoter of its own — the operator can assign its event (club + night). */
+  assignable: boolean
+  /** Promoter came from a billing_assignments row, not from the data. */
+  assigned: boolean
 }
 
 const FUOCO_HOUSE = { key: 'fuoco:house', name: 'Club Fuoco (house)' }
@@ -83,7 +89,7 @@ export async function GET(req: NextRequest) {
     return b ? { key: b.id, name: b.name } : { key: `user:${userId}`, name: '' }
   }
 
-  type Raw = Omit<BillingLine, 'club' | 'user_name' | 'user_email' | 'user_phone' | 'excluded'>
+  type Raw = Omit<BillingLine, 'club' | 'user_name' | 'user_email' | 'user_phone' | 'excluded' | 'assignable' | 'assigned'>
   const raw: Raw[] = []
 
   // ── Bookings ──────────────────────────────────────────────────────────────
@@ -241,8 +247,19 @@ export async function GET(req: NextRequest) {
     else if (e.line_id) exLine.set(`${e.source}|${e.line_id}`, { id: e.id, reason: e.reason })
   }
 
+  // ── Assignments ───────────────────────────────────────────────────────────
+  const as = await sb.from('billing_assignments').select('club_id, night, brand_id')
+  const assignmentsReady = !as.error
+  const assignedBrand = new Map<string, string>()
+  for (const a of (as.data ?? []) as { club_id: string; night: string; brand_id: string }[]) {
+    assignedBrand.set(`${a.club_id}|${a.night}`, a.brand_id)
+  }
+
   const lines: BillingLine[] = raw.map(l => {
     const u = l.user_id ? users.get(l.user_id) : undefined
+    const assignable = l.promoter_key === FUOCO_DIRECT.key && !!l.club_id && !!l.night
+    const brand = assignable ? brandById.get(assignedBrand.get(`${l.club_id}|${l.night}`) ?? '') : undefined
+    if (brand) { l.promoter_key = brand.id; l.promoter = brand.name }
     const line = exLine.get(`${l.source}|${l.id}`)
     const person = l.user_id ? exUser.get(l.user_id) : undefined
     return {
@@ -253,8 +270,15 @@ export async function GET(req: NextRequest) {
       user_email: u?.email ?? null,
       user_phone: u?.phone ?? null,
       excluded: line ? { ...line, by: 'line' as const } : person ? { ...person, by: 'user' as const } : null,
+      assignable,
+      assigned: !!brand,
     }
   }).sort((a, b) => b.created_at.localeCompare(a.created_at))
 
-  return ok({ period, exclusionsReady, lines })
+  // Promoters the operator can assign an event to.
+  const promoters = brands
+    .map(b => ({ id: b.id, name: b.name }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  return ok({ period, exclusionsReady, assignmentsReady, promoters, lines })
 }

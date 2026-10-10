@@ -24,8 +24,14 @@ interface Line {
   user_phone: string | null
   checked_in: boolean
   excluded: { id: string; by: 'user' | 'line'; reason: string | null } | null
+  assignable: boolean
+  assigned: boolean
 }
-interface Payload { period: string; exclusionsReady: boolean; lines: Line[] }
+interface Promoter { id: string; name: string }
+interface Payload {
+  period: string; exclusionsReady: boolean; assignmentsReady: boolean
+  promoters: Promoter[]; lines: Line[]
+}
 
 const KIND_LABEL: Record<Kind, string> = { guestlist: 'Guestlist', ticket: 'Ticket', table: 'VIP table' }
 const SOURCE_LABEL: Record<Line['source'], string> = { offer: 'Offer', event: 'Event', fourvenues: 'Fourvenues' }
@@ -121,6 +127,16 @@ export default function BillingPage() {
     setBusy(false)
   }
 
+  async function assign(club_id: string, night: string, brand_id: string | null, label: string) {
+    setError(null)
+    try {
+      await api('/api/portal/billing/assignments', {
+        method: 'POST', body: JSON.stringify({ club_id, night, brand_id, label }),
+      })
+      await load()
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed') }
+  }
+
   async function include(line: Line) {
     if (!line.excluded) return
     setError(null)
@@ -169,6 +185,8 @@ export default function BillingPage() {
             <StatTile label="Not counted" value={totals.excluded} />
           </div>
 
+          <UnassignedCard lines={lines} promoters={d.promoters} ready={d.assignmentsReady} onAssign={assign} />
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 18, marginBottom: 22 }}>
             <TallyCard title="By promoter" rows={byPromoter} active={promoter} onPick={t => setPromoter(promoter?.key === t.key ? null : t)} />
             <TallyCard title="By club" rows={byClub} active={club} onPick={t => setClub(club?.key === t.key ? null : t)} />
@@ -206,7 +224,7 @@ export default function BillingPage() {
                       {l.club}
                     </div>
                     <div style={{ fontSize: 12, color: C.dim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {l.promoter} · {l.night ?? l.created_at.slice(0, 10)}
+                      {l.promoter}{l.assigned ? ' (assigned)' : ''} · {l.night ?? l.created_at.slice(0, 10)}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -333,5 +351,71 @@ function ExcludeModal({ line, busy, personEntries, onClose, onConfirm }: {
         </Btn>
       </div>
     </Modal>
+  )
+}
+
+/** Events (a club on a night) whose entries have no promoter of their own.
+ *  Picking a promoter bills every such entry at that club that night to them;
+ *  picking "No promoter" undoes it. Assigned events stay listed so they can
+ *  be changed. */
+function UnassignedCard({ lines, promoters, ready, onAssign }: {
+  lines: Line[]; promoters: Promoter[]; ready: boolean
+  onAssign: (club_id: string, night: string, brand_id: string | null, label: string) => void
+}) {
+  const events = useMemo(() => {
+    const m = new Map<string, { club_id: string; night: string; club: string; entries: number; heads: number; brand: string | null }>()
+    for (const l of lines) {
+      if (!l.assignable || !l.club_id || !l.night) continue
+      const k = `${l.club_id}|${l.night}`
+      const e = m.get(k) ?? { club_id: l.club_id, night: l.night, club: l.club, entries: 0, heads: 0, brand: l.assigned ? l.promoter_key : null }
+      e.entries++; e.heads += l.heads
+      m.set(k, e)
+    }
+    return [...m.values()].sort((a, b) => Number(!!a.brand) - Number(!!b.brand) || b.night.localeCompare(a.night))
+  }, [lines])
+  if (!events.length) return null
+  const open = events.filter(e => !e.brand).length
+
+  return (
+    <Card style={{ marginBottom: 22, borderColor: open ? C.gold : C.line }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 6 }}>
+        <p style={{ ...caps, color: C.gold, margin: 0, letterSpacing: '0.14em' }}>
+          Events without a promoter · {open ? `${open} to assign` : 'all assigned'}
+        </p>
+      </div>
+      <p style={{ fontSize: 12.5, color: C.dim, margin: '0 0 12px', fontFamily: font, lineHeight: 1.5 }}>
+        Entries here came in with no promoter attached. Assign the event and they count toward that promoter.
+      </p>
+      {!ready && (
+        <p style={{ fontSize: 12.5, color: C.goldHi, margin: '0 0 12px', fontFamily: font }}>
+          Assigning isn&apos;t switched on yet — the billing_assignments table hasn&apos;t been applied.
+        </p>
+      )}
+      <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+        {events.map(e => (
+          <div key={`${e.club_id}|${e.night}`} style={{
+            display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 12, alignItems: 'center',
+            padding: '9px 0', borderTop: `1px solid ${C.line}`, fontFamily: font,
+          }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.club}</div>
+              <div style={{ fontFamily: mono, fontSize: 11.5, color: C.dim }}>
+                {e.night} · {e.entries} entr{e.entries === 1 ? 'y' : 'ies'} · {e.heads} {e.heads === 1 ? 'person' : 'people'}
+              </div>
+            </div>
+            <select disabled={!ready} value={e.brand ?? ''}
+              onChange={ev => onAssign(e.club_id, e.night, ev.target.value || null, `${e.club} · ${e.night}`)}
+              style={{
+                background: e.brand ? C.lifted : C.card, color: e.brand ? C.text : C.goldHi,
+                border: `1px solid ${e.brand ? C.line : C.gold}`, borderRadius: 8,
+                padding: '7px 10px', fontFamily: font, fontSize: 13, minWidth: 180,
+              }}>
+              <option value="">No promoter — assign…</option>
+              {promoters.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+        ))}
+      </div>
+    </Card>
   )
 }

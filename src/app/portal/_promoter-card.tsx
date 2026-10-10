@@ -7,6 +7,7 @@ import type { PromoterRow } from '@/app/api/portal/promoters/route'
 import { ActivateButton, HideOffersButton, Badge, Btn, Card, api, C, caps, font, mono } from './_ui'
 import { FeeControl } from './_fee-control'
 import { CredentialControl } from './_credential-control'
+import { DisclosureButton } from './_disclosure'
 
 // Shared mutation helpers for the promoter roster. Every action targets the
 // promoter's application (grant/revoke access, IG verification) via
@@ -201,6 +202,9 @@ export function PromoterCard({ row, live, actions, onReload }: {
             </Link>
             <span style={{ flex: 1, display: 'flex' }}>
               <HideOffersButton brand={b} onDone={onReload} wide />
+            </span>
+            <span style={{ flex: '1 1 100%', display: 'flex' }}>
+              <DisclosureButton brandId={b.id} name={displayName(row)} email={b.login_email ?? row.email} />
             </span>
             {!b.is_active && (
               <span style={{ flex: '1 1 100%', display: 'flex' }}>

@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import QRCode    from 'qrcode'
+import { eur, priceLine, type DisclosureTable } from '@/lib/disclosure'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
@@ -578,5 +579,103 @@ export async function sendCredentialIntake({
     subject: `Your ${providerLabel} API key for Club Fuoco`,
     html,
   })
+  return true
+}
+
+// ── Promoter disclosure email ────────────────────────────────────────────────
+// Sent from the portal's "Send disclosure" on a promoter card. Per club: every
+// VIP table they sell with all its prices, what the club pays per table and
+// how that splits between Club Fuoco and the promoter; then the guestlist
+// price for men and women, split 50/50. The binding statement goes in
+// verbatim — this mail is the written record the contract clause refers to.
+export interface DisclosureEmailClub {
+  club_name: string
+  tables: (DisclosureTable & { club_pays: number | null; fuoco_part: number | null; promoter_part: number | null })[]
+  gl_man: number | null
+  gl_woman: number | null
+  gl_man_half: number | null
+  gl_woman_half: number | null
+}
+
+export async function sendPromoterDisclosure({
+  to, displayName, clubs, statement, sentAt,
+}: {
+  to:          string
+  displayName: string
+  clubs:       DisclosureEmailClub[]
+  statement:   string
+  sentAt:      string
+}): Promise<boolean> {
+  if (!resend) return false
+  const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
+
+  const cell = 'padding:9px 8px;border-top:1px solid rgba(255,255,255,0.08);font-size:13px;color:#F5F5F7;vertical-align:top;'
+  const head = 'padding:0 8px 8px;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(245,245,247,0.45);text-align:left;font-weight:600;'
+  const kicker = 'margin:22px 0 8px;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#C09950;font-weight:700;'
+
+  const section = (c: DisclosureEmailClub) => {
+    const tables = c.tables.length ? `
+      <p style="${kicker}">VIP tables</p>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <th style="${head}">Table</th><th style="${head}">Sold at</th><th style="${head}">Club pays / table</th>
+          <th style="${head}">Club Fuoco</th><th style="${head}">Promoter</th>
+        </tr>
+        ${c.tables.map(t => `
+        <tr>
+          <td style="${cell}font-weight:600;">${esc(t.name)}</td>
+          <td style="${cell}">${t.prices.length ? t.prices.map(p => esc(priceLine(p))).join('<br>') : '<span style="color:rgba(245,245,247,0.45);">No price listed</span>'}</td>
+          <td style="${cell}">${eur(t.club_pays)}</td>
+          <td style="${cell}">${eur(t.fuoco_part)}</td>
+          <td style="${cell}">${eur(t.promoter_part)}</td>
+        </tr>`).join('')}
+      </table>` : ''
+    const gl = c.gl_man != null || c.gl_woman != null ? `
+      <p style="${kicker}">Guestlist</p>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><th style="${head}"></th><th style="${head}">Price</th><th style="${head}">Club Fuoco 50%</th><th style="${head}">Promoter 50%</th></tr>
+        <tr><td style="${cell}">Men</td><td style="${cell}">${eur(c.gl_man)}</td><td style="${cell}">${eur(c.gl_man_half)}</td><td style="${cell}">${eur(c.gl_man_half)}</td></tr>
+        <tr><td style="${cell}">Women</td><td style="${cell}">${eur(c.gl_woman)}</td><td style="${cell}">${eur(c.gl_woman_half)}</td><td style="${cell}">${eur(c.gl_woman_half)}</td></tr>
+      </table>` : ''
+    return `
+    <h2 style="margin:28px 0 0;font-size:17px;color:#F5F5F7;font-weight:700;border-top:1px solid rgba(255,255,255,0.12);padding-top:20px;">${esc(c.club_name)}</h2>
+    ${tables}${gl}`
+  }
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0A0A0A;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0A0A0A;padding:32px 0;">
+<tr><td align="center">
+<table width="680" cellpadding="0" cellspacing="0" style="max-width:680px;width:100%;">
+  <tr><td style="padding:0 0 28px;text-align:center;">
+    <p style="margin:0;font-size:11px;letter-spacing:0.25em;text-transform:uppercase;color:#C09950;font-weight:700;">CLUB FUOCO · PROMOTER DISCLOSURE</p>
+  </td></tr>
+  <tr><td style="background:#141416;border-radius:16px;border:1px solid rgba(255,255,255,0.1);padding:32px 24px;">
+    <h1 style="margin:0 0 8px;font-size:22px;color:#F5F5F7;font-weight:700;">Disclosure for ${esc(displayName)}</h1>
+    <p style="margin:0;font-size:13px;color:rgba(245,245,247,0.55);">Issued ${esc(fmtDate(sentAt))}</p>
+    ${clubs.map(section).join('')}
+    <p style="margin:28px 0 0;padding:16px;border:1px solid rgba(192,153,80,0.45);border-radius:8px;font-size:13px;color:#F5F5F7;line-height:1.6;">
+      ${esc(statement)}
+    </p>
+  </td></tr>
+  <tr><td style="padding:24px 0 0;text-align:center;">
+    <p style="margin:0;font-size:11px;color:rgba(245,245,247,0.25);line-height:1.6;">Club Fuoco · Barcelona</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+
+  const { error } = await resend.emails.send({
+    from:    PARTNER_FROM,
+    to,
+    subject: `Club Fuoco disclosure — ${displayName}`,
+    html,
+  })
+  if (error) throw new Error(error.message)
   return true
 }

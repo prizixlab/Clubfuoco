@@ -82,6 +82,31 @@ struct MainTabView: View {
             selection = .tickets
             FVTicketStore.shared.wantsTicketsTab = false
         }
+        // A tapped portal broadcast linking a venue or event. initial: true so
+        // a cold launch from the push still lands once the tabs exist.
+        .onChange(of: PushLinkRouter.shared.pending, initial: true) { _, target in
+            guard let target else { return }
+            PushLinkRouter.shared.pending = nil
+            Task { await open(target) }
+        }
+    }
+
+    /// Resolves the push target and pushes its page onto Explore. A venue that
+    /// went inactive or an event that left the feed since the send simply
+    /// leaves the user on Explore.
+    private func open(_ target: PushLinkRouter.Target) async {
+        selection = .explore
+        switch target {
+        case .club(let id):
+            guard let place = try? await auth.queries.clubsByIds([id]).first else { return }
+            explorePath = NavigationPath()
+            explorePath.append(place)
+        case .event(let id):
+            let feed: EventsPayload? = try? await api.get("/api/events/feed")
+            guard let event = feed?.events.first(where: { $0.id.lowercased() == id }) else { return }
+            explorePath = NavigationPath()
+            explorePath.append(event)
+        }
     }
 
     private func refreshBadges() async {

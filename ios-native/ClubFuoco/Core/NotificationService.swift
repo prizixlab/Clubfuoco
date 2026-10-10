@@ -31,6 +31,10 @@ final class NotificationForegroundDelegate: NSObject, UNUserNotificationCenterDe
             )
         } else if info["kind"] as? String == "morning_after_test" {
             NotificationCenter.default.post(name: .cfMorningAfterTapped, object: nil)
+        } else if let link = info["link"] as? String, let target = PushLinkRouter.Target(path: link) {
+            // Portal broadcast linking a venue or event. Stored, not posted,
+            // for the same cold-launch reason as the ticket case below.
+            Task { @MainActor in PushLinkRouter.shared.pending = target }
         } else if let link = info["link"] as? String, link.hasPrefix("/bookings") {
             // "Your ticket is ready" → open Tickets on that ticket. Stored on
             // the store, not posted, so a cold launch from the push still
@@ -45,6 +49,32 @@ final class NotificationForegroundDelegate: NSObject, UNUserNotificationCenterDe
         }
         completionHandler()
     }
+}
+
+/// Where a tapped portal broadcast wants to land. MainTabView consumes
+/// `pending`: switches to Explore and pushes the venue or event page.
+@MainActor
+@Observable
+final class PushLinkRouter {
+    static let shared = PushLinkRouter()
+
+    enum Target: Equatable {
+        case club(String)
+        case event(String)
+
+        /// Parses the push's `link` — "/clubs/<id>" or "/events/<id>".
+        nonisolated init?(path: String) {
+            let parts = path.split(separator: "/").map(String.init)
+            guard parts.count == 2, !parts[1].isEmpty else { return nil }
+            switch parts[0] {
+            case "clubs": self = .club(parts[1].lowercased())
+            case "events": self = .event(parts[1].lowercased())
+            default: return nil
+            }
+        }
+    }
+
+    var pending: Target?
 }
 
 extension Notification.Name {
